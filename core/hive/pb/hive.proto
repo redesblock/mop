@@ -1,0 +1,11 @@
+syntax = "proto3";
+package pb;
+
+message Peers {
+    repeated HopAddress peers = 1;
+}
+
+message HopAddress {
+    bytes Overlay = 1;
+    string Underlay = 2;
+}
