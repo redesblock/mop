@@ -15,6 +15,7 @@ type Service interface {
 	Disconnect(overlay swarm.Address) error
 	Peers() []Peer
 	SetPeerAddedHandler(func(context.Context, swarm.Address) error)
+	Addresses() ([]ma.Multiaddr, error)
 }
 
 // Streamer is able to create a new Stream.

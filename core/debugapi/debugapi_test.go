@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/addressbook/inmem"
 	"github.com/redesblock/hop/core/debugapi"
@@ -56,4 +57,14 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 		TopologyDriver: topologyDriver,
 		Cleanup:        cleanup,
 	}
+}
+
+func mustMultiaddr(t *testing.T, s string) multiaddr.Multiaddr {
+	t.Helper()
+
+	a, err := multiaddr.NewMultiaddr(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
 }
