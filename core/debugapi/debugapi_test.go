@@ -9,10 +9,10 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/addressbook/inmem"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	mockstore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology/mock"
 	"resenje.org/web"
@@ -31,7 +31,8 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T, o testServerOptions) *testServer {
-	addressbook := inmem.New()
+	statestore := mockstore.NewStateStore()
+	addressbook := addressbook.New(statestore)
 	topologyDriver := mock.NewTopologyDriver()
 
 	s := debugapi.New(debugapi.Options{

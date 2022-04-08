@@ -2,6 +2,7 @@ package full
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/redesblock/hop/core/discovery"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 )
@@ -57,9 +59,12 @@ func (d *Driver) AddPeer(ctx context.Context, addr swarm.Address) error {
 	d.mtx.Unlock()
 
 	connectedPeers := d.p2pService.Peers()
-	ma, exists := d.addressBook.Get(addr)
-	if !exists {
-		return topology.ErrNotFound
+	ma, err := d.addressBook.Get(addr)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return topology.ErrNotFound
+		}
+		return err
 	}
 
 	if !isConnected(addr, connectedPeers) {
@@ -71,7 +76,10 @@ func (d *Driver) AddPeer(ctx context.Context, addr swarm.Address) error {
 		// update addr if it is wrong or it has been changed
 		if !addr.Equal(peerAddr) {
 			addr = peerAddr
-			d.addressBook.Put(peerAddr, ma)
+			err := d.addressBook.Put(peerAddr, ma)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

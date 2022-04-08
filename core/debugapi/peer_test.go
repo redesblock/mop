@@ -12,6 +12,7 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/mock"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -36,8 +37,8 @@ func TestConnect(t *testing.T) {
 			Address: overlay.String(),
 		})
 
-		multia, exists := testServer.Addressbook.Get(overlay)
-		if exists != true && underlay != multia.String() {
+		multia, err := testServer.Addressbook.Get(overlay)
+		if err != nil && errors.Is(err, storage.ErrNotFound) && underlay != multia.String() {
 			t.Fatalf("found wrong underlay.  expected: %s, found: %s", underlay, multia.String())
 		}
 	})
@@ -77,8 +78,8 @@ func TestConnect(t *testing.T) {
 			Message: testErr.Error(),
 		})
 
-		multia, exists := testServer.Addressbook.Get(overlay)
-		if exists != true && underlay != multia.String() {
+		multia, err := testServer.Addressbook.Get(overlay)
+		if err != nil && errors.Is(err, storage.ErrNotFound) && underlay != multia.String() {
 			t.Fatalf("found wrong underlay.  expected: %s, found: %s", underlay, multia.String())
 		}
 

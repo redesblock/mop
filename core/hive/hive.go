@@ -2,6 +2,7 @@ package hive
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -87,10 +89,13 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 	w, _ := protobuf.NewWriterAndReader(stream)
 	var peersRequest pb.Peers
 	for _, p := range peers {
-		addr, found := s.addressBook.Get(p)
-		if !found {
-			s.logger.Debugf("Peer not found %s", peer, err)
-			continue
+		addr, err := s.addressBook.Get(p)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				s.logger.Debugf("Peer not found %s", peer, err)
+				continue
+			}
+			return err
 		}
 
 		peersRequest.Peers = append(peersRequest.Peers, &pb.HopAddress{
@@ -122,7 +127,10 @@ func (s *Service) peersHandler(_ context.Context, peer p2p.Peer, stream p2p.Stre
 			continue
 		}
 
-		s.addressBook.Put(swarm.NewAddress(newPeer.Overlay), addr)
+		err = s.addressBook.Put(swarm.NewAddress(newPeer.Overlay), addr)
+		if err != nil {
+			return err
+		}
 		if s.peerHandler != nil {
 			if err := s.peerHandler(context.Background(), swarm.NewAddress(newPeer.Overlay)); err != nil {
 				return err

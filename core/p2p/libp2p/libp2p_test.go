@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/addressbook/inmem"
+	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p"
+	"github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -47,7 +48,8 @@ func newService(t *testing.T, o libp2p.Options) (s *libp2p.Service, overlay swar
 	}
 
 	if o.Addressbook == nil {
-		o.Addressbook = inmem.New()
+		statestore := mock.NewStateStore()
+		o.Addressbook = addressbook.New(statestore)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
