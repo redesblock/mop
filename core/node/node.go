@@ -191,6 +191,7 @@ func New(o Options) (*Node, error) {
 	if o.DebugAPIAddr != "" {
 		// Debug API server
 		debugAPIService := debugapi.New(debugapi.Options{
+			Overlay:        address,
 			P2P:            p2ps,
 			Logger:         logger,
 			Addressbook:    addressbook,

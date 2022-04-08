@@ -13,12 +13,14 @@ import (
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology/mock"
 	"resenje.org/web"
 )
 
 type testServerOptions struct {
-	P2P p2p.Service
+	Overlay swarm.Address
+	P2P     p2p.Service
 }
 
 type testServer struct {
@@ -33,6 +35,7 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	topologyDriver := mock.NewTopologyDriver()
 
 	s := debugapi.New(debugapi.Options{
+		Overlay:        o.Overlay,
 		P2P:            o.P2P,
 		Logger:         logging.New(ioutil.Discard, 0),
 		Addressbook:    addressbook,
