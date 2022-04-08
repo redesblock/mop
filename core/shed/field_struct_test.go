@@ -1,8 +1,10 @@
 package shed
 
 import (
+	"io/ioutil"
 	"testing"
 
+	"github.com/redesblock/hop/core/logging"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -11,8 +13,8 @@ import (
 func TestStructField(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-
-	complexField, err := db.NewStructField("complex-field")
+	logger := logging.New(ioutil.Discard, 0)
+	complexField, err := db.NewStructField("complex-field", logger)
 	if err != nil {
 		t.Fatal(err)
 	}

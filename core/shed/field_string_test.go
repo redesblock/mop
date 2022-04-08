@@ -1,8 +1,10 @@
 package shed
 
 import (
+	"io/ioutil"
 	"testing"
 
+	"github.com/redesblock/hop/core/logging"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -12,7 +14,8 @@ func TestStringField(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
 
-	simpleString, err := db.NewStringField("simple-string")
+	logger := logging.New(ioutil.Discard, 0)
+	simpleString, err := db.NewStringField("simple-string", logger)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,27 +1,31 @@
 package shed
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
+	"encoding/json"
+
+	"github.com/redesblock/hop/core/logging"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // StructField is a helper to store complex structure by
 // encoding it in RLP format.
 type StructField struct {
-	db  *DB
-	key []byte
+	db     *DB
+	key    []byte
+	logger logging.Logger
 }
 
 // NewStructField returns a new StructField.
 // It validates its name and type against the database schema.
-func (db *DB) NewStructField(name string) (f StructField, err error) {
+func (db *DB) NewStructField(name string, logger logging.Logger) (f StructField, err error) {
 	key, err := db.schemaFieldKey(name, "struct-rlp")
 	if err != nil {
 		return f, err
 	}
 	return StructField{
-		db:  db,
-		key: key,
+		db:     db,
+		key:    key,
+		logger: logger,
 	}, nil
 }
 
@@ -30,15 +34,17 @@ func (db *DB) NewStructField(name string) (f StructField, err error) {
 func (f StructField) Get(val interface{}) (err error) {
 	b, err := f.db.Get(f.key)
 	if err != nil {
+		f.logger.Debugf("could not GET key %s", string(f.key))
 		return err
 	}
-	return rlp.DecodeBytes(b, val)
+	return json.Unmarshal(b, val)
 }
 
 // Put marshals provided val and saves it to the database.
 func (f StructField) Put(val interface{}) (err error) {
-	b, err := rlp.EncodeToBytes(val)
+	b, err := json.Marshal(val)
 	if err != nil {
+		f.logger.Debugf("could not PUT key %s", string(f.key))
 		return err
 	}
 	return f.db.Put(f.key, b)
@@ -46,8 +52,9 @@ func (f StructField) Put(val interface{}) (err error) {
 
 // PutInBatch marshals provided val and puts it into the batch.
 func (f StructField) PutInBatch(batch *leveldb.Batch, val interface{}) (err error) {
-	b, err := rlp.EncodeToBytes(val)
+	b, err := json.Marshal(val)
 	if err != nil {
+		f.logger.Debugf("could not PUT key %s in batch", string(f.key))
 		return err
 	}
 	batch.Put(f.key, b)

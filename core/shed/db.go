@@ -1,6 +1,7 @@
 package shed
 
 import (
+	"github.com/redesblock/hop/core/logging"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -15,14 +16,16 @@ const (
 // It provides a schema functionality to store fields and indexes
 // information about naming and types.
 type DB struct {
-	ldb  *leveldb.DB
-	quit chan struct{} // Quit channel to stop the metrics collection before closing the database
+	ldb     *leveldb.DB
+	metrics metrics
+	logger  logging.Logger
+	quit    chan struct{} // Quit channel to stop the metrics collection before closing the database
 }
 
 // NewDB constructs a new DB and validates the schema
 // if it exists in database on the given path.
 // metricsPrefix is used for metrics collection for the given DB.
-func NewDB(path string, metricsPrefix string) (db *DB, err error) {
+func NewDB(path string, logger logging.Logger) (db *DB, err error) {
 	ldb, err := leveldb.OpenFile(path, &opt.Options{
 		OpenFilesCacheCapacity: openFileLimit,
 	})
@@ -30,7 +33,9 @@ func NewDB(path string, metricsPrefix string) (db *DB, err error) {
 		return nil, err
 	}
 	db = &DB{
-		ldb: ldb,
+		ldb:     ldb,
+		metrics: newMetrics(),
+		logger:  logger,
 	}
 
 	if _, err = db.getSchema(); err != nil {
@@ -57,17 +62,26 @@ func NewDB(path string, metricsPrefix string) (db *DB, err error) {
 func (db *DB) Put(key []byte, value []byte) (err error) {
 	err = db.ldb.Put(key, value, nil)
 	if err != nil {
+		db.logger.Debugf("failed to insert in to DB. Error : %s", err.Error())
+		db.metrics.PutFailCounter.Inc()
 		return err
 	}
+	db.metrics.PutCounter.Inc()
 	return nil
 }
 
 // Get wraps LevelDB Get method to increment metrics counter.
 func (db *DB) Get(key []byte) (value []byte, err error) {
 	value, err = db.ldb.Get(key, nil)
-	if err != nil {
+	if err == leveldb.ErrNotFound {
+		db.logger.Debugf("key %s not found during GET", string(key))
+		db.metrics.GetNotFoundCounter.Inc()
 		return nil, err
+	} else {
+		db.logger.Errorf("key %s not found in DB", string(key))
+		db.metrics.GetFailCounter.Inc()
 	}
+	db.metrics.GetCounter.Inc()
 	return value, nil
 }
 
@@ -75,8 +89,11 @@ func (db *DB) Get(key []byte) (value []byte, err error) {
 func (db *DB) Has(key []byte) (yes bool, err error) {
 	yes, err = db.ldb.Has(key, nil)
 	if err != nil {
+		db.logger.Debugf("encountered error during HAS of key %s. Error: %s ", string(key), err.Error())
+		db.metrics.HasFailCounter.Inc()
 		return false, err
 	}
+	db.metrics.HasCounter.Inc()
 	return yes, nil
 }
 
@@ -84,13 +101,17 @@ func (db *DB) Has(key []byte) (yes bool, err error) {
 func (db *DB) Delete(key []byte) (err error) {
 	err = db.ldb.Delete(key, nil)
 	if err != nil {
+		db.logger.Debugf("could not DELETE key %s. Error: %s ", string(key), err.Error())
+		db.metrics.DeleteFailCounter.Inc()
 		return err
 	}
+	db.metrics.DeleteCounter.Inc()
 	return nil
 }
 
 // NewIterator wraps LevelDB NewIterator method to increment metrics counter.
 func (db *DB) NewIterator() iterator.Iterator {
+	db.metrics.IteratorCounter.Inc()
 	return db.ldb.NewIterator(nil, nil)
 }
 
@@ -98,8 +119,11 @@ func (db *DB) NewIterator() iterator.Iterator {
 func (db *DB) WriteBatch(batch *leveldb.Batch) (err error) {
 	err = db.ldb.Write(batch, nil)
 	if err != nil {
+		db.logger.Debugf("could not writing batch. Error: %s ", err.Error())
+		db.metrics.WriteBatchFailCounter.Inc()
 		return err
 	}
+	db.metrics.WriteBatchCounter.Inc()
 	return nil
 }
 

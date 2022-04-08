@@ -1,8 +1,10 @@
 package shed
 
 import (
+	"io/ioutil"
 	"testing"
 
+	"github.com/redesblock/hop/core/logging"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -11,8 +13,8 @@ import (
 func TestUint64Vector(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-
-	bins, err := db.NewUint64Vector("bins")
+	logger := logging.New(ioutil.Discard, 0)
+	bins, err := db.NewUint64Vector("bins", logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,8 +104,8 @@ func TestUint64Vector(t *testing.T) {
 func TestUint64Vector_Inc(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-
-	bins, err := db.NewUint64Vector("bins")
+	logger := logging.New(ioutil.Discard, 0)
+	bins, err := db.NewUint64Vector("bins", logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,8 +136,8 @@ func TestUint64Vector_Inc(t *testing.T) {
 func TestUint64Vector_IncInBatch(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-
-	bins, err := db.NewUint64Vector("bins")
+	logger := logging.New(ioutil.Discard, 0)
+	bins, err := db.NewUint64Vector("bins", logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,8 +192,8 @@ func TestUint64Vector_IncInBatch(t *testing.T) {
 func TestUint64Vector_Dec(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-
-	bins, err := db.NewUint64Vector("bins")
+	logger := logging.New(ioutil.Discard, 0)
+	bins, err := db.NewUint64Vector("bins", logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,8 +231,8 @@ func TestUint64Vector_Dec(t *testing.T) {
 func TestUint64Vector_DecInBatch(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-
-	bins, err := db.NewUint64Vector("bins")
+	logger := logging.New(ioutil.Discard, 0)
+	bins, err := db.NewUint64Vector("bins", logger)
 	if err != nil {
 		t.Fatal(err)
 	}
