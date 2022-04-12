@@ -10,7 +10,8 @@ package swarm
 // It is defined as the reverse rank of the integer part of the base 2
 // logarithm of the distance.
 // It is calculated by counting the number of common leading zeros in the (MSB)
-// binary representation of the x^y.
+// binary representation o
+//f the x^y.
 //
 // (0 farthest, 255 closest, 256 self)
 func Proximity(one, other []byte) (ret int) {
