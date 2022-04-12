@@ -4,9 +4,15 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 )
 
-// Address represents an address in metric space of
+const (
+	ChunkSize = 4096
+	MaxPO     = 16
+)
+
+// Address represents an address in Swarm metric space of
 // Node and Chunk addresses.
 type Address struct {
 	b []byte
@@ -78,3 +84,56 @@ func (a Address) MarshalJSON() ([]byte, error) {
 
 // ZeroAddress is the address that has no value.
 var ZeroAddress = NewAddress(nil)
+
+type Chunk interface {
+	Address() Address
+	Data() []byte
+	PinCounter() uint64
+	WithPinCounter(p uint64) Chunk
+	TagID() uint32
+	WithTagID(t uint32) Chunk
+}
+
+type chunk struct {
+	addr       Address
+	sdata      []byte
+	pinCounter uint64
+	tagID      uint32
+}
+
+func NewChunk(addr Address, data []byte) Chunk {
+	return &chunk{
+		addr:  addr,
+		sdata: data,
+	}
+}
+
+func (c *chunk) WithPinCounter(p uint64) Chunk {
+	c.pinCounter = p
+	return c
+}
+
+func (c *chunk) WithTagID(t uint32) Chunk {
+	c.tagID = t
+	return c
+}
+
+func (c *chunk) Address() Address {
+	return c.addr
+}
+
+func (c *chunk) Data() []byte {
+	return c.sdata
+}
+
+func (c *chunk) PinCounter() uint64 {
+	return c.pinCounter
+}
+
+func (c *chunk) TagID() uint32 {
+	return c.tagID
+}
+
+func (self *chunk) String() string {
+	return fmt.Sprintf("Address: %v Chunksize: %v", self.addr.String(), len(self.sdata))
+}
