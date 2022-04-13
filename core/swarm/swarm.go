@@ -1,3 +1,4 @@
+// Package swarm contains most basic and general Swarm concepts.
 package swarm
 
 import (
@@ -8,8 +9,9 @@ import (
 )
 
 const (
-	ChunkSize = 4096
-	MaxPO     = 16
+	ChunkSize   = 4096
+	SectionSize = 32
+	MaxPO       = 16
 )
 
 // Address represents an address in Swarm metric space of
@@ -136,4 +138,8 @@ func (c *chunk) TagID() uint32 {
 
 func (self *chunk) String() string {
 	return fmt.Sprintf("Address: %v Chunksize: %v", self.addr.String(), len(self.sdata))
+}
+
+type ChunkValidator interface {
+	Validate(ch Chunk) (valid bool)
 }

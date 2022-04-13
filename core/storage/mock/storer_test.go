@@ -7,6 +7,7 @@ import (
 
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
+	"github.com/redesblock/hop/core/storage/mock/validator"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -25,79 +26,63 @@ func TestMockStorer(t *testing.T) {
 	valueFound := []byte("data data data")
 
 	ctx := context.Background()
-	if _, err := s.Get(ctx, keyFound); err != storage.ErrNotFound {
+	if _, err := s.Get(ctx, storage.ModeGetRequest, keyFound); err != storage.ErrNotFound {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 
-	if _, err := s.Get(ctx, keyNotFound); err != storage.ErrNotFound {
+	if _, err := s.Get(ctx, storage.ModeGetRequest, keyNotFound); err != storage.ErrNotFound {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 
-	if err := s.Put(ctx, keyFound, valueFound); err != nil {
+	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(keyFound, valueFound)); err != nil {
 		t.Fatalf("expected not error but got: %v", err)
 	}
 
-	if data, err := s.Get(ctx, keyFound); err != nil {
+	if chunk, err := s.Get(ctx, storage.ModeGetRequest, keyFound); err != nil {
 		t.Fatalf("expected not error but got: %v", err)
 
 	} else {
-		if !bytes.Equal(data, valueFound) {
-			t.Fatalf("expected value %s but got %s", valueFound, data)
+		if !bytes.Equal(chunk.Data(), valueFound) {
+			t.Fatalf("expected value %s but got %s", valueFound, chunk.Data())
 		}
 	}
 }
 
 func TestMockValidatingStorer(t *testing.T) {
-	validAddr := "aabbcc"
-	invalidAddr := "bbccdd"
+	validAddressHex := "aabbcc"
+	invalidAddressHex := "bbccdd"
 
-	keyValid, err := swarm.ParseHexAddress(validAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	keyInvalid, err := swarm.ParseHexAddress(invalidAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	validAddress := swarm.MustParseHexAddress(validAddressHex)
+	invalidAddress := swarm.MustParseHexAddress(invalidAddressHex)
 
 	validContent := []byte("bbaatt")
 	invalidContent := []byte("bbaattss")
 
-	validatorF := func(addr swarm.Address, data []byte) bool {
-		if !addr.Equal(keyValid) {
-			return false
-		}
-		if !bytes.Equal(data, validContent) {
-			return false
-		}
-		return true
-	}
-
-	s := mock.NewValidatingStorer(validatorF)
+	s := mock.NewValidatingStorer(validator.NewMockValidator(validAddress, validContent))
 
 	ctx := context.Background()
 
-	if err := s.Put(ctx, keyValid, validContent); err != nil {
+	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(validAddress, validContent)); err != nil {
 		t.Fatalf("expected not error but got: %v", err)
 	}
 
-	if err := s.Put(ctx, keyInvalid, validContent); err == nil {
+	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(invalidAddress, validContent)); err == nil {
 		t.Fatalf("expected error but got none")
 	}
 
-	if err := s.Put(ctx, keyInvalid, invalidContent); err == nil {
+	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(invalidAddress, invalidContent)); err == nil {
 		t.Fatalf("expected error but got none")
 	}
 
-	if data, err := s.Get(ctx, keyValid); err != nil {
+	if chunk, err := s.Get(ctx, storage.ModeGetRequest, validAddress); err != nil {
 		t.Fatalf("got error on get but expected none: %v", err)
 	} else {
-		if !bytes.Equal(data, validContent) {
+		if !bytes.Equal(chunk.Data(), validContent) {
 			t.Fatal("stored content not identical to input data")
 		}
 	}
 
-	if _, err := s.Get(ctx, keyInvalid); err == nil {
+	if _, err := s.Get(ctx, storage.ModeGetRequest, invalidAddress); err == nil {
 		t.Fatal("got no error on get but expected one")
 	}
 

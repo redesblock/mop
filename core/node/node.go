@@ -160,7 +160,7 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("hive service: %w", err)
 	}
 
-	topologyDriver := full.New(hive, addressbook, p2ps, logger)
+	topologyDriver := full.New(hive, addressbook, p2ps, logger, address)
 	hive.SetPeerAddedHandler(topologyDriver.AddPeer)
 	p2ps.SetPeerAddedHandler(topologyDriver.AddPeer)
 	addrs, err := p2ps.Addresses()

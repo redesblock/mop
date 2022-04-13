@@ -1,0 +1,60 @@
+// Package validator contains file-oriented chunk validation implementations
+package validator
+
+import (
+	"encoding/binary"
+	"hash"
+
+	"github.com/ethersphere/bmt"
+	bmtlegacy "github.com/ethersphere/bmt/legacy"
+	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/swarm"
+	"golang.org/x/crypto/sha3"
+)
+
+var _ swarm.ChunkValidator = (*ContentAddressValidator)(nil)
+
+func hashFunc() hash.Hash {
+	return sha3.NewLegacyKeccak256()
+}
+
+// ContentAddressValidator validates that the address of a given chunk
+// is the content address of its contents
+type ContentAddressValidator struct {
+	hasher bmt.Hash
+	logger logging.Logger
+}
+
+// New constructs a new ContentAddressValidator
+func NewContentAddressValidator() *ContentAddressValidator {
+	p := bmtlegacy.NewTreePool(hashFunc, swarm.SectionSize, bmtlegacy.PoolSize)
+
+	return &ContentAddressValidator{
+		hasher: bmtlegacy.New(p),
+	}
+}
+
+// Validate performs the validation check
+func (v *ContentAddressValidator) Validate(ch swarm.Chunk) (valid bool) {
+
+	// prepare data
+	data := ch.Data()
+	address := ch.Address()
+	span := binary.LittleEndian.Uint64(data[:8])
+
+	// execute hash, compare and return result
+	v.hasher.Reset()
+	err := v.hasher.SetSpan(int64(span))
+	if err != nil {
+		v.logger.Debugf("SetSpan on bmt legacy hasher gave error: %v", err)
+		return false
+	}
+	_, err = v.hasher.Write(data[8:])
+	if err != nil {
+		v.logger.Debugf("Write on bmt legacy hasher gave error: %v", err)
+		return false
+	}
+	s := v.hasher.Sum(nil)
+
+	return address.Equal(swarm.NewAddress(s))
+}

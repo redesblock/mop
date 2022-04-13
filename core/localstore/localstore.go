@@ -16,7 +16,6 @@ import (
 	"github.com/redesblock/hop/core/tags"
 )
 
-// DB implements chunk.Store.
 var _ storage.Storer = &DB{}
 
 var (
@@ -88,6 +87,7 @@ type DB struct {
 	// are done before closing the database
 	updateGCWG sync.WaitGroup
 
+	// baseKey is the overlay address
 	baseKey []byte
 
 	batchMu sync.Mutex
@@ -292,7 +292,7 @@ func New(path string, baseKey []byte, o *Options, logger logging.Logger) (db *DB
 		EncodeKey: func(fields shed.Item) (key []byte, err error) {
 			key = make([]byte, 40)
 			binary.BigEndian.PutUint64(key[:8], uint64(fields.StoreTimestamp))
-			copy(key[8:], fields.Address[:])
+			copy(key[8:], fields.Address)
 			return key, nil
 		},
 		DecodeKey: func(key []byte) (e shed.Item, err error) {
