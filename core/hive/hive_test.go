@@ -14,7 +14,7 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 
-	book "github.com/redesblock/hop/core/addressbook"
+	ab "github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/hive"
 	"github.com/redesblock/hop/core/hive/pb"
 	"github.com/redesblock/hop/core/logging"
@@ -24,16 +24,11 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-type AddressExporter interface {
-	Overlays() ([]swarm.Address, error)
-	Multiaddresses() ([]ma.Multiaddr, error)
-}
-
 func TestBroadcastPeers(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	logger := logging.New(ioutil.Discard, 0)
 	statestore := mock.NewStateStore()
-	addressbook := book.New(statestore)
+	addressbook := ab.New(statestore)
 
 	// populate all expected and needed random resources for 2 full batches
 	// tests cases that uses fewer resources can use sub-slices of this data
@@ -42,7 +37,7 @@ func TestBroadcastPeers(t *testing.T) {
 	var wantMsgs []pb.Peers
 
 	for i := 0; i < 2; i++ {
-		wantMsgs = append(wantMsgs, pb.Peers{Peers: []*pb.HopAddress{}})
+		wantMsgs = append(wantMsgs, pb.Peers{Peers: []*pb.BzzAddress{}})
 	}
 
 	for i := 0; i < 2*hive.MaxBatchSize; i++ {
@@ -57,7 +52,7 @@ func TestBroadcastPeers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		wantMsgs[i/hive.MaxBatchSize].Peers = append(wantMsgs[i/hive.MaxBatchSize].Peers, &pb.HopAddress{Overlay: addrs[i].Bytes(), Underlay: multiaddrs[i].String()})
+		wantMsgs[i/hive.MaxBatchSize].Peers = append(wantMsgs[i/hive.MaxBatchSize].Peers, &pb.BzzAddress{Overlay: addrs[i].Bytes(), Underlay: multiaddrs[i].String()})
 	}
 
 	testCases := map[string]struct {
@@ -106,12 +101,7 @@ func TestBroadcastPeers(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			addressbookclean := book.New(mock.NewStateStore())
-
-			exporter, ok := addressbookclean.(AddressExporter)
-			if !ok {
-				t.Fatal("could not type assert AddressExporter")
-			}
+			addressbookclean := ab.New(mock.NewStateStore())
 
 			// create a hive server that handles the incoming stream
 			server := hive.New(hive.Options{
@@ -156,14 +146,14 @@ func TestBroadcastPeers(t *testing.T) {
 				}
 			}
 
-			expectOverlaysEventually(t, exporter, tc.wantOverlays)
-			expectMultiaddresessEventually(t, exporter, tc.wantMultiAddresses)
+			expectOverlaysEventually(t, addressbookclean, tc.wantOverlays)
+			expectMultiaddresessEventually(t, addressbookclean, tc.wantMultiAddresses)
 		})
 	}
 }
 
-func expectOverlaysEventually(t *testing.T, exporter AddressExporter, wantOverlays []swarm.Address) {
-	for i := 0; i < 10; i++ {
+func expectOverlaysEventually(t *testing.T, exporter ab.Interface, wantOverlays []swarm.Address) {
+	for i := 0; i < 100; i++ {
 		var stringOverlays []string
 		var stringWantOverlays []string
 		o, err := exporter.Overlays()
@@ -184,7 +174,7 @@ func expectOverlaysEventually(t *testing.T, exporter AddressExporter, wantOverla
 			return
 		}
 
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	o, err := exporter.Overlays()
@@ -195,7 +185,7 @@ func expectOverlaysEventually(t *testing.T, exporter AddressExporter, wantOverla
 	t.Errorf("Overlays got %v, want %v", o, wantOverlays)
 }
 
-func expectMultiaddresessEventually(t *testing.T, exporter AddressExporter, wantMultiaddresses []ma.Multiaddr) {
+func expectMultiaddresessEventually(t *testing.T, exporter ab.Interface, wantMultiaddresses []ma.Multiaddr) {
 	for i := 0; i < 10; i++ {
 		var stringMultiaddresses []string
 		m, err := exporter.Multiaddresses()

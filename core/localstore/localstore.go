@@ -17,7 +17,7 @@ import (
 )
 
 // DB implements chunk.Store.
-var _ storage.Store = &DB{}
+var _ storage.Storer = &DB{}
 
 var (
 	// ErrInvalidMode is retuned when an unknown Mode

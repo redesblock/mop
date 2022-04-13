@@ -22,6 +22,7 @@ import (
 	"github.com/redesblock/hop/core/keystore"
 	filekeystore "github.com/redesblock/hop/core/keystore/file"
 	memkeystore "github.com/redesblock/hop/core/keystore/mem"
+	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/metrics"
 	"github.com/redesblock/hop/core/p2p/libp2p"
@@ -29,7 +30,7 @@ import (
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
+	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology/full"
 	"github.com/redesblock/hop/core/tracing"
 )
@@ -42,6 +43,7 @@ type Node struct {
 	errorLogWriter   *io.PipeWriter
 	tracerCloser     io.Closer
 	stateStoreCloser io.Closer
+	localstoreCloser io.Closer
 }
 
 type Options struct {
@@ -170,8 +172,16 @@ func New(o Options) (*Node, error) {
 		logger.Infof("p2p address: %s", addr)
 	}
 
-	// for now, storer is an in-memory store.
-	storer := mock.NewStorer()
+	var storer storage.Storer
+	if o.DataDir == "" {
+		// TODO: this needs to support in-mem localstore implementation somehow
+	} else {
+		storer, err = localstore.New(filepath.Join(o.DataDir, "localstore"), address.Bytes(), nil, logger)
+		if err != nil {
+			return nil, fmt.Errorf("localstore: %w", err)
+		}
+	}
+	b.localstoreCloser = storer
 
 	var apiService api.Service
 	if o.APIAddr != "" {
@@ -284,6 +294,33 @@ func New(o Options) (*Node, error) {
 	}
 
 	wg.Wait()
+
+	overlays, err := addressbook.Overlays()
+	if err != nil {
+		return nil, fmt.Errorf("addressbook overlays: %w", err)
+	}
+
+	jobsC := make(chan struct{}, 16)
+	for _, o := range overlays {
+		jobsC <- struct{}{}
+		wg.Add(1)
+		go func(overlay swarm.Address) {
+			defer func() {
+				<-jobsC
+			}()
+
+			defer wg.Done()
+			if err := topologyDriver.AddPeer(p2pCtx, overlay); err != nil {
+				_ = p2ps.Disconnect(overlay)
+				logger.Debugf("topology add peer fail %s: %v", overlay, err)
+				logger.Errorf("topology add peer %s", overlay)
+				return
+			}
+		}(o)
+	}
+
+	wg.Wait()
+
 	return b, nil
 }
 
@@ -320,6 +357,10 @@ func (b *Node) Shutdown(ctx context.Context) error {
 
 	if err := b.stateStoreCloser.Close(); err != nil {
 		return fmt.Errorf("statestore: %w", err)
+	}
+
+	if err := b.localstoreCloser.Close(); err != nil {
+		return fmt.Errorf("localstore: %w", err)
 	}
 
 	return b.errorLogWriter.Close()
