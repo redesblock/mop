@@ -104,7 +104,7 @@ type DB struct {
 	putToGCCheck func([]byte) bool
 
 	// wait for all subscriptions to finish before closing
-	// underlaying LevelDB to prevent possible panics from
+	// underlaying BadgerDB to prevent possible panics from
 	// iterators
 	subscritionsWG sync.WaitGroup
 
@@ -164,7 +164,7 @@ func New(path string, baseKey []byte, o *Options, logger logging.Logger) (db *DB
 		db.updateGCSem = make(chan struct{}, maxParallelUpdateGC)
 	}
 
-	db.shed, err = shed.NewDB(path, o.MetricsPrefix)
+	db.shed, err = shed.NewDB(path, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func New(path string, baseKey []byte, o *Options, logger logging.Logger) (db *DB
 		return nil, err
 	}
 	schemaName, err := db.schemaName.Get()
-	if err != nil {
+	if err != nil && !errors.Is(err, shed.ErrNotFound) {
 		return nil, err
 	}
 	if schemaName == "" {

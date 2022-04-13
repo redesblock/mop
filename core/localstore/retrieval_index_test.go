@@ -87,10 +87,10 @@ func benchmarkRetrievalIndexes(b *testing.B, o *Options, count int) {
 //
 // Measurements on MacBook Pro (Retina, 15-inch, Mid 2014).
 //
-// go test -benchmem -run=none github.com/redesblock/hop/core/storage/localstore -bench BenchmarkUpload -v
+// go test -benchmem -run=none github.com/ethersphere/swarm/storage/localstore -bench BenchmarkUpload -v
 // goos: darwin
 // goarch: amd64
-// pkg: github.com/redesblock/hop/core/storage/localstore
+// pkg: github.com/ethersphere/swarm/storage/localstore
 // BenchmarkUpload/1000-8         	      20       59437463 ns/op     25205193 B/op    23208 allocs/op
 // BenchmarkUpload/10000-8        	       2      580646362 ns/op    216532932 B/op	  248090 allocs/op
 // BenchmarkUpload/100000-8       	       1    22373390892 ns/op   2323055312 B/op	 3995903 allocs/op

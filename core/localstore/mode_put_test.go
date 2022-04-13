@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // TestModePutRequest validates ModePutRequest index values on the provided DB.
@@ -347,7 +347,7 @@ func TestModePut_addToGc(t *testing.T) {
 					binIDs[po]++
 					var wantErr error
 					if !m.putToGc {
-						wantErr = leveldb.ErrNotFound
+						wantErr = shed.ErrNotFound
 					}
 					newRetrieveIndexesTestWithAccess(db, ch, wantTimestamp, wantTimestamp)
 					newGCIndexTest(db, ch, wantTimestamp, wantTimestamp, binIDs[po], wantErr)(t)
@@ -413,7 +413,7 @@ func TestModePut_addToGcExisting(t *testing.T) {
 					binIDs[po]++
 					var wantErr error
 					if !m.putToGc {
-						wantErr = leveldb.ErrNotFound
+						wantErr = shed.ErrNotFound
 					}
 
 					newRetrieveIndexesTestWithAccess(db, ch, wantStoreTimestamp, wantAccessTimestamp)
@@ -467,11 +467,11 @@ func TestPutDuplicateChunks(t *testing.T) {
 //
 // Measurements on MacBook Pro (Retina, 15-inch, Mid 2014)
 //
-// # go test -benchmem -run=none github.com/redesblock/hop/core/storage/localstore -bench BenchmarkPutUpload -v
+// # go test -benchmem -run=none github.com/ethersphere/swarm/storage/localstore -bench BenchmarkPutUpload -v
 //
 // goos: darwin
 // goarch: amd64
-// pkg: github.com/redesblock/hop/core/storage/localstore
+// pkg: github.com/ethersphere/swarm/storage/localstore
 // BenchmarkPutUpload/count_100_parallel_1-8         	     300	   5107704 ns/op	 2081461 B/op	    2374 allocs/op
 // BenchmarkPutUpload/count_100_parallel_2-8         	     300	   5411742 ns/op	 2081608 B/op	    2364 allocs/op
 // BenchmarkPutUpload/count_100_parallel_4-8         	     500	   3704964 ns/op	 2081696 B/op	    2324 allocs/op

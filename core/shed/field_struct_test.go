@@ -1,10 +1,7 @@
 package shed
 
 import (
-	"io/ioutil"
 	"testing"
-
-	"github.com/redesblock/hop/core/logging"
 )
 
 // TestStructField validates put and get operations
@@ -12,8 +9,8 @@ import (
 func TestStructField(t *testing.T) {
 	db, cleanupFunc := newTestDB(t)
 	defer cleanupFunc()
-	logger := logging.New(ioutil.Discard, 0)
-	complexField, err := db.NewStructField("complex-field", logger)
+
+	complexField, err := db.NewStructField("complex-field")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -46,7 +46,7 @@ func TestDB_persistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stringField, err := db.NewStringField("preserve-me", logger)
+	stringField, err := db.NewStringField("preserve-me")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestDB_persistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stringField2, err := db2.NewStringField("preserve-me", logger)
+	stringField2, err := db2.NewStringField("preserve-me")
 	if err != nil {
 		t.Fatal(err)
 	}

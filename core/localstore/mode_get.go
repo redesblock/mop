@@ -7,7 +7,6 @@ import (
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Get returns a chunk from the database. If the chunk is
@@ -27,7 +26,7 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address)
 
 	out, err := db.get(mode, addr)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if err == shed.ErrNotFound {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
@@ -108,7 +107,7 @@ func (db *DB) updateGC(item shed.Item) (err error) {
 	db.batchMu.Lock()
 	defer db.batchMu.Unlock()
 
-	batch := new(leveldb.Batch)
+	batch := db.shed.GetBatch(true)
 
 	// update accessTimeStamp in retrieve, gc
 
@@ -116,7 +115,7 @@ func (db *DB) updateGC(item shed.Item) (err error) {
 	switch err {
 	case nil:
 		item.AccessTimestamp = i.AccessTimestamp
-	case leveldb.ErrNotFound:
+	case shed.ErrNotFound:
 		// no chunk accesses
 	default:
 		return err

@@ -9,7 +9,6 @@ import (
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // SubscribePull returns a channel that provides chunk addresses and stored times from pull syncing index.
@@ -171,7 +170,7 @@ func (db *DB) LastPullSubscriptionBinID(bin uint8) (id uint64, err error) {
 
 	item, err := db.pullIndex.Last([]byte{bin})
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if err == shed.ErrNotFound {
 			return 0, nil
 		}
 		return 0, err

@@ -7,7 +7,6 @@ import (
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // GetMulti returns chunks from the database. If one of the chunks is not found
@@ -26,7 +25,7 @@ func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...swarm
 
 	out, err := db.getMulti(mode, addrs...)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if err == shed.ErrNotFound {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
