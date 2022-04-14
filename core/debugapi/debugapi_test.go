@@ -13,6 +13,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	mockstore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology/mock"
 	"resenje.org/web"
@@ -21,6 +22,7 @@ import (
 type testServerOptions struct {
 	Overlay swarm.Address
 	P2P     p2p.Service
+	Storer  storage.Storer
 }
 
 type testServer struct {
@@ -41,6 +43,7 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 		Logger:         logging.New(ioutil.Discard, 0),
 		Addressbook:    addressbook,
 		TopologyDriver: topologyDriver,
+		Storer:         o.Storer,
 	})
 	ts := httptest.NewServer(s)
 	cleanup := ts.Close

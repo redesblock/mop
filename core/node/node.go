@@ -25,14 +25,17 @@ import (
 	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/metrics"
+	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/retrieval"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology/full"
 	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/hop/core/validator"
 )
 
 type Node struct {
@@ -172,23 +175,36 @@ func New(o Options) (*Node, error) {
 		logger.Infof("p2p address: %s", addr)
 	}
 
-	var storer storage.Storer
-	if o.DataDir == "" {
-		// TODO: this needs to support in-mem localstore implementation somehow
-	} else {
-		storer, err = localstore.New(filepath.Join(o.DataDir, "localstore"), address.Bytes(), nil, logger)
-		if err != nil {
-			return nil, fmt.Errorf("localstore: %w", err)
-		}
+	var (
+		storer storage.Storer
+		path   = ""
+	)
+
+	if o.DataDir != "" {
+		path = filepath.Join(o.DataDir, "localstore")
+	}
+
+	storer, err = localstore.New(path, address.Bytes(), nil, logger)
+	if err != nil {
+		return nil, fmt.Errorf("localstore: %w", err)
 	}
 	b.localstoreCloser = storer
+
+	retrieve := retrieval.New(retrieval.Options{
+		Streamer:    p2ps,
+		ChunkPeerer: topologyDriver,
+		Storer:      storer,
+		Logger:      logger,
+	})
+
+	ns := netstore.New(storer, retrieve, validator.NewContentAddressValidator())
 
 	var apiService api.Service
 	if o.APIAddr != "" {
 		// API server
 		apiService = api.New(api.Options{
 			Pingpong: pingPong,
-			Storer:   storer,
+			Storer:   ns,
 			Logger:   logger,
 			Tracer:   tracer,
 		})
@@ -222,6 +238,7 @@ func New(o Options) (*Node, error) {
 			Logger:         logger,
 			Addressbook:    addressbook,
 			TopologyDriver: topologyDriver,
+			Storer:         storer,
 		})
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)

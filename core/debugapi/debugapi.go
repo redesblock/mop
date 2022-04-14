@@ -7,6 +7,7 @@ import (
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 )
@@ -28,6 +29,7 @@ type Options struct {
 	P2P            p2p.Service
 	Addressbook    addressbook.GetPutter
 	TopologyDriver topology.PeerAdder
+	Storer         storage.Storer
 	Logger         logging.Logger
 }
 

@@ -26,7 +26,7 @@ type ContentAddressValidator struct {
 }
 
 // New constructs a new ContentAddressValidator
-func NewContentAddressValidator() *ContentAddressValidator {
+func NewContentAddressValidator() swarm.ChunkValidator {
 	p := bmtlegacy.NewTreePool(hashFunc, swarm.SectionSize, bmtlegacy.PoolSize)
 
 	return &ContentAddressValidator{
