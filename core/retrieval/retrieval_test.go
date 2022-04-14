@@ -13,6 +13,7 @@ import (
 	"github.com/redesblock/hop/core/p2p/streamtest"
 	"github.com/redesblock/hop/core/retrieval"
 	pb "github.com/redesblock/hop/core/retrieval/pb"
+	"github.com/redesblock/hop/core/storage"
 	storemock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -31,7 +32,10 @@ func TestDelivery(t *testing.T) {
 	reqData := []byte("data data data")
 
 	// put testdata in the mock store of the server
-	_ = mockStorer.Put(context.TODO(), reqAddr, reqData)
+	_, err = mockStorer.Put(context.Background(), storage.ModePutUpload, swarm.NewChunk(reqAddr, reqData))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// create the server that will handle the request and will serve the response
 	server := retrieval.New(retrieval.Options{
@@ -67,7 +71,7 @@ func TestDelivery(t *testing.T) {
 	if !bytes.Equal(v, reqData) {
 		t.Fatalf("request and response data not equal. got %s want %s", v, reqData)
 	}
-	peerID, _ := ps.ChunkPeer(swarm.ZeroAddress)
+	peerID, _ := ps.ClosestPeer(swarm.ZeroAddress)
 	records, err := recorder.Records(peerID, "retrieval", "1.0.0", "retrieval")
 	if err != nil {
 		t.Fatal(err)
@@ -116,6 +120,6 @@ type mockPeerSuggester struct {
 	spFunc func(swarm.Address) (swarm.Address, error)
 }
 
-func (v mockPeerSuggester) ChunkPeer(addr swarm.Address) (swarm.Address, error) {
+func (v mockPeerSuggester) ClosestPeer(addr swarm.Address) (swarm.Address, error) {
 	return v.spFunc(addr)
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"os"
 	"runtime"
 	"sort"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	chunktesting "github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func init() {
@@ -127,17 +127,12 @@ func TestDB_updateGCSem(t *testing.T) {
 func newTestDB(t testing.TB, o *Options) (db *DB, cleanupFunc func()) {
 	t.Helper()
 
-	dir, err := ioutil.TempDir("", "localstore-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cleanupFunc = func() { os.RemoveAll(dir) }
 	baseKey := make([]byte, 32)
 	if _, err := rand.Read(baseKey); err != nil {
 		t.Fatal(err)
 	}
 	logger := logging.New(ioutil.Discard, 0)
-	db, err = New(dir, baseKey, o, logger)
+	db, err := New("", baseKey, o, logger)
 	if err != nil {
 		cleanupFunc()
 		t.Fatal(err)
@@ -147,7 +142,6 @@ func newTestDB(t testing.TB, o *Options) (db *DB, cleanupFunc func()) {
 		if err != nil {
 			t.Error(err)
 		}
-		os.RemoveAll(dir)
 	}
 	return db, cleanupFunc
 }
@@ -236,7 +230,7 @@ func newRetrieveIndexesTest(db *DB, chunk swarm.Chunk, storeTimestamp, accessTim
 		validateItem(t, item, chunk.Address().Bytes(), chunk.Data(), storeTimestamp, 0)
 
 		// access index should not be set
-		wantErr := shed.ErrNotFound
+		wantErr := leveldb.ErrNotFound
 		_, err = db.retrievalAccessIndex.Get(addressToItem(chunk.Address()))
 		if err != wantErr {
 			t.Errorf("got error %v, want %v", err, wantErr)

@@ -14,6 +14,7 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var _ storage.Storer = &DB{}
@@ -175,7 +176,7 @@ func New(path string, baseKey []byte, o *Options, logger logging.Logger) (db *DB
 		return nil, err
 	}
 	schemaName, err := db.schemaName.Get()
-	if err != nil && !errors.Is(err, shed.ErrNotFound) {
+	if err != nil && !errors.Is(err, leveldb.ErrNotFound) {
 		return nil, err
 	}
 	if schemaName == "" {

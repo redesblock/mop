@@ -9,6 +9,7 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/tags"
 	tagtesting "github.com/redesblock/hop/core/tags/testing"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // TestModeSetAccess validates ModeSetAccess index values on the provided DB.
@@ -317,7 +318,7 @@ func TestModeSetRemove(t *testing.T) {
 
 			t.Run("retrieve indexes", func(t *testing.T) {
 				for _, ch := range chunks {
-					wantErr := shed.ErrNotFound
+					wantErr := leveldb.ErrNotFound
 					_, err := db.retrievalDataIndex.Get(addressToItem(ch.Address()))
 					if err != wantErr {
 						t.Errorf("got error %v, want %v", err, wantErr)
@@ -336,7 +337,7 @@ func TestModeSetRemove(t *testing.T) {
 			})
 
 			for _, ch := range chunks {
-				newPullIndexTest(db, ch, 0, shed.ErrNotFound)(t)
+				newPullIndexTest(db, ch, 0, leveldb.ErrNotFound)(t)
 			}
 
 			t.Run("pull index count", newItemsCountTest(db.pullIndex, 0))

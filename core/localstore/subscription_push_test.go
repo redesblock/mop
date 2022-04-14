@@ -16,8 +16,6 @@ import (
 // push syncing subscription is created and validates if
 // all addresses are received in the right order.
 func TestDB_SubscribePush(t *testing.T) {
-	t.Skip("fails with badger shed")
-
 	db, cleanupFunc := newTestDB(t, nil)
 	defer cleanupFunc()
 
@@ -104,8 +102,6 @@ func TestDB_SubscribePush(t *testing.T) {
 // multiple push syncing subscriptions are created and
 // validates if all addresses are received in the right order.
 func TestDB_SubscribePush_multiple(t *testing.T) {
-	t.Skip("fails with badger shed")
-
 	db, cleanupFunc := newTestDB(t, nil)
 	defer cleanupFunc()
 

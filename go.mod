@@ -6,7 +6,6 @@ require (
 	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/coreos/go-semver v0.3.0
-	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/ethersphere/bmt v0.1.4
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/handlers v1.5.1

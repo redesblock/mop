@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/shed"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Store holds fields and indexes (including their encoding functions)
@@ -142,13 +143,16 @@ func (s *Store) Put(_ context.Context, ch swarm.Chunk) (err error) {
 // items from them and adding new items as keys of index entries
 // are changed.
 func (s *Store) Get(_ context.Context, addr swarm.Address) (c swarm.Chunk, err error) {
-	batch := s.db.GetBatch(true)
+	batch := new(leveldb.Batch)
 
 	// Get the chunk data and storage timestamp.
 	item, err := s.retrievalIndex.Get(shed.Item{
 		Address: addr.Bytes(),
 	})
 	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return nil, storage.ErrNotFound
+		}
 		return nil, err
 	}
 
@@ -167,7 +171,7 @@ func (s *Store) Get(_ context.Context, addr swarm.Address) (c swarm.Chunk, err e
 		if err != nil {
 			return nil, err
 		}
-	case shed.ErrNotFound:
+	case leveldb.ErrNotFound:
 	// Access timestamp is not found. Do not do anything.
 	// This is the firs get request.
 	default:
@@ -223,7 +227,7 @@ func (s *Store) CollectGarbage() (err error) {
 	for roundCount := 0; roundCount < maxRounds; roundCount++ {
 		var garbageCount int
 		// New batch for a new cg round.
-		trash := s.db.GetBatch(true)
+		trash := new(leveldb.Batch)
 		// Iterate through all index items and break when needed.
 		err = s.gcIndex.Iterate(func(item shed.Item) (stop bool, err error) {
 			// Remove the chunk.
@@ -265,7 +269,7 @@ func (s *Store) CollectGarbage() (err error) {
 // string from a database field.
 func (s *Store) GetSchema() (name string, err error) {
 	name, err = s.schemaName.Get()
-	if err == shed.ErrNotFound {
+	if err == leveldb.ErrNotFound {
 		return "", nil
 	}
 	return name, err
@@ -284,13 +288,7 @@ func (s *Store) Close() error {
 
 // Example_store constructs a simple storage implementation using shed package.
 func Example_store() {
-	dir, err := ioutil.TempDir("", "ephemeral")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	s, err := New(dir)
+	s, err := New("")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -299,12 +297,14 @@ func Example_store() {
 	ch := testing.GenerateTestRandomChunk()
 	err = s.Put(context.Background(), ch)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 
 	got, err := s.Get(context.Background(), ch.Address())
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 
 	fmt.Println(bytes.Equal(got.Data(), ch.Data()))

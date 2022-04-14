@@ -18,10 +18,10 @@ import (
 // Measurements on MacBook Pro (Retina, 15-inch, Mid 2014) show
 // that two separated indexes perform better.
 //
-// # go test -benchmem -run=none github.com/redesblock/hop/core/storage/localstore -bench BenchmarkRetrievalIndexes -v
+// # go test -benchmem -run=none github.com/ethersphere/swarm/storage/localstore -bench BenchmarkRetrievalIndexes -v
 // goos: darwin
 // goarch: amd64
-// pkg: github.com/redesblock/hop/core/storage/localstore
+// pkg: github.com/ethersphere/swarm/storage/localstore
 // BenchmarkRetrievalIndexes/1000-8         	      20       75556686 ns/op      19033493 B/op       84500 allocs/op
 // BenchmarkRetrievalIndexes/10000-8        	       1     1079084922 ns/op     382792064 B/op     1429644 allocs/op
 // BenchmarkRetrievalIndexes/100000-8       	       1    16891305737 ns/op    2629165304 B/op    12465019 allocs/op
