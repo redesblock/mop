@@ -14,6 +14,7 @@ import (
 	"github.com/redesblock/hop/core/p2p/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	topmock "github.com/redesblock/hop/core/topology/mock"
 )
 
 func TestConnect(t *testing.T) {
@@ -69,9 +70,9 @@ func TestConnect(t *testing.T) {
 				disconnectCalled = true
 				return nil
 			})),
+			TopologyOpts: []topmock.Option{topmock.WithAddPeerErr(testErr)},
 		})
 		defer testServer.Cleanup()
-		testServer.TopologyDriver.SetAddPeerErr(testErr)
 
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodPost, "/connect"+underlay, nil, http.StatusInternalServerError, jsonhttp.StatusResponse{
 			Code:    http.StatusInternalServerError,

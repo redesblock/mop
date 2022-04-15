@@ -8,6 +8,7 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/ethersphere/bmt v0.1.4
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2 // indirect

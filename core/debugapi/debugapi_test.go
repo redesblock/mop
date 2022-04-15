@@ -15,27 +15,29 @@ import (
 	mockstore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/mock"
 	"resenje.org/web"
 )
 
 type testServerOptions struct {
-	Overlay swarm.Address
-	P2P     p2p.Service
-	Storer  storage.Storer
+	Overlay      swarm.Address
+	P2P          p2p.Service
+	Storer       storage.Storer
+	TopologyOpts []mock.Option
 }
 
 type testServer struct {
 	Client         *http.Client
 	Addressbook    addressbook.GetPutter
-	TopologyDriver *mock.TopologyDriver
+	TopologyDriver topology.Driver
 	Cleanup        func()
 }
 
 func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	statestore := mockstore.NewStateStore()
 	addressbook := addressbook.New(statestore)
-	topologyDriver := mock.NewTopologyDriver()
+	topologyDriver := mock.NewTopologyDriver(o.TopologyOpts...)
 
 	s := debugapi.New(debugapi.Options{
 		Overlay:        o.Overlay,

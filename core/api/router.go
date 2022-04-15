@@ -17,7 +17,7 @@ func (s *server) setupRouting() {
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "hop node")
+		fmt.Fprintln(w, "hop nod")
 	})
 
 	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,15 @@ func (s *server) setupRouting() {
 		"POST": http.HandlerFunc(s.pingpongHandler),
 	})
 
-	router.Handle("/chunk/{addr}", jsonhttp.MethodHandler{
+	router.Handle("/hop/", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.hopUploadHandler),
+	})
+
+	router.Handle("/hop/{address}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.hopGetHandler),
+	})
+
+	router.Handle("/hop-chunk/{addr}", jsonhttp.MethodHandler{
 		"GET":  http.HandlerFunc(s.chunkGetHandler),
 		"POST": http.HandlerFunc(s.chunkUploadHandler),
 	})
