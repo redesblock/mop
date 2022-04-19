@@ -6,3 +6,7 @@ message Delivery {
   bytes Address = 1;
   bytes Data = 2;
 }
+
+message Receipt {
+  bytes Address = 1;
+}
