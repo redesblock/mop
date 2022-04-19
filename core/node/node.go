@@ -11,9 +11,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
-
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
@@ -29,6 +26,8 @@ import (
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/pusher"
+	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/retrieval"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
@@ -37,6 +36,8 @@ import (
 	"github.com/redesblock/hop/core/topology/full"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/validator"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 type Node struct {
@@ -49,6 +50,7 @@ type Node struct {
 	stateStoreCloser io.Closer
 	localstoreCloser io.Closer
 	topologyCloser   io.Closer
+	pusherCloser     io.Closer
 }
 
 type Options struct {
@@ -201,6 +203,21 @@ func New(o Options) (*Node, error) {
 	})
 
 	ns := netstore.New(storer, retrieve, validator.NewContentAddressValidator())
+
+	pushSyncProtocol := pushsync.New(pushsync.Options{
+		Streamer:      p2ps,
+		Storer:        storer,
+		ClosestPeerer: topologyDriver,
+		Logger:        logger,
+	})
+
+	pushSyncPusher := pusher.New(pusher.Options{
+		Storer:        storer,
+		PeerSuggester: topologyDriver,
+		PushSyncer:    pushSyncProtocol,
+		Logger:        logger,
+	})
+	b.pusherCloser = pushSyncPusher
 
 	var apiService api.Service
 	if o.APIAddr != "" {
@@ -368,6 +385,10 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	}
 	if err := eg.Wait(); err != nil {
 		return err
+	}
+
+	if err := b.pusherCloser.Close(); err != nil {
+		return fmt.Errorf("pusher: %w", err)
 	}
 
 	b.p2pCancel()

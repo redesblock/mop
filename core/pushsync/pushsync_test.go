@@ -13,7 +13,6 @@ import (
 	"github.com/redesblock/hop/core/p2p/streamtest"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/pushsync/pb"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/mock"
@@ -35,7 +34,6 @@ func TestSendChunkAndReceiveReceipt(t *testing.T) {
 	// mock should return ErrWantSelf since there's no one to forward to
 	psPeer, storerPeer := createPushSyncNode(t, closestPeer, nil, mock.WithClosestPeerErr(topology.ErrWantSelf))
 	defer storerPeer.Close()
-	defer psPeer.Close()
 
 	recorder := streamtest.New(
 		streamtest.WithProtocols(psPeer.Protocol()),
@@ -49,10 +47,14 @@ func TestSendChunkAndReceiveReceipt(t *testing.T) {
 	psPivot, storerPivot := createPushSyncNode(t, pivotNode, recorder, mock.WithClosestPeer(closestPeer))
 	defer storerPivot.Close()
 
-	// upload the chunk to the pivot node
-	_, err := storerPivot.Put(context.Background(), storage.ModePutUpload, chunk)
+	// Trigger the sending of chunk to the closest node
+	receipt, err := psPivot.PushChunkToClosest(context.Background(), chunk)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !chunk.Address().Equal(receipt.Address) {
+		t.Fatal("invalid receipt")
 	}
 
 	// this intercepts the outgoing delivery message
@@ -60,9 +62,6 @@ func TestSendChunkAndReceiveReceipt(t *testing.T) {
 
 	// this intercepts the incoming receipt message
 	waitOnRecordAndTest(t, closestPeer, recorder, chunkAddress, nil)
-
-	// Close the pushsync and then the DB
-	psPivot.Close()
 
 }
 
@@ -109,11 +108,13 @@ func TestHandler(t *testing.T) {
 	psTriggerPeer, triggerStorerDB := createPushSyncNode(t, triggerPeer, pivotRecorder, mock.WithClosestPeer(pivotPeer))
 	defer triggerStorerDB.Close()
 
-	// upload the chunk to the trigger node DB which triggers the chain reaction of sending this chunk
-	// from trigger peer to pivot peer to closest peer.
-	_, err := triggerStorerDB.Put(context.Background(), storage.ModePutUpload, chunk)
+	receipt, err := psTriggerPeer.PushChunkToClosest(context.Background(), chunk)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !chunk.Address().Equal(receipt.Address) {
+		t.Fatal("invalid receipt")
 	}
 
 	// In pivot peer,  intercept the incoming delivery chunk from the trigger peer and check for correctness
@@ -128,11 +129,6 @@ func TestHandler(t *testing.T) {
 
 	// In the received stream, check if a receipt is sent from pivot peer and check for its correctness.
 	waitOnRecordAndTest(t, pivotPeer, pivotRecorder, chunkAddress, nil)
-
-	// close push sync before the storers are closed to avoid data race
-	psClosestPeer.Close()
-	psPivot.Close()
-	psTriggerPeer.Close()
 }
 
 func createPushSyncNode(t *testing.T, addr swarm.Address, recorder *streamtest.Recorder, mockOpts ...mock.Option) (*pushsync.PushSync, *localstore.DB) {
@@ -203,5 +199,4 @@ func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.
 			t.Fatalf("receipt address mismatch")
 		}
 	}
-
 }
