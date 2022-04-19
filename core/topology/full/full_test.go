@@ -48,6 +48,7 @@ func TestAddPeer(t *testing.T) {
 		}))
 
 		fullDriver := full.New(discovery, ab, p2p, logger, overlay)
+		defer fullDriver.Close()
 		multiaddr, err := ma.NewMultiaddr(underlay)
 		if err != nil {
 			t.Fatal(err)
@@ -78,6 +79,7 @@ func TestAddPeer(t *testing.T) {
 		}))
 
 		fullDriver := full.New(discovery, ab, p2p, logger, overlay)
+		defer fullDriver.Close()
 		err := fullDriver.AddPeer(context.Background(), overlay)
 		if !errors.Is(err, topology.ErrNotFound) {
 			t.Fatalf("full conn driver returned err %v", err)
@@ -102,6 +104,7 @@ func TestAddPeer(t *testing.T) {
 		}))
 
 		fullDriver := full.New(discovery, ab, p2p, logger, overlay)
+		defer fullDriver.Close()
 		multiaddr, err := ma.NewMultiaddr(underlay)
 		if err != nil {
 			t.Fatal("error creating multiaddr")
@@ -149,6 +152,7 @@ func TestAddPeer(t *testing.T) {
 		}))
 
 		fullDriver := full.New(discovery, ab, p2ps, logger, overlay)
+		defer fullDriver.Close()
 		multiaddr, err := ma.NewMultiaddr(underlay)
 		if err != nil {
 			t.Fatal(err)
@@ -209,6 +213,7 @@ func TestClosestPeer(t *testing.T) {
 	}))
 
 	fullDriver := full.New(discovery, ab, p2ps, logger, baseOverlay)
+	defer fullDriver.Close()
 
 	for _, tc := range []struct {
 		chunkAddress swarm.Address // chunk address to test

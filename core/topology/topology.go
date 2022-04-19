@@ -3,6 +3,7 @@ package topology
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -13,6 +14,7 @@ var ErrWantSelf = errors.New("node wants self")
 type Driver interface {
 	PeerAdder
 	ClosestPeerer
+	io.Closer
 }
 
 type PeerAdder interface {
