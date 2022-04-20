@@ -1,5 +1,8 @@
 syntax = "proto3";
-package pb;
+
+package hive;
+
+option go_package = "pb";
 
 message Peers {
     repeated HopAddress peers = 1;
