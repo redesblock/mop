@@ -13,7 +13,6 @@ import (
 
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/keystore"
-	"github.com/redesblock/hop/core/swarm"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/sha3"
 )
@@ -31,9 +30,8 @@ const (
 )
 
 type encryptedKey struct {
-	Address swarm.Address `json:"address"`
-	Crypto  keyCripto     `json:"crypto"`
-	Version int           `json:"version"`
+	Crypto  keyCripto `json:"crypto"`
+	Version int       `json:"version"`
 }
 
 type keyCripto struct {
@@ -64,7 +62,6 @@ func encryptKey(k *ecdsa.PrivateKey, password string) ([]byte, error) {
 		return nil, err
 	}
 	return json.Marshal(encryptedKey{
-		Address: crypto.NewAddress(k.PublicKey),
 		Crypto:  *kc,
 		Version: keyVersion,
 	})

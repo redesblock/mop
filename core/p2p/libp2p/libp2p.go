@@ -40,7 +40,7 @@ type Service struct {
 	host             host.Host
 	libp2pPeerstore  peerstore.Peerstore
 	metrics          metrics
-	networkID        int32
+	networkID        uint64
 	handshakeService *handshake.Service
 	addrssbook       addressbook.Putter
 	peers            *peerRegistry
@@ -56,7 +56,7 @@ type Options struct {
 	Addr        string
 	DisableWS   bool
 	DisableQUIC bool
-	NetworkID   int32
+	NetworkID   uint64
 	Addressbook addressbook.Putter
 	Logger      logging.Logger
 	Tracer      *tracing.Tracer

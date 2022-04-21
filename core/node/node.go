@@ -61,7 +61,7 @@ type Options struct {
 	Addr               string
 	DisableWS          bool
 	DisableQUIC        bool
-	NetworkID          int32
+	NetworkID          uint64
 	Bootnodes          []string
 	Logger             logging.Logger
 	TracingEnabled     bool
@@ -101,7 +101,7 @@ func New(o Options) (*Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("swarm key: %w", err)
 	}
-	address := crypto.NewAddress(swarmPrivateKey.PublicKey)
+	address := crypto.NewOverlayAddress(swarmPrivateKey.PublicKey, o.NetworkID)
 	if created {
 		logger.Info("new swarm key created")
 	}

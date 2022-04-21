@@ -38,7 +38,7 @@ type PeerFinder interface {
 
 type Service struct {
 	overlay              swarm.Address
-	networkID            int32
+	networkID            uint64
 	receivedHandshakes   map[libp2ppeer.ID]struct{}
 	receivedHandshakesMu sync.Mutex
 	logger               logging.Logger
@@ -46,7 +46,7 @@ type Service struct {
 	network.Notifiee // handhsake service can be the receiver for network.Notify
 }
 
-func New(overlay swarm.Address, networkID int32, logger logging.Logger) *Service {
+func New(overlay swarm.Address, networkID uint64, logger logging.Logger) *Service {
 	return &Service{
 		overlay:            overlay,
 		networkID:          networkID,
@@ -142,6 +142,6 @@ func (s *Service) Disconnected(_ network.Network, c network.Conn) {
 
 type Info struct {
 	Address   swarm.Address
-	NetworkID int32
+	NetworkID uint64
 	Light     bool
 }
