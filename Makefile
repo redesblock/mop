@@ -18,8 +18,7 @@ LD_FLAGS:=-ldflags "-X github.com/redesblock/cmd.commit=$(REVISION)"
 all:
 	@go mod tidy
 	@go fmt ./...
-	@go build -tags=jsoniter -o ./bin/ .
-	@go build -tags=jsoniter $(LD_FLAGS) -o ./bin/ .
+	@go build -tags=jsoniter $(LD_FLAGS) -o ./bin/ ./...
 
 generate:
 	@go generate ./...
