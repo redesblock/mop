@@ -5,26 +5,22 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
-	"os"
 
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner/internal"
-	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
 
 // simpleJoiner wraps a non-optimized implementation of file.Joiner.
 type simpleJoiner struct {
-	store  storage.Storer
-	logger logging.Logger
+	store storage.Storer
 }
 
 // NewSimpleJoiner creates a new simpleJoiner.
 func NewSimpleJoiner(store storage.Storer) file.Joiner {
 	return &simpleJoiner{
-		store:  store,
-		logger: logging.New(os.Stderr, 6),
+		store: store,
 	}
 }
 
@@ -47,7 +43,6 @@ func (s *simpleJoiner) Join(ctx context.Context, address swarm.Address) (dataOut
 		return file.NewSimpleReadCloser(data), int64(spanLength), nil
 	}
 
-	s.logger.Tracef("simplejoiner joining root chunk %v", rootChunk)
 	r := internal.NewSimpleJoinerJob(ctx, s.store, rootChunk)
 	return r, int64(spanLength), nil
 }
