@@ -2,6 +2,7 @@ package localstore
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redesblock/hop/core/shed"
@@ -27,7 +28,7 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address)
 
 	out, err := db.get(mode, addr)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
@@ -113,10 +114,10 @@ func (db *DB) updateGC(item shed.Item) (err error) {
 	// update accessTimeStamp in retrieve, gc
 
 	i, err := db.retrievalAccessIndex.Get(item)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		item.AccessTimestamp = i.AccessTimestamp
-	case leveldb.ErrNotFound:
+	case errors.Is(err, leveldb.ErrNotFound):
 		// no chunk accesses
 	default:
 		return err

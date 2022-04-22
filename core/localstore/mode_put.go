@@ -2,6 +2,7 @@ package localstore
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redesblock/hop/core/shed"
@@ -143,12 +144,12 @@ func (db *DB) put(mode storage.ModePut, chs ...swarm.Chunk) (exist []bool, err e
 // Provided batch and binID map are updated.
 func (db *DB) putRequest(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed.Item) (exists bool, gcSizeChange int64, err error) {
 	i, err := db.retrievalDataIndex.Get(item)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		exists = true
 		item.StoreTimestamp = i.StoreTimestamp
 		item.BinID = i.BinID
-	case leveldb.ErrNotFound:
+	case errors.Is(err, leveldb.ErrNotFound):
 		// no chunk accesses
 		exists = false
 	default:
@@ -302,15 +303,15 @@ func (db *DB) setGC(batch *leveldb.Batch, item shed.Item) (gcSizeChange int64, e
 		item.BinID = i.BinID
 	}
 	i, err := db.retrievalAccessIndex.Get(item)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		item.AccessTimestamp = i.AccessTimestamp
 		err = db.gcIndex.DeleteInBatch(batch, item)
 		if err != nil {
 			return 0, err
 		}
 		gcSizeChange--
-	case leveldb.ErrNotFound:
+	case errors.Is(err, leveldb.ErrNotFound):
 		// the chunk is not accessed before
 	default:
 		return 0, err

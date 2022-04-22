@@ -2,6 +2,7 @@ package localstore
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redesblock/hop/core/shed"
@@ -26,7 +27,7 @@ func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...swarm
 
 	out, err := db.getMulti(mode, addrs...)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err

@@ -2,6 +2,7 @@ package localstore
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -320,13 +321,13 @@ func TestModeSetRemove(t *testing.T) {
 				for _, ch := range chunks {
 					wantErr := leveldb.ErrNotFound
 					_, err := db.retrievalDataIndex.Get(addressToItem(ch.Address()))
-					if err != wantErr {
+					if !errors.Is(err, wantErr) {
 						t.Errorf("got error %v, want %v", err, wantErr)
 					}
 
 					// access index should not be set
 					_, err = db.retrievalAccessIndex.Get(addressToItem(ch.Address()))
-					if err != wantErr {
+					if !errors.Is(err, wantErr) {
 						t.Errorf("got error %v, want %v", err, wantErr)
 					}
 				}

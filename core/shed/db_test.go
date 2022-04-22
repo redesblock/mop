@@ -4,8 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/redesblock/hop/core/logging"
 )
 
 // TestNewDB constructs a new DB
@@ -40,9 +38,8 @@ func TestDB_persistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	logger := logging.New(ioutil.Discard, 0)
 
-	db, err := NewDB(dir, logger)
+	db, err := NewDB(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +57,7 @@ func TestDB_persistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db2, err := NewDB(dir, logger)
+	db2, err := NewDB(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +79,7 @@ func TestDB_persistence(t *testing.T) {
 // be called to remove the data.
 func newTestDB(t *testing.T) (db *DB, cleanupFunc func()) {
 	t.Helper()
-	logger := logging.New(ioutil.Discard, 0)
-	db, err := NewDB("", logger)
+	db, err := NewDB("")
 	if err != nil {
 		t.Fatal(err)
 	}
