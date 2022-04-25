@@ -17,6 +17,7 @@ import (
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/hive"
+	"github.com/redesblock/hop/core/kademlia"
 	"github.com/redesblock/hop/core/keystore"
 	filekeystore "github.com/redesblock/hop/core/keystore/file"
 	memkeystore "github.com/redesblock/hop/core/keystore/mem"
@@ -33,7 +34,6 @@ import (
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology/full"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/validator"
 	"github.com/sirupsen/logrus"
@@ -164,10 +164,10 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("hive service: %w", err)
 	}
 
-	topologyDriver := full.New(hive, addressbook, p2ps, logger, address)
+	topologyDriver := kademlia.New(kademlia.Options{Base: address, Discovery: hive, AddressBook: addressbook, P2P: p2ps, Logger: logger})
 	b.topologyCloser = topologyDriver
 	hive.SetPeerAddedHandler(topologyDriver.AddPeer)
-	p2ps.SetPeerAddedHandler(topologyDriver.AddPeer)
+	p2ps.SetNotifier(topologyDriver)
 	addrs, err := p2ps.Addresses()
 	if err != nil {
 		return nil, fmt.Errorf("get server addresses: %w", err)

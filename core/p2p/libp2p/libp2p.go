@@ -29,6 +29,7 @@ import (
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/breaker"
 	handshake "github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/tracing"
 )
 
@@ -45,7 +46,7 @@ type Service struct {
 	handshakeService *handshake.Service
 	addressbook      addressbook.Putter
 	peers            *peerRegistry
-	peerHandler      func(context.Context, swarm.Address) error
+	topologyNotifier topology.Notifier
 	conectionBreaker breaker.Interface
 	logger           logging.Logger
 	tracer           *tracing.Tracer
@@ -210,8 +211,8 @@ func New(ctx context.Context, signer hopcrypto.Signer, networkID uint64, overlay
 			return
 		}
 
-		if s.peerHandler != nil {
-			if err := s.peerHandler(ctx, i.Overlay); err != nil {
+		if s.topologyNotifier != nil {
+			if err := s.topologyNotifier.Connected(ctx, i.Overlay); err != nil {
 				s.logger.Debugf("peerhandler error: %s: %v", peerID, err)
 			}
 		}
@@ -357,7 +358,6 @@ func (s *Service) disconnect(peerID libp2ppeer.ID) error {
 	if err := s.host.Network().ClosePeer(peerID); err != nil {
 		return err
 	}
-
 	s.peers.remove(peerID)
 	return nil
 }
@@ -366,8 +366,9 @@ func (s *Service) Peers() []p2p.Peer {
 	return s.peers.peers()
 }
 
-func (s *Service) SetPeerAddedHandler(h func(context.Context, swarm.Address) error) {
-	s.peerHandler = h
+func (s *Service) SetNotifier(n topology.Notifier) {
+	s.topologyNotifier = n
+	s.peers.setDisconnecter(n)
 }
 
 func (s *Service) NewStream(ctx context.Context, overlay swarm.Address, headers p2p.Headers, protocolName, protocolVersion, streamName string) (p2p.Stream, error) {
