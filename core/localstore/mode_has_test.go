@@ -13,8 +13,7 @@ import (
 // TestHas validates that Has method is returning true for
 // the stored chunk and false for one that is not stored.
 func TestHas(t *testing.T) {
-	db, cleanupFunc := newTestDB(t, nil)
-	defer cleanupFunc()
+	db := newTestDB(t, nil)
 
 	ch := generateTestRandomChunk()
 
@@ -48,8 +47,7 @@ func TestHasMulti(t *testing.T) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			chunks := generateTestRandomChunks(tc.count)
 			want := make([]bool, tc.count)

@@ -11,8 +11,7 @@ import (
 
 // TestModeGetRequest validates ModeGetRequest index values on the provided DB.
 func TestModeGetRequest(t *testing.T) {
-	db, cleanupFunc := newTestDB(t, nil)
-	defer cleanupFunc()
+	db := newTestDB(t, nil)
 
 	uploadTimestamp := time.Now().UTC().UnixNano()
 	defer setNow(func() (t int64) {
@@ -148,8 +147,7 @@ func TestModeGetRequest(t *testing.T) {
 
 // TestModeGetSync validates ModeGetSync index values on the provided DB.
 func TestModeGetSync(t *testing.T) {
-	db, cleanupFunc := newTestDB(t, nil)
-	defer cleanupFunc()
+	db := newTestDB(t, nil)
 
 	uploadTimestamp := time.Now().UTC().UnixNano()
 	defer setNow(func() (t int64) {

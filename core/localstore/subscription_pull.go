@@ -120,7 +120,7 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 						return
 					}
 					db.metrics.SubscribePullIterationFailure.Inc()
-					db.logger.Errorf("localstore pull subscription iteration. bin: %d, since: %d, until: %d. Error : %s", bin, since, until, err.Error())
+					db.logger.Debugf("localstore pull subscription iteration: bin: %d, since: %d, until: %d: %v", bin, since, until, err)
 					return
 				}
 				if count > 0 {
@@ -137,7 +137,7 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 			case <-ctx.Done():
 				err := ctx.Err()
 				if err != nil {
-					db.logger.Errorf("localstore pull subscription. bin: %d, since: %d, until: %d. Error : %s", bin, since, until, err.Error())
+					db.logger.Debugf("localstore pull subscription iteration: bin: %d, since: %d, until: %d: %v", bin, since, until, err)
 				}
 				return
 			}

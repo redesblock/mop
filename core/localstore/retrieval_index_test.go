@@ -45,8 +45,7 @@ func BenchmarkRetrievalIndexes(b *testing.B) {
 // database options.
 func benchmarkRetrievalIndexes(b *testing.B, o *Options, count int) {
 	b.StopTimer()
-	db, cleanupFunc := newTestDB(b, o)
-	defer cleanupFunc()
+	db := newTestDB(b, o)
 	addrs := make([]swarm.Address, count)
 	for i := 0; i < count; i++ {
 		ch := generateTestRandomChunk()
@@ -114,8 +113,7 @@ func BenchmarkUpload(b *testing.B) {
 // database options.
 func benchmarkUpload(b *testing.B, o *Options, count int) {
 	b.StopTimer()
-	db, cleanupFunc := newTestDB(b, o)
-	defer cleanupFunc()
+	db := newTestDB(b, o)
 	chunks := make([]swarm.Chunk, count)
 	for i := 0; i < count; i++ {
 		chunk := generateTestRandomChunk()

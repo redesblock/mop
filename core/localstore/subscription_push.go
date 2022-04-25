@@ -2,7 +2,6 @@ package localstore
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -64,7 +63,6 @@ func (db *DB) SubscribePush(ctx context.Context) (c <-chan swarm.Chunk, stop fun
 						// set next iteration start item
 						// when its chunk is successfully sent to channel
 						sinceItem = &item
-						db.logger.Tracef("subscribe.push. ref : %s, binId : %d", fmt.Sprintf("%x", sinceItem.Address), sinceItem.BinID)
 						return false, nil
 					case <-stopChan:
 						// gracefully stop the iteration
@@ -88,7 +86,7 @@ func (db *DB) SubscribePush(ctx context.Context) (c <-chan swarm.Chunk, stop fun
 
 				if err != nil {
 					db.metrics.SubscribePushIterationFailure.Inc()
-					db.logger.Errorf("localstore push subscription iteration. Error : %s", err.Error())
+					db.logger.Debugf("localstore push subscription iteration: %v", err)
 					return
 				}
 			case <-stopChan:
@@ -102,7 +100,7 @@ func (db *DB) SubscribePush(ctx context.Context) (c <-chan swarm.Chunk, stop fun
 			case <-ctx.Done():
 				err := ctx.Err()
 				if err != nil {
-					db.logger.Errorf("localstore push subscription. Error : %s", err.Error())
+					db.logger.Debugf("localstore push subscription iteration: %v", err)
 				}
 				return
 			}

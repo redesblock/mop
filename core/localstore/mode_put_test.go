@@ -17,8 +17,7 @@ import (
 func TestModePutRequest(t *testing.T) {
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			chunks := generateTestRandomChunks(tc.count)
 
@@ -72,8 +71,7 @@ func TestModePutRequest(t *testing.T) {
 func TestModePutSync(t *testing.T) {
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			wantTimestamp := time.Now().UTC().UnixNano()
 			defer setNow(func() (t int64) {
@@ -104,8 +102,7 @@ func TestModePutSync(t *testing.T) {
 func TestModePutUpload(t *testing.T) {
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			wantTimestamp := time.Now().UTC().UnixNano()
 			defer setNow(func() (t int64) {
@@ -154,8 +151,7 @@ func TestModePutUpload_parallel(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			uploadsCount := 100
 			workerCount := 100
@@ -264,7 +260,7 @@ func TestModePut_sameChunk(t *testing.T) {
 				},
 			} {
 				t.Run(tcn.name, func(t *testing.T) {
-					db, cleanupFunc := newTestDB(t, nil)
+					db := newTestDB(t, nil)
 
 					for i := 0; i < 10; i++ {
 						exist, err := db.Put(context.Background(), tcn.mode, chunks...)
@@ -295,8 +291,6 @@ func TestModePut_sameChunk(t *testing.T) {
 						newItemsCountTest(db.pullIndex, count(tcn.pullIndex))(t)
 						newItemsCountTest(db.pushIndex, count(tcn.pushIndex))(t)
 					}
-
-					cleanupFunc()
 				})
 			}
 		})
@@ -324,8 +318,7 @@ func TestModePut_addToGc(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				retVal = m.putToGc
 
-				db, cleanupFunc := newTestDB(t, opts)
-				defer cleanupFunc()
+				db := newTestDB(t, opts)
 
 				wantTimestamp := time.Now().UTC().UnixNano()
 				defer setNow(func() (t int64) {
@@ -377,8 +370,7 @@ func TestModePut_addToGcExisting(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				retVal = m.putToGc
 
-				db, cleanupFunc := newTestDB(t, opts)
-				defer cleanupFunc()
+				db := newTestDB(t, opts)
 
 				wantStoreTimestamp := time.Now().UTC().UnixNano()
 				defer setNow(func() (t int64) {
@@ -432,8 +424,7 @@ func TestPutDuplicateChunks(t *testing.T) {
 		storage.ModePutSync,
 	} {
 		t.Run(mode.String(), func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			ch := generateTestRandomChunk()
 
@@ -525,8 +516,7 @@ func BenchmarkPutUpload(b *testing.B) {
 // of chunks with specified max parallel uploads.
 func benchmarkPutUpload(b *testing.B, o *Options, count, maxParallelUploads int) {
 	b.StopTimer()
-	db, cleanupFunc := newTestDB(b, o)
-	defer cleanupFunc()
+	db := newTestDB(b, o)
 
 	chunks := make([]swarm.Chunk, count)
 	for i := 0; i < count; i++ {

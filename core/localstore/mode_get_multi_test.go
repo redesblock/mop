@@ -21,8 +21,7 @@ func TestModeGetMulti(t *testing.T) {
 		storage.ModeGetPin,
 	} {
 		t.Run(mode.String(), func(t *testing.T) {
-			db, cleanupFunc := newTestDB(t, nil)
-			defer cleanupFunc()
+			db := newTestDB(t, nil)
 
 			chunks := generateTestRandomChunks(chunkCount)
 

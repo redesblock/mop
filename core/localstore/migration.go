@@ -30,7 +30,7 @@ func (db *DB) migrate(schemaName string) error {
 		return nil
 	}
 
-	db.logger.Infof("need to run data migrations on localstore. numMigrations : %s, schemaName : %s ", len(migrations), schemaName)
+	db.logger.Infof("localstore migration: need to run %v data migrations on localstore to schema %s", len(migrations), schemaName)
 	for i := 0; i < len(migrations); i++ {
 		err := migrations[i].fn(db)
 		if err != nil {
@@ -44,7 +44,7 @@ func (db *DB) migrate(schemaName string) error {
 		if err != nil {
 			return err
 		}
-		db.logger.Infof("successfully ran migration. migrationId : %s, currentSchema : %s", i, schemaName)
+		db.logger.Infof("localstore migration: successfully ran migration: id %v current schema: %s", i, schemaName)
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func getMigrations(currentSchema, targetSchema string, allSchemeMigrations []mig
 				return nil, errors.New("found schema name for the second time when looking for migrations")
 			}
 			foundCurrent = true
-			db.logger.Infof("found current localstore schema. currentSchema : %s , migrateTo : %s, total migrations : %d", currentSchema, DbSchemaCurrent, len(allSchemeMigrations)-i)
+			db.logger.Infof("localstore migration: found current localstore schema %s, migrate to %s, total migrations %d", currentSchema, DbSchemaCurrent, len(allSchemeMigrations)-i)
 			continue // current schema migration should not be executed (already has been when schema was migrated to)
 		case targetSchema:
 			foundTarget = true
