@@ -130,13 +130,10 @@ func New(o Options) (*Node, error) {
 	b.stateStoreCloser = stateStore
 	addressbook := addressbook.New(stateStore)
 
-	p2ps, err := libp2p.New(p2pCtx, libp2p.Options{
+	p2ps, err := libp2p.New(p2pCtx, crypto.NewDefaultSigner(swarmPrivateKey), o.NetworkID, address, o.Addr, libp2p.Options{
 		PrivateKey:  libp2pPrivateKey,
-		Overlay:     address,
-		Addr:        o.Addr,
 		DisableWS:   o.DisableWS,
 		DisableQUIC: o.DisableQUIC,
-		NetworkID:   o.NetworkID,
 		Addressbook: addressbook,
 		Logger:      logger,
 		Tracer:      tracer,

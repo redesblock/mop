@@ -5,9 +5,13 @@ package handshake;
 option go_package = "pb";
 
 message Syn {
-    bytes Address = 1;
+    HopAddress HopAddress = 1;
     uint64 NetworkID = 2;
     bool Light = 3;
+}
+
+message Ack {
+    HopAddress HopAddress = 1;
 }
 
 message SynAck {
@@ -15,6 +19,8 @@ message SynAck {
     Ack Ack = 2;
 }
 
-message Ack {
-    bytes Address = 1;
+message HopAddress {
+    bytes Underlay = 1;
+    bytes Signature = 2;
+    bytes Overlay = 3;
 }

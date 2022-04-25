@@ -1,11 +1,14 @@
 package handshake
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
@@ -23,13 +26,19 @@ const (
 	messageTimeout  = 5 * time.Second // maximum allowed time for a message to be read or written.
 )
 
-// ErrNetworkIDIncompatible should be returned by handshake handlers if
-// response from the other peer does not have valid networkID.
-var ErrNetworkIDIncompatible = errors.New("incompatible network ID")
+var (
+	// ErrNetworkIDIncompatible is returned if response from the other peer does not have valid networkID.
+	ErrNetworkIDIncompatible = errors.New("incompatible network ID")
 
-// ErrHandshakeDuplicate should be returned by handshake handlers if
-// the handshake response has been received by an already processed peer.
-var ErrHandshakeDuplicate = errors.New("duplicate handshake")
+	// ErrHandshakeDuplicate is returned  if the handshake response has been received by an already processed peer.
+	ErrHandshakeDuplicate = errors.New("duplicate handshake")
+
+	// ErrInvalidSignature is returned if peer info was received with invalid signature
+	ErrInvalidSignature = errors.New("invalid signature")
+
+	// ErrInvalidAck is returned if ack does not match the syn provided
+	ErrInvalidAck = errors.New("invalid ack")
+)
 
 // PeerFinder has the information if the peer already exists in swarm.
 type PeerFinder interface {
@@ -38,7 +47,11 @@ type PeerFinder interface {
 
 type Service struct {
 	overlay              swarm.Address
+	underlay             []byte
+	signature            []byte
+	signer               crypto.Signer
 	networkID            uint64
+	networkIDBytes       []byte
 	receivedHandshakes   map[libp2ppeer.ID]struct{}
 	receivedHandshakesMu sync.Mutex
 	logger               logging.Logger
@@ -46,20 +59,40 @@ type Service struct {
 	network.Notifiee // handhsake service can be the receiver for network.Notify
 }
 
-func New(overlay swarm.Address, networkID uint64, logger logging.Logger) *Service {
+func New(overlay swarm.Address, peerID libp2ppeer.ID, signer crypto.Signer, networkID uint64, logger logging.Logger) (*Service, error) {
+	underlay, err := peerID.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	networkIDBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(networkIDBytes, networkID)
+	signature, err := signer.Sign(append(underlay, networkIDBytes...))
+	if err != nil {
+		return nil, err
+	}
+
 	return &Service{
 		overlay:            overlay,
+		underlay:           underlay,
+		signature:          signature,
+		signer:             signer,
 		networkID:          networkID,
+		networkIDBytes:     networkIDBytes,
 		receivedHandshakes: make(map[libp2ppeer.ID]struct{}),
 		logger:             logger,
 		Notifiee:           new(network.NoopNotifiee),
-	}
+	}, nil
 }
 
 func (s *Service) Handshake(stream p2p.Stream) (i *Info, err error) {
 	w, r := protobuf.NewWriterAndReader(stream)
 	if err := w.WriteMsgWithTimeout(messageTimeout, &pb.Syn{
-		Address:   s.overlay.Bytes(),
+		HopAddress: &pb.HopAddress{
+			Underlay:  s.underlay,
+			Signature: s.signature,
+			Overlay:   s.overlay.Bytes(),
+		},
 		NetworkID: s.networkID,
 	}); err != nil {
 		return nil, fmt.Errorf("write syn message: %w", err)
@@ -70,21 +103,24 @@ func (s *Service) Handshake(stream p2p.Stream) (i *Info, err error) {
 		return nil, fmt.Errorf("read synack message: %w", err)
 	}
 
-	address := swarm.NewAddress(resp.Syn.Address)
-	if resp.Syn.NetworkID != s.networkID {
-		return nil, ErrNetworkIDIncompatible
+	if err := s.checkAck(resp.Ack); err != nil {
+		return nil, err
+	}
+
+	if err := s.checkSyn(resp.Syn); err != nil {
+		return nil, err
 	}
 
 	if err := w.WriteMsgWithTimeout(messageTimeout, &pb.Ack{
-		Address: resp.Syn.Address,
+		HopAddress: resp.Syn.HopAddress,
 	}); err != nil {
 		return nil, fmt.Errorf("write ack message: %w", err)
 	}
 
-	s.logger.Tracef("handshake finished for peer %s", address)
-
+	s.logger.Tracef("handshake finished for peer %s", swarm.NewAddress(resp.Syn.HopAddress.Overlay).String())
 	return &Info{
-		Address:   address,
+		Overlay:   swarm.NewAddress(resp.Syn.HopAddress.Overlay),
+		Underlay:  resp.Syn.HopAddress.Underlay,
 		NetworkID: resp.Syn.NetworkID,
 		Light:     resp.Syn.Light,
 	}, nil
@@ -106,17 +142,20 @@ func (s *Service) Handle(stream p2p.Stream, peerID libp2ppeer.ID) (i *Info, err 
 		return nil, fmt.Errorf("read syn message: %w", err)
 	}
 
-	address := swarm.NewAddress(req.Address)
-	if req.NetworkID != s.networkID {
-		return nil, ErrNetworkIDIncompatible
+	if err := s.checkSyn(&req); err != nil {
+		return nil, err
 	}
 
 	if err := w.WriteMsgWithTimeout(messageTimeout, &pb.SynAck{
 		Syn: &pb.Syn{
-			Address:   s.overlay.Bytes(),
+			HopAddress: &pb.HopAddress{
+				Underlay:  s.underlay,
+				Signature: s.signature,
+				Overlay:   s.overlay.Bytes(),
+			},
 			NetworkID: s.networkID,
 		},
-		Ack: &pb.Ack{Address: req.Address},
+		Ack: &pb.Ack{HopAddress: req.HopAddress},
 	}); err != nil {
 		return nil, fmt.Errorf("write synack message: %w", err)
 	}
@@ -126,9 +165,14 @@ func (s *Service) Handle(stream p2p.Stream, peerID libp2ppeer.ID) (i *Info, err 
 		return nil, fmt.Errorf("read ack message: %w", err)
 	}
 
-	s.logger.Tracef("handshake finished for peer %s", address)
+	if err := s.checkAck(&ack); err != nil {
+		return nil, err
+	}
+
+	s.logger.Tracef("handshake finished for peer %s", req.HopAddress.Overlay)
 	return &Info{
-		Address:   address,
+		Overlay:   swarm.NewAddress(req.HopAddress.Overlay),
+		Underlay:  req.HopAddress.Underlay,
 		NetworkID: req.NetworkID,
 		Light:     req.Light,
 	}, nil
@@ -140,8 +184,37 @@ func (s *Service) Disconnected(_ network.Network, c network.Conn) {
 	delete(s.receivedHandshakes, c.RemotePeer())
 }
 
+func (s *Service) checkSyn(syn *pb.Syn) error {
+	if syn.NetworkID != s.networkID {
+		return ErrNetworkIDIncompatible
+	}
+
+	recoveredPK, err := crypto.Recover(syn.HopAddress.Signature, append(syn.HopAddress.Underlay, s.networkIDBytes...))
+	if err != nil {
+		return ErrInvalidSignature
+	}
+
+	recoveredOverlay := crypto.NewOverlayAddress(*recoveredPK, syn.NetworkID)
+	if !bytes.Equal(recoveredOverlay.Bytes(), syn.HopAddress.Overlay) {
+		return ErrInvalidSignature
+	}
+
+	return nil
+}
+
+func (s *Service) checkAck(ack *pb.Ack) error {
+	if !bytes.Equal(ack.HopAddress.Overlay, s.overlay.Bytes()) ||
+		!bytes.Equal(ack.HopAddress.Underlay, s.underlay) ||
+		!bytes.Equal(ack.HopAddress.Signature, s.signature) {
+		return ErrInvalidAck
+	}
+
+	return nil
+}
+
 type Info struct {
-	Address   swarm.Address
+	Overlay   swarm.Address
+	Underlay  []byte
 	NetworkID uint64
 	Light     bool
 }
