@@ -27,7 +27,6 @@ func TestAddresses(t *testing.T) {
 			return addresses, nil
 		})),
 	})
-	defer testServer.Cleanup()
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodGet, "/addresses", nil, http.StatusOK, debugapi.AddressesResponse{
@@ -52,7 +51,6 @@ func TestAddresses_error(t *testing.T) {
 			return nil, testErr
 		})),
 	})
-	defer testServer.Cleanup()
 
 	jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodGet, "/addresses", nil, http.StatusInternalServerError, jsonhttp.StatusResponse{
 		Code:    http.StatusInternalServerError,

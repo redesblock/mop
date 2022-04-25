@@ -17,15 +17,14 @@ import (
 // downloading and requesting a resource that cannot be found.
 func TestHop(t *testing.T) {
 	var (
-		resource        = "/hop"
-		content         = []byte("foo")
-		expHash         = "2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48"
-		mockStorer      = mock.NewStorer()
-		client, cleanup = newTestServer(t, testServerOptions{
+		resource   = "/hop"
+		content    = []byte("foo")
+		expHash    = "2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48"
+		mockStorer = mock.NewStorer()
+		client     = newTestServer(t, testServerOptions{
 			Storer: mockStorer,
 		})
 	)
-	defer cleanup()
 
 	t.Run("upload", func(t *testing.T) {
 		jsonhttptest.ResponseDirect(t, client, http.MethodPost, resource, bytes.NewReader(content), http.StatusOK, api.HopPostResponse{

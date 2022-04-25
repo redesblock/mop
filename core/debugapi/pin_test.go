@@ -26,12 +26,9 @@ func TestPinChunkHandler(t *testing.T) {
 		Storer: mockValidatingStorer,
 	})
 	// This server is used to store chunks
-	hopTestServer, cleanup := newHOPTestServer(t, testServerOptions{
+	hopTestServer := newHopTestServer(t, testServerOptions{
 		Storer: mockValidatingStorer,
 	})
-
-	defer debugTestServer.Cleanup()
-	defer cleanup()
 
 	// bad chunk address
 	t.Run("pin-bad-address", func(t *testing.T) {

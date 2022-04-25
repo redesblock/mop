@@ -7,8 +7,7 @@ import (
 
 // TestDB_schemaFieldKey validates correctness of schemaFieldKey.
 func TestDB_schemaFieldKey(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	t.Run("empty name or type", func(t *testing.T) {
 		_, err := db.schemaFieldKey("", "")
@@ -73,8 +72,7 @@ func TestDB_schemaFieldKey(t *testing.T) {
 
 // TestDB_schemaIndexPrefix validates correctness of schemaIndexPrefix.
 func TestDB_schemaIndexPrefix(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	t.Run("same name", func(t *testing.T) {
 		id1, err := db.schemaIndexPrefix("test")
@@ -113,8 +111,7 @@ func TestDB_schemaIndexPrefix(t *testing.T) {
 func TestDB_RenameIndex(t *testing.T) {
 
 	t.Run("empty names", func(t *testing.T) {
-		db, cleanupFunc := newTestDB(t)
-		defer cleanupFunc()
+		db := newTestDB(t)
 
 		// empty names
 		renamed, err := db.RenameIndex("", "")
@@ -145,8 +142,7 @@ func TestDB_RenameIndex(t *testing.T) {
 	})
 
 	t.Run("same names", func(t *testing.T) {
-		db, cleanupFunc := newTestDB(t)
-		defer cleanupFunc()
+		db := newTestDB(t)
 
 		renamed, err := db.RenameIndex("index1", "index1")
 		if err != nil {
@@ -158,8 +154,7 @@ func TestDB_RenameIndex(t *testing.T) {
 	})
 
 	t.Run("unknown name", func(t *testing.T) {
-		db, cleanupFunc := newTestDB(t)
-		defer cleanupFunc()
+		db := newTestDB(t)
 
 		renamed, err := db.RenameIndex("index1", "index1new")
 		if err != nil {
@@ -171,8 +166,7 @@ func TestDB_RenameIndex(t *testing.T) {
 	})
 
 	t.Run("valid names", func(t *testing.T) {
-		db, cleanupFunc := newTestDB(t)
-		defer cleanupFunc()
+		db := newTestDB(t)
 
 		// initial indexes
 		key1, err := db.schemaIndexPrefix("index1")

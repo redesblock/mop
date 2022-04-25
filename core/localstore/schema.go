@@ -7,5 +7,5 @@ var DbSchemaCurrent = DbSchemaCode
 // There was a time when we had no schema at all.
 const DbSchemaNone = ""
 
-// DbSchemaCode is the first bee schema identifier
+// DbSchemaCode is the first schema identifier
 const DbSchemaCode = "code"

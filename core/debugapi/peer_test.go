@@ -31,7 +31,6 @@ func TestConnect(t *testing.T) {
 			return overlay, nil
 		})),
 	})
-	defer testServer.Cleanup()
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodPost, "/connect"+underlay, nil, http.StatusOK, debugapi.PeerConnectResponse{
@@ -72,7 +71,6 @@ func TestConnect(t *testing.T) {
 			})),
 			TopologyOpts: []topmock.Option{topmock.WithAddPeerErr(testErr)},
 		})
-		defer testServer.Cleanup()
 
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodPost, "/connect"+underlay, nil, http.StatusInternalServerError, jsonhttp.StatusResponse{
 			Code:    http.StatusInternalServerError,
@@ -109,7 +107,6 @@ func TestDisconnect(t *testing.T) {
 			return p2p.ErrPeerNotFound
 		})),
 	})
-	defer testServer.Cleanup()
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodDelete, "/peers/"+address.String(), nil, http.StatusOK, jsonhttp.StatusResponse{
@@ -148,7 +145,6 @@ func TestPeer(t *testing.T) {
 			return []p2p.Peer{{Address: overlay}}
 		})),
 	})
-	defer testServer.Cleanup()
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodGet, "/peers", nil, http.StatusOK, debugapi.PeersResponse{

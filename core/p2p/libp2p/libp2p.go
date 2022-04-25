@@ -23,7 +23,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multistream"
 	"github.com/redesblock/hop/core/addressbook"
-	beecrypto "github.com/redesblock/hop/core/crypto"
+	hopcrypto "github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/breaker"
@@ -60,7 +60,7 @@ type Options struct {
 	Tracer      *tracing.Tracer
 }
 
-func New(ctx context.Context, signer beecrypto.Signer, networkID uint64, overlay swarm.Address, addr string,
+func New(ctx context.Context, signer hopcrypto.Signer, networkID uint64, overlay swarm.Address, addr string,
 	o Options) (*Service, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {

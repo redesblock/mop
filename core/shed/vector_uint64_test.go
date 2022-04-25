@@ -9,8 +9,7 @@ import (
 // TestUint64Vector validates put and get operations
 // of the Uint64Vector.
 func TestUint64Vector(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	bins, err := db.NewUint64Vector("bins")
 	if err != nil {
@@ -100,8 +99,7 @@ func TestUint64Vector(t *testing.T) {
 // TestUint64Vector_Inc validates Inc operation
 // of the Uint64Vector.
 func TestUint64Vector_Inc(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	bins, err := db.NewUint64Vector("bins")
 	if err != nil {
@@ -132,8 +130,7 @@ func TestUint64Vector_Inc(t *testing.T) {
 // TestUint64Vector_IncInBatch validates IncInBatch operation
 // of the Uint64Vector.
 func TestUint64Vector_IncInBatch(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	bins, err := db.NewUint64Vector("bins")
 	if err != nil {
@@ -188,8 +185,7 @@ func TestUint64Vector_IncInBatch(t *testing.T) {
 // TestUint64Vector_Dec validates Dec operation
 // of the Uint64Vector.
 func TestUint64Vector_Dec(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	bins, err := db.NewUint64Vector("bins")
 	if err != nil {
@@ -227,8 +223,7 @@ func TestUint64Vector_Dec(t *testing.T) {
 // TestUint64Vector_DecInBatch validates DecInBatch operation
 // of the Uint64Vector.
 func TestUint64Vector_DecInBatch(t *testing.T) {
-	db, cleanupFunc := newTestDB(t)
-	defer cleanupFunc()
+	db := newTestDB(t)
 
 	bins, err := db.NewUint64Vector("bins")
 	if err != nil {

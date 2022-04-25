@@ -14,11 +14,9 @@ func TestNewStream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1, cleanup1 := newService(t, 1, libp2p.Options{})
-	defer cleanup1()
+	s1, overlay1 := newService(t, 1, libp2p.Options{})
 
-	s2, _, cleanup2 := newService(t, 1, libp2p.Options{})
-	defer cleanup2()
+	s2, _ := newService(t, 1, libp2p.Options{})
 
 	if err := s1.AddProtocol(newTestProtocol(func(_ context.Context, _ p2p.Peer, _ p2p.Stream) error {
 		return nil
@@ -45,11 +43,9 @@ func TestNewStream_errNotSupported(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1, cleanup1 := newService(t, 1, libp2p.Options{})
-	defer cleanup1()
+	s1, overlay1 := newService(t, 1, libp2p.Options{})
 
-	s2, _, cleanup2 := newService(t, 1, libp2p.Options{})
-	defer cleanup2()
+	s2, _ := newService(t, 1, libp2p.Options{})
 
 	addr := serviceUnderlayAddress(t, s1)
 
@@ -82,11 +78,9 @@ func TestNewStream_semanticVersioning(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1, cleanup1 := newService(t, 1, libp2p.Options{})
-	defer cleanup1()
+	s1, overlay1 := newService(t, 1, libp2p.Options{})
 
-	s2, _, cleanup2 := newService(t, 1, libp2p.Options{})
-	defer cleanup2()
+	s2, _ := newService(t, 1, libp2p.Options{})
 
 	addr := serviceUnderlayAddress(t, s1)
 
@@ -143,11 +137,9 @@ func TestDisconnectError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1, cleanup1 := newService(t, 1, libp2p.Options{})
-	defer cleanup1()
+	s1, overlay1 := newService(t, 1, libp2p.Options{})
 
-	s2, overlay2, cleanup2 := newService(t, 1, libp2p.Options{})
-	defer cleanup2()
+	s2, overlay2 := newService(t, 1, libp2p.Options{})
 
 	if err := s1.AddProtocol(newTestProtocol(func(_ context.Context, _ p2p.Peer, _ p2p.Stream) error {
 		return p2p.NewDisconnectError(errors.New("test error"))
