@@ -6,7 +6,7 @@ import (
 
 	"github.com/redesblock/hop/core/kademlia/pslice"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology/test"
+	"github.com/redesblock/hop/core/swarm/test"
 )
 
 // TestShallowestEmpty tests that ShallowestEmpty functionality works correctly.

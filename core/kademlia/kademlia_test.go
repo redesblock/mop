@@ -23,8 +23,8 @@ import (
 	p2pmock "github.com/redesblock/hop/core/p2p/mock"
 	mockstate "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/swarm/test"
 	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/topology/test"
 )
 
 func init() {

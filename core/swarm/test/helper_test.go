@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology/test"
+	"github.com/redesblock/hop/core/swarm/test"
 )
 
 // TestRandomAddressAt checks that RandomAddressAt generates a correct random address
