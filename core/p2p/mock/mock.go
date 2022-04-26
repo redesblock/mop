@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
@@ -12,7 +13,7 @@ import (
 
 type Service struct {
 	addProtocolFunc func(p2p.ProtocolSpec) error
-	connectFunc     func(ctx context.Context, addr ma.Multiaddr) (overlay swarm.Address, err error)
+	connectFunc     func(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error)
 	disconnectFunc  func(overlay swarm.Address) error
 	peersFunc       func() []p2p.Peer
 	setNotifierFunc func(topology.Notifier)
@@ -25,7 +26,7 @@ func WithAddProtocolFunc(f func(p2p.ProtocolSpec) error) Option {
 	})
 }
 
-func WithConnectFunc(f func(ctx context.Context, addr ma.Multiaddr) (overlay swarm.Address, err error)) Option {
+func WithConnectFunc(f func(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error)) Option {
 	return optionFunc(func(s *Service) {
 		s.connectFunc = f
 	})
@@ -70,9 +71,9 @@ func (s *Service) AddProtocol(spec p2p.ProtocolSpec) error {
 	return s.addProtocolFunc(spec)
 }
 
-func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (overlay swarm.Address, err error) {
+func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error) {
 	if s.connectFunc == nil {
-		return swarm.Address{}, errors.New("function Connect not configured")
+		return nil, errors.New("function Connect not configured")
 	}
 	return s.connectFunc(ctx, addr)
 }

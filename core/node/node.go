@@ -129,8 +129,9 @@ func New(o Options) (*Node, error) {
 	}
 	b.stateStoreCloser = stateStore
 	addressbook := addressbook.New(stateStore)
+	signer := crypto.NewDefaultSigner(swarmPrivateKey)
 
-	p2ps, err := libp2p.New(p2pCtx, crypto.NewDefaultSigner(swarmPrivateKey), o.NetworkID, address, o.Addr, libp2p.Options{
+	p2ps, err := libp2p.New(p2pCtx, signer, o.NetworkID, address, o.Addr, libp2p.Options{
 		PrivateKey:  libp2pPrivateKey,
 		DisableWS:   o.DisableWS,
 		DisableQUIC: o.DisableQUIC,
@@ -157,6 +158,7 @@ func New(o Options) (*Node, error) {
 	hive := hive.New(hive.Options{
 		Streamer:    p2ps,
 		AddressBook: addressbook,
+		NetworkID:   o.NetworkID,
 		Logger:      logger,
 	})
 
@@ -339,24 +341,24 @@ func New(o Options) (*Node, error) {
 					return
 				}
 
-				overlay, err := p2ps.Connect(p2pCtx, addr)
+				hopAddr, err := p2ps.Connect(p2pCtx, addr)
 				if err != nil {
 					logger.Debugf("connect fail %s: %v", a, err)
 					logger.Errorf("connect to bootnode %s", a)
 					return
 				}
 
-				err = addressbook.Put(overlay, addr)
+				err = addressbook.Put(hopAddr.Overlay, *hopAddr)
 				if err != nil {
-					_ = p2ps.Disconnect(overlay)
-					logger.Debugf("addressboook error persisting %s %s: %v", a, overlay, err)
-					logger.Errorf("persisting node %s", a)
+					_ = p2ps.Disconnect(hopAddr.Overlay)
+					logger.Debugf("addressbook error persisting %s %s: %v", a, hopAddr.Overlay, err)
+					logger.Errorf("connect to bootnode %s", a)
 					return
 				}
 
-				if err := topologyDriver.AddPeer(p2pCtx, overlay); err != nil {
-					_ = p2ps.Disconnect(overlay)
-					logger.Debugf("topology add peer fail %s %s: %v", a, overlay, err)
+				if err := topologyDriver.Connected(p2pCtx, hopAddr.Overlay); err != nil {
+					_ = p2ps.Disconnect(hopAddr.Overlay)
+					logger.Debugf("topology connected fail %s %s: %v", a, hopAddr.Overlay, err)
 					logger.Errorf("connect to bootnode %s", a)
 					return
 				}

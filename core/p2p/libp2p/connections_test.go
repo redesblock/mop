@@ -37,7 +37,7 @@ func TestConnectDisconnect(t *testing.T) {
 
 	addr := serviceUnderlayAddress(t, s1)
 
-	overlay, err := s2.Connect(ctx, addr)
+	hopAddr, err := s2.Connect(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestConnectDisconnect(t *testing.T) {
 	expectPeers(t, s2, overlay1)
 	expectPeersEventually(t, s1, overlay2)
 
-	if err := s2.Disconnect(overlay); err != nil {
+	if err := s2.Disconnect(hopAddr.Overlay); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +88,7 @@ func TestDoubleDisconnect(t *testing.T) {
 
 	addr := serviceUnderlayAddress(t, s1)
 
-	overlay, err := s2.Connect(ctx, addr)
+	hopAddr, err := s2.Connect(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,14 +96,14 @@ func TestDoubleDisconnect(t *testing.T) {
 	expectPeers(t, s2, overlay1)
 	expectPeersEventually(t, s1, overlay2)
 
-	if err := s2.Disconnect(overlay); err != nil {
+	if err := s2.Disconnect(hopAddr.Overlay); err != nil {
 		t.Fatal(err)
 	}
 
 	expectPeers(t, s2)
 	expectPeersEventually(t, s1)
 
-	if err := s2.Disconnect(overlay); !errors.Is(err, p2p.ErrPeerNotFound) {
+	if err := s2.Disconnect(hopAddr.Overlay); !errors.Is(err, p2p.ErrPeerNotFound) {
 		t.Errorf("got error %v, want %v", err, p2p.ErrPeerNotFound)
 	}
 
@@ -121,7 +121,7 @@ func TestMultipleConnectDisconnect(t *testing.T) {
 
 	addr := serviceUnderlayAddress(t, s1)
 
-	overlay, err := s2.Connect(ctx, addr)
+	hopAddr, err := s2.Connect(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,14 +129,14 @@ func TestMultipleConnectDisconnect(t *testing.T) {
 	expectPeers(t, s2, overlay1)
 	expectPeersEventually(t, s1, overlay2)
 
-	if err := s2.Disconnect(overlay); err != nil {
+	if err := s2.Disconnect(hopAddr.Overlay); err != nil {
 		t.Fatal(err)
 	}
 
 	expectPeers(t, s2)
 	expectPeersEventually(t, s1)
 
-	overlay, err = s2.Connect(ctx, addr)
+	hopAddr, err = s2.Connect(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestMultipleConnectDisconnect(t *testing.T) {
 	expectPeers(t, s2, overlay1)
 	expectPeersEventually(t, s1, overlay2)
 
-	if err := s2.Disconnect(overlay); err != nil {
+	if err := s2.Disconnect(hopAddr.Overlay); err != nil {
 		t.Fatal(err)
 	}
 
@@ -165,7 +165,7 @@ func TestConnectDisconnectOnAllAddresses(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, addr := range addrs {
-		overlay, err := s2.Connect(ctx, addr)
+		hopAddr, err := s2.Connect(ctx, addr)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,7 +173,7 @@ func TestConnectDisconnectOnAllAddresses(t *testing.T) {
 		expectPeers(t, s2, overlay1)
 		expectPeersEventually(t, s1, overlay2)
 
-		if err := s2.Disconnect(overlay); err != nil {
+		if err := s2.Disconnect(hopAddr.Overlay); err != nil {
 			t.Fatal(err)
 		}
 
@@ -345,7 +345,7 @@ func TestTopologyNotifiee(t *testing.T) {
 	addr := serviceUnderlayAddress(t, s1)
 
 	// s2 connects to s1, thus the notifiee on s1 should be called on Connect
-	overlay, err := s2.Connect(ctx, addr)
+	hopAddr, err := s2.Connect(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func TestTopologyNotifiee(t *testing.T) {
 	mtx.Unlock()
 
 	// s2 disconnects from s1 so s1 disconnect notifiee should be called
-	if err := s2.Disconnect(overlay); err != nil {
+	if err := s2.Disconnect(hopAddr.Overlay); err != nil {
 		t.Fatal(err)
 	}
 
@@ -380,7 +380,7 @@ func TestTopologyNotifiee(t *testing.T) {
 
 	addr2 := serviceUnderlayAddress(t, s2)
 	// s1 connects to s2, thus the notifiee on s2 should be called on Connect
-	o2, err := s1.Connect(ctx, addr2)
+	hopAddr2, err := s1.Connect(ctx, addr2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +390,7 @@ func TestTopologyNotifiee(t *testing.T) {
 	waitAddrSet(t, &n2connectedAddr, &mtx, overlay1)
 
 	// s1 disconnects from s2 so s2 disconnect notifiee should be called
-	if err := s1.Disconnect(o2); err != nil {
+	if err := s1.Disconnect(hopAddr2.Overlay); err != nil {
 		t.Fatal(err)
 	}
 	expectPeers(t, s1)

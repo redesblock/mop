@@ -2,26 +2,26 @@ package handshake_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"testing"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/mock"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
 	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/swarm"
 
+	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 func TestHandshake(t *testing.T) {
 	logger := logging.New(ioutil.Discard, 0)
+	networkID := uint64(3)
 	node1ma, err := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/7070/p2p/16Uiu2HAkx8ULY8cTXhdVAcMmLcH9AsTKz6uBQ7DPLKRjMLgBVYkA")
 	if err != nil {
 		t.Fatal(err)
@@ -31,20 +31,7 @@ func TestHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	node1Addr, err := peer.AddrInfoFromP2pAddr(node1ma)
-	if err != nil {
-		t.Fatal(err)
-	}
-	node2Addr, err := peer.AddrInfoFromP2pAddr(node2ma)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	node1Underlay, err := node1Addr.ID.MarshalBinary()
-	if err != nil {
-		t.Fatal(err)
-	}
-	node2Underlay, err := node2Addr.ID.MarshalBinary()
+	node2AddrInfo, err := libp2ppeer.AddrInfoFromP2pAddr(node2ma)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,48 +45,27 @@ func TestHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	node1Overlay := crypto.NewOverlayAddress(privateKey1.PublicKey, 3)
-	node2Overlay := crypto.NewOverlayAddress(privateKey2.PublicKey, 3)
-	node1Info := handshake.Info{
-		Overlay:   node1Overlay,
-		Underlay:  node1Underlay,
-		NetworkID: 3,
-		Light:     false,
-	}
-
-	node2Info := handshake.Info{
-		Overlay:   node2Overlay,
-		Underlay:  node2Underlay,
-		NetworkID: 3,
-		Light:     false,
-	}
-
 	signer1 := crypto.NewDefaultSigner(privateKey1)
 	signer2 := crypto.NewDefaultSigner(privateKey2)
-	networkIDBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(networkIDBytes, node1Info.NetworkID)
-	signature1, err := signer1.Sign(append(node1Underlay, networkIDBytes...))
+	node1HopAddress, err := hop.NewAddress(signer1, node1ma, crypto.NewOverlayAddress(privateKey1.PublicKey, networkID), networkID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node2HopAddress, err := hop.NewAddress(signer2, node2ma, crypto.NewOverlayAddress(privateKey2.PublicKey, networkID), networkID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	signature2, err := signer2.Sign(append(node2Underlay, networkIDBytes...))
-	if err != nil {
-		t.Fatal(err)
+	node1Info := handshake.Info{
+		HopAddress: node1HopAddress,
+		Light:      false,
+	}
+	node2Info := handshake.Info{
+		HopAddress: node2HopAddress,
+		Light:      false,
 	}
 
-	node1HopAddress := &pb.HopAddress{
-		Overlay:   node1Info.Overlay.Bytes(),
-		Underlay:  node1Info.Underlay,
-		Signature: signature1,
-	}
-	node2HopAddress := &pb.HopAddress{
-		Overlay:   node2Info.Overlay.Bytes(),
-		Underlay:  node2Info.Underlay,
-		Signature: signature2,
-	}
-
-	handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+	handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,11 +79,19 @@ func TestHandshake(t *testing.T) {
 		w, r := protobuf.NewWriterAndReader(stream2)
 		if err := w.WriteMsg(&pb.SynAck{
 			Syn: &pb.Syn{
-				HopAddress: node2HopAddress,
-				NetworkID:  node2Info.NetworkID,
-				Light:      node2Info.Light,
+				HopAddress: &pb.HopAddress{
+					Underlay:  node2HopAddress.Underlay.Bytes(),
+					Overlay:   node2HopAddress.Overlay.Bytes(),
+					Signature: node2HopAddress.Signature,
+				},
+				Light:     node2Info.Light,
+				NetworkID: networkID,
 			},
-			Ack: &pb.Ack{HopAddress: node1HopAddress},
+			Ack: &pb.Ack{HopAddress: &pb.HopAddress{
+				Underlay:  node1HopAddress.Underlay.Bytes(),
+				Overlay:   node1HopAddress.Overlay.Bytes(),
+				Signature: node1HopAddress.Signature,
+			}},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -175,11 +149,19 @@ func TestHandshake(t *testing.T) {
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.SynAck{
 			Syn: &pb.Syn{
-				HopAddress: node2HopAddress,
-				NetworkID:  node2Info.NetworkID,
-				Light:      node2Info.Light,
+				HopAddress: &pb.HopAddress{
+					Underlay:  node2HopAddress.Underlay.Bytes(),
+					Overlay:   node2HopAddress.Overlay.Bytes(),
+					Signature: node2HopAddress.Signature,
+				},
+				Light:     node2Info.Light,
+				NetworkID: networkID,
 			},
-			Ack: &pb.Ack{HopAddress: node1HopAddress},
+			Ack: &pb.Ack{HopAddress: &pb.HopAddress{
+				Underlay:  node1HopAddress.Underlay.Bytes(),
+				Overlay:   node1HopAddress.Overlay.Bytes(),
+				Signature: node1HopAddress.Signature,
+			}},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -203,11 +185,19 @@ func TestHandshake(t *testing.T) {
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.SynAck{
 			Syn: &pb.Syn{
-				HopAddress: node2HopAddress,
-				NetworkID:  5,
-				Light:      node2Info.Light,
+				HopAddress: &pb.HopAddress{
+					Underlay:  node2HopAddress.Underlay.Bytes(),
+					Overlay:   node2HopAddress.Overlay.Bytes(),
+					Signature: node2HopAddress.Signature,
+				},
+				NetworkID: 5,
+				Light:     node2Info.Light,
 			},
-			Ack: &pb.Ack{HopAddress: node1HopAddress},
+			Ack: &pb.Ack{HopAddress: &pb.HopAddress{
+				Underlay:  node1HopAddress.Underlay.Bytes(),
+				Overlay:   node1HopAddress.Overlay.Bytes(),
+				Signature: node1HopAddress.Signature,
+			}},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -231,11 +221,19 @@ func TestHandshake(t *testing.T) {
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.SynAck{
 			Syn: &pb.Syn{
-				HopAddress: node2HopAddress,
-				NetworkID:  node2Info.NetworkID,
-				Light:      node2Info.Light,
+				HopAddress: &pb.HopAddress{
+					Underlay:  node2HopAddress.Underlay.Bytes(),
+					Overlay:   node2HopAddress.Overlay.Bytes(),
+					Signature: node2HopAddress.Signature,
+				},
+				Light:     node2Info.Light,
+				NetworkID: networkID,
 			},
-			Ack: &pb.Ack{HopAddress: node2HopAddress},
+			Ack: &pb.Ack{HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			}},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -260,14 +258,18 @@ func TestHandshake(t *testing.T) {
 		if err := w.WriteMsg(&pb.SynAck{
 			Syn: &pb.Syn{
 				HopAddress: &pb.HopAddress{
-					Underlay:  node2HopAddress.Underlay,
-					Signature: []byte("wrong signature"),
-					Overlay:   node2HopAddress.Overlay,
+					Underlay:  node2HopAddress.Underlay.Bytes(),
+					Overlay:   []byte("wrong signature"),
+					Signature: node2HopAddress.Signature,
 				},
-				NetworkID: node2Info.NetworkID,
 				Light:     node2Info.Light,
+				NetworkID: networkID,
 			},
-			Ack: &pb.Ack{HopAddress: node1HopAddress},
+			Ack: &pb.Ack{HopAddress: &pb.HopAddress{
+				Underlay:  node1HopAddress.Underlay.Bytes(),
+				Overlay:   node1HopAddress.Overlay.Bytes(),
+				Signature: node1HopAddress.Signature,
+			}},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -277,13 +279,13 @@ func TestHandshake(t *testing.T) {
 			t.Fatal("res should be nil")
 		}
 
-		if err != handshake.ErrInvalidSignature {
-			t.Fatalf("expected %s, got %s", handshake.ErrInvalidSignature, err)
+		if err != handshake.ErrInvalidHopAddress {
+			t.Fatalf("expected %s, got %s", handshake.ErrInvalidHopAddress, err)
 		}
 	})
 
 	t.Run("Handle - OK", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -294,18 +296,26 @@ func TestHandshake(t *testing.T) {
 
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.Syn{
-			HopAddress: node2HopAddress,
-			NetworkID:  node2Info.NetworkID,
-			Light:      node2Info.Light,
+			HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			},
+			Light:     node2Info.Light,
+			NetworkID: networkID,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := w.WriteMsg(&pb.Ack{HopAddress: node1HopAddress}); err != nil {
+		if err := w.WriteMsg(&pb.Ack{HopAddress: &pb.HopAddress{
+			Underlay:  node1HopAddress.Underlay.Bytes(),
+			Overlay:   node1HopAddress.Overlay.Bytes(),
+			Signature: node1HopAddress.Signature,
+		}}); err != nil {
 			t.Fatal(err)
 		}
 
-		res, err := handshakeService.Handle(stream1, node2Addr.ID)
+		res, err := handshakeService.Handle(stream1, node2AddrInfo.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -318,16 +328,19 @@ func TestHandshake(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		HopAddress, err := hop.ParseAddress(got.Syn.HopAddress.Underlay, got.Syn.HopAddress.Overlay, got.Syn.HopAddress.Signature, got.Syn.NetworkID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		testInfo(t, node1Info, handshake.Info{
-			Overlay:   swarm.NewAddress(got.Syn.HopAddress.Overlay),
-			Underlay:  got.Syn.HopAddress.Underlay,
-			NetworkID: got.Syn.NetworkID,
-			Light:     got.Syn.Light,
+			HopAddress: HopAddress,
+			Light:      got.Syn.Light,
 		})
 	})
 
 	t.Run("Handle - read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -335,7 +348,7 @@ func TestHandshake(t *testing.T) {
 		expectedErr := fmt.Errorf("read syn message: %w", testErr)
 		stream := &mock.Stream{}
 		stream.SetReadErr(testErr, 0)
-		res, err := handshakeService.Handle(stream, node2Addr.ID)
+		res, err := handshakeService.Handle(stream, node2AddrInfo.ID)
 		if err == nil || err.Error() != expectedErr.Error() {
 			t.Fatal("expected:", expectedErr, "got:", err)
 		}
@@ -346,7 +359,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - write error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,14 +370,18 @@ func TestHandshake(t *testing.T) {
 		stream.SetWriteErr(testErr, 1)
 		w := protobuf.NewWriter(stream)
 		if err := w.WriteMsg(&pb.Syn{
-			HopAddress: node2HopAddress,
-			NetworkID:  node2Info.NetworkID,
-			Light:      node2Info.Light,
+			HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			},
+			Light:     node2Info.Light,
+			NetworkID: networkID,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		res, err := handshakeService.Handle(stream, node2Addr.ID)
+		res, err := handshakeService.Handle(stream, node2AddrInfo.ID)
 		if err == nil || err.Error() != expectedErr.Error() {
 			t.Fatal("expected:", expectedErr, "got:", err)
 		}
@@ -375,7 +392,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - ack read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -388,14 +405,18 @@ func TestHandshake(t *testing.T) {
 		stream1.SetReadErr(testErr, 1)
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.Syn{
-			HopAddress: node2HopAddress,
-			NetworkID:  node2Info.NetworkID,
-			Light:      node2Info.Light,
+			HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			},
+			Light:     node2Info.Light,
+			NetworkID: networkID,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		res, err := handshakeService.Handle(stream1, node2Addr.ID)
+		res, err := handshakeService.Handle(stream1, node2AddrInfo.ID)
 		if err == nil || err.Error() != expectedErr.Error() {
 			t.Fatal("expected:", expectedErr, "got:", err)
 		}
@@ -406,7 +427,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - networkID mismatch ", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -417,14 +438,18 @@ func TestHandshake(t *testing.T) {
 
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.Syn{
-			HopAddress: node2HopAddress,
-			NetworkID:  5,
-			Light:      node2Info.Light,
+			HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			},
+			NetworkID: 5,
+			Light:     node2Info.Light,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		res, err := handshakeService.Handle(stream1, node2Addr.ID)
+		res, err := handshakeService.Handle(stream1, node2AddrInfo.ID)
 		if res != nil {
 			t.Fatal("res should be nil")
 		}
@@ -435,7 +460,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - duplicate handshake", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -446,18 +471,26 @@ func TestHandshake(t *testing.T) {
 
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.Syn{
-			HopAddress: node2HopAddress,
-			NetworkID:  node2Info.NetworkID,
-			Light:      node2Info.Light,
+			HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			},
+			Light:     node2Info.Light,
+			NetworkID: networkID,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := w.WriteMsg(&pb.Ack{HopAddress: node1HopAddress}); err != nil {
+		if err := w.WriteMsg(&pb.Ack{HopAddress: &pb.HopAddress{
+			Underlay:  node1HopAddress.Underlay.Bytes(),
+			Overlay:   node1HopAddress.Overlay.Bytes(),
+			Signature: node1HopAddress.Signature,
+		}}); err != nil {
 			t.Fatal(err)
 		}
 
-		res, err := handshakeService.Handle(stream1, node2Addr.ID)
+		res, err := handshakeService.Handle(stream1, node2AddrInfo.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -470,50 +503,24 @@ func TestHandshake(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		HopAddress, err := hop.ParseAddress(got.Syn.HopAddress.Underlay, got.Syn.HopAddress.Overlay, got.Syn.HopAddress.Signature, got.Syn.NetworkID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		testInfo(t, node1Info, handshake.Info{
-			Overlay:   swarm.NewAddress(got.Syn.HopAddress.Overlay),
-			Underlay:  got.Syn.HopAddress.Underlay,
-			NetworkID: got.Syn.NetworkID,
-			Light:     got.Syn.Light,
+			HopAddress: HopAddress,
+			Light:      got.Syn.Light,
 		})
 
-		_, err = handshakeService.Handle(stream1, node2Addr.ID)
+		_, err = handshakeService.Handle(stream1, node2AddrInfo.ID)
 		if err != handshake.ErrHandshakeDuplicate {
 			t.Fatalf("expected %s, got %s", handshake.ErrHandshakeDuplicate, err)
 		}
 	})
 
 	t.Run("Handle - invalid ack", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var buffer1 bytes.Buffer
-		var buffer2 bytes.Buffer
-		stream1 := mock.NewStream(&buffer1, &buffer2)
-		stream2 := mock.NewStream(&buffer2, &buffer1)
-
-		w := protobuf.NewWriter(stream2)
-		if err := w.WriteMsg(&pb.Syn{
-			HopAddress: node2HopAddress,
-			NetworkID:  node2Info.NetworkID,
-			Light:      node2Info.Light,
-		}); err != nil {
-			t.Fatal(err)
-		}
-
-		if err := w.WriteMsg(&pb.Ack{HopAddress: node2HopAddress}); err != nil {
-			t.Fatal(err)
-		}
-
-		_, err = handshakeService.Handle(stream1, node2Addr.ID)
-		if err != handshake.ErrInvalidAck {
-			t.Fatalf("expected %s, got %s", handshake.ErrInvalidAck, err)
-		}
-	})
-
-	t.Run("Handle - invalid signature ", func(t *testing.T) {
-		handshakeService, err := handshake.New(node1Info.Overlay, node1Addr.ID, signer1, node1Info.NetworkID, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -525,23 +532,60 @@ func TestHandshake(t *testing.T) {
 		w := protobuf.NewWriter(stream2)
 		if err := w.WriteMsg(&pb.Syn{
 			HopAddress: &pb.HopAddress{
-				Underlay:  node2HopAddress.Underlay,
-				Signature: []byte("wrong signature"),
-				Overlay:   node2HopAddress.Overlay,
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
 			},
-			NetworkID: node2Info.NetworkID,
+			Light:     node2Info.Light,
+			NetworkID: networkID,
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := w.WriteMsg(&pb.Ack{HopAddress: &pb.HopAddress{
+			Underlay:  node2HopAddress.Underlay.Bytes(),
+			Overlay:   node2HopAddress.Overlay.Bytes(),
+			Signature: node2HopAddress.Signature,
+		}}); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = handshakeService.Handle(stream1, node2AddrInfo.ID)
+		if err != handshake.ErrInvalidAck {
+			t.Fatalf("expected %s, got %s", handshake.ErrInvalidAck, err)
+		}
+	})
+
+	t.Run("Handle - invalid signature ", func(t *testing.T) {
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, node1Info.HopAddress.Underlay, signer1, networkID, logger)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buffer1 bytes.Buffer
+		var buffer2 bytes.Buffer
+		stream1 := mock.NewStream(&buffer1, &buffer2)
+		stream2 := mock.NewStream(&buffer2, &buffer1)
+
+		w := protobuf.NewWriter(stream2)
+		if err := w.WriteMsg(&pb.Syn{
+			HopAddress: &pb.HopAddress{
+				Underlay:  node2HopAddress.Underlay.Bytes(),
+				Overlay:   []byte("wrong signature"),
+				Signature: node2HopAddress.Signature,
+			},
+			NetworkID: networkID,
 			Light:     node2Info.Light,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		res, err := handshakeService.Handle(stream1, node2Addr.ID)
+		res, err := handshakeService.Handle(stream1, node2AddrInfo.ID)
 		if res != nil {
 			t.Fatal("res should be nil")
 		}
 
-		if err != handshake.ErrInvalidSignature {
-			t.Fatalf("expected %s, got %s", handshake.ErrInvalidSignature, err)
+		if err != handshake.ErrInvalidHopAddress {
+			t.Fatalf("expected %s, got %s", handshake.ErrInvalidHopAddress, err)
 		}
 	})
 }
@@ -549,7 +593,7 @@ func TestHandshake(t *testing.T) {
 // testInfo validates if two Info instances are equal.
 func testInfo(t *testing.T, got, want handshake.Info) {
 	t.Helper()
-	if !got.Overlay.Equal(want.Overlay) || !bytes.Equal(got.Underlay, want.Underlay) || got.NetworkID != want.NetworkID || got.Light != want.Light {
+	if !got.HopAddress.Equal(want.HopAddress) || got.Light != want.Light {
 		t.Fatalf("got info %+v, want %+v", got, want)
 	}
 }

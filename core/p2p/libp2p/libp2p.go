@@ -23,7 +23,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multistream"
 	"github.com/redesblock/hop/core/addressbook"
-	hopcrypto "github.com/redesblock/hop/core/crypto"
+	hopCrypto "github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/breaker"
@@ -61,7 +62,7 @@ type Options struct {
 	Tracer      *tracing.Tracer
 }
 
-func New(ctx context.Context, signer hopcrypto.Signer, networkID uint64, overlay swarm.Address, addr string,
+func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string,
 	o Options) (*Service, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -151,7 +152,13 @@ func New(ctx context.Context, signer hopcrypto.Signer, networkID uint64, overlay
 		return nil, fmt.Errorf("autonat: %w", err)
 	}
 
-	handshakeService, err := handshake.New(overlay, h.ID(), signer, networkID, o.Logger)
+	// todo: handle different underlays
+	underlay, err := buildUnderlayAddress(h.Addrs()[1], h.ID())
+	if err != nil {
+		return nil, fmt.Errorf("build host multiaddress: %w", err)
+	}
+
+	handshakeService, err := handshake.New(overlay, underlay, signer, networkID, o.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("handshake service: %w", err)
 	}
@@ -189,21 +196,14 @@ func New(ctx context.Context, signer hopcrypto.Signer, networkID uint64, overlay
 			return
 		}
 
-		if exists := s.peers.addIfNotExists(stream.Conn(), i.Overlay); exists {
+		if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
 			_ = stream.Close()
 			return
 		}
 
 		_ = stream.Close()
-		remoteMultiaddr, err := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", stream.Conn().RemoteMultiaddr().String(), peerID.Pretty()))
-		if err != nil {
-			s.logger.Debugf("multiaddr error: handle %s: %v", peerID, err)
-			s.logger.Errorf("unable to connect with peer %v", peerID)
-			_ = s.disconnect(peerID)
-			return
-		}
 
-		err = s.addressbook.Put(i.Overlay, remoteMultiaddr)
+		err = s.addressbook.Put(i.HopAddress.Overlay, *i.HopAddress)
 		if err != nil {
 			s.logger.Debugf("handshake: addressbook put error %s: %v", peerID, err)
 			s.logger.Errorf("unable to persist peer %v", peerID)
@@ -212,13 +212,13 @@ func New(ctx context.Context, signer hopcrypto.Signer, networkID uint64, overlay
 		}
 
 		if s.topologyNotifier != nil {
-			if err := s.topologyNotifier.Connected(ctx, i.Overlay); err != nil {
-				s.logger.Debugf("peerhandler error: %s: %v", peerID, err)
+			if err := s.topologyNotifier.Connected(ctx, i.HopAddress.Overlay); err != nil {
+				s.logger.Debugf("topology notifier: %s: %v", peerID, err)
 			}
 		}
 
 		s.metrics.HandledStreamCount.Inc()
-		s.logger.Infof("peer %s connected", i.Overlay)
+		s.logger.Infof("peer %s connected", i.HopAddress.Overlay)
 	})
 
 	h.Network().SetConnHandler(func(_ network.Conn) {
@@ -283,66 +283,74 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 	return nil
 }
 
-func (s *Service) Addresses() (addrs []ma.Multiaddr, err error) {
+func (s *Service) Addresses() (addreses []ma.Multiaddr, err error) {
+	for _, addr := range s.host.Addrs() {
+		a, err := buildUnderlayAddress(addr, s.host.ID())
+		if err != nil {
+			return nil, err
+		}
+
+		addreses = append(addreses, a)
+	}
+
+	return addreses, nil
+}
+
+func buildUnderlayAddress(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr, error) {
 	// Build host multiaddress
-	hostAddr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", s.host.ID().Pretty()))
+	hostAddr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peerID.Pretty()))
 	if err != nil {
 		return nil, err
 	}
 
-	// Now we can build a full multiaddress to reach this host
-	// by encapsulating both addresses:
-	for _, addr := range s.host.Addrs() {
-		addrs = append(addrs, addr.Encapsulate(hostAddr))
-	}
-	return addrs, nil
+	return addr.Encapsulate(hostAddr), nil
 }
 
-func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (overlay swarm.Address, err error) {
+func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error) {
 	// Extract the peer ID from the multiaddr.
 	info, err := libp2ppeer.AddrInfoFromP2pAddr(addr)
 	if err != nil {
-		return swarm.Address{}, err
+		return nil, err
 	}
 
 	if _, found := s.peers.overlay(info.ID); found {
-		return swarm.Address{}, p2p.ErrAlreadyConnected
+		return nil, p2p.ErrAlreadyConnected
 	}
 
 	if err := s.conectionBreaker.Execute(func() error { return s.host.Connect(ctx, *info) }); err != nil {
 		if errors.Is(err, breaker.ErrClosed) {
-			return swarm.Address{}, p2p.NewConnectionBackoffError(err, s.conectionBreaker.ClosedUntil())
+			return nil, p2p.NewConnectionBackoffError(err, s.conectionBreaker.ClosedUntil())
 		}
-		return swarm.Address{}, err
+		return nil, err
 	}
 
 	stream, err := s.newStreamForPeerID(ctx, info.ID, handshake.ProtocolName, handshake.ProtocolVersion, handshake.StreamName)
 	if err != nil {
 		_ = s.disconnect(info.ID)
-		return swarm.Address{}, err
+		return nil, err
 	}
 
 	i, err := s.handshakeService.Handshake(NewStream(stream))
 	if err != nil {
 		_ = s.disconnect(info.ID)
-		return swarm.Address{}, fmt.Errorf("handshake: %w", err)
+		return nil, fmt.Errorf("handshake: %w", err)
 	}
 
-	if exists := s.peers.addIfNotExists(stream.Conn(), i.Overlay); exists {
+	if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
 		if err := helpers.FullClose(stream); err != nil {
-			return swarm.Address{}, err
+			return nil, err
 		}
 
-		return i.Overlay, nil
+		return i.HopAddress, nil
 	}
 
 	if err := helpers.FullClose(stream); err != nil {
-		return swarm.Address{}, err
+		return nil, err
 	}
 
 	s.metrics.CreatedConnectionCount.Inc()
-	s.logger.Infof("peer %s connected", i.Overlay)
-	return i.Overlay, nil
+	s.logger.Infof("peer %s connected", i.HopAddress.Overlay)
+	return i.HopAddress, nil
 }
 
 func (s *Service) Disconnect(overlay swarm.Address) error {

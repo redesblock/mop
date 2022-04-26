@@ -5,6 +5,7 @@ import (
 	"io"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 )
@@ -12,7 +13,7 @@ import (
 // Service provides methods to handle p2p Peers and Protocols.
 type Service interface {
 	AddProtocol(ProtocolSpec) error
-	Connect(ctx context.Context, addr ma.Multiaddr) (overlay swarm.Address, err error)
+	Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error)
 	Disconnect(overlay swarm.Address) error
 	Peers() []Peer
 	SetNotifier(topology.Notifier)

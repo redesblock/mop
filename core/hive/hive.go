@@ -8,13 +8,12 @@ import (
 
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/hive/pb"
+	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 const (
@@ -22,19 +21,21 @@ const (
 	protocolVersion = "1.0.0"
 	peersStreamName = "peers"
 	messageTimeout  = 1 * time.Minute // maximum allowed time for a message to be read or written.
-	maxBatchSize    = 50
+	maxBatchSize    = 30
 )
 
 type Service struct {
 	streamer    p2p.Streamer
 	addressBook addressbook.GetPutter
 	peerHandler func(context.Context, swarm.Address) error
+	networkID   uint64
 	logger      logging.Logger
 }
 
 type Options struct {
 	Streamer    p2p.Streamer
 	AddressBook addressbook.GetPutter
+	NetworkID   uint64
 	Logger      logging.Logger
 }
 
@@ -43,6 +44,7 @@ func New(o Options) *Service {
 		streamer:    o.Streamer,
 		logger:      o.Logger,
 		addressBook: o.AddressBook,
+		networkID:   o.NetworkID,
 	}
 }
 
@@ -92,15 +94,16 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 		addr, err := s.addressBook.Get(p)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				s.logger.Debugf("Peer not found %s", peer, err)
+				s.logger.Debugf("Peer not found %s", p)
 				continue
 			}
 			return err
 		}
 
 		peersRequest.Peers = append(peersRequest.Peers, &pb.HopAddress{
-			Overlay:  p.Bytes(),
-			Underlay: addr.String(),
+			Overlay:   addr.Overlay.Bytes(),
+			Underlay:  addr.Underlay.Bytes(),
+			Signature: addr.Signature,
 		})
 	}
 
@@ -123,18 +126,20 @@ func (s *Service) peersHandler(_ context.Context, peer p2p.Peer, stream p2p.Stre
 		return fmt.Errorf("close stream: %w", err)
 	}
 	for _, newPeer := range peersReq.Peers {
-		addr, err := ma.NewMultiaddr(newPeer.Underlay)
+		HopAddress, err := hop.ParseAddress(newPeer.Underlay, newPeer.Overlay, newPeer.Signature, s.networkID)
 		if err != nil {
-			s.logger.Infof("Skipping peer in response %s: %w", newPeer, err)
+			s.logger.Warningf("skipping peer in response %s: %w", newPeer, err)
 			continue
 		}
 
-		err = s.addressBook.Put(swarm.NewAddress(newPeer.Overlay), addr)
+		err = s.addressBook.Put(HopAddress.Overlay, *HopAddress)
 		if err != nil {
-			return err
+			s.logger.Warningf("skipping peer in response %s: %w", newPeer, err)
+			continue
 		}
+
 		if s.peerHandler != nil {
-			if err := s.peerHandler(context.Background(), swarm.NewAddress(newPeer.Overlay)); err != nil {
+			if err := s.peerHandler(context.Background(), HopAddress.Overlay); err != nil {
 				return err
 			}
 		}

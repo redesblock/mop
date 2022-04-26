@@ -23,7 +23,7 @@ func (s *server) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address, err := s.P2P.Connect(r.Context(), addr)
+	hopAddr, err := s.P2P.Connect(r.Context(), addr)
 	if err != nil {
 		s.Logger.Debugf("debug api: peer connect %s: %v", addr, err)
 		s.Logger.Errorf("unable to connect to peer %s", addr)
@@ -31,15 +31,15 @@ func (s *server) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.Addressbook.Put(address, addr)
+	err = s.Addressbook.Put(hopAddr.Overlay, *hopAddr)
 	if err != nil {
 		s.Logger.Debugf("debug api: addressbook.put %s: %v", addr, err)
 		s.Logger.Errorf("unable to persist peer %s", addr)
 		jsonhttp.InternalServerError(w, err)
 		return
 	}
-	if err := s.TopologyDriver.Connected(r.Context(), address); err != nil {
-		_ = s.P2P.Disconnect(address)
+	if err := s.TopologyDriver.Connected(r.Context(), hopAddr.Overlay); err != nil {
+		_ = s.P2P.Disconnect(hopAddr.Overlay)
 		s.Logger.Debugf("debug api: topologyDriver.Connected %s: %v", addr, err)
 		s.Logger.Errorf("unable to connect to peer %s", addr)
 		jsonhttp.InternalServerError(w, err)
@@ -47,7 +47,7 @@ func (s *server) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.OK(w, peerConnectResponse{
-		Address: address.String(),
+		Address: hopAddr.Overlay.String(),
 	})
 }
 
