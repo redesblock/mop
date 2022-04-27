@@ -5,9 +5,7 @@ import (
 	"encoding/binary"
 	"hash"
 
-	"github.com/ethersphere/bmt"
 	bmtlegacy "github.com/ethersphere/bmt/legacy"
-	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/swarm"
 	"golang.org/x/crypto/sha3"
 )
@@ -21,21 +19,18 @@ func hashFunc() hash.Hash {
 // ContentAddressValidator validates that the address of a given chunk
 // is the content address of its contents
 type ContentAddressValidator struct {
-	hasher bmt.Hash
-	logger logging.Logger
 }
 
 // New constructs a new ContentAddressValidator
 func NewContentAddressValidator() swarm.ChunkValidator {
-	p := bmtlegacy.NewTreePool(hashFunc, swarm.Branches, bmtlegacy.PoolSize)
 
-	return &ContentAddressValidator{
-		hasher: bmtlegacy.New(p),
-	}
+	return &ContentAddressValidator{}
 }
 
 // Validate performs the validation check
 func (v *ContentAddressValidator) Validate(ch swarm.Chunk) (valid bool) {
+	p := bmtlegacy.NewTreePool(hashFunc, swarm.Branches, bmtlegacy.PoolSize)
+	hasher := bmtlegacy.New(p)
 
 	// prepare data
 	data := ch.Data()
@@ -43,18 +38,16 @@ func (v *ContentAddressValidator) Validate(ch swarm.Chunk) (valid bool) {
 	span := binary.LittleEndian.Uint64(data[:8])
 
 	// execute hash, compare and return result
-	v.hasher.Reset()
-	err := v.hasher.SetSpan(int64(span))
+	hasher.Reset()
+	err := hasher.SetSpan(int64(span))
 	if err != nil {
-		v.logger.Debugf("SetSpan on bmt legacy hasher gave error: %v", err)
 		return false
 	}
-	_, err = v.hasher.Write(data[8:])
+	_, err = hasher.Write(data[8:])
 	if err != nil {
-		v.logger.Debugf("Write on bmt legacy hasher gave error: %v", err)
 		return false
 	}
-	s := v.hasher.Sum(nil)
+	s := hasher.Sum(nil)
 
 	return address.Equal(swarm.NewAddress(s))
 }

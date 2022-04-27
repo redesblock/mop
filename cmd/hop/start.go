@@ -12,17 +12,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/node"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 func (c *command) initStartCmd() (err error) {
 
 	const (
 		optionNameDataDir            = "data-dir"
+		optionNameDBCapacity         = "db-capacity"
 		optionNamePassword           = "password"
 		optionNamePasswordFile       = "password-file"
 		optionNameAPIAddr            = "api-addr"
@@ -41,7 +41,7 @@ func (c *command) initStartCmd() (err error) {
 
 	cmd := &cobra.Command{
 		Use:   "start",
-		Short: "Start a node",
+		Short: "Start a Swarm node",
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			if len(args) > 0 {
 				return cmd.Help()
@@ -89,6 +89,7 @@ func (c *command) initStartCmd() (err error) {
 
 			b, err := node.New(node.Options{
 				DataDir:            c.config.GetString(optionNameDataDir),
+				DBCapacity:         c.config.GetUint64(optionNameDBCapacity),
 				Password:           password,
 				APIAddr:            c.config.GetString(optionNameAPIAddr),
 				DebugAPIAddr:       debugAPIAddr,
@@ -146,6 +147,7 @@ func (c *command) initStartCmd() (err error) {
 	}
 
 	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".hop"), "data directory")
+	cmd.Flags().Uint64(optionNameDBCapacity, 5000000, "db capacity in chunks")
 	cmd.Flags().String(optionNamePassword, "", "password for decrypting keys")
 	cmd.Flags().String(optionNamePasswordFile, "", "path to a file that contains password for decrypting keys")
 	cmd.Flags().String(optionNameAPIAddr, ":8080", "HTTP API listen address")
@@ -155,7 +157,7 @@ func (c *command) initStartCmd() (err error) {
 	cmd.Flags().StringSlice(optionNameBootnodes, nil, "initial nodes to connect to")
 	cmd.Flags().Bool(optionNameEnableDebugAPI, false, "enable debug HTTP API")
 	cmd.Flags().String(optionNameDebugAPIAddr, ":6060", "debug HTTP API listen address")
-	cmd.Flags().Uint64(optionNameNetworkID, 1, "ID of the network")
+	cmd.Flags().Uint64(optionNameNetworkID, 1, "ID of the Swarm network")
 	cmd.Flags().Bool(optionNameTracingEnabled, false, "enable tracing")
 	cmd.Flags().String(optionNameTracingEndpoint, "127.0.0.1:6831", "endpoint to send tracing data")
 	cmd.Flags().String(optionNameTracingServiceName, "node", "service name identifier for tracing")
