@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/redesblock/hop/core/tags"
 	"io"
 	"log"
 	"net"
@@ -201,6 +202,8 @@ func New(o Options) (*Node, error) {
 		Logger:      logger,
 	})
 
+	tag := tags.NewTags()
+
 	if err = p2ps.AddProtocol(retrieve.Protocol()); err != nil {
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
@@ -222,6 +225,7 @@ func New(o Options) (*Node, error) {
 		Storer:        storer,
 		PeerSuggester: topologyDriver,
 		PushSyncer:    pushSyncProtocol,
+		Tags:          tag,
 		Logger:        logger,
 	})
 	b.pusherCloser = pushSyncPusher
@@ -231,6 +235,7 @@ func New(o Options) (*Node, error) {
 		// API server
 		apiService = api.New(api.Options{
 			Pingpong: pingPong,
+			Tags:     tag,
 			Storer:   ns,
 			Logger:   logger,
 			Tracer:   tracer,

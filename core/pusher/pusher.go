@@ -8,12 +8,14 @@ import (
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
 )
 
 type Service struct {
 	storer            storage.Storer
 	pushSyncer        pushsync.PushSyncer
+	tag               *tags.Tags
 	logger            logging.Logger
 	metrics           metrics
 	quit              chan struct{}
@@ -23,6 +25,7 @@ type Service struct {
 type Options struct {
 	Storer        storage.Storer
 	PeerSuggester topology.ClosestPeerer
+	Tags          *tags.Tags
 	PushSyncer    pushsync.PushSyncer
 	Logger        logging.Logger
 }
@@ -33,6 +36,7 @@ func New(o Options) *Service {
 	service := &Service{
 		storer:            o.Storer,
 		pushSyncer:        o.PushSyncer,
+		tag:               o.Tags,
 		logger:            o.Logger,
 		metrics:           newMetrics(),
 		quit:              make(chan struct{}),
@@ -75,9 +79,16 @@ func (s *Service) chunksWorker() {
 			chunksInBatch++
 			s.metrics.TotalChunksToBeSentCounter.Inc()
 
+			t, err := s.tag.GetByAddress(ch.Address())
+			if err != nil {
+				s.logger.Debugf("pusher: get tag by address %s: %v", ch.Address(), err)
+				continue
+			}
+			t.Inc(tags.StateSent)
+
 			// Later when we process receipt, get the receipt and process it
 			// for now ignoring the receipt and checking only for error
-			_, err := s.pushSyncer.PushChunkToClosest(ctx, ch)
+			_, err = s.pushSyncer.PushChunkToClosest(ctx, ch)
 			if err != nil {
 				s.logger.Errorf("pusher: error while sending chunk or receiving receipt: %v", err)
 				continue
@@ -119,6 +130,12 @@ func (s *Service) setChunkAsSynced(ctx context.Context, addr swarm.Address) {
 		s.metrics.ErrorSettingChunkToSynced.Inc()
 	} else {
 		s.metrics.TotalChunksSynced.Inc()
+		ta, err := s.tag.GetByAddress(addr)
+		if err != nil {
+			s.logger.Debugf("pusher: get tag by address %s: %v", addr, err)
+			return
+		}
+		ta.Inc(tags.StateSynced)
 	}
 }
 

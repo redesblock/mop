@@ -11,17 +11,20 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/hop/core/tags"
 	"resenje.org/web"
 )
 
 type testServerOptions struct {
 	Pingpong pingpong.Interface
 	Storer   storage.Storer
+	Tags     *tags.Tags
 }
 
 func newTestServer(t *testing.T, o testServerOptions) *http.Client {
 	s := api.New(api.Options{
 		Pingpong: o.Pingpong,
+		Tags:     o.Tags,
 		Storer:   o.Storer,
 		Logger:   logging.New(ioutil.Discard, 0),
 	})

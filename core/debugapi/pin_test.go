@@ -11,6 +11,7 @@ import (
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/storage/mock/validator"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
 )
 
 // TestPinChunkHandler checks for pinning, unpinning and listing of chunks.
@@ -22,13 +23,16 @@ func TestPinChunkHandler(t *testing.T) {
 	hash := swarm.MustParseHexAddress("aabbcc")
 	data := []byte("bbaatt")
 	mockValidator := validator.NewMockValidator(hash, data)
-	mockValidatingStorer := mock.NewValidatingStorer(mockValidator)
+	tag := tags.NewTags()
+	mockValidatingStorer := mock.NewValidatingStorer(mockValidator, tag)
 	debugTestServer := newTestServer(t, testServerOptions{
 		Storer: mockValidatingStorer,
+		Tags:   tag,
 	})
 	// This server is used to store chunks
 	hopTestServer := newHopTestServer(t, testServerOptions{
 		Storer: mockValidatingStorer,
+		Tags:   tag,
 	})
 
 	// bad chunk address

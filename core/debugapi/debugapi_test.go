@@ -16,6 +16,7 @@ import (
 	mockstore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/mock"
 	"resenje.org/web"
@@ -26,6 +27,7 @@ type testServerOptions struct {
 	P2P          p2p.Service
 	Storer       storage.Storer
 	TopologyOpts []mock.Option
+	Tags         *tags.Tags
 }
 
 type testServer struct {
@@ -42,6 +44,7 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	s := debugapi.New(debugapi.Options{
 		Overlay:        o.Overlay,
 		P2P:            o.P2P,
+		Tags:           o.Tags,
 		Logger:         logging.New(ioutil.Discard, 0),
 		Addressbook:    addrbook,
 		Storer:         o.Storer,
@@ -69,6 +72,7 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 func newHopTestServer(t *testing.T, o testServerOptions) *http.Client {
 	s := api.New(api.Options{
 		Storer: o.Storer,
+		Tags:   o.Tags,
 		Logger: logging.New(ioutil.Discard, 0),
 	})
 	ts := httptest.NewServer(s)

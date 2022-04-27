@@ -18,7 +18,7 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-type HopPostResponse struct {
+type hopPostResponse struct {
 	Hash swarm.Address `json:"hash"`
 }
 
@@ -64,7 +64,7 @@ func (s *server) hopUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "write error")
 		return
 	}
-	jsonhttp.OK(w, HopPostResponse{Hash: addr})
+	jsonhttp.OK(w, hopPostResponse{Hash: addr})
 }
 
 func (s *server) hopGetHandler(w http.ResponseWriter, r *http.Request) {

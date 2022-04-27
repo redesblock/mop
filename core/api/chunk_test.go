@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/redesblock/hop/core/tags"
+
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
@@ -27,9 +29,11 @@ func TestChunkUploadDownload(t *testing.T) {
 		validContent         = []byte("bbaatt")
 		invalidContent       = []byte("bbaattss")
 		mockValidator        = validator.NewMockValidator(validHash, validContent)
-		mockValidatingStorer = mock.NewValidatingStorer(mockValidator)
+		tag                  = tags.NewTags()
+		mockValidatingStorer = mock.NewValidatingStorer(mockValidator, tag)
 		client               = newTestServer(t, testServerOptions{
 			Storer: mockValidatingStorer,
+			Tags:   tag,
 		})
 	)
 
@@ -70,10 +74,11 @@ func TestChunkUploadDownload(t *testing.T) {
 			t.Fatal("data retrieved doesnt match uploaded content")
 		}
 	})
+
 	t.Run("pin-invalid-value", func(t *testing.T) {
 		headers := make(map[string][]string)
 		headers[api.PinHeaderName] = []string{"hdgdh"}
-		jsonhttptest.ResponseDirectWithHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, headers)
@@ -85,7 +90,7 @@ func TestChunkUploadDownload(t *testing.T) {
 	})
 	t.Run("pin-header-missing", func(t *testing.T) {
 		headers := make(map[string][]string)
-		jsonhttptest.ResponseDirectWithHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, headers)
@@ -98,7 +103,7 @@ func TestChunkUploadDownload(t *testing.T) {
 	t.Run("pin-ok", func(t *testing.T) {
 		headers := make(map[string][]string)
 		headers[api.PinHeaderName] = []string{"True"}
-		jsonhttptest.ResponseDirectWithHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, headers)
@@ -109,7 +114,6 @@ func TestChunkUploadDownload(t *testing.T) {
 		}
 
 	})
-
 }
 
 func request(t *testing.T, client *http.Client, method string, resource string, body io.Reader, responseCode int) *http.Response {

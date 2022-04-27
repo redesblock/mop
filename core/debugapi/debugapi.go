@@ -9,6 +9,7 @@ import (
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
 )
 
@@ -31,6 +32,7 @@ type Options struct {
 	TopologyDriver topology.Notifier
 	Storer         storage.Storer
 	Logger         logging.Logger
+	Tags           *tags.Tags
 }
 
 func New(o Options) Service {

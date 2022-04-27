@@ -28,7 +28,7 @@ func (s *server) setupRouting() {
 		"POST": http.HandlerFunc(s.pingpongHandler),
 	})
 
-	router.Handle("/hop/", jsonhttp.MethodHandler{
+	router.Handle("/hop", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.hopUploadHandler),
 	})
 
@@ -39,6 +39,18 @@ func (s *server) setupRouting() {
 	router.Handle("/hop-chunk/{addr}", jsonhttp.MethodHandler{
 		"GET":  http.HandlerFunc(s.chunkGetHandler),
 		"POST": http.HandlerFunc(s.chunkUploadHandler),
+	})
+
+	router.Handle("/hop-tag/name/{name}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.CreateTag),
+	})
+
+	router.Handle("/hop-tag/addr/{addr}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.getTagInfoUsingAddress),
+	})
+
+	router.Handle("/hop-tag/uuid/{uuid}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.getTagInfoUsingUUid),
 	})
 
 	s.Handler = web.ChainHandlers(
