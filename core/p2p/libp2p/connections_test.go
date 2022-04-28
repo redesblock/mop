@@ -266,9 +266,7 @@ func TestConnectRepeatHandshake(t *testing.T) {
 	defer cancel()
 
 	s1, overlay1 := newService(t, 1, libp2p.Options{})
-
 	s2, overlay2 := newService(t, 1, libp2p.Options{})
-
 	addr := serviceUnderlayAddress(t, s1)
 
 	_, err := s2.Connect(ctx, addr)
@@ -289,7 +287,7 @@ func TestConnectRepeatHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s2.HandshakeService().Handshake(libp2p.NewStream(stream)); err == nil {
+	if _, err := s2.HandshakeService().Handshake(libp2p.NewStream(stream), info.Addrs[0], info.ID); err == nil {
 		t.Fatalf("expected stream error")
 	}
 
