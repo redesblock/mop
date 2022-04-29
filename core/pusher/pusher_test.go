@@ -12,6 +12,7 @@ import (
 
 	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/pusher"
 	"github.com/redesblock/hop/core/pushsync"
 	pushsyncmock "github.com/redesblock/hop/core/pushsync/mock"
 	"github.com/redesblock/hop/core/storage"
@@ -227,7 +228,7 @@ func createChunk() swarm.Chunk {
 	return swarm.NewChunk(chunkAddress, chunkData)
 }
 
-func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.PushSyncer, tag *tags.Tags, mockOpts ...mock.Option) (*Service, *Store) {
+func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.PushSyncer, tag *tags.Tags, mockOpts ...mock.Option) (*pusher.Service, *Store) {
 	t.Helper()
 	logger := logging.New(ioutil.Discard, 0)
 	storer, err := localstore.New("", addr.Bytes(), nil, logger)
@@ -242,7 +243,7 @@ func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.Pus
 	}
 	peerSuggester := mock.NewTopologyDriver(mockOpts...)
 
-	pusherService := New(Options{Storer: pusherStorer, Tags: tag, PushSyncer: pushSyncService, PeerSuggester: peerSuggester, Logger: logger})
+	pusherService := pusher.New(pusher.Options{Storer: pusherStorer, Tags: tag, PushSyncer: pushSyncService, PeerSuggester: peerSuggester, Logger: logger})
 	return pusherService, pusherStorer
 }
 

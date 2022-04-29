@@ -17,7 +17,7 @@ func (s *server) setupRouting() {
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "hop node")
+		fmt.Fprintln(w, "Swarm Hop")
 	})
 
 	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -43,10 +43,6 @@ func (s *server) setupRouting() {
 
 	router.Handle("/hop-tag/name/{name}", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.CreateTag),
-	})
-
-	router.Handle("/hop-tag/addr/{addr}", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.getTagInfoUsingAddress),
 	})
 
 	router.Handle("/hop-tag/uuid/{uuid}", jsonhttp.MethodHandler{

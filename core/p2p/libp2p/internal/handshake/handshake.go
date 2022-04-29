@@ -3,11 +3,11 @@ package handshake
 import (
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/core/hop"
 	"sync"
 	"time"
 
 	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
@@ -97,14 +97,14 @@ func (s *Service) Handshake(stream p2p.Stream, peerMultiaddr ma.Multiaddr, peerI
 		return nil, ErrInvalidSyn
 	}
 
-	HopAddress, err := hop.NewAddress(s.signer, addr, s.overlay, s.networkID)
+	hopAddress, err := hop.NewAddress(s.signer, addr, s.overlay, s.networkID)
 	if err != nil {
 		return nil, err
 	}
 
 	if err := w.WriteMsgWithTimeout(messageTimeout, &pb.Ack{
-		Overlay:   HopAddress.Overlay.Bytes(),
-		Signature: HopAddress.Signature,
+		Overlay:   hopAddress.Overlay.Bytes(),
+		Signature: hopAddress.Signature,
 		NetworkID: s.networkID,
 		Light:     s.lightNode,
 	}); err != nil {
@@ -148,7 +148,7 @@ func (s *Service) Handle(stream p2p.Stream, remoteMultiaddr ma.Multiaddr, remote
 		return nil, ErrInvalidSyn
 	}
 
-	HopAddress, err := hop.NewAddress(s.signer, addr, s.overlay, s.networkID)
+	hopAddress, err := hop.NewAddress(s.signer, addr, s.overlay, s.networkID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +158,8 @@ func (s *Service) Handle(stream p2p.Stream, remoteMultiaddr ma.Multiaddr, remote
 			ObservedUnderlay: fullRemoteMABytes,
 		},
 		Ack: &pb.Ack{
-			Overlay:   HopAddress.Overlay.Bytes(),
-			Signature: HopAddress.Signature,
+			Overlay:   hopAddress.Overlay.Bytes(),
+			Signature: hopAddress.Signature,
 			NetworkID: s.networkID,
 			Light:     s.lightNode,
 		},
@@ -199,12 +199,12 @@ func (s *Service) parseCheckAck(ack *pb.Ack, remoteMA []byte) (*hop.Address, err
 		return nil, ErrNetworkIDIncompatible
 	}
 
-	HopAddress, err := hop.ParseAddress(remoteMA, ack.Overlay, ack.Signature, s.networkID)
+	hopAddress, err := hop.ParseAddress(remoteMA, ack.Overlay, ack.Signature, s.networkID)
 	if err != nil {
 		return nil, ErrInvalidAck
 	}
 
-	return HopAddress, nil
+	return hopAddress, nil
 }
 
 type Info struct {

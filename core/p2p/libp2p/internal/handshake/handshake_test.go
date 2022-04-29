@@ -10,6 +10,7 @@ import (
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/mock"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
 	"github.com/redesblock/hop/core/p2p/protobuf"
@@ -63,16 +64,16 @@ func TestHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	node1Info := Info{
+	node1Info := handshake.Info{
 		HopAddress: node1HopAddress,
 		Light:      false,
 	}
-	node2Info := Info{
+	node2Info := handshake.Info{
 		HopAddress: node2HopAddress,
 		Light:      false,
 	}
 
-	handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+	handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,8 +201,8 @@ func TestHandshake(t *testing.T) {
 			t.Fatal("res should be nil")
 		}
 
-		if err != ErrNetworkIDIncompatible {
-			t.Fatalf("expected %s, got %s", ErrNetworkIDIncompatible, err)
+		if err != handshake.ErrNetworkIDIncompatible {
+			t.Fatalf("expected %s, got %s", handshake.ErrNetworkIDIncompatible, err)
 		}
 	})
 
@@ -231,13 +232,13 @@ func TestHandshake(t *testing.T) {
 			t.Fatal("res should be nil")
 		}
 
-		if err != ErrInvalidAck {
-			t.Fatalf("expected %s, got %s", ErrInvalidAck, err)
+		if err != handshake.ErrInvalidAck {
+			t.Fatalf("expected %s, got %s", handshake.ErrInvalidAck, err)
 		}
 	})
 
 	t.Run("Handle - OK", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -279,19 +280,19 @@ func TestHandshake(t *testing.T) {
 			t.Fatalf("got bad syn")
 		}
 
-		HopAddress, err := hop.ParseAddress(node1maBinary, got.Ack.Overlay, got.Ack.Signature, got.Ack.NetworkID)
+		hopAddress, err := hop.ParseAddress(node1maBinary, got.Ack.Overlay, got.Ack.Signature, got.Ack.NetworkID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		testInfo(t, node1Info, Info{
-			HopAddress: HopAddress,
+		testInfo(t, node1Info, handshake.Info{
+			HopAddress: hopAddress,
 			Light:      got.Ack.Light,
 		})
 	})
 
 	t.Run("Handle - read error ", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -310,7 +311,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - write error ", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -337,7 +338,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - ack read error ", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -366,7 +367,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - networkID mismatch ", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -396,13 +397,13 @@ func TestHandshake(t *testing.T) {
 			t.Fatal("res should be nil")
 		}
 
-		if err != ErrNetworkIDIncompatible {
-			t.Fatalf("expected %s, got %s", ErrNetworkIDIncompatible, err)
+		if err != handshake.ErrNetworkIDIncompatible {
+			t.Fatalf("expected %s, got %s", handshake.ErrNetworkIDIncompatible, err)
 		}
 	})
 
 	t.Run("Handle - duplicate handshake", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -444,24 +445,24 @@ func TestHandshake(t *testing.T) {
 			t.Fatalf("got bad syn")
 		}
 
-		HopAddress, err := hop.ParseAddress(node1maBinary, got.Ack.Overlay, got.Ack.Signature, got.Ack.NetworkID)
+		hopAddress, err := hop.ParseAddress(node1maBinary, got.Ack.Overlay, got.Ack.Signature, got.Ack.NetworkID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		testInfo(t, node1Info, Info{
-			HopAddress: HopAddress,
+		testInfo(t, node1Info, handshake.Info{
+			HopAddress: hopAddress,
 			Light:      got.Ack.Light,
 		})
 
 		_, err = handshakeService.Handle(stream1, node2AddrInfo.Addrs[0], node2AddrInfo.ID)
-		if err != ErrHandshakeDuplicate {
-			t.Fatalf("expected %s, got %s", ErrHandshakeDuplicate, err)
+		if err != handshake.ErrHandshakeDuplicate {
+			t.Fatalf("expected %s, got %s", handshake.ErrHandshakeDuplicate, err)
 		}
 	})
 
 	t.Run("Handle - invalid ack", func(t *testing.T) {
-		handshakeService, err := New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
+		handshakeService, err := handshake.New(node1Info.HopAddress.Overlay, signer1, networkID, false, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -487,14 +488,14 @@ func TestHandshake(t *testing.T) {
 		}
 
 		_, err = handshakeService.Handle(stream1, node2AddrInfo.Addrs[0], node2AddrInfo.ID)
-		if err != ErrInvalidAck {
-			t.Fatalf("expected %s, got %s", ErrInvalidAck, err)
+		if err != handshake.ErrInvalidAck {
+			t.Fatalf("expected %s, got %s", handshake.ErrInvalidAck, err)
 		}
 	})
 }
 
 // testInfo validates if two Info instances are equal.
-func testInfo(t *testing.T, got, want Info) {
+func testInfo(t *testing.T, got, want handshake.Info) {
 	t.Helper()
 	if !got.HopAddress.Equal(want.HopAddress) || got.Light != want.Light {
 		t.Fatalf("got info %+v, want %+v", got, want)

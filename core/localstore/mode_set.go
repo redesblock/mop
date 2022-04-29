@@ -1,3 +1,19 @@
+// Copyright 2018 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package localstore
 
 import (
@@ -5,10 +21,11 @@ import (
 	"errors"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb"
+
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Set updates database indexes for
@@ -164,11 +181,18 @@ func (db *DB) setAccess(batch *leveldb.Batch, binIDs map[uint8]uint64, addr swar
 	if err != nil {
 		return 0, err
 	}
-	err = db.gcIndex.PutInBatch(batch, item)
+
+	ok, err := db.pinIndex.Has(item)
 	if err != nil {
 		return 0, err
 	}
-	gcSizeChange++
+	if !ok {
+		err = db.gcIndex.PutInBatch(batch, item)
+		if err != nil {
+			return 0, err
+		}
+		gcSizeChange++
+	}
 
 	return gcSizeChange, nil
 }

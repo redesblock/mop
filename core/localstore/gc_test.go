@@ -1,3 +1,19 @@
+// Copyright 2018 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package localstore
 
 import (
@@ -517,4 +533,185 @@ func TestSetTestHookCollectGarbage(t *testing.T) {
 	if got != original {
 		t.Errorf("got hook value %v, want %v", got, original)
 	}
+}
+
+func TestPinAfterMultiGC(t *testing.T) {
+	db := newTestDB(t, &Options{
+		Capacity: 10,
+	})
+
+	pinnedChunks := make([]swarm.Address, 0)
+
+	// upload random chunks above db capacity to see if chunks are still pinned
+	for i := 0; i < 20; i++ {
+		ch := generateTestRandomChunk()
+		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = db.Set(context.Background(), storage.ModeSetSyncPull, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(pinnedChunks) < 10 {
+			rch := generateAndPinAChunk(t, db)
+			pinnedChunks = append(pinnedChunks, rch.Address())
+		}
+	}
+	for i := 0; i < 20; i++ {
+		ch := generateTestRandomChunk()
+		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = db.Set(context.Background(), storage.ModeSetSyncPull, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 20; i++ {
+		ch := generateTestRandomChunk()
+		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = db.Set(context.Background(), storage.ModeSetSyncPull, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("pin Index count", newItemsCountTest(db.pinIndex, len(pinnedChunks)))
+
+	// Check if all the pinned chunks are present in the data DB
+	for _, addr := range pinnedChunks {
+		outItem := shed.Item{
+			Address: addr.Bytes(),
+		}
+		gotChunk, err := db.Get(context.Background(), storage.ModeGetRequest, swarm.NewAddress(outItem.Address))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !gotChunk.Address().Equal(swarm.NewAddress(addr.Bytes())) {
+			t.Fatal("Pinned chunk is not equal to got chunk")
+		}
+	}
+
+}
+
+func generateAndPinAChunk(t *testing.T, db *DB) swarm.Chunk {
+	// Create a chunk and pin it
+	pinnedChunk := generateTestRandomChunk()
+
+	_, err := db.Put(context.Background(), storage.ModePutUpload, pinnedChunk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.Set(context.Background(), storage.ModeSetPin, pinnedChunk.Address())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.Set(context.Background(), storage.ModeSetSyncPull, pinnedChunk.Address())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pinnedChunk
+}
+
+func TestPinSyncAndAccessPutSetChunkMultipleTimes(t *testing.T) {
+	var closed chan struct{}
+	testHookCollectGarbageChan := make(chan uint64)
+	t.Cleanup(setTestHookCollectGarbage(func(collectedCount uint64) {
+		select {
+		case testHookCollectGarbageChan <- collectedCount:
+		case <-closed:
+		}
+	}))
+	db := newTestDB(t, &Options{
+		Capacity: 10,
+	})
+	closed = db.close
+
+	pinnedChunks := addRandomChunks(t, 5, db, true)
+	rand1Chunks := addRandomChunks(t, 15, db, false)
+	for _, ch := range pinnedChunks {
+		_, err := db.Get(context.Background(), storage.ModeGetRequest, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, ch := range rand1Chunks {
+		_, err := db.Get(context.Background(), storage.ModeGetRequest, ch.Address())
+		if err != nil {
+			// ignore the chunks that are GCd
+			continue
+		}
+	}
+
+	rand2Chunks := addRandomChunks(t, 20, db, false)
+	for _, ch := range rand2Chunks {
+		_, err := db.Get(context.Background(), storage.ModeGetRequest, ch.Address())
+		if err != nil {
+			// ignore the chunks that are GCd
+			continue
+		}
+	}
+
+	rand3Chunks := addRandomChunks(t, 20, db, false)
+
+	for _, ch := range rand3Chunks {
+		_, err := db.Get(context.Background(), storage.ModeGetRequest, ch.Address())
+		if err != nil {
+			// ignore the chunks that are GCd
+			continue
+		}
+	}
+
+	// check if the pinned chunk is present after GC
+	for _, ch := range pinnedChunks {
+		gotChunk, err := db.Get(context.Background(), storage.ModeGetRequest, ch.Address())
+		if err != nil {
+			t.Fatal("Pinned chunk missing ", err)
+		}
+		if !gotChunk.Address().Equal(ch.Address()) {
+			t.Fatal("Pinned chunk address is not equal to got chunk")
+		}
+
+		if !bytes.Equal(gotChunk.Data(), ch.Data()) {
+			t.Fatal("Pinned chunk data is not equal to got chunk")
+		}
+	}
+
+}
+
+func addRandomChunks(t *testing.T, count int, db *DB, pin bool) []swarm.Chunk {
+	var chunks []swarm.Chunk
+	for i := 0; i < count; i++ {
+		ch := generateTestRandomChunk()
+		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pin {
+			err = db.Set(context.Background(), storage.ModeSetPin, ch.Address())
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		err = db.Set(context.Background(), storage.ModeSetSyncPull, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = db.Set(context.Background(), storage.ModeSetAccess, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = db.Get(context.Background(), storage.ModeGetRequest, ch.Address())
+		if err != nil {
+			t.Fatal(err)
+		}
+		chunks = append(chunks, ch)
+	}
+	return chunks
 }

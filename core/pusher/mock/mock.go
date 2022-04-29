@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 )
 
@@ -15,8 +14,8 @@ func NewMockPusher(tag *tags.Tags) *MockPusher {
 	}
 }
 
-func (m *MockPusher) SendChunk(address swarm.Address) error {
-	ta, err := m.tag.GetByAddress(address)
+func (m *MockPusher) SendChunk(uid uint32) error {
+	ta, err := m.tag.Get(uid)
 	if err != nil {
 		return err
 	}
@@ -25,8 +24,8 @@ func (m *MockPusher) SendChunk(address swarm.Address) error {
 	return nil
 }
 
-func (m *MockPusher) RcvdReceipt(address swarm.Address) error {
-	ta, err := m.tag.GetByAddress(address)
+func (m *MockPusher) RcvdReceipt(uid uint32) error {
+	ta, err := m.tag.Get(uid)
 	if err != nil {
 		return err
 	}

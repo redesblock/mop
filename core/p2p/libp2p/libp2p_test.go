@@ -22,12 +22,12 @@ import (
 func newService(t *testing.T, networkID uint64, o libp2p.Options) (s *libp2p.Service, overlay swarm.Address) {
 	t.Helper()
 
-	privateKey, err := crypto.GenerateSecp256k1Key()
+	swarmKey, err := crypto.GenerateSecp256k1Key()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	overlay = crypto.NewOverlayAddress(privateKey.PublicKey, networkID)
+	overlay = crypto.NewOverlayAddress(swarmKey.PublicKey, networkID)
 
 	addr := ":0"
 
@@ -40,8 +40,17 @@ func newService(t *testing.T, networkID uint64, o libp2p.Options) (s *libp2p.Ser
 		o.Addressbook = addressbook.New(statestore)
 	}
 
+	if o.PrivateKey == nil {
+		libp2pKey, err := crypto.GenerateSecp256k1Key()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		o.PrivateKey = libp2pKey
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	s, err = libp2p.New(ctx, crypto.NewDefaultSigner(privateKey), networkID, overlay, addr, o)
+	s, err = libp2p.New(ctx, crypto.NewDefaultSigner(swarmKey), networkID, overlay, addr, o)
 	if err != nil {
 		t.Fatal(err)
 	}
