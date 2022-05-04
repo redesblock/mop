@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/redesblock/hop/core/tags"
 	"io"
 	"log"
 	"net"
@@ -26,6 +25,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/metrics"
 	"github.com/redesblock/hop/core/netstore"
+	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/pusher"
@@ -35,6 +35,7 @@ import (
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/validator"
 	"github.com/sirupsen/logrus"
@@ -189,7 +190,6 @@ func New(o Options) (*Node, error) {
 	if o.DataDir != "" {
 		path = filepath.Join(o.DataDir, "localstore")
 	}
-
 	lo := &localstore.Options{
 		Capacity: o.DBCapacity,
 	}
@@ -202,10 +202,8 @@ func New(o Options) (*Node, error) {
 	retrieve := retrieval.New(retrieval.Options{
 		Streamer:    p2ps,
 		ChunkPeerer: topologyDriver,
-		Storer:      storer,
 		Logger:      logger,
 	})
-
 	tag := tags.NewTags()
 
 	if err = p2ps.AddProtocol(retrieve.Protocol()); err != nil {
@@ -213,6 +211,8 @@ func New(o Options) (*Node, error) {
 	}
 
 	ns := netstore.New(storer, retrieve, validator.NewContentAddressValidator())
+
+	retrieve.SetStorer(ns)
 
 	pushSyncProtocol := pushsync.New(pushsync.Options{
 		Streamer:      p2ps,
@@ -349,25 +349,35 @@ func New(o Options) (*Node, error) {
 					logger.Errorf("connect to bootnode %s", a)
 					return
 				}
+				var count int
+				if _, err := p2p.Discover(p2pCtx, addr, func(addr ma.Multiaddr) (stop bool, err error) {
+					hopAddr, err := p2ps.Connect(p2pCtx, addr)
+					if err != nil {
+						logger.Debugf("connect fail %s: %v", a, err)
+						logger.Errorf("connect to bootnode %s", a)
+						return false, nil
+					}
 
-				hopAddr, err := p2ps.Connect(p2pCtx, addr)
-				if err != nil {
+					err = addressbook.Put(hopAddr.Overlay, *hopAddr)
+					if err != nil {
+						_ = p2ps.Disconnect(hopAddr.Overlay)
+						logger.Debugf("addressbook error persisting %s %s: %v", a, hopAddr.Overlay, err)
+						logger.Errorf("connect to bootnode %s", a)
+						return false, nil
+					}
+
+					if err := topologyDriver.Connected(p2pCtx, hopAddr.Overlay); err != nil {
+						_ = p2ps.Disconnect(hopAddr.Overlay)
+						logger.Debugf("topology connected fail %s %s: %v", a, hopAddr.Overlay, err)
+						logger.Errorf("connect to bootnode %s", a)
+						return false, nil
+					}
+					count++
+					// connect to max 3 bootnodes
+					// using DNS discovery one node is discovered twice (TCP and UDP)
+					return count > 6, nil
+				}); err != nil {
 					logger.Debugf("connect fail %s: %v", a, err)
-					logger.Errorf("connect to bootnode %s", a)
-					return
-				}
-
-				err = addressbook.Put(hopAddr.Overlay, *hopAddr)
-				if err != nil {
-					_ = p2ps.Disconnect(hopAddr.Overlay)
-					logger.Debugf("addressbook error persisting %s %s: %v", a, hopAddr.Overlay, err)
-					logger.Errorf("connect to bootnode %s", a)
-					return
-				}
-
-				if err := topologyDriver.Connected(p2pCtx, hopAddr.Overlay); err != nil {
-					_ = p2ps.Disconnect(hopAddr.Overlay)
-					logger.Debugf("topology connected fail %s %s: %v", a, hopAddr.Overlay, err)
 					logger.Errorf("connect to bootnode %s", a)
 					return
 				}

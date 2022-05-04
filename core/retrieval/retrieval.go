@@ -109,3 +109,8 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) er
 
 	return nil
 }
+
+// SetStorer sets the storer. This call is not goroutine safe.
+func (s *Service) SetStorer(storer storage.Storer) {
+	s.storer = storer
+}
