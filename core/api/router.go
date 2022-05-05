@@ -13,6 +13,13 @@ import (
 )
 
 func (s *server) setupRouting() {
+	apiVersion := "v1" // only one api version exists, this should be configurable with more
+
+	handle := func(router *mux.Router, path string, handler http.Handler) {
+		router.Handle(path, handler)
+		router.Handle("/"+apiVersion+path, handler)
+	}
+
 	router := mux.NewRouter()
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
@@ -24,15 +31,14 @@ func (s *server) setupRouting() {
 		fmt.Fprintln(w, "User-agent: *\nDisallow: /")
 	})
 
-	router.Handle("/raw", jsonhttp.MethodHandler{
-		"POST": http.HandlerFunc(s.rawUploadHandler),
+	handle(router, "/bytes", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.bytesUploadHandler),
+	})
+	handle(router, "/bytes/{address}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.bytesGetHandler),
 	})
 
-	router.Handle("/raw/{address}", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.rawGetHandler),
-	})
-
-	router.Handle("/chunk/{addr}", jsonhttp.MethodHandler{
+	handle(router, "/chunks/{addr}", jsonhttp.MethodHandler{
 		"GET":  http.HandlerFunc(s.chunkGetHandler),
 		"POST": http.HandlerFunc(s.chunkUploadHandler),
 	})
