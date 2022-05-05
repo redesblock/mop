@@ -13,6 +13,7 @@ import (
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/pingpong"
 	mockstore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -25,6 +26,7 @@ import (
 type testServerOptions struct {
 	Overlay      swarm.Address
 	P2P          p2p.Service
+	Pingpong     pingpong.Interface
 	Storer       storage.Storer
 	TopologyOpts []mock.Option
 	Tags         *tags.Tags
@@ -44,6 +46,7 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	s := debugapi.New(debugapi.Options{
 		Overlay:        o.Overlay,
 		P2P:            o.P2P,
+		Pingpong:       o.Pingpong,
 		Tags:           o.Tags,
 		Logger:         logging.New(ioutil.Discard, 0),
 		Addressbook:    addrbook,

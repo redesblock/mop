@@ -24,10 +24,6 @@ func (s *server) setupRouting() {
 		fmt.Fprintln(w, "User-agent: *\nDisallow: /")
 	})
 
-	router.Handle("/pingpong/{peer-id}", jsonhttp.MethodHandler{
-		"POST": http.HandlerFunc(s.pingpongHandler),
-	})
-
 	router.Handle("/raw", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.rawUploadHandler),
 	})

@@ -7,10 +7,12 @@ import (
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
+	"github.com/redesblock/hop/core/tracing"
 )
 
 type Service interface {
@@ -28,10 +30,12 @@ type server struct {
 type Options struct {
 	Overlay        swarm.Address
 	P2P            p2p.Service
+	Pingpong       pingpong.Interface
 	Addressbook    addressbook.GetPutter
 	TopologyDriver topology.Notifier
 	Storer         storage.Storer
 	Logger         logging.Logger
+	Tracer         *tracing.Tracer
 	Tags           *tags.Tags
 }
 

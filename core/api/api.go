@@ -5,7 +5,6 @@ import (
 
 	"github.com/redesblock/hop/core/logging"
 	m "github.com/redesblock/hop/core/metrics"
-	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
@@ -23,11 +22,10 @@ type server struct {
 }
 
 type Options struct {
-	Pingpong pingpong.Interface
-	Tags     *tags.Tags
-	Storer   storage.Storer
-	Logger   logging.Logger
-	Tracer   *tracing.Tracer
+	Tags   *tags.Tags
+	Storer storage.Storer
+	Logger logging.Logger
+	Tracer *tracing.Tracer
 }
 
 func New(o Options) Service {

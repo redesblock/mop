@@ -238,11 +238,10 @@ func New(o Options) (*Node, error) {
 	if o.APIAddr != "" {
 		// API server
 		apiService = api.New(api.Options{
-			Pingpong: pingPong,
-			Tags:     tag,
-			Storer:   ns,
-			Logger:   logger,
-			Tracer:   tracer,
+			Tags:   tag,
+			Storer: ns,
+			Logger: logger,
+			Tracer: tracer,
 		})
 		apiListener, err := net.Listen("tcp", o.APIAddr)
 		if err != nil {
@@ -271,7 +270,9 @@ func New(o Options) (*Node, error) {
 		debugAPIService := debugapi.New(debugapi.Options{
 			Overlay:        address,
 			P2P:            p2ps,
+			Pingpong:       pingPong,
 			Logger:         logger,
+			Tracer:         tracer,
 			Addressbook:    addressbook,
 			TopologyDriver: topologyDriver,
 			Storer:         storer,
