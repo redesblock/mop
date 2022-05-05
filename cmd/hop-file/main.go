@@ -12,6 +12,7 @@ import (
 
 	cmdfile "github.com/redesblock/hop/cmd/internal/file"
 	"github.com/redesblock/hop/core/collection/entry"
+	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/logging"
@@ -54,7 +55,7 @@ func getEntry(cmd *cobra.Command, args []string) (err error) {
 	writeCloser := cmdfile.NopWriteCloser(buf)
 	limitBuf := cmdfile.NewLimitWriteCloser(writeCloser, limitMetadataLength)
 	j := joiner.NewSimpleJoiner(store)
-	err = cmdfile.JoinReadAll(j, addr, limitBuf)
+	_, err = file.JoinReadAll(j, addr, limitBuf)
 	if err != nil {
 		return err
 	}
@@ -65,7 +66,7 @@ func getEntry(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	buf = bytes.NewBuffer(nil)
-	err = cmdfile.JoinReadAll(j, e.Metadata(), buf)
+	_, err = file.JoinReadAll(j, e.Metadata(), buf)
 	if err != nil {
 		return err
 	}
@@ -111,8 +112,8 @@ func getEntry(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 	defer outFile.Close()
-
-	return cmdfile.JoinReadAll(j, e.Reference(), outFile)
+	_, err = file.JoinReadAll(j, e.Reference(), outFile)
+	return err
 }
 
 // putEntry creates a new file entry with the given reference.

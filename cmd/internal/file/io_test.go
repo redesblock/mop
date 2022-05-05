@@ -3,7 +3,6 @@ package file_test
 import (
 	"bytes"
 	"context"
-	"io"
 	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
@@ -14,7 +13,6 @@ import (
 
 	cmdfile "github.com/redesblock/hop/cmd/internal/file"
 	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
@@ -148,43 +146,7 @@ func TestLimitWriter(t *testing.T) {
 	}
 }
 
-// TestJoinReadAll verifies that data in excess of a single chunk is returned
-// in its entirety.
-func TestJoinReadAll(t *testing.T) {
-	var dataLength int64 = swarm.ChunkSize + 2
-	j := newMockJoiner(dataLength)
-	buf := bytes.NewBuffer(nil)
-	err := cmdfile.JoinReadAll(j, swarm.ZeroAddress, buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dataLength != int64(len(buf.Bytes())) {
-		t.Fatalf("expected length %d, got %d", dataLength, len(buf.Bytes()))
-	}
-}
-
-// mockJoiner is an implementation of file,Joiner that short-circuits that returns
-// a mock byte vector of the length given at initialization.
-type mockJoiner struct {
-	l int64
-}
-
-// Join implements file.Joiner.
-func (j *mockJoiner) Join(ctx context.Context, address swarm.Address) (dataOut io.ReadCloser, dataLength int64, err error) {
-	data := make([]byte, j.l)
-	buf := bytes.NewBuffer(data)
-	readCloser := ioutil.NopCloser(buf)
-	return readCloser, j.l, nil
-}
-
-// newMockJoiner creates a new mockJoiner.
-func newMockJoiner(l int64) file.Joiner {
-	return &mockJoiner{
-		l: l,
-	}
-}
-
-// newTestServer creates an http server to serve the http api endpoints.
+// newTestServer creates an http server to serve the hop http api endpoints.
 func newTestServer(t *testing.T, storer storage.Storer) *url.URL {
 	t.Helper()
 	s := api.New(api.Options{

@@ -9,25 +9,34 @@ import (
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
+	mockbytes "gitlab.com/nolash/go-mockbytes"
 )
 
-// TestHop tests that the data upload api responds as expected when uploading,
+// TestRaw tests that the data upload api responds as expected when uploading,
 // downloading and requesting a resource that cannot be found.
-func TestHop(t *testing.T) {
+func TestRaw(t *testing.T) {
 	var (
-		resource   = "/hop"
-		content    = []byte("foo")
-		expHash    = "2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48"
+		resource   = "/raw"
+		expHash    = "29a5fb121ce96194ba8b7b823a1f9c6af87e1791f824940a53b5a7efe3f790d9"
 		mockStorer = mock.NewStorer()
 		client     = newTestServer(t, testServerOptions{
 			Storer: mockStorer,
+			Tags:   tags.NewTags(),
+			Logger: logging.New(ioutil.Discard, 5),
 		})
 	)
+	g := mockbytes.New(0, mockbytes.MockTypeStandard).WithModulus(255)
+	content, err := g.SequentialBytes(swarm.ChunkSize * 2)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("upload", func(t *testing.T) {
-		jsonhttptest.ResponseDirect(t, client, http.MethodPost, resource, bytes.NewReader(content), http.StatusOK, api.HopPostResponse{
+		jsonhttptest.ResponseDirect(t, client, http.MethodPost, resource, bytes.NewReader(content), http.StatusOK, api.RawPostResponse{
 			Hash: swarm.MustParseHexAddress(expHash),
 		})
 	})

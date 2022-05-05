@@ -2,7 +2,6 @@ package debugapi_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"net/http"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestPinChunkHandler(t *testing.T) {
 	resource := func(addr swarm.Address) string { return "/chunk/" + addr.String() }
 	hash := swarm.MustParseHexAddress("aabbcc")
 	data := []byte("bbaatt")
-	mockValidator := validator.NewMockValidator(hash, append(newSpan(uint64(len(data))), data...))
+	mockValidator := validator.NewMockValidator(hash, data)
 	tag := tags.NewTags()
 	mockValidatingStorer := mock.NewValidatingStorer(mockValidator, tag)
 	debugTestServer := newTestServer(t, testServerOptions{
@@ -145,7 +144,7 @@ func TestPinChunkHandler(t *testing.T) {
 		// post another chunk
 		hash2 := swarm.MustParseHexAddress("ddeeff")
 		data2 := []byte("eagle")
-		mockValidator.AddPair(hash2, append(newSpan(uint64(len(data2))), data2...))
+		mockValidator.AddPair(hash2, data2)
 		jsonhttptest.ResponseDirect(t, hopTestServer, http.MethodPost, resource(hash2), bytes.NewReader(data2), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
@@ -168,10 +167,4 @@ func TestPinChunkHandler(t *testing.T) {
 			},
 		})
 	})
-}
-
-func newSpan(size uint64) []byte {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, size)
-	return b
 }

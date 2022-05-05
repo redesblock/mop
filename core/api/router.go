@@ -17,7 +17,7 @@ func (s *server) setupRouting() {
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Swarm Hop")
+		fmt.Fprintln(w, "Swarm Node")
 	})
 
 	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -28,24 +28,24 @@ func (s *server) setupRouting() {
 		"POST": http.HandlerFunc(s.pingpongHandler),
 	})
 
-	router.Handle("/hop", jsonhttp.MethodHandler{
-		"POST": http.HandlerFunc(s.hopUploadHandler),
+	router.Handle("/raw", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.rawUploadHandler),
 	})
 
-	router.Handle("/hop/{address}", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.hopGetHandler),
+	router.Handle("/raw/{address}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.rawGetHandler),
 	})
 
-	router.Handle("/hop-chunk/{addr}", jsonhttp.MethodHandler{
+	router.Handle("/chunk/{addr}", jsonhttp.MethodHandler{
 		"GET":  http.HandlerFunc(s.chunkGetHandler),
 		"POST": http.HandlerFunc(s.chunkUploadHandler),
 	})
 
-	router.Handle("/hop-tag/name/{name}", jsonhttp.MethodHandler{
+	router.Handle("/tag/name/{name}", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.CreateTag),
 	})
 
-	router.Handle("/hop-tag/uuid/{uuid}", jsonhttp.MethodHandler{
+	router.Handle("/tag/uuid/{uuid}", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.getTagInfoUsingUUid),
 	})
 
