@@ -2,6 +2,7 @@ package pusher
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/redesblock/hop/core/logging"
@@ -92,7 +93,9 @@ func (s *Service) chunksWorker() {
 			// for now ignoring the receipt and checking only for error
 			_, err = s.pushSyncer.PushChunkToClosest(ctx, ch)
 			if err != nil {
-				s.logger.Errorf("pusher: error while sending chunk or receiving receipt: %v", err)
+				if !errors.Is(err, topology.ErrNotFound) {
+					s.logger.Errorf("pusher: error while sending chunk or receiving receipt: %v", err)
+				}
 				continue
 			}
 
@@ -134,7 +137,9 @@ func (s *Service) setChunkAsSynced(ctx context.Context, addr swarm.Address) {
 		s.metrics.TotalChunksSynced.Inc()
 		ta, err := s.tag.GetByAddress(addr)
 		if err != nil {
-			s.logger.Debugf("pusher: get tag by address %s: %v", addr, err)
+			if !errors.Is(err, tags.ErrNotFound) {
+				s.logger.Debugf("pusher: get tag by address %s: %v", addr, err)
+			}
 			// return  // until hop api implements tags dont retunrn here
 		} else {
 			// update the tags only if we get it

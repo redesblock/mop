@@ -1,6 +1,9 @@
-package api
+package debugapi
 
 import (
+	crand "crypto/rand"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -41,13 +44,25 @@ func newTagResponse(tag *tags.Tag) tagResponse {
 		StartedAt: tag.StartedAt,
 	}
 }
-func (s *server) CreateTag(w http.ResponseWriter, r *http.Request) {
-	tagName := mux.Vars(r)["name"]
 
-	tag, err := s.Tags.Create(tagName, 0, false)
+func (s *server) createTag(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		b := make([]byte, 4)
+		_, err := crand.Read(b)
+		if err != nil {
+			s.Logger.Debugf("create tag: read random bytes %v", err)
+			s.Logger.Errorf("create tag: read random bytes error")
+			jsonhttp.InternalServerError(w, nil)
+			return
+		}
+		name = fmt.Sprintf("tag-%v-%x", time.Now().UnixNano(), b)
+	}
+
+	tag, err := s.Tags.Create(name, 0, false)
 	if err != nil {
-		s.Logger.Debugf("chunk: tag create error: %v", err)
-		s.Logger.Error("chunk: tag create error")
+		s.Logger.Debugf("create tag: %s %v", name, err)
+		s.Logger.Errorf("create tag: %s error", name)
 		jsonhttp.InternalServerError(w, "cannot create tag")
 		return
 	}
@@ -56,22 +71,28 @@ func (s *server) CreateTag(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *server) getTagInfoUsingUUid(w http.ResponseWriter, r *http.Request) {
-	uidStr := mux.Vars(r)["uuid"]
+func (s *server) getTag(w http.ResponseWriter, r *http.Request) {
+	uidStr := mux.Vars(r)["uid"]
 
-	uuid, err := strconv.ParseUint(uidStr, 10, 32)
+	uid, err := strconv.ParseUint(uidStr, 10, 32)
 	if err != nil {
-		s.Logger.Debugf("tag: parse uid  %s: %v", uidStr, err)
-		s.Logger.Error("tag: parse uid")
+		s.Logger.Debugf("get tag: parse uid  %s: %v", uidStr, err)
+		s.Logger.Error("get tag: parse uid")
 		jsonhttp.BadRequest(w, "invalid uid")
 		return
 	}
 
-	tag, err := s.Tags.Get(uint32(uuid))
+	tag, err := s.Tags.Get(uint32(uid))
 	if err != nil {
-		s.Logger.Debugf("tag: tag not present : %v, uuid %s", err, uidStr)
-		s.Logger.Error("tag: tag not present")
-		jsonhttp.InternalServerError(w, "tag not present")
+		if errors.Is(err, tags.ErrNotFound) {
+			s.Logger.Debugf("get tag: tag %v not present: %v", uid, err)
+			s.Logger.Warningf("get tag: tag %v not present", uid)
+			jsonhttp.NotFound(w, "tag not present")
+			return
+		}
+		s.Logger.Debugf("get tag: tag %v: %v", uid, err)
+		s.Logger.Errorf("get tag: %v", uid)
+		jsonhttp.InternalServerError(w, nil)
 		return
 	}
 

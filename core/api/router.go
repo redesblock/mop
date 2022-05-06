@@ -34,6 +34,15 @@ func (s *server) setupRouting() {
 	handle(router, "/bytes", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.bytesUploadHandler),
 	})
+
+	handle(router, "/files", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.hopFileUploadHandler),
+	})
+
+	handle(router, "/files/{addr}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.hopFileDownloadHandler),
+	})
+
 	handle(router, "/bytes/{address}", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.bytesGetHandler),
 	})
@@ -41,14 +50,6 @@ func (s *server) setupRouting() {
 	handle(router, "/chunks/{addr}", jsonhttp.MethodHandler{
 		"GET":  http.HandlerFunc(s.chunkGetHandler),
 		"POST": http.HandlerFunc(s.chunkUploadHandler),
-	})
-
-	router.Handle("/tag/name/{name}", jsonhttp.MethodHandler{
-		"POST": http.HandlerFunc(s.CreateTag),
-	})
-
-	router.Handle("/tag/uuid/{uuid}", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.getTagInfoUsingUUid),
 	})
 
 	s.Handler = web.ChainHandlers(

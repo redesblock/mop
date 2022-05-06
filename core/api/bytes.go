@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
@@ -27,8 +26,10 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 	responseObject, err := s.splitUpload(ctx, r.Body, r.ContentLength)
 	if err != nil {
 		s.Logger.Debugf("bytes upload: %v", err)
-		o := responseObject.(jsonhttp.StatusResponse)
-		jsonhttp.Respond(w, o.Code, o)
+		var response jsonhttp.StatusResponse
+		response.Message = "upload error"
+		response.Code = http.StatusInternalServerError
+		jsonhttp.Respond(w, response.Code, response)
 	} else {
 		jsonhttp.OK(w, responseObject)
 	}
@@ -57,12 +58,8 @@ func (s *server) splitUpload(ctx context.Context, r io.ReadCloser, l int64) (int
 	}()
 	sp := splitter.NewSimpleSplitter(s.Storer)
 	address, err := sp.Split(ctx, chunkPipe, l)
-	var response jsonhttp.StatusResponse
 	if err != nil {
-		response.Message = "upload error"
-		response.Code = http.StatusInternalServerError
-		err = fmt.Errorf("%s: %v", response.Message, err)
-		return response, err
+		return swarm.ZeroAddress, err
 	}
 	return bytesPostResponse{Reference: address}, nil
 }

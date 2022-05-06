@@ -1,4 +1,4 @@
-package api_test
+package debugapi_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	mp "github.com/redesblock/hop/core/pusher/mock"
@@ -19,15 +20,20 @@ import (
 func TestTags(t *testing.T) {
 	var (
 		resource             = func(addr swarm.Address) string { return "/chunks/" + addr.String() }
-		tagResourceUidCreate = func(name string) string { return "/tag/name/" + name }
-		tagResourceUUid      = func(uuid uint64) string { return "/tag/uuid/" + strconv.FormatUint(uuid, 10) }
+		tagResourceUidCreate = func(name string) string { return "/tags?name=" + name }
+		tagResourceUUid      = func(uuid uint64) string { return "/tags/" + strconv.FormatUint(uuid, 10) }
 		validHash            = swarm.MustParseHexAddress("aabbcc")
 		validContent         = []byte("bbaatt")
 		mockValidator        = validator.NewMockValidator(validHash, validContent)
 		tag                  = tags.NewTags()
 		mockValidatingStorer = mock.NewValidatingStorer(mockValidator, tag)
 		mockPusher           = mp.NewMockPusher(tag)
-		client               = newTestServer(t, testServerOptions{
+		ts                   = newTestServer(t, testServerOptions{
+			Storer: mockValidatingStorer,
+			Tags:   tag,
+		})
+		// This server is used to store chunks
+		apiClient = newHopTestServer(t, testServerOptions{
 			Storer: mockValidatingStorer,
 			Tags:   tag,
 		})
@@ -36,14 +42,14 @@ func TestTags(t *testing.T) {
 	t.Run("send-invalid-tag-id", func(t *testing.T) {
 		sentHheaders := make(http.Header)
 		sentHheaders.Set(api.TagHeaderUid, "file.jpg") // the value should be uint32
-		_ = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusBadRequest, jsonhttp.StatusResponse{
+		_ = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusBadRequest, jsonhttp.StatusResponse{
 			Message: "invalid taguid",
 			Code:    http.StatusBadRequest,
 		}, sentHheaders)
 	})
 
 	t.Run("uid-header-in-return-for-empty-tag", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, nil)
@@ -53,8 +59,8 @@ func TestTags(t *testing.T) {
 
 	t.Run("get-tag-and-use-it-to-upload-chunk", func(t *testing.T) {
 		// Get a tag using API
-		ta := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagResourceUidCreate("file.jpg"), nil, http.StatusOK, &ta)
+		ta := debugapi.TagResponse{}
+		jsonhttptest.ResponseUnmarshal(t, ts.Client, http.MethodPost, tagResourceUidCreate("file.jpg"), nil, http.StatusOK, &ta)
 
 		if ta.Name != "file.jpg" {
 			t.Fatalf("tagname is not the same that we sent")
@@ -63,7 +69,7 @@ func TestTags(t *testing.T) {
 		// Now upload a chunk and see if we receive a tag with the same uid
 		sentHheaders := make(http.Header)
 		sentHheaders.Set(api.TagHeaderUid, strconv.FormatUint(uint64(ta.Uid), 10))
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, sentHheaders)
@@ -73,8 +79,8 @@ func TestTags(t *testing.T) {
 
 	t.Run("get-tag-and-use-it-to-upload-multiple-chunk", func(t *testing.T) {
 		// Get a tag using API
-		ta := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagResourceUidCreate("file.jpg"), nil, http.StatusOK, &ta)
+		ta := debugapi.TagResponse{}
+		jsonhttptest.ResponseUnmarshal(t, ts.Client, http.MethodPost, tagResourceUidCreate("file.jpg"), nil, http.StatusOK, &ta)
 
 		if ta.Name != "file.jpg" {
 			t.Fatalf("tagname is not the same that we sent")
@@ -83,7 +89,7 @@ func TestTags(t *testing.T) {
 		// Now upload a chunk and see if we receive a tag with the same uid
 		sentHheaders := make(http.Header)
 		sentHheaders.Set(api.TagHeaderUid, strconv.FormatUint(uint64(ta.Uid), 10))
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, sentHheaders)
@@ -97,7 +103,7 @@ func TestTags(t *testing.T) {
 
 		sentHheaders = make(http.Header)
 		sentHheaders.Set(api.TagHeaderUid, strconv.FormatUint(uint64(ta.Uid), 10))
-		rcvdHeaders = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(secondValidHash), bytes.NewReader(secondValidContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(secondValidHash), bytes.NewReader(secondValidContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, sentHheaders)
@@ -107,7 +113,7 @@ func TestTags(t *testing.T) {
 
 	t.Run("get-tag-indirectly-and-use-it-to-upload-chunk", func(t *testing.T) {
 		//Upload anew chunk and we give aUID in response and apps can use that too
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, nil)
@@ -115,20 +121,20 @@ func TestTags(t *testing.T) {
 		uuid := isTagFoundInResponse(t, rcvdHeaders, nil)
 
 		// see if the tagid is present and has valid values
-		ta := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagResourceUUid(uuid), nil, http.StatusOK, &ta)
+		ta := debugapi.TagResponse{}
+		jsonhttptest.ResponseUnmarshal(t, ts.Client, http.MethodGet, tagResourceUUid(uuid), nil, http.StatusOK, &ta)
 
 		// Now upload another chunk using the same tag id
 		sentHheaders := make(http.Header)
 		sentHheaders.Set(api.TagHeaderUid, strconv.FormatUint(uuid, 10))
-		_ = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		_ = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, sentHheaders)
 
 		// see if the tagid is present and has valid values
-		ta = api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagResourceUUid(uuid), nil, http.StatusOK, &ta)
+		ta = debugapi.TagResponse{}
+		jsonhttptest.ResponseUnmarshal(t, ts.Client, http.MethodGet, tagResourceUUid(uuid), nil, http.StatusOK, &ta)
 
 		if uuid != uint64(ta.Uid) {
 			t.Fatalf("Invalid uuid response")
@@ -139,22 +145,22 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("get-tag-using-uuid", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, nil)
 		uuid := isTagFoundInResponse(t, rcvdHeaders, nil)
 
 		// Request the tag and see if the UUID is the same
-		ta := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagResourceUUid(uuid), nil, http.StatusOK, &ta)
+		ta := debugapi.TagResponse{}
+		jsonhttptest.ResponseUnmarshal(t, ts.Client, http.MethodGet, tagResourceUUid(uuid), nil, http.StatusOK, &ta)
 		if uuid != uint64(ta.Uid) {
 			t.Fatalf("Invalid uuid response")
 		}
 	})
 
 	t.Run("tag-counters", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
+		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, nil)
@@ -173,8 +179,8 @@ func TestTags(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		finalTag := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagResourceUUid(uuid1), nil, http.StatusOK, &finalTag)
+		finalTag := debugapi.TagResponse{}
+		jsonhttptest.ResponseUnmarshal(t, ts.Client, http.MethodGet, tagResourceUUid(uuid1), nil, http.StatusOK, &finalTag)
 
 		if tagToVerify.Total != finalTag.Total {
 			t.Errorf("tag total count mismatch. got %d want %d", tagToVerify.Total, finalTag.Total)
@@ -194,7 +200,7 @@ func TestTags(t *testing.T) {
 	})
 }
 
-func isTagFoundInResponse(t *testing.T, headers http.Header, tag *api.TagResponse) uint64 {
+func isTagFoundInResponse(t *testing.T, headers http.Header, tag *debugapi.TagResponse) uint64 {
 	uidStr := headers.Get(api.TagHeaderUid)
 	if uidStr == "" {
 		t.Fatalf("could not find tagid header in chunk upload response")
