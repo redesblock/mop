@@ -3,11 +3,11 @@ package handshake
 import (
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/hop"
 	"sync"
 	"time"
 
 	"github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
@@ -40,27 +40,33 @@ var (
 	ErrInvalidSyn = errors.New("invalid syn")
 )
 
+type AdvertisableAddressResolver interface {
+	Resolve(observedAdddress ma.Multiaddr) (ma.Multiaddr, error)
+}
+
 type Service struct {
-	signer               crypto.Signer
-	overlay              swarm.Address
-	lightNode            bool
-	networkID            uint64
-	receivedHandshakes   map[libp2ppeer.ID]struct{}
-	receivedHandshakesMu sync.Mutex
-	logger               logging.Logger
+	signer                crypto.Signer
+	advertisableAddresser AdvertisableAddressResolver
+	overlay               swarm.Address
+	lightNode             bool
+	networkID             uint64
+	receivedHandshakes    map[libp2ppeer.ID]struct{}
+	receivedHandshakesMu  sync.Mutex
+	logger                logging.Logger
 
 	network.Notifiee // handshake service can be the receiver for network.Notify
 }
 
-func New(overlay swarm.Address, signer crypto.Signer, networkID uint64, lighNode bool, logger logging.Logger) (*Service, error) {
+func New(signer crypto.Signer, advertisableAddresser AdvertisableAddressResolver, overlay swarm.Address, networkID uint64, lighNode bool, logger logging.Logger) (*Service, error) {
 	return &Service{
-		signer:             signer,
-		overlay:            overlay,
-		networkID:          networkID,
-		lightNode:          lighNode,
-		receivedHandshakes: make(map[libp2ppeer.ID]struct{}),
-		logger:             logger,
-		Notifiee:           new(network.NoopNotifiee),
+		signer:                signer,
+		advertisableAddresser: advertisableAddresser,
+		overlay:               overlay,
+		networkID:             networkID,
+		lightNode:             lighNode,
+		receivedHandshakes:    make(map[libp2ppeer.ID]struct{}),
+		logger:                logger,
+		Notifiee:              new(network.NoopNotifiee),
 	}, nil
 }
 
@@ -87,24 +93,37 @@ func (s *Service) Handshake(stream p2p.Stream, peerMultiaddr ma.Multiaddr, peerI
 		return nil, fmt.Errorf("read synack message: %w", err)
 	}
 
-	remoteHopAddress, err := s.parseCheckAck(resp.Ack, fullRemoteMABytes)
+	remoteHopAddress, err := s.parseCheckAck(resp.Ack)
 	if err != nil {
 		return nil, err
 	}
 
-	addr, err := ma.NewMultiaddrBytes(resp.Syn.ObservedUnderlay)
+	observedUnderlay, err := ma.NewMultiaddrBytes(resp.Syn.ObservedUnderlay)
 	if err != nil {
 		return nil, ErrInvalidSyn
 	}
 
-	hopAddress, err := hop.NewAddress(s.signer, addr, s.overlay, s.networkID)
+	advertisableUnderlay, err := s.advertisableAddresser.Resolve(observedUnderlay)
+	if err != nil {
+		return nil, err
+	}
+
+	hopAddress, err := hop.NewAddress(s.signer, advertisableUnderlay, s.overlay, s.networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	advertisableUnderlayBytes, err := hopAddress.Underlay.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
 	if err := w.WriteMsgWithTimeout(messageTimeout, &pb.Ack{
-		Overlay:   hopAddress.Overlay.Bytes(),
-		Signature: hopAddress.Signature,
+		Address: &pb.HopAddress{
+			Underlay:  advertisableUnderlayBytes,
+			Overlay:   hopAddress.Overlay.Bytes(),
+			Signature: hopAddress.Signature,
+		},
 		NetworkID: s.networkID,
 		Light:     s.lightNode,
 	}); err != nil {
@@ -143,12 +162,22 @@ func (s *Service) Handle(stream p2p.Stream, remoteMultiaddr ma.Multiaddr, remote
 		return nil, fmt.Errorf("read syn message: %w", err)
 	}
 
-	addr, err := ma.NewMultiaddrBytes(syn.ObservedUnderlay)
+	observedUnderlay, err := ma.NewMultiaddrBytes(syn.ObservedUnderlay)
 	if err != nil {
 		return nil, ErrInvalidSyn
 	}
 
-	hopAddress, err := hop.NewAddress(s.signer, addr, s.overlay, s.networkID)
+	advertisableUnderlay, err := s.advertisableAddresser.Resolve(observedUnderlay)
+	if err != nil {
+		return nil, err
+	}
+
+	hopAddress, err := hop.NewAddress(s.signer, advertisableUnderlay, s.overlay, s.networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	advertisableUnderlayBytes, err := hopAddress.Underlay.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +187,11 @@ func (s *Service) Handle(stream p2p.Stream, remoteMultiaddr ma.Multiaddr, remote
 			ObservedUnderlay: fullRemoteMABytes,
 		},
 		Ack: &pb.Ack{
-			Overlay:   hopAddress.Overlay.Bytes(),
-			Signature: hopAddress.Signature,
+			Address: &pb.HopAddress{
+				Underlay:  advertisableUnderlayBytes,
+				Overlay:   hopAddress.Overlay.Bytes(),
+				Signature: hopAddress.Signature,
+			},
 			NetworkID: s.networkID,
 			Light:     s.lightNode,
 		},
@@ -172,7 +204,7 @@ func (s *Service) Handle(stream p2p.Stream, remoteMultiaddr ma.Multiaddr, remote
 		return nil, fmt.Errorf("read ack message: %w", err)
 	}
 
-	remoteHopAddress, err := s.parseCheckAck(&ack, fullRemoteMABytes)
+	remoteHopAddress, err := s.parseCheckAck(&ack)
 	if err != nil {
 		return nil, err
 	}
@@ -194,12 +226,12 @@ func buildFullMA(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr, error) 
 	return ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", addr.String(), peerID.Pretty()))
 }
 
-func (s *Service) parseCheckAck(ack *pb.Ack, remoteMA []byte) (*hop.Address, error) {
+func (s *Service) parseCheckAck(ack *pb.Ack) (*hop.Address, error) {
 	if ack.NetworkID != s.networkID {
 		return nil, ErrNetworkIDIncompatible
 	}
 
-	hopAddress, err := hop.ParseAddress(remoteMA, ack.Overlay, ack.Signature, s.networkID)
+	hopAddress, err := hop.ParseAddress(ack.Address.Underlay, ack.Address.Overlay, ack.Address.Signature, s.networkID)
 	if err != nil {
 		return nil, ErrInvalidAck
 	}
