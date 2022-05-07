@@ -63,6 +63,7 @@ type Options struct {
 	APIAddr            string
 	DebugAPIAddr       string
 	Addr               string
+	NATAddr            string
 	DisableWS          bool
 	DisableQUIC        bool
 	NetworkID          uint64
@@ -107,10 +108,10 @@ func New(o Options) (*Node, error) {
 	}
 	address := crypto.NewOverlayAddress(swarmPrivateKey.PublicKey, o.NetworkID)
 	if created {
-		logger.Info("new swarm key created")
+		logger.Infof("new swarm network address created: %s", address)
+	} else {
+		logger.Infof("using existing swarm network address: %s", address)
 	}
-
-	logger.Infof("address: %s", address)
 
 	// Construct P2P service.
 	libp2pPrivateKey, created, err := keyStore.Key("libp2p", o.Password)
@@ -118,7 +119,9 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("libp2p key: %w", err)
 	}
 	if created {
-		logger.Infof("new libp2p key created")
+		logger.Debugf("new libp2p key created")
+	} else {
+		logger.Debugf("using existing libp2p key")
 	}
 
 	var stateStore storage.StateStorer
@@ -137,6 +140,7 @@ func New(o Options) (*Node, error) {
 
 	p2ps, err := libp2p.New(p2pCtx, signer, o.NetworkID, address, o.Addr, libp2p.Options{
 		PrivateKey:  libp2pPrivateKey,
+		NATAddr:     o.NATAddr,
 		DisableWS:   o.DisableWS,
 		DisableQUIC: o.DisableQUIC,
 		Addressbook: addressbook,
@@ -148,16 +152,18 @@ func New(o Options) (*Node, error) {
 	}
 	b.p2pService = p2ps
 
-	// wait for nat manager to init
-	logger.Debug("initializing NAT manager")
-	select {
-	case <-p2ps.NATManager().Ready():
-		// this is magic sleep to give NAT time to sync the mappings
-		// this is a hack, kind of alchemy and should be improved
-		time.Sleep(3 * time.Second)
-		logger.Debug("NAT manager initialized")
-	case <-time.After(10 * time.Second):
-		logger.Warning("NAT manager init timeout")
+	if natManager := p2ps.NATManager(); natManager != nil {
+		// wait for nat manager to init
+		logger.Debug("initializing NAT manager")
+		select {
+		case <-natManager.Ready():
+			// this is magic sleep to give NAT time to sync the mappings
+			// this is a hack, kind of alchemy and should be improved
+			time.Sleep(3 * time.Second)
+			logger.Debug("NAT manager initialized")
+		case <-time.After(10 * time.Second):
+			logger.Warning("NAT manager init timeout")
+		}
 	}
 
 	// Construct protocols.
@@ -192,7 +198,7 @@ func New(o Options) (*Node, error) {
 	}
 
 	for _, addr := range addrs {
-		logger.Infof("p2p address: %s", addr)
+		logger.Debugf("p2p address: %s", addr)
 	}
 
 	var (

@@ -14,6 +14,7 @@ import (
 
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/node"
+	"github.com/redesblock/hop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +28,7 @@ func (c *command) initStartCmd() (err error) {
 		optionNamePasswordFile       = "password-file"
 		optionNameAPIAddr            = "api-addr"
 		optionNameP2PAddr            = "p2p-addr"
+		optionNameNATAddr            = "nat-addr"
 		optionNameP2PDisableWS       = "p2p-disable-ws"
 		optionNameP2PDisableQUIC     = "p2p-disable-quic"
 		optionNameEnableDebugAPI     = "enable-debug-api"
@@ -94,6 +96,7 @@ func (c *command) initStartCmd() (err error) {
 				APIAddr:            c.config.GetString(optionNameAPIAddr),
 				DebugAPIAddr:       debugAPIAddr,
 				Addr:               c.config.GetString(optionNameP2PAddr),
+				NATAddr:            c.config.GetString(optionNameNATAddr),
 				DisableWS:          c.config.GetBool(optionNameP2PDisableWS),
 				DisableQUIC:        c.config.GetBool(optionNameP2PDisableQUIC),
 				NetworkID:          c.config.GetUint64(optionNameNetworkID),
@@ -147,11 +150,12 @@ func (c *command) initStartCmd() (err error) {
 	}
 
 	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".hop"), "data directory")
-	cmd.Flags().Uint64(optionNameDBCapacity, 5000000, "db capacity in chunks")
+	cmd.Flags().Uint64(optionNameDBCapacity, 5000000, fmt.Sprintf("db capacity in chunks, multiply by %d to get approximate capacity in bytes", swarm.ChunkSize))
 	cmd.Flags().String(optionNamePassword, "", "password for decrypting keys")
 	cmd.Flags().String(optionNamePasswordFile, "", "path to a file that contains password for decrypting keys")
 	cmd.Flags().String(optionNameAPIAddr, ":8080", "HTTP API listen address")
 	cmd.Flags().String(optionNameP2PAddr, ":7070", "P2P listen address")
+	cmd.Flags().String(optionNameNATAddr, "", "NAT exposed address")
 	cmd.Flags().Bool(optionNameP2PDisableWS, false, "disable P2P WebSocket protocol")
 	cmd.Flags().Bool(optionNameP2PDisableQUIC, false, "disable P2P QUIC protocol")
 	cmd.Flags().StringSlice(optionNameBootnodes, nil, "initial nodes to connect to")
