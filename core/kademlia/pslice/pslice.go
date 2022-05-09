@@ -15,7 +15,7 @@ type PSlice struct {
 	peers []swarm.Address // the slice of peers
 	bins  []uint          // the indexes of every proximity order in the peers slice, index is po, value is index of peers slice
 
-	sync.Mutex
+	sync.RWMutex
 }
 
 // New creates a new PSlice.
@@ -28,8 +28,8 @@ func New(maxBins int) *PSlice {
 
 // iterates over all peers from deepest bin to shallowest.
 func (s *PSlice) EachBin(pf topology.EachPeerFunc) error {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	if len(s.peers) == 0 {
 		return nil
@@ -59,8 +59,8 @@ func (s *PSlice) EachBin(pf topology.EachPeerFunc) error {
 
 // EachBinRev iterates over all peers from shallowest bin to deepest.
 func (s *PSlice) EachBinRev(pf topology.EachPeerFunc) error {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	if len(s.peers) == 0 {
 		return nil
@@ -92,8 +92,8 @@ func (s *PSlice) EachBinRev(pf topology.EachPeerFunc) error {
 }
 
 func (s *PSlice) Length() int {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	return len(s.peers)
 }
@@ -101,8 +101,8 @@ func (s *PSlice) Length() int {
 // ShallowestEmpty returns the shallowest empty bin if one exists.
 // If such bin does not exists, returns true as bool value.
 func (s *PSlice) ShallowestEmpty() (bin uint8, none bool) {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	binCp := make([]uint, len(s.bins)+1)
 	copy(binCp, s.bins)
@@ -118,8 +118,8 @@ func (s *PSlice) ShallowestEmpty() (bin uint8, none bool) {
 
 // Exists checks if a peer exists.
 func (s *PSlice) Exists(addr swarm.Address) bool {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	b, _ := s.exists(addr)
 	return b

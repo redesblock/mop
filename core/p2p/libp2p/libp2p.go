@@ -237,7 +237,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		}
 
 		s.metrics.HandledStreamCount.Inc()
-		s.logger.Infof("peer %s connected", i.HopAddress.Overlay)
+		s.logger.Infof("successfully connected to peer %s", i.HopAddress.ShortString())
 	})
 
 	h.Network().SetConnHandler(func(_ network.Conn) {
@@ -373,7 +373,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	}
 
 	s.metrics.CreatedConnectionCount.Inc()
-	s.logger.Infof("peer %s connected", i.HopAddress.Overlay)
+	s.logger.Infof("successfully connected to peer %s", i.HopAddress.ShortString())
 	return i.HopAddress, nil
 }
 
