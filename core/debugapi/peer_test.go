@@ -14,7 +14,6 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/mock"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	topmock "github.com/redesblock/hop/core/topology/mock"
 )
@@ -55,7 +54,10 @@ func TestConnect(t *testing.T) {
 		})
 
 		hopAddr, err := testServer.Addressbook.Get(overlay)
-		if err != nil && errors.Is(err, storage.ErrNotFound) && !hopAddress.Equal(&hopAddr) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !hopAddress.Equal(hopAddr) {
 			t.Fatalf("found wrong underlay.  expected: %+v, found: %+v", hopAddress, hopAddr)
 		}
 	})
@@ -95,7 +97,10 @@ func TestConnect(t *testing.T) {
 		})
 
 		hopAddr, err := testServer.Addressbook.Get(overlay)
-		if err != nil && errors.Is(err, storage.ErrNotFound) && !hopAddress.Equal(&hopAddr) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !hopAddress.Equal(hopAddr) {
 			t.Fatalf("found wrong underlay.  expected: %+v, found: %+v", hopAddress, hopAddr)
 		}
 

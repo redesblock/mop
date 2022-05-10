@@ -2,7 +2,6 @@ package hive
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -93,10 +91,11 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 	for _, p := range peers {
 		addr, err := s.addressBook.Get(p)
 		if err != nil {
-			if errors.Is(err, storage.ErrNotFound) {
-				s.logger.Debugf("Peer not found %s", p)
+			if err == addressbook.ErrNotFound {
+				s.logger.Debugf("hive broadcast peers: peer not found in the addressbook. Skipping peer %s", p)
 				continue
 			}
+
 			return err
 		}
 
@@ -114,7 +113,7 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 	return stream.FullClose()
 }
 
-func (s *Service) peersHandler(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
+func (s *Service) peersHandler(ctx context.Context, peer p2p.Peer, stream p2p.Stream) error {
 	_, r := protobuf.NewWriterAndReader(stream)
 	var peersReq pb.Peers
 	if err := r.ReadMsgWithTimeout(messageTimeout, &peersReq); err != nil {
@@ -126,20 +125,20 @@ func (s *Service) peersHandler(_ context.Context, peer p2p.Peer, stream p2p.Stre
 		return fmt.Errorf("close stream: %w", err)
 	}
 	for _, newPeer := range peersReq.Peers {
-		HopAddress, err := hop.ParseAddress(newPeer.Underlay, newPeer.Overlay, newPeer.Signature, s.networkID)
+		hopAddress, err := hop.ParseAddress(newPeer.Underlay, newPeer.Overlay, newPeer.Signature, s.networkID)
 		if err != nil {
 			s.logger.Warningf("skipping peer in response %s: %w", newPeer, err)
 			continue
 		}
 
-		err = s.addressBook.Put(HopAddress.Overlay, *HopAddress)
+		err = s.addressBook.Put(hopAddress.Overlay, *hopAddress)
 		if err != nil {
 			s.logger.Warningf("skipping peer in response %s: %w", newPeer, err)
 			continue
 		}
 
 		if s.peerHandler != nil {
-			if err := s.peerHandler(context.Background(), HopAddress.Overlay); err != nil {
+			if err := s.peerHandler(ctx, hopAddress.Overlay); err != nil {
 				return err
 			}
 		}

@@ -13,7 +13,6 @@ import (
 	"github.com/redesblock/hop/core/discovery"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 )
@@ -67,7 +66,7 @@ func (d *driver) AddPeer(ctx context.Context, addr swarm.Address) error {
 	connectedPeers := d.p2pService.Peers()
 	hopAddress, err := d.addressBook.Get(addr)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if err == addressbook.ErrNotFound {
 			return topology.ErrNotFound
 		}
 		return err
@@ -96,7 +95,7 @@ func (d *driver) AddPeer(ctx context.Context, addr swarm.Address) error {
 		}
 
 		connectedAddrs = append(connectedAddrs, addressee.Address)
-		if err := d.discovery.BroadcastPeers(context.Background(), addressee.Address, addr); err != nil {
+		if err := d.discovery.BroadcastPeers(ctx, addressee.Address, addr); err != nil {
 			return err
 		}
 	}
@@ -105,7 +104,7 @@ func (d *driver) AddPeer(ctx context.Context, addr swarm.Address) error {
 		return nil
 	}
 
-	return d.discovery.BroadcastPeers(context.Background(), addr, connectedAddrs...)
+	return d.discovery.BroadcastPeers(ctx, addr, connectedAddrs...)
 }
 
 // ClosestPeer returns the closest connected peer we have in relation to a

@@ -216,11 +216,19 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		}
 
 		if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
-			_ = stream.Close()
+			if err = stream.Close(); err != nil {
+				s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
+				s.logger.Errorf("unable to handshake with peer %v", peerID)
+				_ = s.disconnect(peerID)
+			}
 			return
 		}
 
-		_ = stream.Close()
+		if err = stream.Close(); err != nil {
+			s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
+			s.logger.Errorf("unable to handshake with peer %v", peerID)
+			_ = s.disconnect(peerID)
+		}
 
 		err = s.addressbook.Put(i.HopAddress.Overlay, *i.HopAddress)
 		if err != nil {
@@ -362,6 +370,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 
 	if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
 		if err := helpers.FullClose(stream); err != nil {
+			_ = s.disconnect(info.ID)
 			return nil, err
 		}
 
@@ -369,6 +378,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	}
 
 	if err := helpers.FullClose(stream); err != nil {
+		_ = s.disconnect(info.ID)
 		return nil, err
 	}
 
