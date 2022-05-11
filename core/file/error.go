@@ -18,7 +18,7 @@ func (e *AbortError) Unwrap() error {
 	return e.err
 }
 
-// Error implement standard go error interface.
+// Error implements standard go error interface.
 func (e *AbortError) Error() string {
 	return e.err.Error()
 }
@@ -41,7 +41,7 @@ func (e *HashError) Unwrap() error {
 	return e.err
 }
 
-// Error implement standard go error interface.
+// Error implements standard go error interface.
 func (e *HashError) Error() string {
 	return e.err.Error()
 }

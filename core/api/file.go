@@ -18,6 +18,7 @@ import (
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -127,7 +128,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// first store the file and get its reference
-	fr, err := s.splitUpload(ctx, reader, int64(fileSize))
+	sp := splitter.NewSimpleSplitter(s.Storer)
+	fr, err := file.SplitWriteAll(ctx, sp, reader, int64(fileSize))
 	if err != nil {
 		s.Logger.Debugf("file upload: file store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: file store, file %q", fileName)
@@ -150,7 +152,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "metadata marshal error")
 		return
 	}
-	mr, err := s.splitUpload(ctx, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
+	sp = splitter.NewSimpleSplitter(s.Storer)
+	mr, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
 	if err != nil {
 		s.Logger.Debugf("file upload: metadata store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: metadata store, file %q", fileName)
@@ -167,7 +170,9 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "entry marshal error")
 		return
 	}
-	reference, err := s.splitUpload(ctx, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
+
+	sp = splitter.NewSimpleSplitter(s.Storer)
+	reference, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
 	if err != nil {
 		s.Logger.Debugf("file upload: entry store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: entry store, file %q", fileName)
@@ -198,7 +203,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.Logger.Debugf("file download: read entry %s: %v", addr, err)
 		s.Logger.Errorf("file download: read entry %s", addr)
-		jsonhttp.InternalServerError(w, "error reading entry")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 	e := &entry.Entry{}
@@ -226,7 +231,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.Logger.Debugf("file download: read metadata %s: %v", addr, err)
 		s.Logger.Errorf("file download: read metadata %s", addr)
-		jsonhttp.InternalServerError(w, "error reading metadata")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 	metaData := &entry.Metadata{}
@@ -244,7 +249,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, storage.ErrNotFound) {
 			s.Logger.Debugf("file download: not found %s: %v", e.Reference(), err)
 			s.Logger.Errorf("file download: not found %s", addr)
-			jsonhttp.NotFound(w, "not found")
+			jsonhttp.NotFound(w, nil)
 			return
 		}
 		s.Logger.Debugf("file download: invalid root chunk %s: %v", e.Reference(), err)
@@ -258,7 +263,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil && c == 0 {
 		s.Logger.Debugf("file download: data join %s: %v", addr, err)
 		s.Logger.Errorf("file download: data join %s", addr)
-		jsonhttp.InternalServerError(w, "error reading data")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 	w.Header().Set("ETag", fmt.Sprintf("%q", e.Reference()))

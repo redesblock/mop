@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	storemock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/topology"
 )
 
 var testTimeout = 5 * time.Second
@@ -52,9 +54,10 @@ func TestDelivery(t *testing.T) {
 	// was successful
 	clientMockStorer := storemock.NewStorer()
 
-	ps := mockPeerSuggester{spFunc: func(_ swarm.Address) (swarm.Address, error) {
-		v, err := swarm.ParseHexAddress("9ee7add7")
-		return v, err
+	peerID := swarm.MustParseHexAddress("9ee7add7")
+	ps := mockPeerSuggester{eachPeerRevFunc: func(f topology.EachPeerFunc) error {
+		_, _, _ = f(peerID, 0)
+		return nil
 	}}
 	client := retrieval.New(retrieval.Options{
 		Streamer:    recorder,
@@ -71,7 +74,6 @@ func TestDelivery(t *testing.T) {
 	if !bytes.Equal(v, reqData) {
 		t.Fatalf("request and response data not equal. got %s want %s", v, reqData)
 	}
-	peerID, _ := ps.ClosestPeer(swarm.ZeroAddress)
 	records, err := recorder.Records(peerID, "retrieval", "1.0.0", "retrieval")
 	if err != nil {
 		t.Fatal(err)
@@ -117,9 +119,12 @@ func TestDelivery(t *testing.T) {
 }
 
 type mockPeerSuggester struct {
-	spFunc func(swarm.Address) (swarm.Address, error)
+	eachPeerRevFunc func(f topology.EachPeerFunc) error
 }
 
-func (v mockPeerSuggester) ClosestPeer(addr swarm.Address) (swarm.Address, error) {
-	return v.spFunc(addr)
+func (s mockPeerSuggester) EachPeer(f topology.EachPeerFunc) error {
+	return s.eachPeerRevFunc(f)
+}
+func (s mockPeerSuggester) EachPeerRev(topology.EachPeerFunc) error {
+	return errors.New("not implemented")
 }
