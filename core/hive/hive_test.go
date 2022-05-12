@@ -53,7 +53,10 @@ func TestBroadcastPeers(t *testing.T) {
 			t.Fatal(err)
 		}
 		signer := crypto.NewDefaultSigner(pk)
-		overlay := crypto.NewOverlayAddress(pk.PublicKey, networkID)
+		overlay, err := crypto.NewOverlayAddress(pk.PublicKey, networkID)
+		if err != nil {
+			t.Fatal(err)
+		}
 		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID)
 		if err != nil {
 			t.Fatal(err)
@@ -73,42 +76,42 @@ func TestBroadcastPeers(t *testing.T) {
 		peers            []swarm.Address
 		wantMsgs         []pb.Peers
 		wantOverlays     []swarm.Address
-		wanthopAddresses []hop.Address
+		wantHopAddresses []hop.Address
 	}{
 		"OK - single record": {
 			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:            []swarm.Address{overlays[0]},
 			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:1]}},
 			wantOverlays:     []swarm.Address{overlays[0]},
-			wanthopAddresses: []hop.Address{hopAddresses[0]},
+			wantHopAddresses: []hop.Address{hopAddresses[0]},
 		},
 		"OK - single batch - multiple records": {
 			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:            overlays[:15],
 			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
 			wantOverlays:     overlays[:15],
-			wanthopAddresses: hopAddresses[:15],
+			wantHopAddresses: hopAddresses[:15],
 		},
 		"OK - single batch - max number of records": {
 			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:            overlays[:hive.MaxBatchSize],
 			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:hive.MaxBatchSize]}},
 			wantOverlays:     overlays[:hive.MaxBatchSize],
-			wanthopAddresses: hopAddresses[:hive.MaxBatchSize],
+			wantHopAddresses: hopAddresses[:hive.MaxBatchSize],
 		},
 		"OK - multiple batches": {
 			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:            overlays[:hive.MaxBatchSize+10],
 			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers[:10]}},
 			wantOverlays:     overlays[:hive.MaxBatchSize+10],
-			wanthopAddresses: hopAddresses[:hive.MaxBatchSize+10],
+			wantHopAddresses: hopAddresses[:hive.MaxBatchSize+10],
 		},
 		"OK - multiple batches - max number of records": {
 			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:            overlays[:2*hive.MaxBatchSize],
 			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers}},
 			wantOverlays:     overlays[:2*hive.MaxBatchSize],
-			wanthopAddresses: hopAddresses[:2*hive.MaxBatchSize],
+			wantHopAddresses: hopAddresses[:2*hive.MaxBatchSize],
 		},
 	}
 
@@ -162,7 +165,7 @@ func TestBroadcastPeers(t *testing.T) {
 			}
 
 			expectOverlaysEventually(t, addressbookclean, tc.wantOverlays)
-			expecthopAddresessEventually(t, addressbookclean, tc.wanthopAddresses)
+			expectHopAddresessEventually(t, addressbookclean, tc.wantHopAddresses)
 		})
 	}
 }
@@ -200,7 +203,7 @@ func expectOverlaysEventually(t *testing.T, exporter ab.Interface, wantOverlays 
 	t.Errorf("Overlays got %v, want %v", o, wantOverlays)
 }
 
-func expecthopAddresessEventually(t *testing.T, exporter ab.Interface, wanthopAddresses []hop.Address) {
+func expectHopAddresessEventually(t *testing.T, exporter ab.Interface, wantHopAddresses []hop.Address) {
 	for i := 0; i < 100; i++ {
 		time.Sleep(50 * time.Millisecond)
 		addresses, err := exporter.Addresses()
@@ -208,12 +211,12 @@ func expecthopAddresessEventually(t *testing.T, exporter ab.Interface, wanthopAd
 			t.Fatal(err)
 		}
 
-		if len(addresses) != len(wanthopAddresses) {
+		if len(addresses) != len(wantHopAddresses) {
 			continue
 		}
 
 		for i, v := range addresses {
-			if !v.Equal(&wanthopAddresses[i]) {
+			if !v.Equal(&wantHopAddresses[i]) {
 				continue
 			}
 		}
@@ -226,7 +229,7 @@ func expecthopAddresessEventually(t *testing.T, exporter ab.Interface, wanthopAd
 		t.Fatal(err)
 	}
 
-	t.Errorf("hop addresses got %v, want %v", m, wanthopAddresses)
+	t.Errorf("Hop addresses got %v, want %v", m, wantHopAddresses)
 }
 
 func readAndAssertPeersMsgs(in []byte, expectedLen int) ([]pb.Peers, error) {

@@ -9,7 +9,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func TesthopAddress(t *testing.T) {
+func TestHopAddress(t *testing.T) {
 	node1ma, err := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/7070/p2p/16Uiu2HAkx8ULY8cTXhdVAcMmLcH9AsTKz6uBQ7DPLKRjMLgBVYkA")
 	if err != nil {
 		t.Fatal(err)
@@ -20,7 +20,10 @@ func TesthopAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	overlay := crypto.NewOverlayAddress(privateKey1.PublicKey, 3)
+	overlay, err := crypto.NewOverlayAddress(privateKey1.PublicKey, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
 	signer1 := crypto.NewDefaultSigner(privateKey1)
 
 	hopAddress, err := hop.NewAddress(signer1, node1ma, overlay, 3)

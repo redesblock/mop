@@ -112,7 +112,10 @@ func New(o Options) (*Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("swarm key: %w", err)
 	}
-	address := crypto.NewOverlayAddress(swarmPrivateKey.PublicKey, o.NetworkID)
+	address, err := crypto.NewOverlayAddress(swarmPrivateKey.PublicKey, o.NetworkID)
+	if err != nil {
+		return nil, err
+	}
 	if created {
 		logger.Infof("new swarm network address created: %s", address)
 	} else {
