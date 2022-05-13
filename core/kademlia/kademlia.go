@@ -146,7 +146,7 @@ func (k *Kad) manage() {
 				err = k.connect(ctx, peer, hopAddr.Underlay, po)
 				if err != nil {
 					k.logger.Debugf("error connecting to peer from kademlia %s: %v", hopAddr.String(), err)
-					k.logger.Errorf("connecting to peer %s: %v", hopAddr.ShortString(), err)
+					k.logger.Warningf("connecting to peer %s: %v", hopAddr.ShortString(), err)
 					// continue to next
 					return false, false, nil
 				}
