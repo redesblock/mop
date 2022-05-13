@@ -216,7 +216,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		}
 
 		if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
-			if err = stream.Close(); err != nil {
+			if err = helpers.FullClose(stream); err != nil {
 				s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
 				s.logger.Errorf("unable to handshake with peer %v", peerID)
 				_ = s.disconnect(peerID)
@@ -224,7 +224,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			return
 		}
 
-		if err = stream.Close(); err != nil {
+		if err = helpers.FullClose(stream); err != nil {
 			s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
 			s.logger.Errorf("unable to handshake with peer %v", peerID)
 			_ = s.disconnect(peerID)
@@ -281,6 +281,9 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 			// exchange headers
 			if err := handleHeaders(ss.Headler, stream); err != nil {
 				s.logger.Debugf("handle protocol %s/%s: stream %s: peer %s: handle headers: %v", p.Name, p.Version, ss.Name, overlay, err)
+				if err := stream.Close(); err != nil {
+					s.logger.Debugf("handle protocol %s/%s: stream %s: peer %s: handle headers close stream: %v", p.Name, p.Version, ss.Name, overlay, err)
+				}
 				return
 			}
 
@@ -434,6 +437,9 @@ func (s *Service) NewStream(ctx context.Context, overlay swarm.Address, headers 
 
 	// exchange headers
 	if err := sendHeaders(ctx, headers, stream); err != nil {
+		if err := stream.Close(); err != nil {
+			s.logger.Debugf("send headers %s: close stream %v", peerID, err)
+		}
 		return nil, fmt.Errorf("send headers: %w", err)
 	}
 
