@@ -20,6 +20,10 @@ import (
 )
 
 func TestHandshake(t *testing.T) {
+	const (
+		testWelcomeMessage = "HelloWorld"
+	)
+
 	logger := logging.New(ioutil.Discard, 0)
 	networkID := uint64(3)
 
@@ -83,7 +87,7 @@ func TestHandshake(t *testing.T) {
 
 	aaddresser := &AdvertisableAddresserMock{}
 
-	handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+	handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, testWelcomeMessage, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,8 +109,9 @@ func TestHandshake(t *testing.T) {
 					Overlay:   node2HopAddress.Overlay.Bytes(),
 					Signature: node2HopAddress.Signature,
 				},
-				NetworkID: networkID,
-				Light:     false,
+				NetworkID:      networkID,
+				Light:          false,
+				WelcomeMessage: testWelcomeMessage,
 			},
 		}); err != nil {
 			t.Fatal(err)
@@ -139,6 +144,20 @@ func TestHandshake(t *testing.T) {
 			ack.NetworkID != networkID ||
 			ack.Light != false {
 			t.Fatal("bad ack")
+		}
+
+		if ack.WelcomeMessage != testWelcomeMessage {
+			t.Fatalf("Bad ack welcome message: want %s, got %s", testWelcomeMessage, ack.WelcomeMessage)
+		}
+	})
+
+	t.Run("Handshake - welcome message too long", func(t *testing.T) {
+		const LongMessage = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi consectetur urna ut lorem sollicitudin posuere. Donec sagittis laoreet sapien."
+
+		expectedErr := handshake.ErrWelcomeMessageLength
+		_, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, LongMessage, logger)
+		if err == nil || err.Error() != expectedErr.Error() {
+			t.Fatal("expected:", expectedErr, "got:", err)
 		}
 	})
 
@@ -321,7 +340,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - OK", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -378,7 +397,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -397,7 +416,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - write error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -424,7 +443,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - ack read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -453,7 +472,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - networkID mismatch ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -492,7 +511,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - duplicate handshake", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -554,7 +573,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - invalid ack", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -589,7 +608,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - advertisable error", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, false, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
