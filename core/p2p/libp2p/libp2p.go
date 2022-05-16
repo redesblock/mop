@@ -245,7 +245,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		}
 
 		s.metrics.HandledStreamCount.Inc()
-		s.logger.Infof("successfully connected to peer %s", i.HopAddress.ShortString())
+		s.logger.Infof("successfully connected to peer (inbound) %s", i.HopAddress.ShortString())
 	})
 
 	h.Network().SetConnHandler(func(_ network.Conn) {
@@ -287,9 +287,14 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 				return
 			}
 
+			ctx, cancel := context.WithCancel(s.ctx)
+
+			s.peers.addStream(peerID, streamlibp2p, cancel)
+			defer s.peers.removeStream(peerID, streamlibp2p)
+
 			// tracing: get span tracing context and add it to the context
 			// silently ignore if the peer is not providing tracing
-			ctx, err := s.tracer.WithContextFromHeaders(s.ctx, stream.Headers())
+			ctx, err := s.tracer.WithContextFromHeaders(ctx, stream.Headers())
 			if err != nil && !errors.Is(err, tracing.ErrContextNotFound) {
 				s.logger.Debugf("handle protocol %s/%s: stream %s: peer %s: get tracing context: %v", p.Name, p.Version, ss.Name, overlay, err)
 				return
@@ -343,7 +348,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	// Extract the peer ID from the multiaddr.
 	info, err := libp2ppeer.AddrInfoFromP2pAddr(addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("addr from p2p: %w", err)
 	}
 
 	if _, found := s.peers.overlay(info.ID); found {
@@ -360,7 +365,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	stream, err := s.newStreamForPeerID(ctx, info.ID, handshake.ProtocolName, handshake.ProtocolVersion, handshake.StreamName)
 	if err != nil {
 		_ = s.disconnect(info.ID)
-		return nil, err
+		return nil, fmt.Errorf("connect new stream: %w", err)
 	}
 
 	i, err := s.handshakeService.Handshake(NewStream(stream), stream.Conn().RemoteMultiaddr(), stream.Conn().RemotePeer())
@@ -372,7 +377,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
 		if err := helpers.FullClose(stream); err != nil {
 			_ = s.disconnect(info.ID)
-			return nil, err
+			return nil, fmt.Errorf("peer exists, full close: %w", err)
 		}
 
 		return i.HopAddress, nil
@@ -380,17 +385,18 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 
 	if err := helpers.FullClose(stream); err != nil {
 		_ = s.disconnect(info.ID)
-		return nil, err
+		return nil, fmt.Errorf("connect full close %w", err)
 	}
 
 	s.metrics.CreatedConnectionCount.Inc()
-	s.logger.Infof("successfully connected to peer %s", i.HopAddress.ShortString())
+	s.logger.Infof("successfully connected to peer (outbound) %s", i.HopAddress.ShortString())
 	return i.HopAddress, nil
 }
 
 func (s *Service) Disconnect(overlay swarm.Address) error {
 	peerID, found := s.peers.peerID(overlay)
 	if !found {
+		s.peers.disconnecter.Disconnected(overlay)
 		return p2p.ErrPeerNotFound
 	}
 
@@ -417,12 +423,13 @@ func (s *Service) SetNotifier(n topology.Notifier) {
 func (s *Service) NewStream(ctx context.Context, overlay swarm.Address, headers p2p.Headers, protocolName, protocolVersion, streamName string) (p2p.Stream, error) {
 	peerID, found := s.peers.peerID(overlay)
 	if !found {
+		s.peers.disconnecter.Disconnected(overlay)
 		return nil, p2p.ErrPeerNotFound
 	}
 
 	streamlibp2p, err := s.newStreamForPeerID(ctx, peerID, protocolName, protocolVersion, streamName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new stream for peerid: %w", err)
 	}
 
 	stream := newStream(streamlibp2p)

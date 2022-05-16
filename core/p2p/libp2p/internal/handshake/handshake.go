@@ -130,7 +130,7 @@ func (s *Service) Handshake(stream p2p.Stream, peerMultiaddr ma.Multiaddr, peerI
 		return nil, fmt.Errorf("write ack message: %w", err)
 	}
 
-	s.logger.Tracef("handshake finished for peer %s", remoteHopAddress.Overlay.String())
+	s.logger.Tracef("handshake finished for peer (outbound) %s", remoteHopAddress.Overlay.String())
 	return &Info{
 		HopAddress: remoteHopAddress,
 		Light:      resp.Ack.Light,
@@ -209,7 +209,7 @@ func (s *Service) Handle(stream p2p.Stream, remoteMultiaddr ma.Multiaddr, remote
 		return nil, err
 	}
 
-	s.logger.Tracef("handshake finished for peer %s", remoteHopAddress.Overlay.String())
+	s.logger.Tracef("handshake finished for peer (inbound) %s", remoteHopAddress.Overlay.String())
 	return &Info{
 		HopAddress: remoteHopAddress,
 		Light:      ack.Light,
