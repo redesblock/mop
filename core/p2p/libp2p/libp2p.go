@@ -271,9 +271,8 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 			peerID := streamlibp2p.Conn().RemotePeer()
 			overlay, found := s.peers.overlay(peerID)
 			if !found {
-				// todo: this should never happen
 				_ = s.disconnect(peerID)
-				s.logger.Errorf("overlay address for peer %q not found", peerID)
+				s.logger.Debugf("overlay address for peer %q not found", peerID)
 				return
 			}
 
@@ -458,6 +457,10 @@ func (s *Service) newStreamForPeerID(ctx context.Context, peerID libp2ppeer.ID, 
 	swarmStreamName := p2p.NewSwarmStreamName(protocolName, protocolVersion, streamName)
 	st, err := s.host.NewStream(ctx, peerID, protocol.ID(swarmStreamName))
 	if err != nil {
+		if st != nil {
+			s.logger.Debug("stream experienced unexpected early close")
+			_ = st.Close()
+		}
 		if err == multistream.ErrNotSupported || err == multistream.ErrIncorrectVersion {
 			return nil, p2p.NewIncompatibleStreamError(err)
 		}
