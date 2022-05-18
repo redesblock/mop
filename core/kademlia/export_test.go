@@ -1,4 +1,7 @@
 package kademlia
 
-var MaxBins = maxBins
-var TimeToRetry = &timeToRetry
+var (
+	MaxBins         = maxBins
+	TimeToRetry     = &timeToRetry
+	SaturationPeers = &saturationPeers
+)
