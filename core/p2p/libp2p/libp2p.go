@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	autonat "github.com/libp2p/go-libp2p-autonat-svc"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/helpers"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
@@ -208,16 +207,18 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 	// handshake
 	s.host.SetStreamHandlerMatch(id, matcher, func(stream network.Stream) {
 		peerID := stream.Conn().RemotePeer()
-		i, err := s.handshakeService.Handle(NewStream(stream), stream.Conn().RemoteMultiaddr(), peerID)
+		handshakeStream := NewStream(stream)
+		i, err := s.handshakeService.Handle(handshakeStream, stream.Conn().RemoteMultiaddr(), peerID)
 		if err != nil {
 			s.logger.Debugf("handshake: handle %s: %v", peerID, err)
 			s.logger.Errorf("unable to handshake with peer %v", peerID)
+			_ = handshakeStream.Reset()
 			_ = s.disconnect(peerID)
 			return
 		}
 
 		if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
-			if err = helpers.FullClose(stream); err != nil {
+			if err = handshakeStream.FullClose(); err != nil {
 				s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
 				s.logger.Errorf("unable to handshake with peer %v", peerID)
 				_ = s.disconnect(peerID)
@@ -225,7 +226,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			return
 		}
 
-		if err = helpers.FullClose(stream); err != nil {
+		if err = handshakeStream.FullClose(); err != nil {
 			s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
 			s.logger.Errorf("unable to handshake with peer %v", peerID)
 			_ = s.disconnect(peerID)
@@ -368,14 +369,16 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 		return nil, fmt.Errorf("connect new stream: %w", err)
 	}
 
-	i, err := s.handshakeService.Handshake(NewStream(stream), stream.Conn().RemoteMultiaddr(), stream.Conn().RemotePeer())
+	handshakeStream := NewStream(stream)
+	i, err := s.handshakeService.Handshake(handshakeStream, stream.Conn().RemoteMultiaddr(), stream.Conn().RemotePeer())
 	if err != nil {
+		_ = handshakeStream.Reset()
 		_ = s.disconnect(info.ID)
 		return nil, fmt.Errorf("handshake: %w", err)
 	}
 
 	if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
-		if err := helpers.FullClose(stream); err != nil {
+		if err := handshakeStream.FullClose(); err != nil {
 			_ = s.disconnect(info.ID)
 			return nil, fmt.Errorf("peer exists, full close: %w", err)
 		}
@@ -383,7 +386,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 		return i.HopAddress, nil
 	}
 
-	if err := helpers.FullClose(stream); err != nil {
+	if err := handshakeStream.FullClose(); err != nil {
 		_ = s.disconnect(info.ID)
 		return nil, fmt.Errorf("connect full close %w", err)
 	}

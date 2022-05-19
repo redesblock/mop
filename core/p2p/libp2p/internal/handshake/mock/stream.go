@@ -59,3 +59,7 @@ func (s *Stream) Close() error {
 func (s *Stream) FullClose() error {
 	return nil
 }
+
+func (s *Stream) Reset() error {
+	return nil
+}
