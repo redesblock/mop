@@ -66,8 +66,7 @@ type Options struct {
 	Tracer         *tracing.Tracer
 }
 
-func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string,
-	o Options) (*Service, error) {
+func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string, o Options) (*Service, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("address: %w", err)
@@ -345,6 +344,25 @@ func buildUnderlayAddress(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr
 	return addr.Encapsulate(hostAddr), nil
 }
 
+func (s *Service) ConnectNotify(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error) {
+	info, err := libp2ppeer.AddrInfoFromP2pAddr(addr)
+	if err != nil {
+		return nil, fmt.Errorf("addr from p2p: %w", err)
+	}
+
+	address, err = s.Connect(ctx, addr)
+	if err != nil {
+		return nil, fmt.Errorf("connect notify: %w", err)
+	}
+	if s.topologyNotifier != nil {
+		if err := s.topologyNotifier.Connected(ctx, address.Overlay); err != nil {
+			_ = s.disconnect(info.ID)
+			return nil, fmt.Errorf("notify topology: %w", err)
+		}
+	}
+	return address, nil
+}
+
 func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error) {
 	// Extract the peer ID from the multiaddr.
 	info, err := libp2ppeer.AddrInfoFromP2pAddr(addr)
@@ -389,6 +407,12 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	if err := handshakeStream.FullClose(); err != nil {
 		_ = s.disconnect(info.ID)
 		return nil, fmt.Errorf("connect full close %w", err)
+	}
+
+	err = s.addressbook.Put(i.HopAddress.Overlay, *i.HopAddress)
+	if err != nil {
+		_ = s.disconnect(info.ID)
+		return nil, fmt.Errorf("storing hop address: %w", err)
 	}
 
 	s.metrics.CreatedConnectionCount.Inc()

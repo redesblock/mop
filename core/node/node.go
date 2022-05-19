@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -39,7 +38,6 @@ import (
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/validator"
@@ -326,7 +324,6 @@ func New(o Options) (*Node, error) {
 			Pingpong:       pingPong,
 			Logger:         logger,
 			Tracer:         tracer,
-			Addressbook:    addressbook,
 			TopologyDriver: topologyDriver,
 			Storer:         storer,
 		})
@@ -362,37 +359,26 @@ func New(o Options) (*Node, error) {
 		b.debugAPIServer = debugAPIServer
 	}
 
-	overlays, err := addressbook.Overlays()
+	addresses, err := addressbook.Overlays()
 	if err != nil {
 		return nil, fmt.Errorf("addressbook overlays: %w", err)
 	}
 
 	var count int32
-	var wg sync.WaitGroup
-	jobsC := make(chan struct{}, 16)
-	for _, o := range overlays {
-		jobsC <- struct{}{}
-		wg.Add(1)
-		go func(overlay swarm.Address) {
-			defer func() {
-				<-jobsC
-			}()
 
-			defer wg.Done()
-			if err := topologyDriver.AddPeer(p2pCtx, overlay); err != nil {
-				logger.Debugf("topology add peer fail %s: %v", overlay, err)
-				logger.Warningf("topology add peer %s", overlay)
-				return
-			}
-
-			atomic.AddInt32(&count, 1)
-		}(o)
+	// add the peers to topology and allow it to connect independently
+	for _, o := range addresses {
+		err = topologyDriver.AddPeer(p2pCtx, o)
+		if err != nil {
+			logger.Debugf("topology add peer from addressbook: %v", err)
+		} else {
+			count++
+		}
 	}
 
-	wg.Wait()
-
-	// Connect bootnodes if no nodes from the addressbook was sucesufully added to topology
+	// Connect bootnodes if the address book is clean
 	if count == 0 {
+		var wg sync.WaitGroup
 		for _, a := range o.Bootnodes {
 			wg.Add(1)
 			go func(a string) {
@@ -405,8 +391,8 @@ func New(o Options) (*Node, error) {
 				}
 				var count int
 				if _, err := p2p.Discover(p2pCtx, addr, func(addr ma.Multiaddr) (stop bool, err error) {
-					logger.Tracef("connecting to peer %s", addr)
-					hopAddr, err := p2ps.Connect(p2pCtx, addr)
+					logger.Tracef("connecting to bootnode %s", addr)
+					_, err = p2ps.ConnectNotify(p2pCtx, addr)
 					if err != nil {
 						if !errors.Is(err, p2p.ErrAlreadyConnected) {
 							logger.Debugf("connect fail %s: %v", addr, err)
@@ -414,22 +400,7 @@ func New(o Options) (*Node, error) {
 						}
 						return false, nil
 					}
-					logger.Tracef("connected to peer %s", addr)
-
-					err = addressbook.Put(hopAddr.Overlay, *hopAddr)
-					if err != nil {
-						_ = p2ps.Disconnect(hopAddr.Overlay)
-						logger.Debugf("addressbook error persisting %s %s: %v", addr, hopAddr.Overlay, err)
-						logger.Warningf("connect to bootnode %s", addr)
-						return false, nil
-					}
-
-					if err := topologyDriver.Connected(p2pCtx, hopAddr.Overlay); err != nil {
-						_ = p2ps.Disconnect(hopAddr.Overlay)
-						logger.Debugf("topology connected fail %s %s: %v", addr, hopAddr.Overlay, err)
-						logger.Warningf("connect to bootnode %s", addr)
-						return false, nil
-					}
+					logger.Tracef("connected to bootnode %s", addr)
 					count++
 					// connect to max 3 bootnodes
 					return count > 3, nil
@@ -440,7 +411,6 @@ func New(o Options) (*Node, error) {
 				}
 			}(a)
 		}
-
 		wg.Wait()
 	}
 

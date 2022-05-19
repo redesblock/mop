@@ -15,7 +15,6 @@ import (
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/mock"
 	"github.com/redesblock/hop/core/swarm"
-	topmock "github.com/redesblock/hop/core/topology/mock"
 )
 
 func TestConnect(t *testing.T) {
@@ -55,13 +54,8 @@ func TestConnect(t *testing.T) {
 		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodPost, "/connect"+underlay, nil, http.StatusOK, debugapi.PeerConnectResponse{
 			Address: overlay.String(),
 		})
-
-		hopAddr, err := testServer.Addressbook.Get(overlay)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !hopAddress.Equal(hopAddr) {
-			t.Fatalf("found wrong underlay.  expected: %+v, found: %+v", hopAddress, hopAddr)
+		if testServer.P2PMock.ConnectNotifyCalls() != 1 {
+			t.Fatal("connect notify not called")
 		}
 	})
 
@@ -80,38 +74,20 @@ func TestConnect(t *testing.T) {
 	})
 
 	t.Run("error - add peer", func(t *testing.T) {
-		disconnectCalled := false
 		testServer := newTestServer(t, testServerOptions{
 			P2P: mock.New(mock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*hop.Address, error) {
 				if addr.String() == errorUnderlay {
 					return nil, testErr
 				}
 				return hopAddress, nil
-			}), mock.WithDisconnectFunc(func(addr swarm.Address) error {
-				disconnectCalled = true
-				return nil
 			})),
-			TopologyOpts: []topmock.Option{topmock.WithAddPeerErr(testErr)},
 		})
 
-		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodPost, "/connect"+underlay, nil, http.StatusInternalServerError, jsonhttp.StatusResponse{
+		jsonhttptest.ResponseDirect(t, testServer.Client, http.MethodPost, "/connect"+errorUnderlay, nil, http.StatusInternalServerError, jsonhttp.StatusResponse{
 			Code:    http.StatusInternalServerError,
 			Message: testErr.Error(),
 		})
-
-		hopAddr, err := testServer.Addressbook.Get(overlay)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !hopAddress.Equal(hopAddr) {
-			t.Fatalf("found wrong underlay.  expected: %+v, found: %+v", hopAddress, hopAddr)
-		}
-
-		if !disconnectCalled {
-			t.Fatalf("disconnect not called.")
-		}
 	})
-
 }
 
 func TestDisconnect(t *testing.T) {

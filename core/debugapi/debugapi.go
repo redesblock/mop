@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
@@ -31,8 +30,7 @@ type Options struct {
 	Overlay        swarm.Address
 	P2P            p2p.Service
 	Pingpong       pingpong.Interface
-	Addressbook    addressbook.GetPutter
-	TopologyDriver topology.Notifier
+	TopologyDriver topology.PeerAdder
 	Storer         storage.Storer
 	Logger         logging.Logger
 	Tracer         *tracing.Tracer

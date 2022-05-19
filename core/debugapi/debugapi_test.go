@@ -8,24 +8,21 @@ import (
 	"testing"
 
 	"github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
+	mockp2p "github.com/redesblock/hop/core/p2p/mock"
 	"github.com/redesblock/hop/core/pingpong"
-	mockstore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/mock"
 	"resenje.org/web"
 )
 
 type testServerOptions struct {
 	Overlay      swarm.Address
-	P2P          p2p.Service
+	P2P          *mockp2p.Service
 	Pingpong     pingpong.Interface
 	Storer       storage.Storer
 	TopologyOpts []mock.Option
@@ -33,14 +30,11 @@ type testServerOptions struct {
 }
 
 type testServer struct {
-	Client         *http.Client
-	Addressbook    addressbook.GetPutter
-	TopologyDriver topology.Driver
+	Client  *http.Client
+	P2PMock *mockp2p.Service
 }
 
 func newTestServer(t *testing.T, o testServerOptions) *testServer {
-	statestore := mockstore.NewStateStore()
-	addrbook := addressbook.New(statestore)
 	topologyDriver := mock.NewTopologyDriver(o.TopologyOpts...)
 
 	s := debugapi.New(debugapi.Options{
@@ -49,7 +43,6 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 		Pingpong:       o.Pingpong,
 		Tags:           o.Tags,
 		Logger:         logging.New(ioutil.Discard, 0),
-		Addressbook:    addrbook,
 		Storer:         o.Storer,
 		TopologyDriver: topologyDriver,
 	})
@@ -67,8 +60,8 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 		}),
 	}
 	return &testServer{
-		Client:      client,
-		Addressbook: addrbook,
+		Client:  client,
+		P2PMock: o.P2P,
 	}
 }
 
