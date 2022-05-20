@@ -282,6 +282,7 @@ func New(o Options) (*Node, error) {
 		PullSync:   pullSync,
 		Logger:     logger,
 	})
+
 	b.pullerCloser = puller
 
 	var apiService api.Service
