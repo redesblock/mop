@@ -22,7 +22,7 @@ func TestSplitIncomplete(t *testing.T) {
 	s := splitter.NewSimpleSplitter(store)
 
 	testDataReader := file.NewSimpleReadCloser(testData)
-	_, err := s.Split(context.Background(), testDataReader, 41)
+	_, err := s.Split(context.Background(), testDataReader, 41, false)
 	if err == nil {
 		t.Fatalf("expected error on EOF before full length write")
 	}
@@ -41,7 +41,7 @@ func TestSplitSingleChunk(t *testing.T) {
 	s := splitter.NewSimpleSplitter(store)
 
 	testDataReader := file.NewSimpleReadCloser(testData)
-	resultAddress, err := s.Split(context.Background(), testDataReader, int64(len(testData)))
+	resultAddress, err := s.Split(context.Background(), testDataReader, int64(len(testData)), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestSplitSingleChunk(t *testing.T) {
 func TestSplitThreeLevels(t *testing.T) {
 	// edge case selected from internal/job_test.go
 	g := mockbytes.New(0, mockbytes.MockTypeStandard).WithModulus(255)
-	testData, err := g.SequentialBytes(swarm.ChunkSize * swarm.Branches)
+	testData, err := g.SequentialBytes(swarm.ChunkSize * 128)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestSplitThreeLevels(t *testing.T) {
 	s := splitter.NewSimpleSplitter(store)
 
 	testDataReader := file.NewSimpleReadCloser(testData)
-	resultAddress, err := s.Split(context.Background(), testDataReader, int64(len(testData)))
+	resultAddress, err := s.Split(context.Background(), testDataReader, int64(len(testData)), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestUnalignedSplit(t *testing.T) {
 	doneC := make(chan swarm.Address)
 	errC := make(chan error)
 	go func() {
-		addr, err := sp.Split(ctx, chunkPipe, dataLen)
+		addr, err := sp.Split(ctx, chunkPipe, dataLen, false)
 		if err != nil {
 			errC <- err
 		} else {
@@ -176,5 +176,4 @@ func TestUnalignedSplit(t *testing.T) {
 	case <-timer.C:
 		t.Fatal("timeout")
 	}
-
 }

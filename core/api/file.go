@@ -13,9 +13,11 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/collection/entry"
+	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
@@ -24,7 +26,10 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-const multipartFormDataMediaType = "multipart/form-data"
+const (
+	multiPartFormData = "multipart/form-data"
+	EncryptHeader     = "swarm-encrypt"
+)
 
 type fileUploadResponse struct {
 	Reference swarm.Address `json:"reference"`
@@ -34,6 +39,7 @@ type fileUploadResponse struct {
 // - multipart http message
 // - other content types as complete file body
 func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
+	toEncrypt := strings.ToLower(r.Header.Get(EncryptHeader)) == "true"
 	contentType := r.Header.Get("Content-Type")
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
@@ -48,7 +54,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 	var fileName, contentLength string
 	var fileSize uint64
 
-	if mediaType == multipartFormDataMediaType {
+	if mediaType == multiPartFormData {
 		mr := multipart.NewReader(r.Body, params["boundary"])
 
 		// read only the first part, as only one file upload is supported
@@ -129,7 +135,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// first store the file and get its reference
 	sp := splitter.NewSimpleSplitter(s.Storer)
-	fr, err := file.SplitWriteAll(ctx, sp, reader, int64(fileSize))
+	fr, err := file.SplitWriteAll(ctx, sp, reader, int64(fileSize), toEncrypt)
 	if err != nil {
 		s.Logger.Debugf("file upload: file store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: file store, file %q", fileName)
@@ -153,7 +159,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sp = splitter.NewSimpleSplitter(s.Storer)
-	mr, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
+	mr, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(metadataBytes), int64(len(metadataBytes)), toEncrypt)
 	if err != nil {
 		s.Logger.Debugf("file upload: metadata store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: metadata store, file %q", fileName)
@@ -170,9 +176,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "entry marshal error")
 		return
 	}
-
 	sp = splitter.NewSimpleSplitter(s.Storer)
-	reference, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
+	reference, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)), toEncrypt)
 	if err != nil {
 		s.Logger.Debugf("file upload: entry store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: entry store, file %q", fileName)
@@ -196,10 +201,12 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	toDecrypt := len(address.Bytes()) == (swarm.HashSize + encryption.KeyLength)
+
 	// read entry.
 	j := joiner.NewSimpleJoiner(s.Storer)
 	buf := bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(j, address, buf)
+	_, err = file.JoinReadAll(j, address, buf, toDecrypt)
 	if err != nil {
 		s.Logger.Debugf("file download: read entry %s: %v", addr, err)
 		s.Logger.Errorf("file download: read entry %s", addr)
@@ -227,7 +234,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Read metadata.
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(j, e.Metadata(), buf)
+	_, err = file.JoinReadAll(j, e.Metadata(), buf, toDecrypt)
 	if err != nil {
 		s.Logger.Debugf("file download: read metadata %s: %v", addr, err)
 		s.Logger.Errorf("file download: read metadata %s", addr)
@@ -272,7 +279,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	go func() {
-		_, err := file.JoinReadAll(j, e.Reference(), pw)
+		_, err := file.JoinReadAll(j, e.Reference(), pw, toDecrypt)
 		if err := pw.CloseWithError(err); err != nil {
 			s.Logger.Debugf("file download: data join close %s: %v", addr, err)
 			s.Logger.Errorf("file download: data join close %s", addr)
@@ -292,6 +299,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", metaData.Filename))
 	w.Header().Set("Content-Type", metaData.MimeType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", dataSize))
+	w.Header().Set("Decompressed-Content-Length", fmt.Sprintf("%d", dataSize))
 	if _, err = io.Copy(w, bpr); err != nil {
 		s.Logger.Debugf("file download: data read %s: %v", addr, err)
 		s.Logger.Errorf("file download: data read %s", addr)

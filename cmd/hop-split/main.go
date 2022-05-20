@@ -92,7 +92,7 @@ func Split(cmd *cobra.Command, args []string) (err error) {
 	s := splitter.NewSimpleSplitter(stores)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	addr, err := s.Split(ctx, infile, inputLength)
+	addr, err := s.Split(ctx, infile, inputLength, false)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func main() {
 If datafile is not given, data will be read from standard in. In this case the --count flag must be set 
 to the length of the input.
 
-The application will expect to transmit the chunks to the http API, unless the --no-http flag has been set.
+The application will expect to transmit the chunks to the HTTP API, unless the --no-http flag has been set.
 
 If --output-dir is set, the chunks will be saved to the file system, using the flag argument as destination directory. 
 Chunks are saved in individual files, and the file names will be the hex addresses of the chunks.`,

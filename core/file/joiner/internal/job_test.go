@@ -44,7 +44,7 @@ func TestSimpleJoinerJobBlocksize(t *testing.T) {
 	}
 
 	// this buffer is too small
-	j := internal.NewSimpleJoinerJob(ctx, store, rootChunk)
+	j := internal.NewSimpleJoinerJob(ctx, store, rootChunk, false)
 	b := make([]byte, swarm.SectionSize)
 	_, err = j.Read(b)
 	if err == nil {
@@ -95,7 +95,7 @@ func TestSimpleJoinerJobOneLevel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	j := internal.NewSimpleJoinerJob(ctx, store, rootChunk)
+	j := internal.NewSimpleJoinerJob(ctx, store, rootChunk, false)
 
 	// verify first chunk content
 	outBuffer := make([]byte, 4096)
@@ -184,7 +184,7 @@ func TestSimpleJoinerJobTwoLevelsAcrossChunk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	j := internal.NewSimpleJoinerJob(ctx, store, rootChunk)
+	j := internal.NewSimpleJoinerJob(ctx, store, rootChunk, false)
 
 	// read back all the chunks and verify
 	b := make([]byte, swarm.ChunkSize)

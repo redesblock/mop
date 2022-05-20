@@ -27,7 +27,7 @@ func TestSplitterJobPartialSingleChunk(t *testing.T) {
 	defer cancel()
 
 	data := []byte("foo")
-	j := internal.NewSimpleSplitterJob(ctx, store, int64(len(data)))
+	j := internal.NewSimpleSplitterJob(ctx, store, int64(len(data)), false)
 
 	c, err := j.Write(data)
 	if err != nil {
@@ -70,7 +70,7 @@ func testSplitterJobVector(t *testing.T) {
 	data, expect := test.GetVector(t, int(dataIdx))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	j := internal.NewSimpleSplitterJob(ctx, store, int64(len(data)))
+	j := internal.NewSimpleSplitterJob(ctx, store, int64(len(data)), false)
 
 	for i := 0; i < len(data); i += swarm.ChunkSize {
 		l := swarm.ChunkSize
