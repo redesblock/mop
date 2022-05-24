@@ -84,7 +84,7 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 	if err != nil {
 		return fmt.Errorf("new stream: %w", err)
 	}
-	defer stream.Close()
+	defer stream.FullClose()
 
 	w, _ := protobuf.NewWriterAndReader(stream)
 	var peersRequest pb.Peers
@@ -96,6 +96,7 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 				continue
 			}
 
+			_ = stream.Reset()
 			return err
 		}
 
@@ -107,38 +108,41 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 	}
 
 	if err := w.WriteMsg(&peersRequest); err != nil {
+		_ = stream.Reset()
 		return fmt.Errorf("write Peers message: %w", err)
 	}
 
-	return stream.FullClose()
+	return nil
 }
 
 func (s *Service) peersHandler(ctx context.Context, peer p2p.Peer, stream p2p.Stream) error {
 	_, r := protobuf.NewWriterAndReader(stream)
 	var peersReq pb.Peers
 	if err := r.ReadMsgWithTimeout(messageTimeout, &peersReq); err != nil {
-		_ = stream.Close()
+		_ = stream.Reset()
 		return fmt.Errorf("read requestPeers message: %w", err)
 	}
 
-	if err := stream.Close(); err != nil {
-		return fmt.Errorf("close stream: %w", err)
-	}
+	// close the stream before processing in order to unblock the sending side
+	// fullclose is called async because there is no need to wait for conformation,
+	// but we still want to handle not closed stream from the other side to avoid zombie stream
+	go stream.FullClose()
+
 	for _, newPeer := range peersReq.Peers {
-		hopAddress, err := hop.ParseAddress(newPeer.Underlay, newPeer.Overlay, newPeer.Signature, s.networkID)
+		HopAddress, err := hop.ParseAddress(newPeer.Underlay, newPeer.Overlay, newPeer.Signature, s.networkID)
 		if err != nil {
 			s.logger.Warningf("skipping peer in response %s: %w", newPeer, err)
 			continue
 		}
 
-		err = s.addressBook.Put(hopAddress.Overlay, *hopAddress)
+		err = s.addressBook.Put(HopAddress.Overlay, *HopAddress)
 		if err != nil {
 			s.logger.Warningf("skipping peer in response %s: %w", newPeer, err)
 			continue
 		}
 
 		if s.peerHandler != nil {
-			if err := s.peerHandler(ctx, hopAddress.Overlay); err != nil {
+			if err := s.peerHandler(ctx, HopAddress.Overlay); err != nil {
 				return err
 			}
 		}
