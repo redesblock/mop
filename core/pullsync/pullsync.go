@@ -108,6 +108,13 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 	if err != nil {
 		return 0, 0, fmt.Errorf("new stream: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			_ = stream.Reset()
+		} else {
+			go stream.FullClose()
+		}
+	}()
 
 	var ru pb.Ruid
 	b := make([]byte, 4)
@@ -119,7 +126,6 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 	ru.Ruid = binary.BigEndian.Uint32(b)
 
 	w, r := protobuf.NewWriterAndReader(stream)
-	defer stream.Close()
 
 	if err = w.WriteMsgWithContext(ctx, &ru); err != nil {
 		return 0, 0, fmt.Errorf("write ruid: %w", err)
@@ -209,10 +215,15 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 }
 
 // handler handles an incoming request to sync an interval
-func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) error {
+func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (err error) {
 	w, r := protobuf.NewWriterAndReader(stream)
-	defer stream.Close()
-
+	defer func() {
+		if err != nil {
+			_ = stream.Reset()
+		} else {
+			_ = stream.FullClose()
+		}
+	}()
 	var ru pb.Ruid
 	if err := r.ReadMsgWithContext(ctx, &ru); err != nil {
 		return fmt.Errorf("send ruid: %w", err)
@@ -338,12 +349,18 @@ func (s *Syncer) processWant(ctx context.Context, o *pb.Offer, w *pb.Want) ([]sw
 	return s.storage.Get(ctx, storage.ModeGetSync, addrs...)
 }
 
-func (s *Syncer) GetCursors(ctx context.Context, peer swarm.Address) ([]uint64, error) {
+func (s *Syncer) GetCursors(ctx context.Context, peer swarm.Address) (retr []uint64, err error) {
 	stream, err := s.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, cursorStreamName)
 	if err != nil {
 		return nil, fmt.Errorf("new stream: %w", err)
 	}
-	defer stream.Close()
+	defer func() {
+		if err != nil {
+			_ = stream.Reset()
+		} else {
+			go stream.FullClose()
+		}
+	}()
 
 	w, r := protobuf.NewWriterAndReader(stream)
 	syn := &pb.Syn{}
@@ -356,12 +373,20 @@ func (s *Syncer) GetCursors(ctx context.Context, peer swarm.Address) ([]uint64, 
 		return nil, fmt.Errorf("read ack: %w", err)
 	}
 
-	return ack.Cursors, nil
+	retr = ack.Cursors
+
+	return retr, nil
 }
 
-func (s *Syncer) cursorHandler(ctx context.Context, p p2p.Peer, stream p2p.Stream) error {
+func (s *Syncer) cursorHandler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (err error) {
 	w, r := protobuf.NewWriterAndReader(stream)
-	defer stream.Close()
+	defer func() {
+		if err != nil {
+			_ = stream.Reset()
+		} else {
+			_ = stream.FullClose()
+		}
+	}()
 
 	var syn pb.Syn
 	if err := r.ReadMsgWithContext(ctx, &syn); err != nil {
@@ -372,7 +397,6 @@ func (s *Syncer) cursorHandler(ctx context.Context, p p2p.Peer, stream p2p.Strea
 	s.metrics.DbOpsCounter.Inc()
 	ints, err := s.storage.Cursors(ctx)
 	if err != nil {
-		_ = stream.FullClose()
 		return err
 	}
 	ack.Cursors = ints
@@ -383,14 +407,20 @@ func (s *Syncer) cursorHandler(ctx context.Context, p p2p.Peer, stream p2p.Strea
 	return nil
 }
 
-func (s *Syncer) CancelRuid(peer swarm.Address, ruid uint32) error {
+func (s *Syncer) CancelRuid(peer swarm.Address, ruid uint32) (err error) {
 	stream, err := s.streamer.NewStream(context.Background(), peer, nil, protocolName, protocolVersion, cancelStreamName)
 	if err != nil {
 		return fmt.Errorf("new stream: %w", err)
 	}
 
 	w := protobuf.NewWriter(stream)
-	defer stream.Close()
+	defer func() {
+		if err != nil {
+			_ = stream.Reset()
+		} else {
+			go stream.FullClose()
+		}
+	}()
 
 	var c pb.Cancel
 	c.Ruid = ruid
@@ -401,9 +431,15 @@ func (s *Syncer) CancelRuid(peer swarm.Address, ruid uint32) error {
 }
 
 // handler handles an incoming request to explicitly cancel a ruid
-func (s *Syncer) cancelHandler(ctx context.Context, p p2p.Peer, stream p2p.Stream) error {
+func (s *Syncer) cancelHandler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (err error) {
 	r := protobuf.NewReader(stream)
-	defer stream.Close()
+	defer func() {
+		if err != nil {
+			_ = stream.Reset()
+		} else {
+			_ = stream.FullClose()
+		}
+	}()
 
 	var c pb.Cancel
 	if err := r.ReadMsgWithContext(ctx, &c); err != nil {
