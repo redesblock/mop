@@ -16,6 +16,7 @@ import (
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/content"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/hive"
@@ -42,7 +43,6 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
-	"github.com/redesblock/hop/core/validator"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -250,7 +250,7 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
 
-	ns := netstore.New(storer, retrieve, validator.NewContentAddressValidator())
+	ns := netstore.New(storer, retrieve, content.NewContentAddressValidator())
 
 	retrieve.SetStorer(ns)
 
