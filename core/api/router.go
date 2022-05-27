@@ -24,7 +24,7 @@ func (s *server) setupRouting() {
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Swarm Node")
+		fmt.Fprintln(w, "Ethereum Swarm")
 	})
 
 	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +48,10 @@ func (s *server) setupRouting() {
 	handle(router, "/chunks/{addr}", jsonhttp.MethodHandler{
 		"GET":  http.HandlerFunc(s.chunkGetHandler),
 		"POST": http.HandlerFunc(s.chunkUploadHandler),
+	})
+
+	handle(router, "/hop:/{address}/{path:.*}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.hopDownloadHandler),
 	})
 
 	s.Handler = web.ChainHandlers(
