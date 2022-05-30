@@ -38,6 +38,7 @@ import (
 	"github.com/redesblock/hop/core/pusher"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/retrieval"
+	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
@@ -250,7 +251,7 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
 
-	ns := netstore.New(storer, retrieve, content.NewContentAddressValidator())
+	ns := netstore.New(storer, retrieve, content.NewValidator(), soc.NewValidator())
 
 	retrieve.SetStorer(ns)
 

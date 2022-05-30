@@ -4,20 +4,20 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-var _ swarm.ChunkValidator = (*ContentAddressValidator)(nil)
+var _ swarm.ChunkValidator = (*Validator)(nil)
 
 // ContentAddressValidator validates that the address of a given chunk
 // is the content address of its contents.
-type ContentAddressValidator struct {
+type Validator struct {
 }
 
 // NewContentAddressValidator constructs a new ContentAddressValidator
-func NewContentAddressValidator() swarm.ChunkValidator {
-	return &ContentAddressValidator{}
+func NewValidator() swarm.ChunkValidator {
+	return &Validator{}
 }
 
 // Validate performs the validation check.
-func (v *ContentAddressValidator) Validate(ch swarm.Chunk) (valid bool) {
+func (v *Validator) Validate(ch swarm.Chunk) (valid bool) {
 	chunkData := ch.Data()
 	rch, err := contentChunkFromBytes(chunkData)
 	if err != nil {
