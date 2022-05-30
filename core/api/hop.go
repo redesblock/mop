@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,6 +23,10 @@ const (
 )
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	targets := r.URL.Query().Get("targets")
+	r = r.WithContext(context.WithValue(r.Context(), targetsContextKey{}, targets))
+	ctx := r.Context()
+
 	addressHex := mux.Vars(r)["address"]
 	path := mux.Vars(r)["path"]
 
@@ -38,7 +43,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	// read manifest entry
 	j := joiner.NewSimpleJoiner(s.Storer)
 	buf := bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(j, address, buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, address, buf, toDecrypt)
 	if err != nil {
 		s.Logger.Debugf("hop download: read entry %s: %v", address, err)
 		s.Logger.Errorf("hop download: read entry %s", address)
@@ -56,7 +61,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read metadata
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(j, e.Metadata(), buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, e.Metadata(), buf, toDecrypt)
 	if err != nil {
 		s.Logger.Debugf("hop download: read metadata %s: %v", address, err)
 		s.Logger.Errorf("hop download: read metadata %s", address)
@@ -82,7 +87,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read manifest content
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(j, e.Reference(), buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, e.Reference(), buf, toDecrypt)
 	if err != nil {
 		s.Logger.Debugf("hop download: data join %s: %v", address, err)
 		s.Logger.Errorf("hop download: data join %s", address)
@@ -123,7 +128,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read file entry
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(j, manifestEntryAddress, buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, manifestEntryAddress, buf, toDecrypt)
 	if err != nil {
 		s.Logger.Debugf("hop download: read file entry %s: %v", address, err)
 		s.Logger.Errorf("hop download: read file entry %s", address)

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -111,6 +112,9 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) chunkGetHandler(w http.ResponseWriter, r *http.Request) {
+	targets := r.URL.Query().Get("targets")
+	r = r.WithContext(context.WithValue(r.Context(), targetsContextKey{}, targets))
+
 	addr := mux.Vars(r)["addr"]
 	ctx := r.Context()
 
@@ -136,5 +140,6 @@ func (s *server) chunkGetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "binary/octet-stream")
+	w.Header().Set(TargetsRecoveryHeader, targets)
 	_, _ = io.Copy(w, bytes.NewReader(chunk.Data()))
 }

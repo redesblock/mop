@@ -3,9 +3,11 @@ package netstore_test
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"sync/atomic"
 	"testing"
 
+	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
@@ -93,7 +95,8 @@ func TestNetstoreNoRetrieval(t *testing.T) {
 func newRetrievingNetstore() (ret *retrievalMock, mockStore storage.Storer, ns storage.Storer) {
 	retrieve := &retrievalMock{}
 	store := mock.NewStorer()
-	nstore := netstore.New(store, retrieve, mockValidator{})
+	logger := logging.New(ioutil.Discard, 0)
+	nstore := netstore.New(store, retrieve, logger, mockValidator{})
 
 	return retrieve, store, nstore
 }

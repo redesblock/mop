@@ -251,7 +251,7 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
 
-	ns := netstore.New(storer, retrieve, content.NewValidator(), soc.NewValidator())
+	ns := netstore.New(storer, retrieve, logger, content.NewValidator(), soc.NewValidator())
 
 	retrieve.SetStorer(ns)
 

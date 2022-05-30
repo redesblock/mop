@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/retrieval"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -15,11 +16,12 @@ type store struct {
 
 	retrieval  retrieval.Interface
 	validators []swarm.ChunkValidator
+	logger     logging.Logger
 }
 
 // New returns a new NetStore that wraps a given Storer.
-func New(s storage.Storer, r retrieval.Interface, validators ...swarm.ChunkValidator) storage.Storer {
-	return &store{Storer: s, retrieval: r, validators: validators}
+func New(s storage.Storer, r retrieval.Interface, logger logging.Logger, validators ...swarm.ChunkValidator) storage.Storer {
+	return &store{Storer: s, retrieval: r, logger: logger, validators: validators}
 }
 
 // Get retrieves a given chunk address.
@@ -31,6 +33,7 @@ func (s *store) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Addres
 			// request from network
 			data, err := s.retrieval.RetrieveChunk(ctx, addr)
 			if err != nil {
+				s.logger.Debug("INVOKE RECOVERY PROCESS")
 				return nil, fmt.Errorf("netstore retrieve chunk: %w", err)
 			}
 
