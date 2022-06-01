@@ -13,6 +13,7 @@ import (
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/hop/core/manifest/jsonmanifest"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -94,7 +95,8 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.NotFound(w, nil)
 		return
 	}
-	manifest, err := s.ManifestParser.Parse(buf.Bytes())
+	manifest := jsonmanifest.NewManifest()
+	err = manifest.UnmarshalBinary(buf.Bytes())
 	if err != nil {
 		s.Logger.Debugf("hop download: unmarshal manifest %s: %v", address, err)
 		s.Logger.Errorf("hop download: unmarshal manifest %s", address)
@@ -102,7 +104,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	me, err := manifest.FindEntry(path)
+	me, err := manifest.Entry(path)
 	if err != nil {
 		s.Logger.Debugf("hop download: invalid path %s/%s: %v", address, path, err)
 		s.Logger.Error("hop download: invalid path")
@@ -110,20 +112,20 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manifestEntryAddress := me.GetReference()
+	manifestEntryAddress := me.Reference()
 
 	var additionalHeaders http.Header
 
 	// copy headers from manifest
-	if me.GetHeaders() != nil {
-		additionalHeaders = me.GetHeaders().Clone()
+	if me.Headers() != nil {
+		additionalHeaders = me.Headers().Clone()
 	} else {
 		additionalHeaders = http.Header{}
 	}
 
 	// include filename
-	if me.GetName() != "" {
-		additionalHeaders.Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", me.GetName()))
+	if me.Name() != "" {
+		additionalHeaders.Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", me.Name()))
 	}
 
 	// read file entry

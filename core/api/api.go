@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest"
 	m "github.com/redesblock/hop/core/metrics"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/tags"
@@ -25,7 +24,6 @@ type server struct {
 type Options struct {
 	Tags               *tags.Tags
 	Storer             storage.Storer
-	ManifestParser     manifest.Parser
 	CORSAllowedOrigins []string
 	Logger             logging.Logger
 	Tracer             *tracing.Tracer

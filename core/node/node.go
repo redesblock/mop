@@ -26,7 +26,6 @@ import (
 	memkeystore "github.com/redesblock/hop/core/keystore/mem"
 	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest/jsonmanifest"
 	"github.com/redesblock/hop/core/metrics"
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p"
@@ -298,15 +297,12 @@ func New(o Options) (*Node, error) {
 
 	b.pullerCloser = puller
 
-	manifestParser := jsonmanifest.NewParser()
-
 	var apiService api.Service
 	if o.APIAddr != "" {
 		// API server
 		apiService = api.New(api.Options{
 			Tags:               tagg,
 			Storer:             ns,
-			ManifestParser:     manifestParser,
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			Logger:             logger,
 			Tracer:             tracer,

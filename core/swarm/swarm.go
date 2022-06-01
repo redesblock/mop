@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/redesblock/hop/core/encryption"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -17,7 +16,7 @@ const (
 	Branches                     = 128
 	ChunkSize                    = SectionSize * Branches
 	HashSize                     = 32
-	EncryptedReferenceSize       = HashSize + encryption.KeyLength
+	EncryptedReferenceSize       = HashSize + 32
 	MaxPO                  uint8 = 15
 	MaxBins                      = MaxPO + 1
 	ChunkWithSpanSize            = ChunkSize + SpanSize
