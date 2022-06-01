@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"resenje.org/web"
 )
@@ -50,8 +51,11 @@ func (s *server) setupRouting() {
 	})
 
 	handle(router, "/chunks/{addr}", jsonhttp.MethodHandler{
-		"GET":  http.HandlerFunc(s.chunkGetHandler),
-		"POST": http.HandlerFunc(s.chunkUploadHandler),
+		"GET": http.HandlerFunc(s.chunkGetHandler),
+		"POST": web.ChainHandlers(
+			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
+			web.FinalHandlerFunc(s.chunkUploadHandler),
+		),
 	})
 
 	handle(router, "/hop/{address}/{path:.*}", jsonhttp.MethodHandler{

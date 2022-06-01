@@ -35,7 +35,8 @@ import (
 )
 
 var (
-	_ p2p.Service = (*Service)(nil)
+	_ p2p.Service      = (*Service)(nil)
+	_ p2p.DebugService = (*Service)(nil)
 )
 
 type Service struct {
@@ -498,4 +499,14 @@ func (s *Service) Close() error {
 		return err
 	}
 	return s.host.Close()
+}
+
+// SetWelcomeMessage sets the welcome message for the handshake protocol.
+func (s *Service) SetWelcomeMessage(val string) error {
+	return s.handshakeService.SetWelcomeMessage(val)
+}
+
+// GetWelcomeMessage returns the value of the welcome message.
+func (s *Service) GetWelcomeMessage() string {
+	return s.handshakeService.GetWelcomeMessage()
 }
