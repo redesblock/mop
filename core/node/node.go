@@ -41,6 +41,7 @@ import (
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/sirupsen/logrus"
@@ -237,12 +238,15 @@ func New(o Options) (*Node, error) {
 		DisconnectThreshold: o.DisconnectThreshold,
 	})
 
+	chunkvalidators := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
+
 	retrieve := retrieval.New(retrieval.Options{
 		Streamer:    p2ps,
 		ChunkPeerer: topologyDriver,
 		Logger:      logger,
 		Accounting:  acc,
 		Pricer:      accounting.NewFixedPricer(address, 10),
+		Validator:   chunkvalidators,
 	})
 	tagg := tags.NewTags()
 
@@ -250,7 +254,7 @@ func New(o Options) (*Node, error) {
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
 
-	ns := netstore.New(storer, retrieve, logger, content.NewValidator(), soc.NewValidator())
+	ns := netstore.New(storer, retrieve, logger, chunkvalidators)
 
 	retrieve.SetStorer(ns)
 
