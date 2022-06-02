@@ -72,7 +72,7 @@ func TestDirs(t *testing.T) {
 	}{
 		{
 			name:         "non-nested files without extension",
-			expectedHash: "2fa041bd35ebff676727eb3023272f43b1e0fa71c8735cc1a7487e9131f963c4",
+			expectedHash: "bd0315ab13ee369d6d08dbf55b7ed7af4422fc8d8f991bab2ac96e42a87d1250",
 			files: []f{
 				{
 					data:      []byte("first file data"),
@@ -96,7 +96,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:         "nested files with extension",
-			expectedHash: "c3cb9fbe2efa7bbc979245d9bac1400bd4894371776b7560309d49e687514dd6",
+			expectedHash: "852358b5b93ff7ab89f04956eaf55d449655606ba14ecf7f8329309bd8668ce9",
 			files: []f{
 				{
 					data:      []byte("robots text"),
