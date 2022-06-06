@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
@@ -35,6 +36,7 @@ type Options struct {
 	Logger         logging.Logger
 	Tracer         *tracing.Tracer
 	Tags           *tags.Tags
+	Accounting     accounting.Interface
 }
 
 func New(o Options) Service {

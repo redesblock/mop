@@ -3,9 +3,9 @@ package retrieval
 import (
 	"context"
 	"fmt"
-	"github.com/redesblock/hop/core/accounting"
 	"time"
 
+	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
@@ -81,11 +81,11 @@ const (
 	retrieveChunkTimeout = 10 * time.Second
 )
 
-func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address) (chunk swarm.Chunk, err error) {
+func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address) (swarm.Chunk, error) {
 	ctx, cancel := context.WithTimeout(ctx, maxPeers*retrieveChunkTimeout)
 	defer cancel()
 
-	v, err, _ := s.singleflight.Do(addr.String(), func() (v interface{}, err error) {
+	v, err, _ := s.singleflight.Do(addr.String(), func() (interface{}, error) {
 		var skipPeers []swarm.Address
 		for i := 0; i < maxPeers; i++ {
 			var peer swarm.Address
@@ -101,7 +101,8 @@ func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address) (chunk 
 			s.logger.Tracef("retrieval: got chunk %s from peer %s", addr, peer)
 			return chunk, nil
 		}
-		return nil, err
+		s.logger.Debugf("retrieval: failed to get chunk %s: reached max peers of %v", addr, maxPeers)
+		return nil, storage.ErrNotFound
 	})
 	if err != nil {
 		return nil, err
