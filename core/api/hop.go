@@ -2,18 +2,19 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
+
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest/jsonmanifest"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -25,7 +26,7 @@ const (
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	targets := r.URL.Query().Get("targets")
-	r = r.WithContext(context.WithValue(r.Context(), targetsContextKey{}, targets))
+	r = r.WithContext(sctx.SetTargets(r.Context(), targets))
 	ctx := r.Context()
 
 	addressHex := mux.Vars(r)["address"]

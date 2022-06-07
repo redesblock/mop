@@ -93,7 +93,6 @@ func (db *DB) set(mode storage.ModeSet, addrs ...swarm.Address) (err error) {
 				return err
 			}
 		}
-
 	default:
 		return ErrInvalidMode
 	}

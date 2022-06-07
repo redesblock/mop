@@ -28,11 +28,13 @@ import (
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/puller"
 	"github.com/redesblock/hop/core/pullsync"
 	"github.com/redesblock/hop/core/pullsync/pullstorage"
 	"github.com/redesblock/hop/core/pusher"
 	"github.com/redesblock/hop/core/pushsync"
+	"github.com/redesblock/hop/core/recovery"
 	"github.com/redesblock/hop/core/retrieval"
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/soc"
@@ -62,24 +64,27 @@ type Node struct {
 }
 
 type Options struct {
-	DataDir             string
-	DBCapacity          uint64
-	Password            string
-	APIAddr             string
-	DebugAPIAddr        string
-	NATAddr             string
-	EnableWS            bool
-	EnableQUIC          bool
-	NetworkID           uint64
-	WelcomeMessage      string
-	Bootnodes           []string
-	CORSAllowedOrigins  []string
-	TracingEnabled      bool
-	TracingEndpoint     string
-	TracingServiceName  string
-	DisconnectThreshold uint64
-	PaymentThreshold    uint64
-	PaymentTolerance    uint64
+	DataDir              string
+	DBCapacity           uint64
+	Password             string
+	APIAddr              string
+	DebugAPIAddr         string
+	Addr                 string
+	NATAddr              string
+	EnableWS             bool
+	EnableQUIC           bool
+	NetworkID            uint64
+	WelcomeMessage       string
+	Bootnodes            []string
+	CORSAllowedOrigins   []string
+	Logger               logging.Logger
+	TracingEnabled       bool
+	TracingEndpoint      string
+	TracingServiceName   string
+	DisconnectThreshold  uint64
+	GlobalPinningEnabled bool
+	PaymentThreshold     uint64
+	PaymentTolerance     uint64
 }
 
 func New(addr string, logger logging.Logger, o Options) (*Node, error) {
@@ -272,20 +277,39 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
 
-	ns := netstore.New(storer, retrieve, logger, chunkvalidator)
+	// instantiate the pss object
+	psss := pss.New(logger, nil)
 
+	var ns storage.Storer
+	if o.GlobalPinningEnabled {
+		// create recovery callback for content repair
+		recoverFunc := recovery.NewRecoveryHook(psss)
+		ns = netstore.New(storer, recoverFunc, retrieve, logger, chunkvalidator)
+	} else {
+		ns = netstore.New(storer, nil, retrieve, logger, chunkvalidator)
+	}
 	retrieve.SetStorer(ns)
 
 	pushSyncProtocol := pushsync.New(pushsync.Options{
-		Streamer:      p2ps,
-		Storer:        storer,
-		ClosestPeerer: kad,
-		Tagger:        tagg,
-		Logger:        logger,
+		Streamer:         p2ps,
+		Storer:           storer,
+		ClosestPeerer:    kad,
+		DeliveryCallback: psss.TryUnwrap,
+		Tagger:           tagg,
+		Logger:           logger,
 	})
+
+	// set the pushSyncer in the PSS
+	psss.WithPushSyncer(pushSyncProtocol)
 
 	if err = p2ps.AddProtocol(pushSyncProtocol.Protocol()); err != nil {
 		return nil, fmt.Errorf("pushsync service: %w", err)
+	}
+
+	if o.GlobalPinningEnabled {
+		// register function for chunk repair upon receiving a trojan message
+		chunkRepairHandler := recovery.NewRepairHandler(ns, logger, pushSyncProtocol)
+		psss.Register(recovery.RecoveryTopic, chunkRepairHandler)
 	}
 
 	pushSyncPusher := pusher.New(pusher.Options{

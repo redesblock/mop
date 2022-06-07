@@ -23,6 +23,7 @@ import (
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -36,8 +37,6 @@ const (
 	multiPartFormData = "multipart/form-data"
 	EncryptHeader     = "swarm-encrypt"
 )
-
-type targetsContextKey struct{}
 
 // fileUploadResponse is returned when an HTTP request to upload a file is successful
 type fileUploadResponse struct {
@@ -279,9 +278,9 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	toDecrypt := len(address.Bytes()) == (swarm.HashSize + encryption.KeyLength)
-	targets := r.URL.Query().Get("targets")
 
-	r = r.WithContext(context.WithValue(r.Context(), targetsContextKey{}, targets))
+	targets := r.URL.Query().Get("targets")
+	sctx.SetTargets(r.Context(), targets)
 
 	// read entry.
 	j := joiner.NewSimpleJoiner(s.Storer)
@@ -347,7 +346,7 @@ func (s *server) downloadHandler(
 ) {
 
 	targets := r.URL.Query().Get("targets")
-	r = r.WithContext(context.WithValue(r.Context(), targetsContextKey{}, targets))
+	sctx.SetTargets(r.Context(), targets)
 	ctx := r.Context()
 
 	toDecrypt := len(reference.Bytes()) == (swarm.HashSize + encryption.KeyLength)
