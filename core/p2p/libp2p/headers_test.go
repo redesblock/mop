@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
 )
 
 func TestHeaders(t *testing.T) {
@@ -19,9 +18,9 @@ func TestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, overlay2 := newService(t, 1, libp2p.Options{})
+	s2, overlay2 := newService(t, 1, libp2pServiceOpts{})
 
 	var gotHeaders p2p.Headers
 	handled := make(chan struct{})
@@ -66,9 +65,9 @@ func TestHeaders_empty(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, overlay2 := newService(t, 1, libp2p.Options{})
+	s2, overlay2 := newService(t, 1, libp2pServiceOpts{})
 
 	var gotHeaders p2p.Headers
 	handled := make(chan struct{})
@@ -122,9 +121,9 @@ func TestHeadler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, _ := newService(t, 1, libp2p.Options{})
+	s2, _ := newService(t, 1, libp2pServiceOpts{})
 
 	var gotReceivedHeaders p2p.Headers
 	handled := make(chan struct{})

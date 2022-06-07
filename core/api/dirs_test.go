@@ -87,7 +87,7 @@ func TestDirs(t *testing.T) {
 					data:      []byte("second file data"),
 					name:      "file2",
 					dir:       "",
-					reference: swarm.MustParseHexAddress("3c07cd2cf5c46208d69d554b038f4dce203f53ac02cb8a313a0fe1e3fe6cc3cf"),
+					reference: swarm.MustParseHexAddress("47e1a2a8f16e02da187fac791d57e6794f3e9b5d2400edd00235da749ad36683"),
 					header: http.Header{
 						"Content-Type": {""},
 					},

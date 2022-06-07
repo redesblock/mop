@@ -8,16 +8,15 @@ import (
 
 	"github.com/multiformats/go-multistream"
 	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
 )
 
 func TestNewStream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, _ := newService(t, 1, libp2p.Options{})
+	s2, _ := newService(t, 1, libp2pServiceOpts{})
 
 	if err := s1.AddProtocol(newTestProtocol(func(_ context.Context, _ p2p.Peer, _ p2p.Stream) error {
 		return nil
@@ -47,7 +46,7 @@ func TestNewStreamMulti(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 	var (
 		h1calls, h2calls int32
 		h1               = func(_ context.Context, _ p2p.Peer, s p2p.Stream) error {
@@ -61,7 +60,7 @@ func TestNewStreamMulti(t *testing.T) {
 			return nil
 		}
 	)
-	s2, _ := newService(t, 1, libp2p.Options{})
+	s2, _ := newService(t, 1, libp2pServiceOpts{})
 
 	if err := s1.AddProtocol(newTestMultiProtocol(h1, h2)); err != nil {
 		t.Fatal(err)
@@ -92,9 +91,9 @@ func TestNewStream_errNotSupported(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, _ := newService(t, 1, libp2p.Options{})
+	s2, _ := newService(t, 1, libp2pServiceOpts{})
 
 	addr := serviceUnderlayAddress(t, s1)
 
@@ -127,9 +126,9 @@ func TestNewStream_semanticVersioning(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, _ := newService(t, 1, libp2p.Options{})
+	s2, _ := newService(t, 1, libp2pServiceOpts{})
 
 	addr := serviceUnderlayAddress(t, s1)
 
@@ -186,9 +185,9 @@ func TestDisconnectError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2p.Options{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
 
-	s2, overlay2 := newService(t, 1, libp2p.Options{})
+	s2, overlay2 := newService(t, 1, libp2pServiceOpts{})
 
 	if err := s1.AddProtocol(newTestProtocol(func(_ context.Context, _ p2p.Peer, _ p2p.Stream) error {
 		return p2p.NewDisconnectError(errors.New("test error"))

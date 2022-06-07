@@ -146,14 +146,10 @@ func TestLimitWriter(t *testing.T) {
 	}
 }
 
-// newTestServer creates an http server to serve the hop http api endpoints.
+// newTestServer creates an http server to serve the http api endpoints.
 func newTestServer(t *testing.T, storer storage.Storer) *url.URL {
 	t.Helper()
-	s := api.New(api.Options{
-		Storer: storer,
-		Logger: logging.New(ioutil.Discard, 0),
-		Tags:   tags.NewTags(),
-	})
+	s := api.New(tags.NewTags(), storer, nil, logging.New(ioutil.Discard, 0), nil)
 	ts := httptest.NewServer(s)
 	srvUrl, err := url.Parse(ts.URL)
 	if err != nil {

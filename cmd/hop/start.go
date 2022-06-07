@@ -109,13 +109,12 @@ Welcome to the Swarm....
 				password = p
 			}
 
-			b, err := node.New(node.Options{
+			b, err := node.New(c.config.GetString(optionNameP2PAddr), logger, node.Options{
 				DataDir:            c.config.GetString(optionNameDataDir),
 				DBCapacity:         c.config.GetUint64(optionNameDBCapacity),
 				Password:           password,
 				APIAddr:            c.config.GetString(optionNameAPIAddr),
 				DebugAPIAddr:       debugAPIAddr,
-				Addr:               c.config.GetString(optionNameP2PAddr),
 				NATAddr:            c.config.GetString(optionNameNATAddr),
 				EnableWS:           c.config.GetBool(optionNameP2PWSEnable),
 				EnableQUIC:         c.config.GetBool(optionNameP2PQUICEnable),
@@ -126,7 +125,6 @@ Welcome to the Swarm....
 				TracingEnabled:     c.config.GetBool(optionNameTracingEnabled),
 				TracingEndpoint:    c.config.GetString(optionNameTracingEndpoint),
 				TracingServiceName: c.config.GetString(optionNameTracingServiceName),
-				Logger:             logger,
 				PaymentThreshold:   c.config.GetUint64(optionNamePaymentThreshold),
 				PaymentTolerance:   c.config.GetUint64(optionNamePaymentTolerance),
 			})
