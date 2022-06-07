@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/addressbook"
@@ -21,7 +22,7 @@ import (
 	"github.com/redesblock/hop/core/topology/full"
 )
 
-func TestAddPeer(t *testing.T) {
+func TestAddPeers(t *testing.T) {
 	logger := logging.New(ioutil.Discard, 0)
 	underlay, err := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/7070/p2p/16Uiu2HAkx8ULY8cTXhdVAcMmLcH9AsTKz6uBQ7DPLKRjMLgBVYkS")
 	if err != nil {
@@ -69,35 +70,12 @@ func TestAddPeer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = fullDriver.AddPeer(context.Background(), overlay)
+		err = fullDriver.AddPeers(context.Background(), overlay)
 		if err != nil {
 			t.Fatalf("full conn driver returned err %s", err.Error())
 		}
 
-		if discovery.Broadcasts() != 0 {
-			t.Fatalf("broadcasts expected %v, got %v ", 0, discovery.Broadcasts())
-		}
-	})
-
-	t.Run("ERROR - peer not added", func(t *testing.T) {
-		discovery := mock.NewDiscovery()
-		statestore := mockstate.NewStateStore()
-		ab := addressbook.New(statestore)
-		p2p := p2pmock.New(p2pmock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*hop.Address, error) {
-			t.Fatal("should not be called")
-			return nil, nil
-		}))
-
-		fullDriver := full.New(discovery, ab, p2p, logger, overlay)
-		defer fullDriver.Close()
-		err := fullDriver.AddPeer(context.Background(), overlay)
-		if !errors.Is(err, topology.ErrNotFound) {
-			t.Fatalf("full conn driver returned err %v", err)
-		}
-
-		if discovery.Broadcasts() != 0 {
-			t.Fatalf("broadcasts expected %v, got %v ", 0, discovery.Broadcasts())
-		}
+		expectBroadcastsEventually(t, discovery, 0)
 	})
 
 	t.Run("OK - connected peers - peer already connected", func(t *testing.T) {
@@ -125,14 +103,12 @@ func TestAddPeer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = fullDriver.AddPeer(context.Background(), alreadyConnected)
+		err = fullDriver.AddPeers(context.Background(), alreadyConnected)
 		if err != nil {
 			t.Fatalf("full conn driver returned err %s", err.Error())
 		}
 
-		if discovery.Broadcasts() != 3 {
-			t.Fatalf("broadcasts expected %v, got %v ", 3, discovery.Broadcasts())
-		}
+		expectBroadcastsEventually(t, discovery, 3)
 
 		// check newly added node
 		if err := checkAddreseeRecords(discovery, alreadyConnected, connectedPeers[1:]); err != nil {
@@ -168,14 +144,12 @@ func TestAddPeer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = fullDriver.AddPeer(context.Background(), overlay)
+		err = fullDriver.AddPeers(context.Background(), overlay)
 		if err != nil {
 			t.Fatalf("full conn driver returned err %s", err.Error())
 		}
 
-		if discovery.Broadcasts() != 4 {
-			t.Fatalf("broadcasts expected %v, got %v ", 4, discovery.Broadcasts())
-		}
+		expectBroadcastsEventually(t, discovery, 4)
 
 		// check newly added node
 		if err := checkAddreseeRecords(discovery, overlay, connectedPeers); err != nil {
@@ -189,6 +163,17 @@ func TestAddPeer(t *testing.T) {
 			}
 		}
 	})
+}
+
+func expectBroadcastsEventually(t *testing.T, discovery *mock.Discovery, expected int) {
+	for i := 0; i < 100; i++ {
+		time.Sleep(50 * time.Millisecond)
+		if discovery.Broadcasts() == expected {
+			return
+		}
+	}
+
+	t.Fatalf("broadcasts expected %v, got %v ", expected, discovery.Broadcasts())
 }
 
 // TestSyncPeer tests that SyncPeer method returns closest connected peer to a given chunk.
