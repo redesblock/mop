@@ -22,26 +22,27 @@ import (
 func (c *command) initStartCmd() (err error) {
 
 	const (
-		optionNameDataDir             = "data-dir"
-		optionNameDBCapacity          = "db-capacity"
-		optionNamePassword            = "password"
-		optionNamePasswordFile        = "password-file"
-		optionNameAPIAddr             = "api-addr"
-		optionNameP2PAddr             = "p2p-addr"
-		optionNameNATAddr             = "nat-addr"
-		optionNameP2PWSEnable         = "p2p-ws-enable"
-		optionNameP2PQUICEnable       = "p2p-quic-enable"
-		optionNameDebugAPIEnable      = "debug-api-enable"
-		optionNameDebugAPIAddr        = "debug-api-addr"
-		optionNameBootnodes           = "bootnode"
-		optionNameNetworkID           = "network-id"
-		optionWelcomeMessage          = "welcome-message"
-		optionCORSAllowedOrigins      = "cors-allowed-origins"
-		optionNameTracingEnabled      = "tracing-enable"
-		optionNameTracingEndpoint     = "tracing-endpoint"
-		optionNameTracingServiceName  = "tracing-service-name"
-		optionNameVerbosity           = "verbosity"
-		optionNameDisconnectThreshold = "disconnect-threshold"
+		optionNameDataDir            = "data-dir"
+		optionNameDBCapacity         = "db-capacity"
+		optionNamePassword           = "password"
+		optionNamePasswordFile       = "password-file"
+		optionNameAPIAddr            = "api-addr"
+		optionNameP2PAddr            = "p2p-addr"
+		optionNameNATAddr            = "nat-addr"
+		optionNameP2PWSEnable        = "p2p-ws-enable"
+		optionNameP2PQUICEnable      = "p2p-quic-enable"
+		optionNameDebugAPIEnable     = "debug-api-enable"
+		optionNameDebugAPIAddr       = "debug-api-addr"
+		optionNameBootnodes          = "bootnode"
+		optionNameNetworkID          = "network-id"
+		optionWelcomeMessage         = "welcome-message"
+		optionCORSAllowedOrigins     = "cors-allowed-origins"
+		optionNameTracingEnabled     = "tracing-enable"
+		optionNameTracingEndpoint    = "tracing-endpoint"
+		optionNameTracingServiceName = "tracing-service-name"
+		optionNameVerbosity          = "verbosity"
+		optionNamePaymentThreshold   = "payment-threshold"
+		optionNamePaymentTolerance   = "payment-tolerance"
 	)
 
 	cmd := &cobra.Command{
@@ -70,7 +71,7 @@ func (c *command) initStartCmd() (err error) {
 				return fmt.Errorf("unknown verbosity level %q", v)
 			}
 			hop := `
-Welcome to the Swarm.... 
+Welcome to the Swarm....
                 \     /                
             \    o ^ o    /            
               \ (     ) /              
@@ -109,24 +110,25 @@ Welcome to the Swarm....
 			}
 
 			b, err := node.New(node.Options{
-				DataDir:             c.config.GetString(optionNameDataDir),
-				DBCapacity:          c.config.GetUint64(optionNameDBCapacity),
-				Password:            password,
-				APIAddr:             c.config.GetString(optionNameAPIAddr),
-				DebugAPIAddr:        debugAPIAddr,
-				Addr:                c.config.GetString(optionNameP2PAddr),
-				NATAddr:             c.config.GetString(optionNameNATAddr),
-				EnableWS:            c.config.GetBool(optionNameP2PWSEnable),
-				EnableQUIC:          c.config.GetBool(optionNameP2PQUICEnable),
-				NetworkID:           c.config.GetUint64(optionNameNetworkID),
-				WelcomeMessage:      c.config.GetString(optionWelcomeMessage),
-				Bootnodes:           c.config.GetStringSlice(optionNameBootnodes),
-				CORSAllowedOrigins:  c.config.GetStringSlice(optionCORSAllowedOrigins),
-				TracingEnabled:      c.config.GetBool(optionNameTracingEnabled),
-				TracingEndpoint:     c.config.GetString(optionNameTracingEndpoint),
-				TracingServiceName:  c.config.GetString(optionNameTracingServiceName),
-				Logger:              logger,
-				DisconnectThreshold: c.config.GetUint64(optionNameDisconnectThreshold),
+				DataDir:            c.config.GetString(optionNameDataDir),
+				DBCapacity:         c.config.GetUint64(optionNameDBCapacity),
+				Password:           password,
+				APIAddr:            c.config.GetString(optionNameAPIAddr),
+				DebugAPIAddr:       debugAPIAddr,
+				Addr:               c.config.GetString(optionNameP2PAddr),
+				NATAddr:            c.config.GetString(optionNameNATAddr),
+				EnableWS:           c.config.GetBool(optionNameP2PWSEnable),
+				EnableQUIC:         c.config.GetBool(optionNameP2PQUICEnable),
+				NetworkID:          c.config.GetUint64(optionNameNetworkID),
+				WelcomeMessage:     c.config.GetString(optionWelcomeMessage),
+				Bootnodes:          c.config.GetStringSlice(optionNameBootnodes),
+				CORSAllowedOrigins: c.config.GetStringSlice(optionCORSAllowedOrigins),
+				TracingEnabled:     c.config.GetBool(optionNameTracingEnabled),
+				TracingEndpoint:    c.config.GetString(optionNameTracingEndpoint),
+				TracingServiceName: c.config.GetString(optionNameTracingServiceName),
+				Logger:             logger,
+				PaymentThreshold:   c.config.GetUint64(optionNamePaymentThreshold),
+				PaymentTolerance:   c.config.GetUint64(optionNamePaymentTolerance),
 			})
 			if err != nil {
 				return err
@@ -190,7 +192,8 @@ Welcome to the Swarm....
 	cmd.Flags().String(optionNameTracingServiceName, "node", "service name identifier for tracing")
 	cmd.Flags().String(optionNameVerbosity, "info", "log verbosity level 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=trace")
 	cmd.Flags().String(optionWelcomeMessage, "", "send a welcome message string during handshakes")
-	cmd.Flags().Uint64(optionNameDisconnectThreshold, 100000000000, "threshold in hop until which you allow peers to be indebted before disconnecting")
+	cmd.Flags().Uint64(optionNamePaymentThreshold, 100000, "threshold in HOP where you expect to get paid from your peers")
+	cmd.Flags().Uint64(optionNamePaymentTolerance, 10000, "excess debt above payment threshold in HOP where you disconnect from your peer")
 
 	c.root.AddCommand(cmd)
 	return nil

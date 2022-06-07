@@ -72,7 +72,7 @@ func TestDirs(t *testing.T) {
 	}{
 		{
 			name:         "non-nested files without extension",
-			expectedHash: "3609d0521d34469ecbffc1d2401ce7a34c7c54bb63e8d23933ef0073015aa9e7",
+			expectedHash: "222d159bc96a1197537557ed0bbc5719910b259a08ab9663b187e44dcfb370a7",
 			files: []f{
 				{
 					data:      []byte("first file data"),
@@ -87,7 +87,7 @@ func TestDirs(t *testing.T) {
 					data:      []byte("second file data"),
 					name:      "file2",
 					dir:       "",
-					reference: swarm.MustParseHexAddress("47e1a2a8f16e02da187fac791d57e6794f3e9b5d2400edd00235da749ad36683"),
+					reference: swarm.MustParseHexAddress("3c07cd2cf5c46208d69d554b038f4dce203f53ac02cb8a313a0fe1e3fe6cc3cf"),
 					header: http.Header{
 						"Content-Type": {""},
 					},
@@ -96,7 +96,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:         "nested files with extension",
-			expectedHash: "983869d469f0eab1f1bb6c2daeac1fdf476968246410b3001e59e9f2e0236da0",
+			expectedHash: "4558d704aa2dcdb243af00b76cc6f9dd8371086934588ca11133ce36f6d6b2f1",
 			files: []f{
 				{
 					data:      []byte("robots text"),

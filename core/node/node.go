@@ -37,6 +37,7 @@ import (
 	"github.com/redesblock/hop/core/pusher"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/retrieval"
+	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
@@ -64,24 +65,25 @@ type Node struct {
 }
 
 type Options struct {
-	DataDir             string
-	DBCapacity          uint64
-	Password            string
-	APIAddr             string
-	DebugAPIAddr        string
-	Addr                string
-	NATAddr             string
-	EnableWS            bool
-	EnableQUIC          bool
-	NetworkID           uint64
-	WelcomeMessage      string
-	Bootnodes           []string
-	CORSAllowedOrigins  []string
-	Logger              logging.Logger
-	TracingEnabled      bool
-	TracingEndpoint     string
-	TracingServiceName  string
-	DisconnectThreshold uint64
+	DataDir            string
+	DBCapacity         uint64
+	Password           string
+	APIAddr            string
+	DebugAPIAddr       string
+	Addr               string
+	NATAddr            string
+	EnableWS           bool
+	EnableQUIC         bool
+	NetworkID          uint64
+	WelcomeMessage     string
+	Bootnodes          []string
+	CORSAllowedOrigins []string
+	Logger             logging.Logger
+	TracingEnabled     bool
+	TracingEndpoint    string
+	TracingServiceName string
+	PaymentThreshold   uint64
+	PaymentTolerance   uint64
 }
 
 func New(o Options) (*Node, error) {
@@ -229,11 +231,27 @@ func New(o Options) (*Node, error) {
 	}
 	b.localstoreCloser = storer
 
-	acc := accounting.NewAccounting(accounting.Options{
-		Logger:              logger,
-		Store:               stateStore,
-		DisconnectThreshold: o.DisconnectThreshold,
+	settlement := pseudosettle.New(pseudosettle.Options{
+		Streamer: p2ps,
+		Logger:   logger,
 	})
+
+	if err = p2ps.AddProtocol(settlement.Protocol()); err != nil {
+		return nil, fmt.Errorf("pseudosettle service: %w", err)
+	}
+
+	acc, err := accounting.NewAccounting(accounting.Options{
+		Logger:           logger,
+		Store:            stateStore,
+		PaymentThreshold: o.PaymentThreshold,
+		PaymentTolerance: o.PaymentTolerance,
+		Settlement:       settlement,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("accounting: %w", err)
+	}
+
+	settlement.SetPaymentObserver(acc)
 
 	chunkvalidator := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
 
