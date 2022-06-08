@@ -1,10 +1,17 @@
+// Copyright 2020 The Swarm Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.package storage
+
 package sctx
 
 import (
 	"context"
+
 	"encoding/hex"
 	"errors"
 	"strings"
+
+	"github.com/redesblock/hop/core/tags"
 
 	"github.com/redesblock/hop/core/trojan"
 )
@@ -35,18 +42,18 @@ func GetHost(ctx context.Context) string {
 	return ""
 }
 
-// SetTag sets the tag unique identifier in the context
-func SetTag(ctx context.Context, tagId uint32) context.Context {
+// SetTag sets the tag instance in the context
+func SetTag(ctx context.Context, tagId *tags.Tag) context.Context {
 	return context.WithValue(ctx, tagKey{}, tagId)
 }
 
-// GetTag gets the tag unique identifier from the context
-func GetTag(ctx context.Context) uint32 {
-	v, ok := ctx.Value(tagKey{}).(uint32)
-	if ok {
-		return v
+// GetTag gets the tag instance from the context
+func GetTag(ctx context.Context) *tags.Tag {
+	v, ok := ctx.Value(tagKey{}).(*tags.Tag)
+	if !ok {
+		return nil
 	}
-	return 0
+	return v
 }
 
 // SetTargets set the target string in the context to be used downstream in netstore

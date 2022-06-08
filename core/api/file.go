@@ -3,7 +3,6 @@ package api
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,7 +27,6 @@ import (
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
 )
 
 const (
@@ -62,14 +60,16 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ta := s.createTag(w, r)
-	if ta == nil {
+	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagUidHeader))
+	if err != nil {
+		s.Logger.Debugf("file upload: get or create tag: %v", err)
+		s.Logger.Error("file upload: get or create tag")
+		jsonhttp.InternalServerError(w, "cannot get or create tag")
 		return
 	}
 
 	// Add the tag to the context
-	r = r.WithContext(context.WithValue(r.Context(), tags.TagsContextKey{}, ta))
-	ctx := r.Context()
+	ctx := sctx.SetTag(r.Context(), tag)
 
 	if mediaType == multiPartFormData {
 		mr := multipart.NewReader(r.Body, params["boundary"])
@@ -201,12 +201,12 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "could not store entry")
 		return
 	}
-
-	ta.DoneSplit(reference)
-
+	if created {
+		tag.DoneSplit(reference)
+	}
 	w.Header().Set("ETag", fmt.Sprintf("%q", reference.String()))
-	w.Header().Set(TagHeaderUid, fmt.Sprint(ta.Uid))
-	w.Header().Set("Access-Control-Expose-Headers", TagHeaderUid)
+	w.Header().Set(SwarmTagUidHeader, fmt.Sprint(tag.Uid))
+	w.Header().Set("Access-Control-Expose-Headers", SwarmTagUidHeader)
 	jsonhttp.OK(w, fileUploadResponse{
 		Reference: reference,
 	})

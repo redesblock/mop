@@ -1,3 +1,19 @@
+// Copyright 2019 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package tags
 
 import (
@@ -10,7 +26,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -18,8 +33,6 @@ var (
 	TagUidFunc  = rand.Uint32
 	ErrNotFound = errors.New("tag not found")
 )
-
-type TagsContextKey struct{}
 
 // Tags hold tag information indexed by a unique random uint32
 type Tags struct {
@@ -83,16 +96,6 @@ func (ts *Tags) GetByAddress(address swarm.Address) (*Tag, error) {
 		return nil, ErrNotFound
 	}
 	return t, nil
-}
-
-// GetFromContext gets a tag from the tag uid stored in the context
-func (ts *Tags) GetFromContext(ctx context.Context) (*Tag, error) {
-	uid := sctx.GetTag(ctx)
-	t, ok := ts.tags.Load(uid)
-	if !ok {
-		return nil, ErrNotFound
-	}
-	return t.(*Tag), nil
 }
 
 // Range exposes sync.Map's iterator
