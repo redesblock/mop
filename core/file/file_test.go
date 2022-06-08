@@ -13,6 +13,7 @@ import (
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
 	test "github.com/redesblock/hop/core/file/testing"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -40,7 +41,7 @@ func testSplitThenJoin(t *testing.T) {
 		paramstring = strings.Split(t.Name(), "/")
 		dataIdx, _  = strconv.ParseInt(paramstring[1], 10, 0)
 		store       = mock.NewStorer()
-		s           = splitter.NewSimpleSplitter(store)
+		s           = splitter.NewSimpleSplitter(store, storage.ModePutUpload)
 		j           = joiner.NewSimpleJoiner(store)
 		data, _     = test.GetVector(t, int(dataIdx))
 	)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // TestModePutRequest validates ModePutRequest index values on the provided DB.
@@ -92,6 +93,7 @@ func TestModePutSync(t *testing.T) {
 
 				newRetrieveIndexesTest(db, ch, wantTimestamp, 0)(t)
 				newPullIndexTest(db, ch, binIDs[po], nil)(t)
+				newPinIndexTest(db, ch, leveldb.ErrNotFound)(t)
 			}
 		})
 	}
@@ -124,6 +126,40 @@ func TestModePutUpload(t *testing.T) {
 				newRetrieveIndexesTest(db, ch, wantTimestamp, 0)(t)
 				newPullIndexTest(db, ch, binIDs[po], nil)(t)
 				newPushIndexTest(db, ch, wantTimestamp, nil)(t)
+				newPinIndexTest(db, ch, leveldb.ErrNotFound)(t)
+			}
+		})
+	}
+}
+
+// TestModePutUploadPin validates ModePutUploadPin index values on the provided DB.
+func TestModePutUploadPin(t *testing.T) {
+	for _, tc := range multiChunkTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := newTestDB(t, nil)
+
+			wantTimestamp := time.Now().UTC().UnixNano()
+			defer setNow(func() (t int64) {
+				return wantTimestamp
+			})()
+
+			chunks := generateTestRandomChunks(tc.count)
+
+			_, err := db.Put(context.Background(), storage.ModePutUploadPin, chunks...)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			binIDs := make(map[uint8]uint64)
+
+			for _, ch := range chunks {
+				po := db.po(ch.Address())
+				binIDs[po]++
+
+				newRetrieveIndexesTest(db, ch, wantTimestamp, 0)(t)
+				newPullIndexTest(db, ch, binIDs[po], nil)(t)
+				newPushIndexTest(db, ch, wantTimestamp, nil)(t)
+				newPinIndexTest(db, ch, nil)(t)
 			}
 		})
 	}

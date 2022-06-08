@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -18,12 +17,6 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 )
-
-// Presence of this header means that it needs to be tagged using the uid
-const TagHeaderUid = "swarm-tag-uid"
-
-// Presence of this header in the HTTP request indicates the chunk needs to be pinned.
-const PinHeaderName = "swarm-pin"
 
 func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["addr"]
@@ -58,7 +51,7 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seen, err := s.Storer.Put(ctx, storage.ModePutUpload, swarm.NewChunk(address, data))
+	seen, err := s.Storer.Put(ctx, requestModePut(r), swarm.NewChunk(address, data))
 	if err != nil {
 		s.Logger.Debugf("chunk upload: chunk write error: %v, addr %s", err, address)
 		s.Logger.Error("chunk upload: chunk write error")
@@ -70,18 +63,6 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Indicate that the chunk is stored
 	tag.Inc(tags.StateStored)
-
-	// Check if this chunk needs to pinned and pin it
-	pinHeaderValues := r.Header.Get(PinHeaderName)
-	if pinHeaderValues != "" && strings.ToLower(pinHeaderValues) == "true" {
-		err = s.Storer.Set(ctx, storage.ModeSetPin, address)
-		if err != nil {
-			s.Logger.Debugf("chunk upload: chunk pinning error: %v, addr %s", err, address)
-			s.Logger.Error("chunk upload: chunk pinning error")
-			jsonhttp.InternalServerError(w, "cannot pin chunk")
-			return
-		}
-	}
 
 	tag.DoneSplit(address)
 

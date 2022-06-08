@@ -5,8 +5,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/redesblock/hop/core/tags"
-
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/storage/mock/validator"
@@ -65,7 +63,7 @@ func TestMockValidatingStorer(t *testing.T) {
 	validContent := []byte("bbaatt")
 	invalidContent := []byte("bbaattss")
 
-	s := mock.NewValidatingStorer(validator.NewMockValidator(validAddress, validContent), tags.NewTags())
+	s := mock.NewStorer(mock.WithValidator(validator.NewMockValidator(validAddress, validContent)))
 
 	ctx := context.Background()
 

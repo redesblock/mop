@@ -16,6 +16,7 @@ import (
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/spf13/cobra"
 )
@@ -156,7 +157,7 @@ func putEntry(cmd *cobra.Command, args []string) (err error) {
 	logger.Debugf("metadata contents: %s", metadataBytes)
 
 	// set up splitter to process the metadata
-	s := splitter.NewSimpleSplitter(stores)
+	s := splitter.NewSimpleSplitter(stores, storage.ModePutUpload)
 	ctx := context.Background()
 
 	// first add metadata
@@ -235,7 +236,7 @@ If --output-dir is set, the retrieved file will be written to the speficied dire
 	c.Flags().IntVar(&port, "port", 8080, "api port")
 	c.Flags().BoolVar(&ssl, "ssl", false, "use ssl")
 	c.Flags().BoolVarP(&retrieve, "retrieve", "r", false, "retrieve file from referenced entry")
-	c.Flags().BoolVar(&useHttp, "http", false, "save entry to http api")
+	c.Flags().BoolVar(&useHttp, "http", false, "save entry to hop http api")
 	c.Flags().StringVar(&verbosity, "info", "0", "log verbosity level 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=trace")
 
 	c.SetOutput(c.OutOrStdout())

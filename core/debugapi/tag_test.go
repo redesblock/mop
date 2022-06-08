@@ -12,7 +12,6 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	mp "github.com/redesblock/hop/core/pusher/mock"
 	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/storage/mock/validator"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"gitlab.com/nolash/go-mockbytes"
@@ -30,17 +29,16 @@ func TestTags(t *testing.T) {
 		tagResourceUUid      = func(uuid uint64) string { return "/tags/" + strconv.FormatUint(uuid, 10) }
 		validHash            = swarm.MustParseHexAddress("aabbcc")
 		validContent         = []byte("bbaatt")
-		mockValidator        = validator.NewMockValidator(validHash, validContent)
 		tag                  = tags.NewTags()
-		mockValidatingStorer = mock.NewValidatingStorer(mockValidator, tag)
+		mockStorer           = mock.NewStorer()
 		mockPusher           = mp.NewMockPusher(tag)
 		ts                   = newTestServer(t, testServerOptions{
-			Storer: mockValidatingStorer,
+			Storer: mockStorer,
 			Tags:   tag,
 		})
 		// This server is used to store chunks
 		apiClient = newHopTestServer(t, testServerOptions{
-			Storer: mockValidatingStorer,
+			Storer: mockStorer,
 			Tags:   tag,
 		})
 	)
@@ -102,11 +100,8 @@ func TestTags(t *testing.T) {
 
 		isTagFoundInResponse(t, rcvdHeaders, &ta)
 
-		// Add asecond valid contentto validator
 		secondValidHash := swarm.MustParseHexAddress("deadbeaf")
 		secondValidContent := []byte("123456")
-		mockValidator.AddPair(secondValidHash, secondValidContent)
-
 		sentHheaders = make(http.Header)
 		sentHheaders.Set(api.TagHeaderUid, strconv.FormatUint(uint64(ta.Uid), 10))
 		rcvdHeaders = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, apiClient, http.MethodPost, resource(secondValidHash), bytes.NewReader(secondValidContent), http.StatusOK, jsonhttp.StatusResponse{
@@ -222,15 +217,7 @@ func TestTags(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		chunkAddress := swarm.MustParseHexAddress("c10090961e7682a10890c334d759a28426647141213abda93b096b892824d2ef")
-		rootBytes := swarm.MustParseHexAddress("c10090961e7682a10890c334d759a28426647141213abda93b096b892824d2ef").Bytes()
-		rootChunk := make([]byte, 64)
-		copy(rootChunk[:32], rootBytes)
-		copy(rootChunk[32:], rootBytes)
 		rootAddress := swarm.MustParseHexAddress("5e2a21902f51438be1adbd0e29e1bd34c53a21d3120aefa3c7275129f2f88de9")
-
-		mockValidator.AddPair(chunkAddress, dataChunk)
-		mockValidator.AddPair(rootAddress, rootChunk)
 
 		content := make([]byte, swarm.ChunkSize*2)
 		copy(content[swarm.ChunkSize:], dataChunk)
@@ -256,8 +243,8 @@ func TestTags(t *testing.T) {
 		if finalTag.Total != 3 {
 			t.Errorf("tag total count mismatch. got %d want %d", finalTag.Total, 3)
 		}
-		if finalTag.Seen != 3 {
-			t.Errorf("tag seen count mismatch. got %d want %d", finalTag.Seen, 3)
+		if finalTag.Seen != 1 {
+			t.Errorf("tag seen count mismatch. got %d want %d", finalTag.Seen, 1)
 		}
 		if finalTag.Stored != 3 {
 			t.Errorf("tag stored count mismatch. got %d want %d", finalTag.Stored, 3)

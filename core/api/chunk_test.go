@@ -32,7 +32,7 @@ func TestChunkUploadDownload(t *testing.T) {
 		invalidContent       = []byte("bbaattss")
 		mockValidator        = validator.NewMockValidator(validHash, validContent)
 		tag                  = tags.NewTags()
-		mockValidatingStorer = mock.NewValidatingStorer(mockValidator, tag)
+		mockValidatingStorer = mock.NewStorer(mock.WithValidator(mockValidator))
 		client               = newTestServer(t, testServerOptions{
 			Storer: mockValidatingStorer,
 			Tags:   tag,
@@ -79,7 +79,7 @@ func TestChunkUploadDownload(t *testing.T) {
 
 	t.Run("pin-invalid-value", func(t *testing.T) {
 		headers := make(map[string][]string)
-		headers[api.PinHeaderName] = []string{"hdgdh"}
+		headers[api.SwarmPinHeader] = []string{"hdgdh"}
 		jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
@@ -104,14 +104,14 @@ func TestChunkUploadDownload(t *testing.T) {
 	})
 	t.Run("pin-ok", func(t *testing.T) {
 		headers := make(map[string][]string)
-		headers[api.PinHeaderName] = []string{"True"}
+		headers[api.SwarmPinHeader] = []string{"True"}
 		jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, resource(validHash), bytes.NewReader(validContent), http.StatusOK, jsonhttp.StatusResponse{
 			Message: http.StatusText(http.StatusOK),
 			Code:    http.StatusOK,
 		}, headers)
 
 		// Also check if the chunk is pinned
-		if mockValidatingStorer.GetModeSet(validHash) != storage.ModeSetPin {
+		if mockValidatingStorer.GetModePut(validHash) != storage.ModePutUploadPin {
 			t.Fatal("chunk is not pinned")
 		}
 

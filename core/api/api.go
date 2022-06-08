@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/redesblock/hop/core/logging"
 	m "github.com/redesblock/hop/core/metrics"
@@ -43,4 +44,17 @@ func New(tags *tags.Tags, storer storage.Storer, corsAllowedOrigins []string, lo
 	s.setupRouting()
 
 	return s
+}
+
+const (
+	SwarmPinHeader = "Swarm-Pin"
+	TagHeaderUid   = "swarm-tag-uid"
+)
+
+// requestModePut returns the desired storage.ModePut for this request based on the request headers.
+func requestModePut(r *http.Request) storage.ModePut {
+	if h := strings.ToLower(r.Header.Get(SwarmPinHeader)); h == "true" {
+		return storage.ModePutUploadPin
+	}
+	return storage.ModePutUpload
 }

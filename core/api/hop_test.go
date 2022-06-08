@@ -19,6 +19,7 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest/jsonmanifest"
+	"github.com/redesblock/hop/core/storage"
 	smock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -28,7 +29,7 @@ func TestHop(t *testing.T) {
 	var (
 		hopDownloadResource = func(addr, path string) string { return "/hop/" + addr + "/" + path }
 		storer              = smock.NewStorer()
-		sp                  = splitter.NewSimpleSplitter(storer)
+		sp                  = splitter.NewSimpleSplitter(storer, storage.ModePutUpload)
 		client              = newTestServer(t, testServerOptions{
 			Storer: storer,
 			Tags:   tags.NewTags(),

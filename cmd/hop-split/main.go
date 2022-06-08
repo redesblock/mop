@@ -11,6 +11,7 @@ import (
 	cmdfile "github.com/redesblock/hop/cmd/internal/file"
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -85,11 +86,11 @@ func Split(cmd *cobra.Command, args []string) (err error) {
 	if useHttp {
 		store := cmdfile.NewApiStore(host, port, ssl)
 		stores.Add(store)
-		logger.Debugf("using http (ssl=%v) api on %s:%d for output", ssl, host, port)
+		logger.Debugf("using hop http (ssl=%v) api on %s:%d for output", ssl, host, port)
 	}
 
 	// split and rule
-	s := splitter.NewSimpleSplitter(stores)
+	s := splitter.NewSimpleSplitter(stores, storage.ModePutUpload)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addr, err := s.Split(ctx, infile, inputLength, false)
@@ -112,7 +113,7 @@ func main() {
 If datafile is not given, data will be read from standard in. In this case the --count flag must be set 
 to the length of the input.
 
-The application will expect to transmit the chunks to the HTTP API, unless the --no-http flag has been set.
+The application will expect to transmit the chunks to the hop HTTP API, unless the --no-http flag has been set.
 
 If --output-dir is set, the chunks will be saved to the file system, using the flag argument as destination directory. 
 Chunks are saved in individual files, and the file names will be the hex addresses of the chunks.`,
@@ -125,7 +126,7 @@ Chunks are saved in individual files, and the file names will be the hex address
 	c.Flags().StringVar(&host, "host", "127.0.0.1", "api host")
 	c.Flags().IntVar(&port, "port", 8080, "api port")
 	c.Flags().BoolVar(&ssl, "ssl", false, "use ssl")
-	c.Flags().BoolVar(&useHttp, "http", false, "save chunks to http api")
+	c.Flags().BoolVar(&useHttp, "http", false, "save chunks to hop http api")
 	c.Flags().StringVar(&verbosity, "info", "0", "log verbosity level 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=trace")
 
 	c.SetOutput(c.OutOrStdout())
