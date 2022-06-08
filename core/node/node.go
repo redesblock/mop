@@ -178,23 +178,13 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 	}
 
 	// Construct protocols.
-	pingPong := pingpong.New(pingpong.Options{
-		Streamer: p2ps,
-		Logger:   logger,
-		Tracer:   tracer,
-	})
+	pingPong := pingpong.New(p2ps, logger, tracer)
 
 	if err = p2ps.AddProtocol(pingPong.Protocol()); err != nil {
 		return nil, fmt.Errorf("pingpong service: %w", err)
 	}
 
-	hive := hive.New(hive.Options{
-		Streamer:    p2ps,
-		AddressBook: addressbook,
-		NetworkID:   o.NetworkID,
-		Logger:      logger,
-	})
-
+	hive := hive.New(p2ps, addressbook, o.NetworkID, logger)
 	if err = p2ps.AddProtocol(hive.Protocol()); err != nil {
 		return nil, fmt.Errorf("hive service: %w", err)
 	}
@@ -211,7 +201,7 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 		bootnodes = append(bootnodes, addr)
 	}
 
-	kad := kademlia.New(kademlia.Options{Base: address, Discovery: hive, AddressBook: addressbook, P2P: p2ps, Bootnodes: bootnodes, Logger: logger})
+	kad := kademlia.New(address, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes})
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
 	p2ps.AddNotifier(kad)
@@ -262,14 +252,7 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 
 	chunkvalidator := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
 
-	retrieve := retrieval.New(retrieval.Options{
-		Streamer:    p2ps,
-		ChunkPeerer: kad,
-		Logger:      logger,
-		Accounting:  acc,
-		Pricer:      accounting.NewFixedPricer(address, 10),
-		Validator:   chunkvalidator,
-	})
+	retrieve := retrieval.New(p2ps, kad, logger, acc, accounting.NewFixedPricer(address, 10), chunkvalidator)
 	tagg := tags.NewTags()
 
 	if err = p2ps.AddProtocol(retrieve.Protocol()); err != nil {
@@ -289,14 +272,7 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 	}
 	retrieve.SetStorer(ns)
 
-	pushSyncProtocol := pushsync.New(pushsync.Options{
-		Streamer:         p2ps,
-		Storer:           storer,
-		ClosestPeerer:    kad,
-		DeliveryCallback: psss.TryUnwrap,
-		Tagger:           tagg,
-		Logger:           logger,
-	})
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger)
 
 	// set the pushSyncer in the PSS
 	psss.WithPushSyncer(pushSyncProtocol)
@@ -311,34 +287,19 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 		psss.Register(recovery.RecoveryTopic, chunkRepairHandler)
 	}
 
-	pushSyncPusher := pusher.New(pusher.Options{
-		Storer:        storer,
-		PeerSuggester: kad,
-		PushSyncer:    pushSyncProtocol,
-		Tagger:        tagg,
-		Logger:        logger,
-	})
+	pushSyncPusher := pusher.New(storer, kad, pushSyncProtocol, tagg, logger)
 	b.pusherCloser = pushSyncPusher
 
 	pullStorage := pullstorage.New(storer)
 
-	pullSync := pullsync.New(pullsync.Options{
-		Streamer: p2ps,
-		Storage:  pullStorage,
-		Logger:   logger,
-	})
+	pullSync := pullsync.New(p2ps, pullStorage, logger)
 	b.pullSyncCloser = pullSync
 
 	if err = p2ps.AddProtocol(pullSync.Protocol()); err != nil {
 		return nil, fmt.Errorf("pullsync protocol: %w", err)
 	}
 
-	puller := puller.New(puller.Options{
-		StateStore: stateStore,
-		Topology:   kad,
-		PullSync:   pullSync,
-		Logger:     logger,
-	})
+	puller := puller.New(stateStore, kad, pullSync, logger, puller.Options{})
 
 	b.pullerCloser = puller
 
@@ -370,21 +331,12 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 
 	if o.DebugAPIAddr != "" {
 		// Debug API server
-		debugAPIService := debugapi.New(debugapi.Options{
-			Overlay:        address,
-			P2P:            p2ps,
-			Pingpong:       pingPong,
-			Logger:         logger,
-			Tracer:         tracer,
-			TopologyDriver: kad,
-			Storer:         storer,
-			Tags:           tagg,
-			Accounting:     acc,
-		})
+		debugAPIService := debugapi.New(address, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc)
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)
 		debugAPIService.MustRegisterMetrics(acc.Metrics()...)
+		debugAPIService.MustRegisterMetrics(settlement.Metrics()...)
 
 		if apiService != nil {
 			debugAPIService.MustRegisterMetrics(apiService.Metrics()...)

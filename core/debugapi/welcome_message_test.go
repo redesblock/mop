@@ -21,9 +21,11 @@ func TestGetWelcomeMessage(t *testing.T) {
 			return DefaultTestWelcomeMessage
 		}))})
 
-	jsonhttptest.ResponseDirect(t, srv.Client, http.MethodGet, "/welcome-message", nil, http.StatusOK, debugapi.WelcomeMessageResponse{
-		WelcomeMesssage: DefaultTestWelcomeMessage,
-	})
+	jsonhttptest.Request(t, srv.Client, http.MethodGet, "/welcome-message", http.StatusOK,
+		jsonhttptest.WithExpectedJSONResponse(debugapi.WelcomeMessageResponse{
+			WelcomeMesssage: DefaultTestWelcomeMessage,
+		}),
+	)
 }
 
 func TestSetWelcomeMessage(t *testing.T) {
@@ -45,16 +47,16 @@ func TestSetWelcomeMessage(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			desc:     "fails - request entity too large",
+			desc:     "error - request entity too large",
 			wantFail: true,
 			message: `pPPopopopoHpHHPoHoPoooHpppPHPHoppHHHoHpHppPooHpHHpHHoPp
-oPPPHHooPooPpHopHopoPHPpHPPoPpPpPpooPPHPppoHPHpPppHHpPPppPoPPPpooopp
-oHpPPHoHPHpPpHPHpopHHopHHpopppHoHoPpPHPHPpHPPooPPHPPHpPpHPopPHpPoHpP
-oooHooPpPopoPpPpopppoppopPPpoopoHPPoHoHPHHPpPppoHHHHHPoPpHppHopHooop
-HHpooPHopopHPoppHpoPHppopoooHPHpHPpHPopHpPpHPPPHpPPHpHPPpopPoppPpHHp
-PPpoPppPPPHPHHoPPoPpHHHpopPPooPPHPPHHHoHPpPoPHPHHHppPHoooopHpoopHHHp
-oPHHoPpHoPPHpoHoPPHpHpHpHHopppPHopoPHopHoPpooHPHHooPoHHooHPopoPpoHpH
-oHooPPopPpooHopPoPPPPoppPPoHpPPoPpPppHpoPP`, // 513 characters
+			oPPPHHooPooPpHopHopoPHPpHPPoPpPpPpooPPHPppoHPHpPppHHpPPppPoPPPpooopp
+			oHpPPHoHPHpPpHPHpopHHopHHpopppHoHoPpPHPHPpHPPooPPHPPHpPpHPopPHpPoHpP
+			oooHooPpPopoPpPpopppoppopPPpoopoHPPoHoHPHHPpPppoHHHHHPoPpHppHopHooop
+			HHpooPHopopHPoppHpoPHppopoooHPHpHPpHPopHpPpHPPPHpPPHpHPPpopPoppPpHHp
+			PPpoPppPPPHPHHoPPoPpHHHpopPPooPPHPPHHHoHPpPoPHPHHHppPHoooopHpoopHHHp
+			oPHHoPpHoPPHpoHoPPHpHpHpHHopppPHopoPHopHoPpooHPHHooPoHHooHPopoPpoHpH
+			oHooPPopPpooHopPoPPPPoppPPoHpPPoPpPppHpoPP`, // 513 characters
 			wantStatus: http.StatusRequestEntityTooLarge,
 		},
 	}
@@ -77,7 +79,10 @@ oHooPPopPpooHopPoPPPPoppPPoHpPPoPpPppHpoPP`, // 513 characters
 				Message: tC.wantMessage,
 				Code:    tC.wantStatus,
 			}
-			jsonhttptest.ResponseDirect(t, srv.Client, http.MethodPost, testURL, body, tC.wantStatus, wantResponse)
+			jsonhttptest.Request(t, srv.Client, http.MethodPost, testURL, tC.wantStatus,
+				jsonhttptest.WithRequestBody(body),
+				jsonhttptest.WithExpectedJSONResponse(wantResponse),
+			)
 			if !tC.wantFail {
 				got := srv.P2PMock.GetWelcomeMessage()
 				if got != tC.message {
@@ -103,13 +108,16 @@ func TestSetWelcomeMessageInternalServerError(t *testing.T) {
 		WelcomeMesssage: testMessage,
 	})
 	body := bytes.NewReader(data)
-	t.Run("internal server error - failed to store", func(t *testing.T) {
+	t.Run("internal server error - error on store", func(t *testing.T) {
 		wantCode := http.StatusInternalServerError
 		wantResp := jsonhttp.StatusResponse{
 			Message: testError.Error(),
 			Code:    wantCode,
 		}
-		jsonhttptest.ResponseDirect(t, srv.Client, http.MethodPost, testURL, body, wantCode, wantResp)
+		jsonhttptest.Request(t, srv.Client, http.MethodPost, testURL, wantCode,
+			jsonhttptest.WithRequestBody(body),
+			jsonhttptest.WithExpectedJSONResponse(wantResp),
+		)
 	})
 
 }

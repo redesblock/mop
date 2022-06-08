@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -44,14 +43,11 @@ func TestTags(t *testing.T) {
 	)
 
 	t.Run("create-unnamed-tag", func(t *testing.T) {
-		tReq := &api.TagRequest{}
-		b, err := json.Marshal(tReq)
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		tr := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(b), http.StatusCreated, &tr)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagRequest{}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 
 		if !strings.Contains(tr.Name, "unnamed_tag_") {
 			t.Fatalf("expected tag name to contain %s but is %s instead", "unnamed_tag_", tr.Name)
@@ -59,16 +55,13 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("create-tag-with-name", func(t *testing.T) {
-		tReq := &api.TagRequest{
-			Name: someTagName,
-		}
-		b, err := json.Marshal(tReq)
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		tr := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(b), http.StatusCreated, &tr)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagRequest{
+				Name: someTagName,
+			}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 
 		if tr.Name != someTagName {
 			t.Fatalf("expected tag name to be %s but is %s instead", someTagName, tr.Name)
@@ -76,85 +69,96 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("create-tag-from-chunk-upload-with-invalid-id", func(t *testing.T) {
-		sentHeaders := make(http.Header)
-		sentHeaders.Set(api.SwarmTagUidHeader, "invalid_id.jpg") // the value should be uint32
-		_ = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusInternalServerError, jsonhttp.StatusResponse{
-			Message: "cannot get or create tag",
-			Code:    http.StatusInternalServerError,
-		}, sentHeaders)
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusInternalServerError,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "cannot get or create tag",
+				Code:    http.StatusInternalServerError,
+			}),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, "invalid_id.jpg"), // the value should be uint32
+		)
 	})
 
 	t.Run("get-invalid-tags", func(t *testing.T) {
 		// invalid tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodGet, tagsResource+"/foobar", nil, http.StatusBadRequest, jsonhttp.StatusResponse{
-			Message: "invalid id",
-			Code:    http.StatusBadRequest,
-		})
+		jsonhttptest.Request(t, client, http.MethodGet, tagsResource+"/foobar", http.StatusBadRequest,
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "invalid id",
+				Code:    http.StatusBadRequest,
+			}),
+		)
 
 		// non-existent tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodDelete, tagsWithIdResource(uint32(333)), nil, http.StatusNotFound, jsonhttp.StatusResponse{
-			Message: "tag not present",
-			Code:    http.StatusNotFound,
-		})
+		jsonhttptest.Request(t, client, http.MethodDelete, tagsWithIdResource(uint32(333)), http.StatusNotFound,
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "tag not present",
+				Code:    http.StatusNotFound,
+			}),
+		)
 	})
 
 	t.Run("get-tag-id-from-chunk-upload-without-tag", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, nil)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+		)
 
 		isTagFoundInResponse(t, rcvdHeaders, nil)
 	})
 
 	t.Run("create-tag-and-use-it-to-upload-chunk", func(t *testing.T) {
 		// create a tag using the API
-		b, err := json.Marshal(api.TagResponse{
-			Name: someTagName,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
 		tr := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(b), http.StatusCreated, &tr)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{
+				Name: someTagName,
+			}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 
 		if tr.Name != someTagName {
 			t.Fatalf("sent tag name %s does not match received tag name %s", someTagName, tr.Name)
 		}
 
 		// now upload a chunk and see if we receive a tag with the same id
-		sentHeaders := make(http.Header)
-		sentHeaders.Set(api.SwarmTagUidHeader, strconv.FormatUint(uint64(tr.Uid), 10))
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, sentHeaders)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, strconv.FormatUint(uint64(tr.Uid), 10)),
+		)
 
 		isTagFoundInResponse(t, rcvdHeaders, &tr)
 	})
 
 	t.Run("create-tag-and-use-it-to-upload-multiple-chunks", func(t *testing.T) {
 		// create a tag using the API
-		b, err := json.Marshal(api.TagResponse{
-			Name: someTagName,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
 		tr := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(b), http.StatusCreated, &tr)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{
+				Name: someTagName,
+			}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 
 		if tr.Name != someTagName {
 			t.Fatalf("sent tag name %s does not match received tag name %s", someTagName, tr.Name)
 		}
 
 		// now upload a chunk and see if we receive a tag with the same id
-		sentHeaders := make(http.Header)
-		sentHeaders.Set(api.SwarmTagUidHeader, fmt.Sprint(tr.Uid))
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, sentHeaders)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, fmt.Sprint(tr.Uid)),
+		)
 
 		isTagFoundInResponse(t, rcvdHeaders, &tr)
 
@@ -162,40 +166,51 @@ func TestTags(t *testing.T) {
 		secondValidHash := swarm.MustParseHexAddress("deadbeaf")
 		secondValidContent := []byte("123456")
 
-		sentHeaders = make(http.Header)
-		sentHeaders.Set(api.SwarmTagUidHeader, fmt.Sprint(tr.Uid))
-		rcvdHeaders = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(secondValidHash), bytes.NewReader(secondValidContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, sentHeaders)
+		rcvdHeaders = jsonhttptest.Request(t, client, http.MethodPost, chunksResource(secondValidHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(secondValidContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, fmt.Sprint(tr.Uid)),
+		)
 
 		isTagFoundInResponse(t, rcvdHeaders, &tr)
 	})
 
 	t.Run("get-tag-from-chunk-upload-and-use-it-again", func(t *testing.T) {
 		// upload a new chunk and get the generated tag id
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, nil)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+		)
 
 		id := isTagFoundInResponse(t, rcvdHeaders, nil)
 
 		// see if the tag id is present and has valid values
 		tr := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(id), nil, http.StatusOK, &tr)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(id), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 
 		// now upload another chunk using the same tag id
-		sentHeaders := make(http.Header)
-		sentHeaders.Set(api.SwarmTagUidHeader, fmt.Sprint(tr.Uid))
-		_ = jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, sentHeaders)
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, fmt.Sprint(tr.Uid)),
+		)
 
 		// see if the tag id is present and has valid values
 		tr = api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(id), nil, http.StatusOK, &tr)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(id), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 
 		if id != tr.Uid {
 			t.Fatalf("expected tag id to be %d but is %d", id, tr.Uid)
@@ -206,25 +221,33 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("get-tag-using-id", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, nil)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+		)
 		id := isTagFoundInResponse(t, rcvdHeaders, nil)
 
 		// request the tag and see if the ID is the same
 		tr := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(id), nil, http.StatusOK, &tr)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(id), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 		if id != tr.Uid {
 			t.Fatalf("expected tag id to be %d but is %d", id, tr.Uid)
 		}
 	})
 
 	t.Run("tag-counters", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}, nil)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: http.StatusText(http.StatusOK),
+				Code:    http.StatusOK,
+			}),
+		)
 		id := isTagFoundInResponse(t, rcvdHeaders, nil)
 
 		tagToVerify, err := tag.Get(id)
@@ -241,7 +264,9 @@ func TestTags(t *testing.T) {
 		}
 
 		finalTag := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(id), nil, http.StatusOK, &finalTag)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(id), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&finalTag),
+		)
 
 		if tagToVerify.Total != finalTag.Total {
 			t.Errorf("tag total count mismatch. got %d want %d", tagToVerify.Total, finalTag.Total)
@@ -262,92 +287,101 @@ func TestTags(t *testing.T) {
 
 	t.Run("delete-tag-error", func(t *testing.T) {
 		// try to delete invalid tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodDelete, tagsResource+"/foobar", nil, http.StatusBadRequest, jsonhttp.StatusResponse{
-			Message: "invalid id",
-			Code:    http.StatusBadRequest,
-		})
+		jsonhttptest.Request(t, client, http.MethodDelete, tagsResource+"/foobar", http.StatusBadRequest,
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "invalid id",
+				Code:    http.StatusBadRequest,
+			}),
+		)
 
 		// try to delete non-existent tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodDelete, tagsWithIdResource(uint32(333)), nil, http.StatusNotFound, jsonhttp.StatusResponse{
-			Message: "tag not present",
-			Code:    http.StatusNotFound,
-		})
+		jsonhttptest.Request(t, client, http.MethodDelete, tagsWithIdResource(uint32(333)), http.StatusNotFound,
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "tag not present",
+				Code:    http.StatusNotFound,
+			}),
+		)
 	})
 
 	t.Run("delete-tag", func(t *testing.T) {
 		// create a tag through API
-		b, err := json.Marshal(api.TagResponse{
-			Name: someTagName,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
 		tRes := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(b), http.StatusCreated, &tRes)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{
+				Name: someTagName,
+			}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tRes),
+		)
 
 		// delete tag through API
-		jsonhttptest.ResponseDirect(t, client, http.MethodDelete, tagsWithIdResource(tRes.Uid), nil, http.StatusNoContent, nil)
+		jsonhttptest.Request(t, client, http.MethodDelete, tagsWithIdResource(tRes.Uid), http.StatusNoContent,
+			jsonhttptest.WithNoResponseBody(),
+		)
 
 		// try to get tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodGet, tagsWithIdResource(tRes.Uid), nil, http.StatusNotFound, jsonhttp.StatusResponse{
-			Message: "tag not present",
-			Code:    http.StatusNotFound,
-		})
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(tRes.Uid), http.StatusNotFound,
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "tag not present",
+				Code:    http.StatusNotFound,
+			}),
+		)
 	})
 
 	t.Run("done-split-error", func(t *testing.T) {
-		b, err := json.Marshal(api.TagResponse{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		// invalid tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodPatch, tagsResource+"/foobar", bytes.NewReader(b), http.StatusBadRequest, jsonhttp.StatusResponse{
-			Message: "invalid id",
-			Code:    http.StatusBadRequest,
-		})
+		jsonhttptest.Request(t, client, http.MethodPatch, tagsResource+"/foobar", http.StatusBadRequest,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{}),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "invalid id",
+				Code:    http.StatusBadRequest,
+			}),
+		)
 
 		// non-existent tag
-		jsonhttptest.ResponseDirect(t, client, http.MethodPatch, tagsWithIdResource(uint32(333)), bytes.NewReader(b), http.StatusNotFound, jsonhttp.StatusResponse{
-			Message: "tag not present",
-			Code:    http.StatusNotFound,
-		})
+		jsonhttptest.Request(t, client, http.MethodPatch, tagsWithIdResource(uint32(333)), http.StatusNotFound,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{}),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "tag not present",
+				Code:    http.StatusNotFound,
+			}),
+		)
 	})
 
 	t.Run("done-split", func(t *testing.T) {
 		// create a tag through API
-		tResB, err := json.Marshal(api.TagResponse{
-			Name: someTagName,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
 		tRes := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(tResB), http.StatusCreated, &tRes)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{
+				Name: someTagName,
+			}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tRes),
+		)
 		tagId := tRes.Uid
 
 		// generate address to be supplied to the done split
 		addr := test.RandomAddress()
-		tReqB, err := json.Marshal(api.TagRequest{
-			Address: addr,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		// upload content with tag
-		sentHeaders := make(http.Header)
-		sentHeaders.Set(api.SwarmTagUidHeader, fmt.Sprint(tagId))
-		jsonhttptest.ResponseDirectSendHeadersAndDontCheckResponse(t, client, http.MethodPost, chunksResource(someHash), bytes.NewReader(someContent), http.StatusOK, sentHeaders)
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, fmt.Sprint(tagId)),
+		)
 
 		// call done split
-		jsonhttptest.ResponseDirect(t, client, http.MethodPatch, tagsWithIdResource(tagId), bytes.NewReader(tReqB), http.StatusOK, jsonhttp.StatusResponse{
-			Message: "ok",
-			Code:    http.StatusOK,
-		})
+		jsonhttptest.Request(t, client, http.MethodPatch, tagsWithIdResource(tagId), http.StatusOK,
+			jsonhttptest.WithJSONRequestBody(api.TagRequest{
+				Address: addr,
+			}),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "ok",
+				Code:    http.StatusOK,
+			}),
+		)
 
 		// check tag data
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(tagId), nil, http.StatusOK, &tRes)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(tagId), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tRes),
+		)
 		if !tRes.Address.Equal(addr) {
 			t.Fatalf("expected tag address to be %s but is %s", addr.String(), tRes.Address.String())
 		}
@@ -358,21 +392,22 @@ func TestTags(t *testing.T) {
 
 		// try different address value
 		addr = test.RandomAddress()
-		tReqB, err = json.Marshal(api.TagRequest{
-			Address: addr,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		// call done split
-		jsonhttptest.ResponseDirect(t, client, http.MethodPatch, tagsWithIdResource(tagId), bytes.NewReader(tReqB), http.StatusOK, jsonhttp.StatusResponse{
-			Message: "ok",
-			Code:    http.StatusOK,
-		})
+		jsonhttptest.Request(t, client, http.MethodPatch, tagsWithIdResource(tagId), http.StatusOK,
+			jsonhttptest.WithJSONRequestBody(api.TagRequest{
+				Address: addr,
+			}),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "ok",
+				Code:    http.StatusOK,
+			}),
+		)
 
 		// check tag data
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(tagId), nil, http.StatusOK, &tRes)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(tagId), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tRes),
+		)
 		if !tRes.Address.Equal(addr) {
 			t.Fatalf("expected tag address to be %s but is %s", addr.String(), tRes.Address.String())
 		}
@@ -386,9 +421,11 @@ func TestTags(t *testing.T) {
 		expectedHash := swarm.MustParseHexAddress("8e27bb803ff049e8c2f4650357026723220170c15ebf9b635a7026539879a1a8")
 		expectedResponse := api.FileUploadResponse{Reference: expectedHash}
 
-		sentHeaders := make(http.Header)
-		sentHeaders.Set("Content-Type", "application/octet-stream")
-		respHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, filesResource, bytes.NewReader([]byte("some data")), http.StatusOK, expectedResponse, sentHeaders)
+		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, filesResource, http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader([]byte("some data"))),
+			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
+			jsonhttptest.WithRequestHeader("Content-Type", "application/octet-stream"),
+		)
 
 		tagId, err := strconv.Atoi(respHeaders.Get(api.SwarmTagUidHeader))
 		if err != nil {
@@ -397,7 +434,9 @@ func TestTags(t *testing.T) {
 
 		// check tag data
 		tRes := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(uint32(tagId)), nil, http.StatusOK, &tRes)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(uint32(tagId)), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tRes),
+		)
 
 		if !(tRes.Total > 0) {
 			t.Errorf("tag total should be greater than 0 but it is not")
@@ -420,9 +459,11 @@ func TestTags(t *testing.T) {
 		expectedHash := swarm.MustParseHexAddress("00939743b751cf684dd8af90b9b18095a5c79ba0dde1b067b2ec68826ed5ad0b")
 		expectedResponse := api.FileUploadResponse{Reference: expectedHash}
 
-		sentHeaders := make(http.Header)
-		sentHeaders.Set("Content-Type", api.ContentTypeTar)
-		respHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, dirResource, tarReader, http.StatusOK, expectedResponse, sentHeaders)
+		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, dirResource, http.StatusOK,
+			jsonhttptest.WithRequestBody(tarReader),
+			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
+			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
+		)
 
 		tagId, err := strconv.Atoi(respHeaders.Get(api.SwarmTagUidHeader))
 		if err != nil {
@@ -431,7 +472,9 @@ func TestTags(t *testing.T) {
 
 		// check tag data
 		tRes := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(uint32(tagId)), nil, http.StatusOK, &tRes)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(uint32(tagId)), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&tRes),
+		)
 
 		if !(tRes.Total > 0) {
 			t.Errorf("tag total should be greater than 0 but it is not")
@@ -447,13 +490,12 @@ func TestTags(t *testing.T) {
 	t.Run("bytes-tags", func(t *testing.T) {
 		// create a tag using the API
 		tr := api.TagResponse{}
-		b, err := json.Marshal(api.TagResponse{
-			Name: someTagName,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodPost, tagsResource, bytes.NewReader(b), http.StatusCreated, &tr)
+		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithJSONRequestBody(api.TagResponse{
+				Name: someTagName,
+			}),
+			jsonhttptest.WithUnmarshalJSONResponse(&tr),
+		)
 		if tr.Name != someTagName {
 			t.Fatalf("sent tag name %s does not match received tag name %s", someTagName, tr.Name)
 		}
@@ -473,9 +515,13 @@ func TestTags(t *testing.T) {
 		copy(content[swarm.ChunkSize:], dataChunk)
 		copy(content[:swarm.ChunkSize], dataChunk)
 
-		rcvdHeaders := jsonhttptest.ResponseDirectSendHeadersAndReceiveHeaders(t, client, http.MethodPost, bytesResource, bytes.NewReader(content), http.StatusOK, fileUploadResponse{
-			Reference: rootAddress,
-		}, sentHeaders)
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, bytesResource, http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(content)),
+			jsonhttptest.WithExpectedJSONResponse(fileUploadResponse{
+				Reference: rootAddress,
+			}),
+			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, strconv.FormatUint(uint64(tr.Uid), 10)),
+		)
 		id := isTagFoundInResponse(t, rcvdHeaders, nil)
 
 		tagToVerify, err := tag.Get(id)
@@ -488,7 +534,9 @@ func TestTags(t *testing.T) {
 		}
 
 		finalTag := api.TagResponse{}
-		jsonhttptest.ResponseUnmarshal(t, client, http.MethodGet, tagsWithIdResource(id), nil, http.StatusOK, &finalTag)
+		jsonhttptest.Request(t, client, http.MethodGet, tagsWithIdResource(id), http.StatusOK,
+			jsonhttptest.WithUnmarshalJSONResponse(&finalTag),
+		)
 
 		if finalTag.Total != 0 {
 			t.Errorf("tag total count mismatch. got %d want %d", finalTag.Total, 0)

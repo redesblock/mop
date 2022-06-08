@@ -3,6 +3,10 @@ package pushsync_test
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"testing"
+	"time"
+
 	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p/protobuf"
@@ -13,9 +17,6 @@ import (
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/mock"
-	"io/ioutil"
-	"testing"
-	"time"
 )
 
 // TestSendChunkAndGetReceipt inserts a chunk as uploaded chunk in db. This triggers sending a chunk to the closest node
@@ -205,17 +206,7 @@ func createPushSyncNode(t *testing.T, addr swarm.Address, recorder *streamtest.R
 
 	mockTopology := mock.NewTopologyDriver(mockOpts...)
 	mtag := tags.NewTags()
-
-	ps := pushsync.New(pushsync.Options{
-		Streamer:         recorder,
-		Storer:           storer,
-		Tagger:           mtag,
-		DeliveryCallback: pssDeliver,
-		ClosestPeerer:    mockTopology,
-		Logger:           logger,
-	})
-
-	return ps, storer, mtag
+	return pushsync.New(recorder, storer, mockTopology, mtag, pssDeliver, logger), storer, mtag
 }
 
 func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.Recorder, add swarm.Address, data []byte) {
