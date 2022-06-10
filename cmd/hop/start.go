@@ -7,10 +7,15 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/hop/core/keystore"
+	filekeystore "github.com/redesblock/hop/core/keystore/file"
+	memkeystore "github.com/redesblock/hop/core/keystore/mem"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/node"
 	"github.com/sirupsen/logrus"
@@ -66,6 +71,14 @@ Welcome to the Swarm....
 				debugAPIAddr = ""
 			}
 
+			var keystore keystore.Service
+			if c.config.GetString(optionNameDataDir) == "" {
+				keystore = memkeystore.New()
+				logger.Warning("data directory not provided, keys are not persisted")
+			} else {
+				keystore = filekeystore.New(filepath.Join(c.config.GetString(optionNameDataDir), "keys"))
+			}
+
 			var password string
 			if p := c.config.GetString(optionNamePassword); p != "" {
 				password = p
@@ -76,14 +89,40 @@ Welcome to the Swarm....
 				}
 				password = string(bytes.Trim(b, "\n"))
 			} else {
-				p, err := terminalPromptPassword(cmd, c.passwordReader, "Password")
+				exists, err := keystore.Exists("swarm")
 				if err != nil {
 					return err
 				}
-				password = p
+				if exists {
+					password, err = terminalPromptPassword(cmd, c.passwordReader, "Password")
+					if err != nil {
+						return err
+					}
+				} else {
+					password, err = terminalPromptCreatePassword(cmd, c.passwordReader)
+					if err != nil {
+						return err
+					}
+				}
 			}
 
-			b, err := node.New(c.config.GetString(optionNameP2PAddr), logger, node.Options{
+			swarmPrivateKey, created, err := keystore.Key("swarm", password)
+			if err != nil {
+				return fmt.Errorf("swarm key: %w", err)
+			}
+
+			address, err := crypto.NewOverlayAddress(swarmPrivateKey.PublicKey, c.config.GetUint64(optionNameNetworkID))
+			if err != nil {
+				return err
+			}
+
+			if created {
+				logger.Infof("new swarm network address created: %s", address)
+			} else {
+				logger.Infof("using existing swarm network address: %s", address)
+			}
+
+			b, err := node.New(c.config.GetString(optionNameP2PAddr), address, keystore, swarmPrivateKey, c.config.GetUint64(optionNameNetworkID), logger, node.Options{
 				DataDir:              c.config.GetString(optionNameDataDir),
 				DBCapacity:           c.config.GetUint64(optionNameDBCapacity),
 				Password:             password,
@@ -93,7 +132,6 @@ Welcome to the Swarm....
 				NATAddr:              c.config.GetString(optionNameNATAddr),
 				EnableWS:             c.config.GetBool(optionNameP2PWSEnable),
 				EnableQUIC:           c.config.GetBool(optionNameP2PQUICEnable),
-				NetworkID:            c.config.GetUint64(optionNameNetworkID),
 				WelcomeMessage:       c.config.GetString(optionWelcomeMessage),
 				Bootnodes:            c.config.GetStringSlice(optionNameBootnodes),
 				CORSAllowedOrigins:   c.config.GetStringSlice(optionCORSAllowedOrigins),

@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -21,8 +20,8 @@ import (
 	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/file/seekjoiner"
-	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
@@ -48,7 +47,6 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		fileName, contentLength string
 		fileSize                uint64
 		mode                    = requestModePut(r)
-		toEncrypt               = strings.ToLower(r.Header.Get(EncryptHeader)) == "true"
 		contentType             = r.Header.Get("Content-Type")
 	)
 
@@ -151,8 +149,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// first store the file and get its reference
-	sp := splitter.NewSimpleSplitter(s.Storer, mode)
-	fr, err := file.SplitWriteAll(ctx, sp, reader, int64(fileSize), toEncrypt)
+	pipe := pipeline.NewPipeline(ctx, s.Storer, mode)
+	fr, err := pipeline.FeedPipeline(ctx, pipe, reader, int64(fileSize))
 	if err != nil {
 		s.Logger.Debugf("file upload: file store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: file store, file %q", fileName)
@@ -175,8 +173,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "metadata marshal error")
 		return
 	}
-	sp = splitter.NewSimpleSplitter(s.Storer, mode)
-	mr, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(metadataBytes), int64(len(metadataBytes)), toEncrypt)
+	pipe = pipeline.NewPipeline(ctx, s.Storer, mode)
+	mr, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
 	if err != nil {
 		s.Logger.Debugf("file upload: metadata store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: metadata store, file %q", fileName)
@@ -193,8 +191,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "entry marshal error")
 		return
 	}
-	sp = splitter.NewSimpleSplitter(s.Storer, mode)
-	reference, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)), toEncrypt)
+	pipe = pipeline.NewPipeline(ctx, s.Storer, mode)
+	reference, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
 	if err != nil {
 		s.Logger.Debugf("file upload: entry store, file %q: %v", fileName, err)
 		s.Logger.Errorf("file upload: entry store, file %q", fileName)

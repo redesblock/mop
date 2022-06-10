@@ -3,11 +3,9 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/splitter"
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/swarm"
@@ -30,9 +28,8 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Add the tag to the context
 	ctx := sctx.SetTag(r.Context(), tag)
 
-	toEncrypt := strings.ToLower(r.Header.Get(EncryptHeader)) == "true"
-	sp := splitter.NewSimpleSplitter(s.Storer, requestModePut(r))
-	address, err := file.SplitWriteAll(ctx, sp, r.Body, r.ContentLength, toEncrypt)
+	pipe := pipeline.NewPipeline(ctx, s.Storer, requestModePut(r))
+	address, err := pipeline.FeedPipeline(ctx, pipe, r.Body, r.ContentLength)
 	if err != nil {
 		s.Logger.Debugf("bytes upload: split write all: %v", err)
 		s.Logger.Error("bytes upload: split write all")

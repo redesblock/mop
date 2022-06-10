@@ -9,7 +9,7 @@ import (
 	"github.com/ethersphere/manifest/simple"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
-	"github.com/redesblock/hop/core/file/splitter"
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -102,9 +102,9 @@ func (m *simpleManifest) Store(ctx context.Context, mode storage.ModePut) (swarm
 		return swarm.ZeroAddress, fmt.Errorf("manifest marshal error: %w", err)
 	}
 
-	sp := splitter.NewSimpleSplitter(m.storer, mode)
-
-	address, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(data), int64(len(data)), m.encrypted)
+	pipe := pipeline.NewPipeline(ctx, m.storer, mode)
+	address, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(data), int64(len(data)))
+	_ = m.encrypted // need this field for encryption but this is to avoid linter complaints
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("manifest save error: %w", err)
 	}
