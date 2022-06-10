@@ -35,7 +35,7 @@ func TestHop(t *testing.T) {
 			Logger: logging.New(ioutil.Discard, 5),
 		})
 		pipeWriteAll = func(r io.Reader, l int64) (swarm.Address, error) {
-			pipe := pipeline.NewPipeline(ctx, storer, storage.ModePutUpload)
+			pipe := pipeline.NewPipelineBuilder(ctx, storer, storage.ModePutUpload, false)
 			return pipeline.FeedPipeline(ctx, pipe, r, l)
 		}
 	)

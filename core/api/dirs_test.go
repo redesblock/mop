@@ -78,13 +78,11 @@ func TestDirs(t *testing.T) {
 
 	// valid tars
 	for _, tc := range []struct {
-		name         string
-		expectedHash string
-		files        []f // files in dir for test case
+		name  string
+		files []f // files in dir for test case
 	}{
 		{
-			name:         "non-nested files without extension",
-			expectedHash: "685f591d0482a57e172aecb7f58babd7eb50fcb8411f875cae5c7b96fa44ff82",
+			name: "non-nested files without extension",
 			files: []f{
 				{
 					data:      []byte("first file data"),
@@ -107,8 +105,7 @@ func TestDirs(t *testing.T) {
 			},
 		},
 		{
-			name:         "nested files with extension",
-			expectedHash: "9e4e53c1764f2379408ffe019c097cbfcb8a0ba93587b52126a4e3e9d5b8556f",
+			name: "nested files with extension",
 			files: []f{
 				{
 					data:      []byte("robots text"),
@@ -162,8 +159,10 @@ func TestDirs(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if tc.expectedHash != resp.Reference.String() {
-				t.Fatalf("expected file reference to match %s, got %x", tc.expectedHash, resp.Reference)
+			// NOTE: reference will be different each time, due to manifest randomness
+
+			if resp.Reference.String() == "" {
+				t.Fatalf("expected file reference, did not got any")
 			}
 
 			// read manifest metadata

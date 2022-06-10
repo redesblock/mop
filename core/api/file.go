@@ -30,7 +30,6 @@ import (
 
 const (
 	multiPartFormData = "multipart/form-data"
-	EncryptHeader     = "swarm-encrypt"
 )
 
 // fileUploadResponse is returned when an HTTP request to upload a file is successful
@@ -149,7 +148,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// first store the file and get its reference
-	pipe := pipeline.NewPipeline(ctx, s.Storer, mode)
+	pipe := pipeline.NewPipelineBuilder(ctx, s.Storer, mode, requestEncrypt(r))
 	fr, err := pipeline.FeedPipeline(ctx, pipe, reader, int64(fileSize))
 	if err != nil {
 		s.Logger.Debugf("file upload: file store, file %q: %v", fileName, err)
@@ -173,7 +172,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "metadata marshal error")
 		return
 	}
-	pipe = pipeline.NewPipeline(ctx, s.Storer, mode)
+	pipe = pipeline.NewPipelineBuilder(ctx, s.Storer, mode, requestEncrypt(r))
 	mr, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
 	if err != nil {
 		s.Logger.Debugf("file upload: metadata store, file %q: %v", fileName, err)
@@ -191,7 +190,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "entry marshal error")
 		return
 	}
-	pipe = pipeline.NewPipeline(ctx, s.Storer, mode)
+	pipe = pipeline.NewPipelineBuilder(ctx, s.Storer, mode, requestEncrypt(r))
 	reference, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
 	if err != nil {
 		s.Logger.Debugf("file upload: entry store, file %q: %v", fileName, err)

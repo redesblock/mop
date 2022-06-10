@@ -153,7 +153,7 @@ func TestResolve(t *testing.T) {
 			tld: ".empty",
 		},
 		{
-			tld: ".fails",
+			tld: ".errors",
 			res: []resolver.Interface{
 				newErrResolver(),
 				newErrResolver(),
@@ -191,8 +191,8 @@ func TestResolve(t *testing.T) {
 			wantErr: resolver.ErrResolverChainEmpty,
 		},
 		{
-			name:    "this.fails",
-			wantErr: fmt.Errorf("name resolution failed for %q", "this.fails"),
+			name:    "this.errors",
+			wantErr: fmt.Errorf("name resolution failed for %q", "this.errors"),
 		},
 	}
 

@@ -6,10 +6,10 @@ import (
 
 func TestAll(t *testing.T) {
 	ts := NewTags()
-	if _, err := ts.Create("1", 1, false); err != nil {
+	if _, err := ts.Create("1", 1); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ts.Create("2", 1, false); err != nil {
+	if _, err := ts.Create("2", 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -27,7 +27,7 @@ func TestAll(t *testing.T) {
 		t.Fatalf("expected tag 1 Total to be 1 got %d", n)
 	}
 
-	if _, err := ts.Create("3", 1, false); err != nil {
+	if _, err := ts.Create("3", 1); err != nil {
 		t.Fatal(err)
 	}
 	all = ts.All()

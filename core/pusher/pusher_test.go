@@ -56,7 +56,7 @@ func TestSendChunkToPushSyncWithTag(t *testing.T) {
 	mtags, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
 	defer storer.Close()
 
-	ta, err := mtags.Create("test", 1, false)
+	ta, err := mtags.Create("test", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestSendChunkToPushSyncWithTag(t *testing.T) {
 }
 
 // TestSendChunkToPushSyncWithoutTag is similar to TestSendChunkToPushSync, excep that the tags are not
-// present to simulate api withotu splitter condition
+// present to simulate hop api withotu splitter condition
 func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 	chunk := createChunk()
 
