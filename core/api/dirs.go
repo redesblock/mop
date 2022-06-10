@@ -18,7 +18,7 @@ import (
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest/jsonmanifest"
+	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -90,11 +90,19 @@ func validateRequest(r *http.Request) (context.Context, error) {
 // storeDir stores all files recursively contained in the directory given as a tar
 // it returns the hash for the uploaded manifest corresponding to the uploaded dir
 func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode storage.ModePut, logger logging.Logger) (swarm.Address, error) {
-	dirManifest := jsonmanifest.NewManifest()
+	v := ctx.Value(toEncryptContextKey{})
+	toEncrypt, _ := v.(bool) // default is false
+
+	dirManifest, err := manifest.NewDefaultManifest(toEncrypt, s)
+	if err != nil {
+		return swarm.ZeroAddress, err
+	}
 
 	// set up HTTP body reader
 	tarReader := tar.NewReader(reader)
 	defer reader.Close()
+
+	filesAdded := 0
 
 	// iterate through the files in the supplied tar
 	for {
@@ -129,42 +137,54 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 		}
 		logger.Tracef("uploaded dir file %v with reference %v", filePath, fileReference)
 
-		// create manifest entry for uploaded file
-		headers := http.Header{}
-		headers.Set("Content-Type", contentType)
-		fileEntry := jsonmanifest.NewEntry(fileReference, fileName, headers)
+		// add file entry to dir manifest
+		err = dirManifest.Add(filePath, manifest.NewEntry(fileReference))
+		if err != nil {
+			return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
+		}
 
-		// add entry to dir manifest
-		dirManifest.Add(filePath, fileEntry)
+		filesAdded++
 	}
 
-	// check if files were uploaded by querying manifest length
-	if dirManifest.Length() == 0 {
-		return swarm.ZeroAddress, fmt.Errorf("no files added from tar")
+	// check if files were uploaded through the manifest
+	if filesAdded == 0 {
+		return swarm.ZeroAddress, fmt.Errorf("no files in tar")
 	}
 
-	// upload manifest
-	// first, serialize into byte array
-	b, err := dirManifest.MarshalBinary()
-	if err != nil {
-		return swarm.ZeroAddress, fmt.Errorf("manifest serialize: %w", err)
-	}
-
-	// set up reader for manifest file upload
-	r := bytes.NewReader(b)
-
-	// then, upload manifest
-	manifestFileInfo := &fileUploadInfo{
-		size:        r.Size(),
-		contentType: ManifestContentType,
-		reader:      r,
-	}
-	manifestReference, err := storeFile(ctx, manifestFileInfo, s, mode)
+	// save manifest
+	manifestBytesReference, err := dirManifest.Store(ctx, mode)
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("store manifest: %w", err)
 	}
 
-	return manifestReference, nil
+	// store the manifest metadata and get its reference
+	m := entry.NewMetadata(manifestBytesReference.String())
+	m.MimeType = dirManifest.Type()
+	metadataBytes, err := json.Marshal(m)
+	if err != nil {
+		return swarm.ZeroAddress, fmt.Errorf("metadata marshal: %w", err)
+	}
+
+	sp := splitter.NewSimpleSplitter(s, mode)
+	mr, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(metadataBytes), int64(len(metadataBytes)), toEncrypt)
+	if err != nil {
+		return swarm.ZeroAddress, fmt.Errorf("split metadata: %w", err)
+	}
+
+	// now join both references (fr, mr) to create an entry and store it
+	e := entry.New(manifestBytesReference, mr)
+	fileEntryBytes, err := e.MarshalBinary()
+	if err != nil {
+		return swarm.ZeroAddress, fmt.Errorf("entry marshal: %w", err)
+	}
+
+	sp = splitter.NewSimpleSplitter(s, mode)
+	manifestFileReference, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)), toEncrypt)
+	if err != nil {
+		return swarm.ZeroAddress, fmt.Errorf("split entry: %w", err)
+	}
+
+	return manifestFileReference, nil
 }
 
 // storeFile uploads the given file and returns its reference

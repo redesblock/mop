@@ -103,8 +103,8 @@ func TestWrap(t *testing.T) {
 	}
 }
 
-// TestWrapFail tests that the creation of a chunk fails when given targets are invalid
-func TestWrapFail(t *testing.T) {
+// TestWrapError tests that the creation of a chunk fails when given targets are invalid
+func TestWrapError(t *testing.T) {
 	m := newTestMessage(t)
 
 	emptyTargets := trojan.Targets([]trojan.Target{})
@@ -190,14 +190,7 @@ func TestUnwrap(t *testing.T) {
 func TestIsPotential(t *testing.T) {
 	c := chunktesting.GenerateTestRandomChunk()
 
-	// invalid type
-	c.WithType(swarm.Unknown)
-	if trojan.IsPotential(c) {
-		t.Fatal("non content-addressed chunk marked as potential trojan")
-	}
-
 	// valid type, but invalid trojan message length
-	c.WithType(swarm.ContentAddressed)
 	length := len(c.Data()) - 73 // go 1 byte over the maximum allowed
 	lengthBuf := make([]byte, 2)
 	binary.BigEndian.PutUint16(lengthBuf, uint16(length))
@@ -210,7 +203,6 @@ func TestIsPotential(t *testing.T) {
 	// valid type, but invalid chunk data length
 	data := make([]byte, 10)
 	c = swarm.NewChunk(swarm.ZeroAddress, data)
-	c.WithType(swarm.ContentAddressed)
 	if trojan.IsPotential(c) {
 		t.Fatal("chunk with invalid data length marked as potential trojan")
 	}
@@ -221,7 +213,6 @@ func TestIsPotential(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.WithType(swarm.ContentAddressed)
 	if !trojan.IsPotential(c) {
 		t.Fatal("valid test trojan chunk not marked as potential trojan")
 	}

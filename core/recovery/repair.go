@@ -2,6 +2,7 @@ package recovery
 
 import (
 	"context"
+	"errors"
 
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/pss"
@@ -19,6 +20,10 @@ const (
 var (
 	// RecoveryTopic is the topic used for repairing globally pinned chunks.
 	RecoveryTopic = trojan.NewTopic(RecoveryTopicText)
+)
+
+var (
+	errChunkNotPresent = errors.New("chunk repair: chunk not present in local store for repairing")
 )
 
 // RecoveryHook defines code to be executed upon failing to retrieve chunks.
@@ -44,6 +49,17 @@ func NewRepairHandler(s storage.Storer, logger logging.Logger, pushSyncer pushsy
 	return func(ctx context.Context, m *trojan.Message) error {
 		chAddr := m.Payload
 
+		// check if the chunk exists in the local store and proceed.
+		// otherwise the Get will trigger a unnecessary network retrieve
+		exists, err := s.Has(ctx, swarm.NewAddress(chAddr))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return errChunkNotPresent
+		}
+
+		// retrieve the chunk from the local store
 		ch, err := s.Get(ctx, storage.ModeGetRequest, swarm.NewAddress(chAddr))
 		if err != nil {
 			logger.Tracef("chunk repair: error while getting chunk for repairing: %v", err)

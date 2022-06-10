@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
 	"golang.org/x/crypto/sha3"
 )
 
@@ -99,14 +98,6 @@ func (a Address) MarshalJSON() ([]byte, error) {
 // ZeroAddress is the address that has no value.
 var ZeroAddress = NewAddress(nil)
 
-// Type describes a kind of chunk, whether it is content-addressed or other
-type Type int
-
-const (
-	Unknown Type = iota
-	ContentAddressed
-)
-
 type Chunk interface {
 	Address() Address
 	Data() []byte
@@ -115,8 +106,6 @@ type Chunk interface {
 	TagID() uint32
 	WithTagID(t uint32) Chunk
 	Equal(Chunk) bool
-	Type() Type
-	WithType(t Type) Chunk
 }
 
 type chunk struct {
@@ -124,7 +113,6 @@ type chunk struct {
 	sdata      []byte
 	pinCounter uint64
 	tagID      uint32
-	typ        Type
 }
 
 func NewChunk(addr Address, data []byte) Chunk {
@@ -166,15 +154,6 @@ func (c *chunk) String() string {
 
 func (c *chunk) Equal(cp Chunk) bool {
 	return c.Address().Equal(cp.Address()) && bytes.Equal(c.Data(), cp.Data())
-}
-
-func (c *chunk) Type() Type {
-	return c.typ
-}
-
-func (c *chunk) WithType(t Type) Chunk {
-	c.typ = t
-	return c
 }
 
 type Validator interface {

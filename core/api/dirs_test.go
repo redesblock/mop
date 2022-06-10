@@ -3,16 +3,21 @@ package api_test
 import (
 	"archive/tar"
 	"bytes"
+	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"path"
 	"testing"
 
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/collection/entry"
+	"github.com/redesblock/hop/core/file"
+	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest/jsonmanifest"
+	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -22,8 +27,9 @@ func TestDirs(t *testing.T) {
 	var (
 		dirUploadResource    = "/dirs"
 		fileDownloadResource = func(addr string) string { return "/files/" + addr }
+		storer               = mock.NewStorer()
 		client               = newTestServer(t, testServerOptions{
-			Storer: mock.NewStorer(),
+			Storer: storer,
 			Tags:   tags.NewTags(),
 			Logger: logging.New(ioutil.Discard, 5),
 		})
@@ -78,7 +84,7 @@ func TestDirs(t *testing.T) {
 	}{
 		{
 			name:         "non-nested files without extension",
-			expectedHash: "222d159bc96a1197537557ed0bbc5719910b259a08ab9663b187e44dcfb370a7",
+			expectedHash: "685f591d0482a57e172aecb7f58babd7eb50fcb8411f875cae5c7b96fa44ff82",
 			files: []f{
 				{
 					data:      []byte("first file data"),
@@ -102,7 +108,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:         "nested files with extension",
-			expectedHash: "4558d704aa2dcdb243af00b76cc6f9dd8371086934588ca11133ce36f6d6b2f1",
+			expectedHash: "9e4e53c1764f2379408ffe019c097cbfcb8a0ba93587b52126a4e3e9d5b8556f",
 			files: []f{
 				{
 					data:      []byte("robots text"),
@@ -138,31 +144,76 @@ func TestDirs(t *testing.T) {
 			// tar all the test case files
 			tarReader := tarFiles(t, tc.files)
 
+			var respBytes []byte
+
 			// verify directory tar upload response
 			jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusOK,
 				jsonhttptest.WithRequestBody(tarReader),
-				jsonhttptest.WithExpectedJSONResponse(api.FileUploadResponse{
-					Reference: swarm.MustParseHexAddress(tc.expectedHash),
-				}),
 				jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
+				jsonhttptest.WithPutResponseBody(&respBytes),
 			)
 
-			// create expected manifest
-			expectedManifest := jsonmanifest.NewManifest()
-			for _, file := range tc.files {
-				e := jsonmanifest.NewEntry(file.reference, file.name, file.header)
-				expectedManifest.Add(path.Join(file.dir, file.name), e)
-			}
+			read := bytes.NewReader(respBytes)
 
-			b, err := expectedManifest.MarshalBinary()
+			// get the reference as everytime it will change because of random encryption key
+			var resp api.FileUploadResponse
+			err := json.NewDecoder(read).Decode(&resp)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			// verify directory upload manifest through files api
-			jsonhttptest.Request(t, client, http.MethodGet, fileDownloadResource(tc.expectedHash), http.StatusOK,
-				jsonhttptest.WithExpectedResponse(b),
+			if tc.expectedHash != resp.Reference.String() {
+				t.Fatalf("expected file reference to match %s, got %x", tc.expectedHash, resp.Reference)
+			}
+
+			// read manifest metadata
+			j := joiner.NewSimpleJoiner(storer)
+
+			buf := bytes.NewBuffer(nil)
+			_, err = file.JoinReadAll(context.Background(), j, resp.Reference, buf, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e := &entry.Entry{}
+			err = e.UnmarshalBinary(buf.Bytes())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// verify manifest content
+			verifyManifest, err := manifest.NewManifestReference(
+				context.Background(),
+				manifest.DefaultManifestType,
+				e.Reference(),
+				false,
+				storer,
 			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// check if each file can be located and read
+			for _, file := range tc.files {
+				filePath := path.Join(file.dir, file.name)
+
+				entry, err := verifyManifest.Lookup(filePath)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				fileReference := entry.Reference()
+
+				if !bytes.Equal(file.reference.Bytes(), fileReference.Bytes()) {
+					t.Fatalf("expected file reference to match %x, got %x", file.reference, fileReference)
+				}
+
+				jsonhttptest.Request(t, client, http.MethodGet, fileDownloadResource(fileReference.String()), http.StatusOK,
+					jsonhttptest.WithExpectedResponse(file.data),
+					jsonhttptest.WithRequestHeader("Content-Type", file.header.Get("Content-Type")),
+				)
+
+			}
+
 		})
 	}
 }

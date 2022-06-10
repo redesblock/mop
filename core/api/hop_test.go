@@ -11,14 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest/jsonmanifest"
+	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/storage"
 	smock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
@@ -65,6 +64,7 @@ func TestHop(t *testing.T) {
 		}
 
 		fileMetadata := entry.NewMetadata(fileName)
+		fileMetadata.MimeType = "text/html; charset=utf-8"
 		fileMetadataBytes, err := json.Marshal(fileMetadata)
 		if err != nil {
 			t.Fatal(err)
@@ -87,24 +87,26 @@ func TestHop(t *testing.T) {
 
 		// save manifest
 
-		jsonManifest := jsonmanifest.NewManifest()
-
-		e := jsonmanifest.NewEntry(fileReference, fileName, http.Header{"Content-Type": {"text/html", "charset=utf-8"}})
-		jsonManifest.Add(filePath, e)
-
-		manifestFileBytes, err := jsonManifest.MarshalBinary()
+		m, err := manifest.NewDefaultManifest(false, storer)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fr, err := file.SplitWriteAll(context.Background(), sp, bytes.NewReader(manifestFileBytes), int64(len(manifestFileBytes)), false)
+		e := manifest.NewEntry(fileReference)
+
+		err = m.Add(filePath, e)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		m := entry.NewMetadata(fileName)
-		m.MimeType = api.ManifestContentType
-		metadataBytes, err := json.Marshal(m)
+		manifestBytesReference, err := m.Store(context.Background(), storage.ModePutUpload)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		metadata := entry.NewMetadata(manifestBytesReference.String())
+		metadata.MimeType = m.Type()
+		metadataBytes, err := json.Marshal(metadata)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -114,8 +116,8 @@ func TestHop(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// now join both references (mr,fr) to create an entry and store it.
-		newEntry := entry.New(fr, mr)
+		// now join both references (fr,mr) to create an entry and store it.
+		newEntry := entry.New(manifestBytesReference, mr)
 		manifestFileEntryBytes, err := newEntry.MarshalBinary()
 		if err != nil {
 			t.Fatal(err)
@@ -148,10 +150,10 @@ func TestHop(t *testing.T) {
 
 		// check on invalid path
 
-		jsonhttptest.Request(t, client, http.MethodGet, hopDownloadResource(manifestFileReference.String(), missingFilePath), http.StatusBadRequest,
+		jsonhttptest.Request(t, client, http.MethodGet, hopDownloadResource(manifestFileReference.String(), missingFilePath), http.StatusNotFound,
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: "invalid path address",
-				Code:    http.StatusBadRequest,
+				Message: "path address not found",
+				Code:    http.StatusNotFound,
 			}),
 		)
 	})

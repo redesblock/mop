@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -13,15 +14,9 @@ import (
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/manifest/jsonmanifest"
+	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/swarm"
-)
-
-const (
-	// ManifestContentType represents content type used for noting that specific
-	// file should be processed as manifest
-	ManifestContentType = "application/hop-manifest+json"
 )
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -70,8 +65,8 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.NotFound(w, nil)
 		return
 	}
-	metadata := &entry.Metadata{}
-	err = json.Unmarshal(buf.Bytes(), metadata)
+	manifestMetadata := &entry.Metadata{}
+	err = json.Unmarshal(buf.Bytes(), manifestMetadata)
 	if err != nil {
 		s.Logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
 		s.Logger.Errorf("hop download: unmarshal metadata %s", address)
@@ -80,54 +75,34 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// we are expecting manifest Mime type here
-	if ManifestContentType != metadata.MimeType {
+	m, err := manifest.NewManifestReference(
+		ctx,
+		manifestMetadata.MimeType,
+		e.Reference(),
+		toDecrypt,
+		s.Storer,
+	)
+	if err != nil {
 		s.Logger.Debugf("hop download: not manifest %s: %v", address, err)
 		s.Logger.Error("hop download: not manifest")
 		jsonhttp.BadRequest(w, "not manifest")
 		return
 	}
 
-	// read manifest content
-	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, e.Reference(), buf, toDecrypt)
-	if err != nil {
-		s.Logger.Debugf("hop download: data join %s: %v", address, err)
-		s.Logger.Errorf("hop download: data join %s", address)
-		jsonhttp.NotFound(w, nil)
-		return
-	}
-	manifest := jsonmanifest.NewManifest()
-	err = manifest.UnmarshalBinary(buf.Bytes())
-	if err != nil {
-		s.Logger.Debugf("hop download: unmarshal manifest %s: %v", address, err)
-		s.Logger.Errorf("hop download: unmarshal manifest %s", address)
-		jsonhttp.InternalServerError(w, "error unmarshaling manifest")
-		return
-	}
-
-	me, err := manifest.Entry(path)
+	me, err := m.Lookup(path)
 	if err != nil {
 		s.Logger.Debugf("hop download: invalid path %s/%s: %v", address, path, err)
 		s.Logger.Error("hop download: invalid path")
-		jsonhttp.BadRequest(w, "invalid path address")
+
+		if errors.Is(err, manifest.ErrNotFound) {
+			jsonhttp.NotFound(w, "path address not found")
+		} else {
+			jsonhttp.BadRequest(w, "invalid path address")
+		}
 		return
 	}
 
 	manifestEntryAddress := me.Reference()
-
-	var additionalHeaders http.Header
-
-	// copy header from manifest
-	if me.Header() != nil {
-		additionalHeaders = me.Header().Clone()
-	} else {
-		additionalHeaders = http.Header{}
-	}
-
-	// include filename
-	if me.Name() != "" {
-		additionalHeaders.Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", me.Name()))
-	}
 
 	// read file entry
 	buf = bytes.NewBuffer(nil)
@@ -145,6 +120,29 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		s.Logger.Errorf("hop download: unmarshal file entry %s", address)
 		jsonhttp.InternalServerError(w, "error unmarshaling file entry")
 		return
+	}
+
+	// read file metadata
+	buf = bytes.NewBuffer(nil)
+	_, err = file.JoinReadAll(ctx, j, fe.Metadata(), buf, toDecrypt)
+	if err != nil {
+		s.Logger.Debugf("hop download: read file metadata %s: %v", address, err)
+		s.Logger.Errorf("hop download: read file metadata %s", address)
+		jsonhttp.NotFound(w, nil)
+		return
+	}
+	fileMetadata := &entry.Metadata{}
+	err = json.Unmarshal(buf.Bytes(), fileMetadata)
+	if err != nil {
+		s.Logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
+		s.Logger.Errorf("hop download: unmarshal metadata %s", address)
+		jsonhttp.InternalServerError(w, "error unmarshaling metadata")
+		return
+	}
+
+	additionalHeaders := http.Header{
+		"Content-Disposition": {fmt.Sprintf("inline; filename=\"%s\"", fileMetadata.Filename)},
+		"Content-Type":        {fileMetadata.MimeType},
 	}
 
 	fileEntryAddress := fe.Reference()

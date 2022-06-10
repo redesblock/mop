@@ -272,7 +272,7 @@ func New(addr string, logger logging.Logger, o Options) (*Node, error) {
 	}
 	retrieve.SetStorer(ns)
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger)
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(address, 10))
 
 	// set the pushSyncer in the PSS
 	psss.WithPushSyncer(pushSyncProtocol)
