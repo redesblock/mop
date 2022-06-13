@@ -4,13 +4,14 @@ import (
 	"errors"
 
 	"github.com/redesblock/hop/core/collection"
+	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/swarm"
 )
 
 var (
 	_                           = collection.Entry(&Entry{})
 	serializedDataSize          = swarm.SectionSize * 2
-	encryptedSerializedDataSize = swarm.EncryptedReferenceSize * 2
+	encryptedSerializedDataSize = encryption.ReferenceSize * 2
 )
 
 // Entry provides addition of metadata to a data reference.

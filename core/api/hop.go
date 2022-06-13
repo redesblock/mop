@@ -10,9 +10,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/redesblock/hop/core/collection/entry"
-	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
@@ -35,12 +34,13 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	toDecrypt := len(address.Bytes()) == (swarm.HashSize + encryption.KeyLength)
+	// this is a hack and is needed because encryption is coupled into manifests
+	toDecrypt := len(address.Bytes()) == 64
 
 	// read manifest entry
-	j := joiner.NewSimpleJoiner(s.Storer)
+	j := seekjoiner.NewSimpleJoiner(s.Storer)
 	buf := bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, address, buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, address, buf)
 	if err != nil {
 		s.Logger.Debugf("hop download: read entry %s: %v", address, err)
 		s.Logger.Errorf("hop download: read entry %s", address)
@@ -58,7 +58,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read metadata
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, e.Metadata(), buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, e.Metadata(), buf)
 	if err != nil {
 		s.Logger.Debugf("hop download: read metadata %s: %v", address, err)
 		s.Logger.Errorf("hop download: read metadata %s", address)
@@ -106,7 +106,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read file entry
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, manifestEntryAddress, buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, manifestEntryAddress, buf)
 	if err != nil {
 		s.Logger.Debugf("hop download: read file entry %s: %v", address, err)
 		s.Logger.Errorf("hop download: read file entry %s", address)
@@ -124,7 +124,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read file metadata
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, fe.Metadata(), buf, toDecrypt)
+	_, err = file.JoinReadAll(ctx, j, fe.Metadata(), buf)
 	if err != nil {
 		s.Logger.Debugf("hop download: read file metadata %s: %v", address, err)
 		s.Logger.Errorf("hop download: read file metadata %s", address)

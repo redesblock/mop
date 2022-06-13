@@ -13,7 +13,7 @@ import (
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
@@ -166,10 +166,10 @@ func TestDirs(t *testing.T) {
 			}
 
 			// read manifest metadata
-			j := joiner.NewSimpleJoiner(storer)
+			j := seekjoiner.NewSimpleJoiner(storer)
 
 			buf := bytes.NewBuffer(nil)
-			_, err = file.JoinReadAll(context.Background(), j, resp.Reference, buf, false)
+			_, err = file.JoinReadAll(context.Background(), j, resp.Reference, buf)
 			if err != nil {
 				t.Fatal(err)
 			}

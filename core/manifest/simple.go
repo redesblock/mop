@@ -8,8 +8,8 @@ import (
 
 	"github.com/ethersphere/manifest/simple"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -112,10 +112,10 @@ func (m *simpleManifest) Store(ctx context.Context, mode storage.ModePut) (swarm
 }
 
 func (m *simpleManifest) load(ctx context.Context, reference swarm.Address) error {
-	j := joiner.NewSimpleJoiner(m.storer)
+	j := seekjoiner.NewSimpleJoiner(m.storer)
 
 	buf := bytes.NewBuffer(nil)
-	_, err := file.JoinReadAll(ctx, j, reference, buf, m.encrypted)
+	_, err := file.JoinReadAll(ctx, j, reference, buf)
 	if err != nil {
 		return fmt.Errorf("manifest load error: %w", err)
 	}

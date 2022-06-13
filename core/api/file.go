@@ -17,9 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/collection/entry"
-	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -228,15 +226,13 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	toDecrypt := len(address.Bytes()) == (swarm.HashSize + encryption.KeyLength)
-
 	targets := r.URL.Query().Get("targets")
 	sctx.SetTargets(r.Context(), targets)
 
 	// read entry.
-	j := joiner.NewSimpleJoiner(s.Storer)
+	j := seekjoiner.NewSimpleJoiner(s.Storer)
 	buf := bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(r.Context(), j, address, buf, toDecrypt)
+	_, err = file.JoinReadAll(r.Context(), j, address, buf)
 	if err != nil {
 		s.Logger.Debugf("file download: read entry %s: %v", addr, err)
 		s.Logger.Errorf("file download: read entry %s", addr)
@@ -264,7 +260,7 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Read metadata.
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(r.Context(), j, e.Metadata(), buf, toDecrypt)
+	_, err = file.JoinReadAll(r.Context(), j, e.Metadata(), buf)
 	if err != nil {
 		s.Logger.Debugf("file download: read metadata %s: %v", addr, err)
 		s.Logger.Errorf("file download: read metadata %s", addr)
@@ -304,7 +300,7 @@ func (s *server) downloadHandler(w http.ResponseWriter, r *http.Request, referen
 		}
 		s.Logger.Debugf("api download: invalid root chunk %s: %v", reference, err)
 		s.Logger.Error("api download: invalid root chunk")
-		jsonhttp.BadRequest(w, "invalid root chunk")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/ethersphere/manifest/mantaray"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
-	"github.com/redesblock/hop/core/file/splitter"
+	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -147,10 +147,10 @@ func newMantaraySaver(
 func (ls *mantarayLoadSaver) Load(ref []byte) ([]byte, error) {
 	ctx := ls.ctx
 
-	j := joiner.NewSimpleJoiner(ls.storer)
+	j := seekjoiner.NewSimpleJoiner(ls.storer)
 
 	buf := bytes.NewBuffer(nil)
-	_, err := file.JoinReadAll(ctx, j, swarm.NewAddress(ref), buf, ls.encrypted)
+	_, err := file.JoinReadAll(ctx, j, swarm.NewAddress(ref), buf)
 	if err != nil {
 		return nil, err
 	}
@@ -161,9 +161,9 @@ func (ls *mantarayLoadSaver) Load(ref []byte) ([]byte, error) {
 func (ls *mantarayLoadSaver) Save(data []byte) ([]byte, error) {
 	ctx := ls.ctx
 
-	sp := splitter.NewSimpleSplitter(ls.storer, ls.modePut)
+	pipe := pipeline.NewPipelineBuilder(ctx, ls.storer, ls.modePut, ls.encrypted)
+	address, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(data), int64(len(data)))
 
-	address, err := file.SplitWriteAll(ctx, sp, bytes.NewReader(data), int64(len(data)), ls.encrypted)
 	if err != nil {
 		return swarm.ZeroAddress.Bytes(), err
 	}
