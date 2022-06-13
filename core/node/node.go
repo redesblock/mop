@@ -76,6 +76,7 @@ type Options struct {
 	Bootnodes            []string
 	CORSAllowedOrigins   []string
 	Logger               logging.Logger
+	Standalone           bool
 	TracingEnabled       bool
 	TracingEndpoint      string
 	TracingServiceName   string
@@ -132,6 +133,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
 		EnableQUIC:     o.EnableQUIC,
+		Standalone:     o.Standalone,
 		WelcomeMessage: o.WelcomeMessage,
 	})
 	if err != nil {
@@ -166,18 +168,22 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 	}
 
 	var bootnodes []ma.Multiaddr
-	for _, a := range o.Bootnodes {
-		addr, err := ma.NewMultiaddr(a)
-		if err != nil {
-			logger.Debugf("multiaddress fail %s: %v", a, err)
-			logger.Warningf("invalid bootnode address %s", a)
-			continue
-		}
+	if o.Standalone {
+		logger.Info("Starting node in standalone mode, no p2p connections will be made or accepted")
+	} else {
+		for _, a := range o.Bootnodes {
+			addr, err := ma.NewMultiaddr(a)
+			if err != nil {
+				logger.Debugf("multiaddress fail %s: %v", a, err)
+				logger.Warningf("invalid bootnode address %s", a)
+				continue
+			}
 
-		bootnodes = append(bootnodes, addr)
+			bootnodes = append(bootnodes, addr)
+		}
 	}
 
-	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes})
+	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, Standalone: o.Standalone})
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
 	p2ps.AddNotifier(kad)

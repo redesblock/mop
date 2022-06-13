@@ -60,6 +60,7 @@ type Options struct {
 	NATAddr        string
 	EnableWS       bool
 	EnableQUIC     bool
+	Standalone     bool
 	LightNode      bool
 	WelcomeMessage string
 }
@@ -142,6 +143,10 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 
 	if o.EnableQUIC {
 		transports = append(transports, libp2p.Transport(libp2pquic.NewTransport))
+	}
+
+	if o.Standalone {
+		opts = append(opts, libp2p.NoListenAddrs)
 	}
 
 	opts = append(opts, transports...)
