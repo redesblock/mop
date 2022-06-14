@@ -3,6 +3,7 @@ package pushsync_test
 import (
 	"bytes"
 	"context"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -282,7 +283,8 @@ func createPushSyncNode(t *testing.T, addr swarm.Address, recorder *streamtest.R
 	}
 
 	mockTopology := mock.NewTopologyDriver(mockOpts...)
-	mtag := tags.NewTags()
+	mockStatestore := statestore.NewStateStore()
+	mtag := tags.NewTags(mockStatestore, logger)
 
 	mockAccounting := accountingmock.NewAccounting()
 	mockPricer := accountingmock.NewPricer(fixedPrice, fixedPrice)

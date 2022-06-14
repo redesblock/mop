@@ -2,6 +2,9 @@ package debugapi_test
 
 import (
 	"bytes"
+	"github.com/redesblock/hop/core/logging"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -25,7 +28,9 @@ func TestPinChunkHandler(t *testing.T) {
 		data                 = []byte("bbaatt")
 		mockValidator        = validator.NewMockValidator(hash, data)
 		mockValidatingStorer = mock.NewStorer(mock.WithValidator(mockValidator))
-		tag                  = tags.NewTags()
+		mockStatestore       = statestore.NewStateStore()
+		logger               = logging.New(ioutil.Discard, 0)
+		tag                  = tags.NewTags(mockStatestore, logger)
 
 		debugTestServer = newTestServer(t, testServerOptions{
 			Storer: mockValidatingStorer,
@@ -33,7 +38,7 @@ func TestPinChunkHandler(t *testing.T) {
 		})
 
 		// This server is used to store chunks
-		hopTestServer = newHopTestServer(t, testServerOptions{
+		hopTestServer = newHOPTestServer(t, testServerOptions{
 			Storer: mockValidatingStorer,
 			Tags:   tag,
 		})

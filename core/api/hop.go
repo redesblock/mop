@@ -15,7 +15,6 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/swarm"
 )
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -23,12 +22,12 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(sctx.SetTargets(r.Context(), targets))
 	ctx := r.Context()
 
-	addressHex := mux.Vars(r)["address"]
+	nameOrHex := mux.Vars(r)["address"]
 	path := mux.Vars(r)["path"]
 
-	address, err := swarm.ParseHexAddress(addressHex)
+	address, err := s.resolveNameOrAddress(nameOrHex)
 	if err != nil {
-		s.Logger.Debugf("hop download: parse address %s: %v", addressHex, err)
+		s.Logger.Debugf("hop download: parse address %s: %v", nameOrHex, err)
 		s.Logger.Error("hop download: parse address")
 		jsonhttp.BadRequest(w, "invalid address")
 		return

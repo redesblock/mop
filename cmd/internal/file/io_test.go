@@ -14,6 +14,7 @@ import (
 	cmdfile "github.com/redesblock/hop/cmd/internal/file"
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/logging"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
@@ -146,10 +147,12 @@ func TestLimitWriter(t *testing.T) {
 	}
 }
 
-// newTestServer creates an http server to serve the http api endpoints.
+// newTestServer creates an http server to serve the hop http api endpoints.
 func newTestServer(t *testing.T, storer storage.Storer) *url.URL {
 	t.Helper()
-	s := api.New(tags.NewTags(), storer, nil, logging.New(ioutil.Discard, 0), nil)
+	logger := logging.New(ioutil.Discard, 0)
+	store := statestore.NewStateStore()
+	s := api.New(tags.NewTags(store, logger), storer, nil, nil, logger, nil)
 	ts := httptest.NewServer(s)
 	srvUrl, err := url.Parse(ts.URL)
 	if err != nil {

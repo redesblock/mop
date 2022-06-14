@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -28,9 +29,11 @@ func TestFiles(t *testing.T) {
 		targets              = "0x222"
 		fileDownloadResource = func(addr string) string { return "/files/" + addr }
 		simpleData           = []byte("this is a simple text")
+		mockStatestore       = statestore.NewStateStore()
+		logger               = logging.New(ioutil.Discard, 0)
 		client               = newTestServer(t, testServerOptions{
 			Storer: mock.NewStorer(),
-			Tags:   tags.NewTags(),
+			Tags:   tags.NewTags(mockStatestore, logger),
 		})
 	)
 
@@ -329,9 +332,11 @@ func TestRangeRequests(t *testing.T) {
 
 	for _, upload := range uploads {
 		t.Run(upload.name, func(t *testing.T) {
+			mockStatestore := statestore.NewStateStore()
+			logger := logging.New(ioutil.Discard, 0)
 			client := newTestServer(t, testServerOptions{
 				Storer: mock.NewStorer(),
-				Tags:   tags.NewTags(),
+				Tags:   tags.NewTags(mockStatestore, logger),
 				Logger: logging.New(ioutil.Discard, 5),
 			})
 

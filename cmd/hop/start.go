@@ -18,6 +18,7 @@ import (
 	memkeystore "github.com/redesblock/hop/core/keystore/mem"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/node"
+	"github.com/redesblock/hop/core/resolver"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -49,6 +50,18 @@ func (c *command) initStartCmd() (err error) {
 			default:
 				return fmt.Errorf("unknown verbosity level %q", v)
 			}
+
+			// If the resolver is specified, resolve all connection strings
+			// and fail on any errors.
+			var resolverCfgs []*resolver.ConnectionConfig
+			resolverEndpoints := c.config.GetStringSlice(optionNameResolverEndpoints)
+			if len(resolverEndpoints) > 0 {
+				resolverCfgs, err = resolver.ParseConnectionStrings(resolverEndpoints)
+				if err != nil {
+					return err
+				}
+			}
+
 			hop := `
 Welcome to the Swarm....
                 \     /                
@@ -123,26 +136,27 @@ Welcome to the Swarm....
 			}
 
 			b, err := node.New(c.config.GetString(optionNameP2PAddr), address, keystore, swarmPrivateKey, c.config.GetUint64(optionNameNetworkID), logger, node.Options{
-				DataDir:              c.config.GetString(optionNameDataDir),
-				DBCapacity:           c.config.GetUint64(optionNameDBCapacity),
-				Password:             password,
-				APIAddr:              c.config.GetString(optionNameAPIAddr),
-				DebugAPIAddr:         debugAPIAddr,
-				Addr:                 c.config.GetString(optionNameP2PAddr),
-				NATAddr:              c.config.GetString(optionNameNATAddr),
-				EnableWS:             c.config.GetBool(optionNameP2PWSEnable),
-				EnableQUIC:           c.config.GetBool(optionNameP2PQUICEnable),
-				WelcomeMessage:       c.config.GetString(optionWelcomeMessage),
-				Bootnodes:            c.config.GetStringSlice(optionNameBootnodes),
-				CORSAllowedOrigins:   c.config.GetStringSlice(optionCORSAllowedOrigins),
-				Standalone:           c.config.GetBool(optionNameStandalone),
-				TracingEnabled:       c.config.GetBool(optionNameTracingEnabled),
-				TracingEndpoint:      c.config.GetString(optionNameTracingEndpoint),
-				TracingServiceName:   c.config.GetString(optionNameTracingServiceName),
-				Logger:               logger,
-				GlobalPinningEnabled: c.config.GetBool(optionNameGlobalPinningEnabled),
-				PaymentThreshold:     c.config.GetUint64(optionNamePaymentThreshold),
-				PaymentTolerance:     c.config.GetUint64(optionNamePaymentTolerance),
+				DataDir:                c.config.GetString(optionNameDataDir),
+				DBCapacity:             c.config.GetUint64(optionNameDBCapacity),
+				Password:               password,
+				APIAddr:                c.config.GetString(optionNameAPIAddr),
+				DebugAPIAddr:           debugAPIAddr,
+				Addr:                   c.config.GetString(optionNameP2PAddr),
+				NATAddr:                c.config.GetString(optionNameNATAddr),
+				EnableWS:               c.config.GetBool(optionNameP2PWSEnable),
+				EnableQUIC:             c.config.GetBool(optionNameP2PQUICEnable),
+				WelcomeMessage:         c.config.GetString(optionWelcomeMessage),
+				Bootnodes:              c.config.GetStringSlice(optionNameBootnodes),
+				CORSAllowedOrigins:     c.config.GetStringSlice(optionCORSAllowedOrigins),
+				Standalone:             c.config.GetBool(optionNameStandalone),
+				TracingEnabled:         c.config.GetBool(optionNameTracingEnabled),
+				TracingEndpoint:        c.config.GetString(optionNameTracingEndpoint),
+				TracingServiceName:     c.config.GetString(optionNameTracingServiceName),
+				Logger:                 logger,
+				GlobalPinningEnabled:   c.config.GetBool(optionNameGlobalPinningEnabled),
+				PaymentThreshold:       c.config.GetUint64(optionNamePaymentThreshold),
+				PaymentTolerance:       c.config.GetUint64(optionNamePaymentTolerance),
+				ResolverConnectionCfgs: resolverCfgs,
 			})
 			if err != nil {
 				return err
@@ -188,7 +202,6 @@ Welcome to the Swarm....
 	}
 
 	c.setAllFlags(cmd)
-
 	c.root.AddCommand(cmd)
 	return nil
 }

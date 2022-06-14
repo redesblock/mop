@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -24,18 +23,31 @@ func newStoreWriter(ctx context.Context, l storage.Putter, mode storage.ModePut,
 
 func (w *storeWriter) chainWrite(p *pipeWriteArgs) error {
 	tag := sctx.GetTag(w.ctx)
+	var c swarm.Chunk
 	if tag != nil {
-		tag.Inc(tags.StateSplit)
+		err := tag.Inc(tags.StateSplit)
+		if err != nil {
+			return err
+		}
+		c = swarm.NewChunk(swarm.NewAddress(p.ref), p.data).WithTagID(tag.Uid)
+	} else {
+		c = swarm.NewChunk(swarm.NewAddress(p.ref), p.data)
 	}
-	c := swarm.NewChunk(swarm.NewAddress(p.ref), p.data)
+
 	seen, err := w.l.Put(w.ctx, w.mode, c)
 	if err != nil {
 		return err
 	}
 	if tag != nil {
-		tag.Inc(tags.StateStored)
+		err := tag.Inc(tags.StateStored)
+		if err != nil {
+			return err
+		}
 		if seen[0] {
-			tag.Inc(tags.StateSeen)
+			err := tag.Inc(tags.StateSeen)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if w.next == nil {

@@ -36,6 +36,7 @@ const (
 	optionNameGlobalPinningEnabled = "global-pinning-enable"
 	optionNamePaymentThreshold     = "payment-threshold"
 	optionNamePaymentTolerance     = "payment-tolerance"
+	optionNameResolverEndpoints    = "resolver-options"
 )
 
 func init() {
@@ -172,10 +173,11 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameStandalone, false, "whether we want the node to start with no listen addresses for p2p")
 	cmd.Flags().Bool(optionNameTracingEnabled, false, "enable tracing")
 	cmd.Flags().String(optionNameTracingEndpoint, "127.0.0.1:6831", "endpoint to send tracing data")
-	cmd.Flags().String(optionNameTracingServiceName, "node", "service name identifier for tracing")
+	cmd.Flags().String(optionNameTracingServiceName, "hop", "service name identifier for tracing")
 	cmd.Flags().String(optionNameVerbosity, "info", "log verbosity level 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=trace")
 	cmd.Flags().String(optionWelcomeMessage, "", "send a welcome message string during handshakes")
 	cmd.Flags().Bool(optionNameGlobalPinningEnabled, false, "enable global pinning")
 	cmd.Flags().Uint64(optionNamePaymentThreshold, 100000, "threshold in HOP where you expect to get paid from your peers")
 	cmd.Flags().Uint64(optionNamePaymentTolerance, 10000, "excess debt above payment threshold in HOP where you disconnect from your peer")
+	cmd.Flags().StringSlice(optionNameResolverEndpoints, []string{}, "resolver connection string, see help for format")
 }

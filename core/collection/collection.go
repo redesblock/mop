@@ -6,7 +6,7 @@ import (
 )
 
 // Collection provides a specific ordering of a collection of binary data vectors
-// stored.
+// stored in hop.
 type Collection interface {
 	Addresses() []swarm.Address
 }

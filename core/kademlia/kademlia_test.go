@@ -13,7 +13,7 @@ import (
 
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/crypto"
-	beeCrypto "github.com/redesblock/hop/core/crypto"
+	hopCrypto "github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/discovery/mock"
 	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/kademlia"
@@ -475,7 +475,7 @@ func TestClosestPeer(t *testing.T) {
 	ab := addressbook.New(mockstate.NewStateStore())
 	var conns int32
 
-	kad := kademlia.New(base, ab, disc, p2pMock(ab, &conns, nil), logger, kademlia.Options{})
+	kad := kademlia.New(base, ab, disc, p2pMock(ab, nil, &conns, nil), logger, kademlia.Options{})
 	if err := kad.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +483,7 @@ func TestClosestPeer(t *testing.T) {
 
 	pk, _ := crypto.GenerateSecp256k1Key()
 	for _, v := range connectedPeers {
-		addOne(t, beeCrypto.NewDefaultSigner(pk), kad, ab, v.Address)
+		addOne(t, hopCrypto.NewDefaultSigner(pk), kad, ab, v.Address)
 	}
 	waitCounter(t, &conns, 3)
 
@@ -670,8 +670,7 @@ func TestMarshal(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	var bootnodes []ma.Multiaddr
-
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		multiaddr, err := ma.NewMultiaddr(underlayBase + test.RandomAddress().String())
 		if err != nil {
 			t.Fatal(err)
@@ -722,21 +721,23 @@ func TestStart(t *testing.T) {
 	})
 }
 
-func newTestKademlia(connCounter, failedConnCounter *int32, f func(bin uint8, peers, connected *pslice.PSlice) bool, bootnodes []ma.Multiaddr) (swarm.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, beeCrypto.Signer) {
+func newTestKademlia(connCounter, failedConnCounter *int32, f func(bin uint8, peers, connected *pslice.PSlice) bool, bootnodes []ma.Multiaddr) (swarm.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, hopCrypto.Signer) {
+	pk, _ := crypto.GenerateSecp256k1Key()
+
 	var (
+		signer = hopCrypto.NewDefaultSigner(pk)
 		base   = test.RandomAddress()                       // base address
 		ab     = addressbook.New(mockstate.NewStateStore()) // address book
-		p2p    = p2pMock(ab, connCounter, failedConnCounter)
+		p2p    = p2pMock(ab, signer, connCounter, failedConnCounter)
 		logger = logging.New(ioutil.Discard, 0) // logger
 		disc   = mock.NewDiscovery()
 		kad    = kademlia.New(base, ab, disc, p2p, logger, kademlia.Options{SaturationFunc: f, Bootnodes: bootnodes}) // kademlia instance
 	)
 
-	pk, _ := crypto.GenerateSecp256k1Key()
-	return base, kad, ab, disc, beeCrypto.NewDefaultSigner(pk)
+	return base, kad, ab, disc, signer
 }
 
-func p2pMock(ab addressbook.Interface, counter, failedCounter *int32) p2p.Service {
+func p2pMock(ab addressbook.Interface, signer hopCrypto.Signer, counter, failedCounter *int32) p2p.Service {
 	p2ps := p2pmock.New(p2pmock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*hop.Address, error) {
 		if addr.Equal(nonConnectableAddress) {
 			_ = atomic.AddInt32(failedCounter, 1)
@@ -757,7 +758,17 @@ func p2pMock(ab addressbook.Interface, counter, failedCounter *int32) p2p.Servic
 			}
 		}
 
-		return nil, nil
+		address := test.RandomAddress()
+		hopAddr, err := hop.NewAddress(signer, addr, address, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := ab.Put(address, *hopAddr); err != nil {
+			return nil, err
+		}
+
+		return hopAddr, nil
 	}))
 
 	return p2ps
@@ -769,7 +780,7 @@ func removeOne(k *kademlia.Kad, peer swarm.Address) {
 
 const underlayBase = "/ip4/127.0.0.1/tcp/7070/dns/"
 
-func connectOne(t *testing.T, signer beeCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer swarm.Address) {
+func connectOne(t *testing.T, signer hopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer swarm.Address) {
 	t.Helper()
 	multiaddr, err := ma.NewMultiaddr(underlayBase + peer.String())
 	if err != nil {
@@ -786,7 +797,7 @@ func connectOne(t *testing.T, signer beeCrypto.Signer, k *kademlia.Kad, ab addre
 	_ = k.Connected(context.Background(), peer)
 }
 
-func addOne(t *testing.T, signer beeCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer swarm.Address) {
+func addOne(t *testing.T, signer hopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer swarm.Address) {
 	t.Helper()
 	multiaddr, err := ma.NewMultiaddr(underlayBase + peer.String())
 	if err != nil {
@@ -802,7 +813,7 @@ func addOne(t *testing.T, signer beeCrypto.Signer, k *kademlia.Kad, ab addressbo
 	_ = k.AddPeers(context.Background(), peer)
 }
 
-func add(t *testing.T, signer beeCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peers []swarm.Address, offset, number int) {
+func add(t *testing.T, signer hopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peers []swarm.Address, offset, number int) {
 	t.Helper()
 	for i := offset; i < offset+number; i++ {
 		addOne(t, signer, k, ab, peers[i])

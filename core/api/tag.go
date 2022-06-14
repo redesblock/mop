@@ -9,11 +9,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
-
-	"github.com/gorilla/mux"
 )
 
 type tagRequest struct {
@@ -193,6 +192,12 @@ func (s *server) doneSplit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tag.DoneSplit(tagr.Address)
+	_, err = tag.DoneSplit(tagr.Address)
+	if err != nil {
+		s.Logger.Debugf("done split: failed for address %v", tagr.Address)
+		s.Logger.Error("done split: failed for address %v", tagr.Address)
+		jsonhttp.InternalServerError(w, nil)
+		return
+	}
 	jsonhttp.OK(w, "ok")
 }

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -28,9 +29,11 @@ func TestDirs(t *testing.T) {
 		dirUploadResource    = "/dirs"
 		fileDownloadResource = func(addr string) string { return "/files/" + addr }
 		storer               = mock.NewStorer()
+		mockStatestore       = statestore.NewStateStore()
+		logger               = logging.New(ioutil.Discard, 0)
 		client               = newTestServer(t, testServerOptions{
 			Storer: storer,
-			Tags:   tags.NewTags(),
+			Tags:   tags.NewTags(mockStatestore, logger),
 			Logger: logging.New(ioutil.Discard, 5),
 		})
 	)

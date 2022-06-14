@@ -19,9 +19,7 @@ func (m *MockPusher) SendChunk(uid uint32) error {
 	if err != nil {
 		return err
 	}
-	ta.Inc(tags.StateSent)
-
-	return nil
+	return ta.Inc(tags.StateSent)
 }
 
 func (m *MockPusher) RcvdReceipt(uid uint32) error {
@@ -29,7 +27,5 @@ func (m *MockPusher) RcvdReceipt(uid uint32) error {
 	if err != nil {
 		return err
 	}
-	ta.Inc(tags.StateSynced)
-
-	return nil
+	return ta.Inc(tags.StateSynced)
 }

@@ -217,7 +217,10 @@ func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Re
 			// this is to make sure that the sent number does not diverge from the synced counter
 			t, err := ps.tagg.Get(ch.TagID())
 			if err == nil && t != nil {
-				t.Inc(tags.StateSent)
+				err = t.Inc(tags.StateSent)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			// if you are the closest node return a receipt immediately
@@ -251,7 +254,10 @@ func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Re
 	//  if you manage to get a tag, just increment the respective counter
 	t, err := ps.tagg.Get(ch.TagID())
 	if err == nil && t != nil {
-		t.Inc(tags.StateSent)
+		err = t.Inc(tags.StateSent)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	receiptRTTTimer := time.Now()
