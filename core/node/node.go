@@ -257,7 +257,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, Standalone: o.Standalone})
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
-	p2ps.AddNotifier(kad)
+	p2ps.SetNotifier(kad)
 	addrs, err := p2ps.Addresses()
 	if err != nil {
 		return nil, fmt.Errorf("get server addresses: %w", err)
@@ -324,7 +324,15 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 	}
 	retrieve.SetStorer(ns)
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
+	silenceNoHandlerFunc := func(ctx context.Context, ch swarm.Chunk) error {
+		err := psss.TryUnwrap(ctx, ch)
+		if errors.Is(err, pss.ErrNoHandler) {
+			return nil
+		}
+		return err
+	}
+
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, silenceNoHandlerFunc, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
 	// set the pushSyncer in the PSS
 	psss.SetPushSyncer(pushSyncProtocol)

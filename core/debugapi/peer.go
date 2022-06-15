@@ -31,14 +31,6 @@ func (s *server) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.TopologyDriver.Connected(r.Context(), hopAddr.Overlay); err != nil {
-		_ = s.P2P.Disconnect(hopAddr.Overlay)
-		s.Logger.Debugf("debug api: peer connect handler %s: %v", addr, err)
-		s.Logger.Errorf("unable to connect to peer %s", addr)
-		jsonhttp.InternalServerError(w, err)
-		return
-	}
-
 	jsonhttp.OK(w, peerConnectResponse{
 		Address: hopAddr.Overlay.String(),
 	})

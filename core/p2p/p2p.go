@@ -8,7 +8,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
 )
 
 // Service provides methods to handle p2p Peers and Protocols.
@@ -21,8 +20,13 @@ type Service interface {
 	// duration 0 is treated as an infinite duration
 	Blocklist(overlay swarm.Address, duration time.Duration) error
 	Peers() []Peer
-	AddNotifier(topology.Notifier)
 	Addresses() ([]ma.Multiaddr, error)
+	SetNotifier(Notifier)
+}
+
+type Notifier interface {
+	Connected(context.Context, Peer) error
+	Disconnected(Peer)
 }
 
 // DebugService extends the Service with method used for debugging.
@@ -48,9 +52,13 @@ type Stream interface {
 
 // ProtocolSpec defines a collection of Stream specifications with handlers.
 type ProtocolSpec struct {
-	Name        string
-	Version     string
-	StreamSpecs []StreamSpec
+	Name          string
+	Version       string
+	StreamSpecs   []StreamSpec
+	ConnectIn     func(context.Context, Peer) error
+	ConnectOut    func(context.Context, Peer) error
+	DisconnectIn  func(Peer) error
+	DisconnectOut func(Peer) error
 }
 
 // StreamSpec defines a Stream handling within the protocol.
