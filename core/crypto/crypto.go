@@ -13,6 +13,9 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// RecoverFunc is a function to recover the public key from a signature
+type RecoverFunc func(signature, data []byte) (*ecdsa.PublicKey, error)
+
 const (
 	AddressSize = 20
 )

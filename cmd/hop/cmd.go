@@ -38,6 +38,8 @@ const (
 	optionNamePaymentTolerance     = "payment-tolerance"
 	optionNameResolverEndpoints    = "resolver-options"
 	optionNameGatewayMode          = "gateway-mode"
+	optionNameClefSignerEnable     = "clef-signer-enable"
+	optionNameClefSignerEndpoint   = "clef-signer-endpoint"
 )
 
 func init() {
@@ -182,4 +184,6 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(optionNamePaymentTolerance, 10000, "excess debt above payment threshold in HOP where you disconnect from your peer")
 	cmd.Flags().StringSlice(optionNameResolverEndpoints, []string{}, "resolver connection string, see help for format")
 	cmd.Flags().Bool(optionNameGatewayMode, false, "disable a set of sensitive features in the api")
+	cmd.Flags().Bool(optionNameClefSignerEnable, false, "enable clef signer")
+	cmd.Flags().String(optionNameClefSignerEndpoint, "", "clef signer endpoint")
 }

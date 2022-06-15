@@ -1,6 +1,7 @@
 package crypto_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/redesblock/hop/core/crypto"
@@ -38,6 +39,16 @@ func TestDefaultSigner(t *testing.T) {
 
 		if pubKey.X.Cmp(privKey.PublicKey.X) == 0 && pubKey.Y.Cmp(privKey.PublicKey.Y) == 0 {
 			t.Fatal("expected different public key")
+		}
+	})
+
+	t.Run("OK - recover with short signature", func(t *testing.T) {
+		_, err := crypto.Recover([]byte("invalid"), testBytes)
+		if err == nil {
+			t.Fatal("expected invalid length error but got none")
+		}
+		if !errors.Is(err, crypto.ErrInvalidLength) {
+			t.Fatalf("expected invalid length error but got %v", err)
 		}
 	})
 }

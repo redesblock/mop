@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"io"
 	"log"
@@ -34,8 +33,7 @@ import (
 	"github.com/redesblock/hop/core/pusher"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/recovery"
-	"github.com/redesblock/hop/core/resolver"
-	resolverSvc "github.com/redesblock/hop/core/resolver/service"
+	"github.com/redesblock/hop/core/resolver/multiresolver"
 	"github.com/redesblock/hop/core/retrieval"
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/soc"
@@ -87,11 +85,11 @@ type Options struct {
 	GlobalPinningEnabled   bool
 	PaymentThreshold       uint64
 	PaymentTolerance       uint64
-	ResolverConnectionCfgs []*resolver.ConnectionConfig
+	ResolverConnectionCfgs []multiresolver.ConnectionConfig
 	GatewayMode            bool
 }
 
-func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swarmPrivateKey *ecdsa.PrivateKey, networkID uint64, logger logging.Logger, o Options) (*Node, error) {
+func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, signer crypto.Signer, networkID uint64, logger logging.Logger, o Options) (*Node, error) {
 	tracer, tracerCloser, err := tracing.NewTracer(&tracing.Options{
 		Enabled:     o.TracingEnabled,
 		Endpoint:    o.TracingEndpoint,
@@ -132,7 +130,6 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 	}
 	b.stateStoreCloser = stateStore
 	addressbook := addressbook.New(stateStore)
-	signer := crypto.NewDefaultSigner(swarmPrivateKey)
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
@@ -289,7 +286,10 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 
 	b.pullerCloser = puller
 
-	multiResolver := resolverSvc.InitMultiResolver(logger, o.ResolverConnectionCfgs)
+	multiResolver := multiresolver.NewMultiResolver(
+		multiresolver.WithConnectionConfigs(o.ResolverConnectionCfgs),
+		multiresolver.WithLogger(o.Logger),
+	)
 	b.resolverCloser = multiResolver
 
 	var apiService api.Service
