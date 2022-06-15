@@ -56,9 +56,6 @@ func TestConnect(t *testing.T) {
 				Address: overlay.String(),
 			}),
 		)
-		if testServer.P2PMock.ConnectNotifyCalls() != 1 {
-			t.Fatal("connect notify not called")
-		}
 	})
 
 	t.Run("error", func(t *testing.T) {

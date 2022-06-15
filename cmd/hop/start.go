@@ -157,6 +157,7 @@ Welcome to the Swarm....
 				PaymentThreshold:       c.config.GetUint64(optionNamePaymentThreshold),
 				PaymentTolerance:       c.config.GetUint64(optionNamePaymentTolerance),
 				ResolverConnectionCfgs: resolverCfgs,
+				GatewayMode:            c.config.GetBool(optionNameGatewayMode),
 			})
 			if err != nil {
 				return err

@@ -113,7 +113,7 @@ func main() {
 If datafile is not given, data will be read from standard in. In this case the --count flag must be set 
 to the length of the input.
 
-The application will expect to transmit the chunks to the hop HTTP API, unless the --no-http flag has been set.
+The application will expect to transmit the chunks to the hop HTTP API, unless the --no-http flag has hopn set.
 
 If --output-dir is set, the chunks will be saved to the file system, using the flag argument as destination directory. 
 Chunks are saved in individual files, and the file names will be the hex addresses of the chunks.`,

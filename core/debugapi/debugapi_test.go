@@ -9,13 +9,11 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 	accountingmock "github.com/redesblock/hop/core/accounting/mock"
-	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/logging"
 	p2pmock "github.com/redesblock/hop/core/p2p/mock"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/resolver"
-	resolverMock "github.com/redesblock/hop/core/resolver/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -60,26 +58,6 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	return &testServer{
 		Client:  client,
 		P2PMock: o.P2P,
-	}
-}
-
-func newHOPTestServer(t *testing.T, o testServerOptions) *http.Client {
-	if o.Resolver == nil {
-		o.Resolver = resolverMock.NewResolver()
-	}
-	s := api.New(o.Tags, o.Storer, o.Resolver, nil, logging.New(ioutil.Discard, 0), nil)
-	ts := httptest.NewServer(s)
-	t.Cleanup(ts.Close)
-
-	return &http.Client{
-		Transport: web.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
-			u, err := url.Parse(ts.URL + r.URL.String())
-			if err != nil {
-				return nil, err
-			}
-			r.URL = u
-			return ts.Client().Transport.RoundTrip(r)
-		}),
 	}
 }
 

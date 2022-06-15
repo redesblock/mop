@@ -10,7 +10,6 @@ import (
 
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/resolver"
 	resolverMock "github.com/redesblock/hop/core/resolver/mock"
 	"github.com/redesblock/hop/core/storage"
@@ -20,11 +19,11 @@ import (
 )
 
 type testServerOptions struct {
-	Pingpong pingpong.Interface
-	Storer   storage.Storer
-	Resolver resolver.Interface
-	Tags     *tags.Tags
-	Logger   logging.Logger
+	Storer      storage.Storer
+	Resolver    resolver.Interface
+	Tags        *tags.Tags
+	GatewayMode bool
+	Logger      logging.Logger
 }
 
 func newTestServer(t *testing.T, o testServerOptions) *http.Client {
@@ -34,7 +33,9 @@ func newTestServer(t *testing.T, o testServerOptions) *http.Client {
 	if o.Resolver == nil {
 		o.Resolver = resolverMock.NewResolver()
 	}
-	s := api.New(o.Tags, o.Storer, o.Resolver, nil, o.Logger, nil)
+	s := api.New(o.Tags, o.Storer, o.Resolver, o.Logger, nil, api.Options{
+		GatewayMode: o.GatewayMode,
+	})
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
@@ -111,7 +112,7 @@ func TestParseName(t *testing.T) {
 				}))
 		}
 
-		s := api.New(nil, nil, tC.res, nil, tC.log, nil).(*api.Server)
+		s := api.New(nil, nil, tC.res, tC.log, nil, api.Options{}).(*api.Server)
 
 		t.Run(tC.desc, func(t *testing.T) {
 			got, err := s.ResolveNameOrAddress(tC.name)
