@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethersphere/manifest/simple"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -102,8 +102,8 @@ func (m *simpleManifest) Store(ctx context.Context, mode storage.ModePut) (swarm
 		return swarm.ZeroAddress, fmt.Errorf("manifest marshal error: %w", err)
 	}
 
-	pipe := pipeline.NewPipelineBuilder(ctx, m.storer, mode, m.encrypted)
-	address, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(data), int64(len(data)))
+	pipe := builder.NewPipelineBuilder(ctx, m.storer, mode, m.encrypted)
+	address, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("manifest save error: %w", err)
 	}

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/file/seekjoiner"
 	test "github.com/redesblock/hop/core/file/testing"
 	"github.com/redesblock/hop/core/storage"
@@ -40,7 +40,7 @@ func testSplitThenJoin(t *testing.T) {
 		paramstring = strings.Split(t.Name(), "/")
 		dataIdx, _  = strconv.ParseInt(paramstring[1], 10, 0)
 		store       = mock.NewStorer()
-		p           = pipeline.NewPipelineBuilder(context.Background(), store, storage.ModePutUpload, false)
+		p           = builder.NewPipelineBuilder(context.Background(), store, storage.ModePutUpload, false)
 		j           = seekjoiner.NewSimpleJoiner(store)
 		data, _     = test.GetVector(t, int(dataIdx))
 	)
@@ -49,7 +49,7 @@ func testSplitThenJoin(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	dataReader := file.NewSimpleReadCloser(data)
-	resultAddress, err := pipeline.FeedPipeline(ctx, p, dataReader, int64(len(data)))
+	resultAddress, err := builder.FeedPipeline(ctx, p, dataReader, int64(len(data)))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/swarm"
@@ -31,8 +31,8 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Add the tag to the context
 	ctx := sctx.SetTag(r.Context(), tag)
 
-	pipe := pipeline.NewPipelineBuilder(ctx, s.Storer, requestModePut(r), requestEncrypt(r))
-	address, err := pipeline.FeedPipeline(ctx, pipe, r.Body, r.ContentLength)
+	pipe := builder.NewPipelineBuilder(ctx, s.Storer, requestModePut(r), requestEncrypt(r))
+	address, err := builder.FeedPipeline(ctx, pipe, r.Body, r.ContentLength)
 	if err != nil {
 		logger.Debugf("bytes upload: split write all: %v", err)
 		logger.Error("bytes upload: split write all")

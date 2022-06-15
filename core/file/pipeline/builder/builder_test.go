@@ -1,4 +1,4 @@
-package pipeline_test
+package builder_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	test "github.com/redesblock/hop/core/file/testing"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
@@ -16,7 +16,7 @@ import (
 
 func TestPartialWrites(t *testing.T) {
 	m := mock.NewStorer()
-	p := pipeline.NewPipelineBuilder(context.Background(), m, storage.ModePutUpload, false)
+	p := builder.NewPipelineBuilder(context.Background(), m, storage.ModePutUpload, false)
 	_, _ = p.Write([]byte("hello "))
 	_, _ = p.Write([]byte("world"))
 
@@ -32,7 +32,7 @@ func TestPartialWrites(t *testing.T) {
 
 func TestHelloWorld(t *testing.T) {
 	m := mock.NewStorer()
-	p := pipeline.NewPipelineBuilder(context.Background(), m, storage.ModePutUpload, false)
+	p := builder.NewPipelineBuilder(context.Background(), m, storage.ModePutUpload, false)
 
 	data := []byte("hello world")
 	_, err := p.Write(data)
@@ -55,7 +55,7 @@ func TestAllVectors(t *testing.T) {
 		data, expect := test.GetVector(t, i)
 		t.Run(fmt.Sprintf("data length %d, vector %d", len(data), i), func(t *testing.T) {
 			m := mock.NewStorer()
-			p := pipeline.NewPipelineBuilder(context.Background(), m, storage.ModePutUpload, false)
+			p := builder.NewPipelineBuilder(context.Background(), m, storage.ModePutUpload, false)
 
 			_, err := p.Write(data)
 			if err != nil {

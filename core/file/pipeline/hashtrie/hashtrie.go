@@ -1,9 +1,10 @@
-package pipeline
+package hashtrie
 
 import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -16,10 +17,10 @@ type hashTrieWriter struct {
 	fullChunk  int    // full chunk size in terms of the data represented in the buffer (span+refsize)
 	cursors    []int  // level cursors, key is level. level 0 is data level
 	buffer     []byte // keeps all level data
-	pipelineFn pipelineFunc
+	pipelineFn pipeline.PipelineFunc
 }
 
-func newHashTrieWriter(chunkSize, branching, refLen int, pipelineFn pipelineFunc) chainWriter {
+func NewHashTrieWriter(chunkSize, branching, refLen int, pipelineFn pipeline.PipelineFunc) pipeline.ChainWriter {
 	return &hashTrieWriter{
 		cursors:    make([]int, 9),
 		buffer:     make([]byte, swarm.ChunkWithSpanSize*9*2), // double size as temp workaround for weak calculation of needed buffer space
@@ -33,13 +34,13 @@ func newHashTrieWriter(chunkSize, branching, refLen int, pipelineFn pipelineFunc
 
 // accepts writes of hashes from the previous writer in the chain, by definition these writes
 // are on level 1
-func (h *hashTrieWriter) chainWrite(p *pipeWriteArgs) error {
+func (h *hashTrieWriter) ChainWrite(p *pipeline.PipeWriteArgs) error {
 	oneRef := h.refSize + swarm.SpanSize
-	l := len(p.span) + len(p.ref) + len(p.key)
+	l := len(p.Span) + len(p.Ref) + len(p.Key)
 	if l%oneRef != 0 {
 		return errInconsistentRefs
 	}
-	return h.writeToLevel(1, p.span, p.ref, p.key)
+	return h.writeToLevel(1, p.Span, p.Ref, p.Key)
 }
 
 func (h *hashTrieWriter) writeToLevel(level int, span, ref, key []byte) error {
@@ -84,15 +85,15 @@ func (h *hashTrieWriter) wrapFullLevel(level int) error {
 	binary.LittleEndian.PutUint64(spb, sp)
 	hashes = append(spb, hashes...)
 	writer := h.pipelineFn()
-	args := pipeWriteArgs{
-		data: hashes,
-		span: spb,
+	args := pipeline.PipeWriteArgs{
+		Data: hashes,
+		Span: spb,
 	}
-	err := writer.chainWrite(&args)
+	err := writer.ChainWrite(&args)
 	if err != nil {
 		return err
 	}
-	err = h.writeToLevel(level+1, args.span, args.ref, args.key)
+	err = h.writeToLevel(level+1, args.Span, args.Ref, args.Key)
 	if err != nil {
 		return err
 	}
@@ -153,12 +154,12 @@ func (h *hashTrieWriter) hoistLevels(target int) ([]byte, error) {
 	binary.LittleEndian.PutUint64(spb, sp)
 	hashes = append(spb, hashes...)
 	writer := h.pipelineFn()
-	args := pipeWriteArgs{
-		data: hashes,
-		span: spb,
+	args := pipeline.PipeWriteArgs{
+		Data: hashes,
+		Span: spb,
 	}
-	err := writer.chainWrite(&args)
-	ref := append(args.ref, args.key...)
+	err := writer.ChainWrite(&args)
+	ref := append(args.Ref, args.Key...)
 	return ref, err
 }
 
@@ -169,7 +170,7 @@ func (h *hashTrieWriter) levelSize(level int) int {
 	return h.cursors[level] - h.cursors[level+1]
 }
 
-func (h *hashTrieWriter) sum() ([]byte, error) {
+func (h *hashTrieWriter) Sum() ([]byte, error) {
 	// look from the top down, to look for the highest hash of a balanced tree
 	// then, whatever is in the levels below that is necessarily unbalanced,
 	// so, we'd like to reduce those levels to one hash, then wrap it together

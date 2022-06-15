@@ -9,6 +9,7 @@ import (
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/settlement"
+	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -22,33 +23,37 @@ type Service interface {
 }
 
 type server struct {
-	Overlay        swarm.Address
-	P2P            p2p.DebugService
-	Pingpong       pingpong.Interface
-	TopologyDriver topology.Driver
-	Storer         storage.Storer
-	Logger         logging.Logger
-	Tracer         *tracing.Tracer
-	Tags           *tags.Tags
-	Accounting     accounting.Interface
-	Settlement     settlement.Interface
+	Overlay           swarm.Address
+	P2P               p2p.DebugService
+	Pingpong          pingpong.Interface
+	TopologyDriver    topology.Driver
+	Storer            storage.Storer
+	Logger            logging.Logger
+	Tracer            *tracing.Tracer
+	Tags              *tags.Tags
+	Accounting        accounting.Interface
+	Settlement        settlement.Interface
+	ChequebookEnabled bool
+	Chequebook        chequebook.Service
 	http.Handler
 	metricsRegistry *prometheus.Registry
 }
 
-func New(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, logger logging.Logger, tracer *tracing.Tracer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface) Service {
+func New(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, logger logging.Logger, tracer *tracing.Tracer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface, chequebookEnabled bool, chequebook chequebook.Service) Service {
 	s := &server{
-		Overlay:         overlay,
-		P2P:             p2p,
-		Pingpong:        pingpong,
-		TopologyDriver:  topologyDriver,
-		Storer:          storer,
-		Logger:          logger,
-		Tracer:          tracer,
-		Tags:            tags,
-		Accounting:      accounting,
-		Settlement:      settlement,
-		metricsRegistry: newMetricsRegistry(),
+		Overlay:           overlay,
+		P2P:               p2p,
+		Pingpong:          pingpong,
+		TopologyDriver:    topologyDriver,
+		Storer:            storer,
+		Logger:            logger,
+		Tracer:            tracer,
+		Tags:              tags,
+		Accounting:        accounting,
+		Settlement:        settlement,
+		metricsRegistry:   newMetricsRegistry(),
+		ChequebookEnabled: chequebookEnabled,
+		Chequebook:        chequebook,
 	}
 
 	s.setupRouting()

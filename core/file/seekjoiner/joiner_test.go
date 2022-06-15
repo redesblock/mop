@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/encryption/store"
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/file/seekjoiner"
 	joiner "github.com/redesblock/hop/core/file/seekjoiner"
 	filetest "github.com/redesblock/hop/core/file/testing"
@@ -187,9 +187,9 @@ func TestEncryptDecrypt(t *testing.T) {
 				t.Fatal(err)
 			}
 			ctx := context.Background()
-			pipe := pipeline.NewPipelineBuilder(ctx, store, storage.ModePutUpload, true)
+			pipe := builder.NewPipelineBuilder(ctx, store, storage.ModePutUpload, true)
 			testDataReader := bytes.NewReader(testData)
-			resultAddress, err := pipeline.FeedPipeline(ctx, pipe, testDataReader, int64(len(testData)))
+			resultAddress, err := builder.FeedPipeline(ctx, pipe, testDataReader, int64(len(testData)))
 			if err != nil {
 				t.Fatal(err)
 			}

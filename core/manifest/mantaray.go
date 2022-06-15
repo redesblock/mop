@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethersphere/manifest/mantaray"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/file/seekjoiner"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -161,8 +161,8 @@ func (ls *mantarayLoadSaver) Load(ref []byte) ([]byte, error) {
 func (ls *mantarayLoadSaver) Save(data []byte) ([]byte, error) {
 	ctx := ls.ctx
 
-	pipe := pipeline.NewPipelineBuilder(ctx, ls.storer, ls.modePut, ls.encrypted)
-	address, err := pipeline.FeedPipeline(ctx, pipe, bytes.NewReader(data), int64(len(data)))
+	pipe := builder.NewPipelineBuilder(ctx, ls.storer, ls.modePut, ls.encrypted)
+	address, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data), int64(len(data)))
 
 	if err != nil {
 		return swarm.ZeroAddress.Bytes(), err

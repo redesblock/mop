@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/collection/entry"
-	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
@@ -39,8 +39,8 @@ func TestHop(t *testing.T) {
 			Logger: logging.New(ioutil.Discard, 5),
 		})
 		pipeWriteAll = func(r io.Reader, l int64) (swarm.Address, error) {
-			pipe := pipeline.NewPipelineBuilder(ctx, storer, storage.ModePutUpload, false)
-			return pipeline.FeedPipeline(ctx, pipe, r, l)
+			pipe := builder.NewPipelineBuilder(ctx, storer, storage.ModePutUpload, false)
+			return builder.FeedPipeline(ctx, pipe, r, l)
 		}
 	)
 	t.Run("download-file-by-path", func(t *testing.T) {

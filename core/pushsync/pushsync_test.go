@@ -3,10 +3,11 @@ package pushsync_test
 import (
 	"bytes"
 	"context"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io/ioutil"
 	"testing"
 	"time"
+
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/accounting"
 	accountingmock "github.com/redesblock/hop/core/accounting/mock"
@@ -289,7 +290,7 @@ func createPushSyncNode(t *testing.T, addr swarm.Address, recorder *streamtest.R
 	mockAccounting := accountingmock.NewAccounting()
 	mockPricer := accountingmock.NewPricer(fixedPrice, fixedPrice)
 
-	return pushsync.New(recorder, storer, mockTopology, mtag, pssDeliver, logger, mockAccounting, mockPricer), storer, mtag, mockAccounting
+	return pushsync.New(recorder, storer, mockTopology, mtag, pssDeliver, logger, mockAccounting, mockPricer, nil), storer, mtag, mockAccounting
 }
 
 func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.Recorder, add swarm.Address, data []byte) {

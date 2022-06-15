@@ -1,8 +1,9 @@
-package pipeline
+package feeder
 
 import (
 	"encoding/binary"
 
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -10,7 +11,7 @@ const span = swarm.SpanSize
 
 type chunkFeeder struct {
 	size      int
-	next      chainWriter
+	next      pipeline.ChainWriter
 	buffer    []byte
 	bufferIdx int
 }
@@ -18,7 +19,7 @@ type chunkFeeder struct {
 // newChunkFeederWriter creates a new chunkFeeder that allows for partial
 // writes into the pipeline. Any pending data in the buffer is flushed to
 // subsequent writers when Sum() is called.
-func newChunkFeederWriter(size int, next chainWriter) Interface {
+func NewChunkFeederWriter(size int, next pipeline.ChainWriter) pipeline.Interface {
 	return &chunkFeeder{
 		size:   size,
 		next:   next,
@@ -69,8 +70,8 @@ func (f *chunkFeeder) Write(b []byte) (int, error) {
 		sp += n
 
 		binary.LittleEndian.PutUint64(d[:span], uint64(sp))
-		args := &pipeWriteArgs{data: d[:span+sp], span: d[:span]}
-		err := f.next.chainWrite(args)
+		args := &pipeline.PipeWriteArgs{Data: d[:span+sp], Span: d[:span]}
+		err := f.next.ChainWrite(args)
 		if err != nil {
 			return 0, err
 		}
@@ -90,12 +91,12 @@ func (f *chunkFeeder) Sum() ([]byte, error) {
 		d := make([]byte, f.bufferIdx+span)
 		copy(d[span:], f.buffer[:f.bufferIdx])
 		binary.LittleEndian.PutUint64(d[:span], uint64(f.bufferIdx))
-		args := &pipeWriteArgs{data: d, span: d[:span]}
-		err := f.next.chainWrite(args)
+		args := &pipeline.PipeWriteArgs{Data: d, Span: d[:span]}
+		err := f.next.ChainWrite(args)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return f.next.sum()
+	return f.next.Sum()
 }

@@ -1,12 +1,16 @@
-package pipeline
+package feeder_test
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"testing"
+
+	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/feeder"
 )
 
+// TestFeeder tests that partial writes work correctly.
 func TestFeeder(t *testing.T) {
 	var (
 		chunkSize = 5
@@ -67,9 +71,9 @@ func TestFeeder(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var results pipeWriteArgs
+			var results pipeline.PipeWriteArgs
 			rr := newMockResultWriter(&results)
-			cf := newChunkFeederWriter(chunkSize, rr)
+			cf := feeder.NewChunkFeederWriter(chunkSize, rr)
 			i := 0
 			for _, v := range tc.dataSize {
 				d := data[i : i+v]
@@ -83,7 +87,7 @@ func TestFeeder(t *testing.T) {
 				i += v
 			}
 
-			if tc.expWrites == 0 && results.data != nil {
+			if tc.expWrites == 0 && results.Data != nil {
 				t.Fatal("expected no write but got one")
 			}
 
@@ -91,12 +95,12 @@ func TestFeeder(t *testing.T) {
 				t.Fatalf("expected %d writes but got %d", tc.expWrites, rr.count)
 			}
 
-			if results.data != nil && !bytes.Equal(tc.writeData, results.data[8:]) {
-				t.Fatalf("expected write data %v but got %v", tc.writeData, results.data[8:])
+			if results.Data != nil && !bytes.Equal(tc.writeData, results.Data[8:]) {
+				t.Fatalf("expected write data %v but got %v", tc.writeData, results.Data[8:])
 			}
 
 			if tc.span > 0 {
-				v := binary.LittleEndian.Uint64(results.data[:8])
+				v := binary.LittleEndian.Uint64(results.Data[:8])
 				if v != tc.span {
 					t.Fatalf("span mismatch, got %d want %d", v, tc.span)
 				}
@@ -106,7 +110,7 @@ func TestFeeder(t *testing.T) {
 }
 
 // TestFeederFlush tests that the feeder flushes the data in the buffer correctly
-// when Summing
+// on Sum().
 func TestFeederFlush(t *testing.T) {
 	var (
 		chunkSize = 5
@@ -168,9 +172,9 @@ func TestFeederFlush(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var results pipeWriteArgs
+			var results pipeline.PipeWriteArgs
 			rr := newMockResultWriter(&results)
-			cf := newChunkFeederWriter(chunkSize, rr)
+			cf := feeder.NewChunkFeederWriter(chunkSize, rr)
 			i := 0
 			for _, v := range tc.dataSize {
 				d := data[i : i+v]
@@ -186,7 +190,7 @@ func TestFeederFlush(t *testing.T) {
 
 			_, _ = cf.Sum()
 
-			if tc.expWrites == 0 && results.data != nil {
+			if tc.expWrites == 0 && results.Data != nil {
 				t.Fatal("expected no write but got one")
 			}
 
@@ -194,12 +198,12 @@ func TestFeederFlush(t *testing.T) {
 				t.Fatalf("expected %d writes but got %d", tc.expWrites, rr.count)
 			}
 
-			if results.data != nil && !bytes.Equal(tc.writeData, results.data[8:]) {
-				t.Fatalf("expected write data %v but got %v", tc.writeData, results.data[8:])
+			if results.Data != nil && !bytes.Equal(tc.writeData, results.Data[8:]) {
+				t.Fatalf("expected write data %v but got %v", tc.writeData, results.Data[8:])
 			}
 
 			if tc.span > 0 {
-				v := binary.LittleEndian.Uint64(results.data[:8])
+				v := binary.LittleEndian.Uint64(results.Data[:8])
 				if v != tc.span {
 					t.Fatalf("span mismatch, got %d want %d", v, tc.span)
 				}
@@ -212,20 +216,20 @@ func TestFeederFlush(t *testing.T) {
 // and passes the results to the caller using the pointer provided
 // in the constructor.
 type countingResultWriter struct {
-	target *pipeWriteArgs
+	target *pipeline.PipeWriteArgs
 	count  int
 }
 
-func newMockResultWriter(b *pipeWriteArgs) *countingResultWriter {
+func newMockResultWriter(b *pipeline.PipeWriteArgs) *countingResultWriter {
 	return &countingResultWriter{target: b}
 }
 
-func (w *countingResultWriter) chainWrite(p *pipeWriteArgs) error {
+func (w *countingResultWriter) ChainWrite(p *pipeline.PipeWriteArgs) error {
 	w.count++
 	*w.target = *p
 	return nil
 }
 
-func (w *countingResultWriter) sum() ([]byte, error) {
+func (w *countingResultWriter) Sum() ([]byte, error) {
 	return nil, errors.New("not implemented")
 }

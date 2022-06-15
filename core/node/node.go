@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/addressbook"
@@ -36,6 +39,7 @@ import (
 	"github.com/redesblock/hop/core/resolver/multiresolver"
 	"github.com/redesblock/hop/core/retrieval"
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
+	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
@@ -90,6 +94,10 @@ type Options struct {
 	PaymentTolerance       uint64
 	ResolverConnectionCfgs []multiresolver.ConnectionConfig
 	GatewayMode            bool
+	SwapEndpoint           string
+	SwapFactoryAddress     string
+	SwapInitialDeposit     uint64
+	SwapEnable             bool
 }
 
 func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, signer crypto.Signer, networkID uint64, logger logging.Logger, o Options) (*Node, error) {
@@ -133,6 +141,63 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 	}
 	b.stateStoreCloser = stateStore
 	addressbook := addressbook.New(stateStore)
+
+	var chequebookService chequebook.Service
+
+	if o.SwapEnable {
+		swapBackend, err := ethclient.Dial(o.SwapEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		transactionService, err := chequebook.NewTransactionService(logger, swapBackend, signer)
+		if err != nil {
+			return nil, err
+		}
+		overlayEthAddress, err := signer.EthereumAddress()
+		if err != nil {
+			return nil, err
+		}
+
+		// print ethereum address so users know which address we need to fund
+		logger.Infof("using ethereum address %x", overlayEthAddress)
+
+		chainId, err := swapBackend.ChainID(p2pCtx)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: factory address discovery for well-known networks (goerli for beta)
+
+		if o.SwapFactoryAddress == "" {
+			return nil, errors.New("no known factory address")
+		} else if !common.IsHexAddress(o.SwapFactoryAddress) {
+			return nil, errors.New("invalid factory address")
+		}
+
+		chequebookFactory, err := chequebook.NewFactory(swapBackend, transactionService, common.HexToAddress(o.SwapFactoryAddress), chequebook.NewSimpleSwapFactoryBindingFunc)
+		if err != nil {
+			return nil, err
+		}
+
+		chequeSigner := chequebook.NewChequeSigner(signer, chainId.Int64())
+
+		// initialize chequebook logic
+		// return value is ignored because we don't do anything yet after initialization. this will be passed into swap settlement.
+		chequebookService, err = chequebook.Init(p2pCtx,
+			chequebookFactory,
+			stateStore,
+			logger,
+			o.SwapInitialDeposit,
+			transactionService,
+			swapBackend,
+			overlayEthAddress,
+			chequeSigner,
+			chequebook.NewSimpleSwapBindings,
+			chequebook.NewERC20Bindings)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
@@ -237,7 +302,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 
 	chunkvalidator := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
 
-	retrieve := retrieval.New(p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), chunkvalidator)
+	retrieve := retrieval.New(swarmAddress, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), chunkvalidator, tracer)
 	tagg := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagg
 
@@ -259,7 +324,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 	}
 	retrieve.SetStorer(ns)
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10))
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
 	// set the pushSyncer in the PSS
 	psss.SetPushSyncer(pushSyncProtocol)
@@ -329,7 +394,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 
 	if o.DebugAPIAddr != "" {
 		// Debug API server
-		debugAPIService := debugapi.New(swarmAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement)
+		debugAPIService := debugapi.New(swarmAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement, o.SwapEnable, chequebookService)
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)

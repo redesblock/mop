@@ -15,6 +15,7 @@ import (
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/resolver"
 	settlementmock "github.com/redesblock/hop/core/settlement/pseudosettle/mock"
+	chequebookmock "github.com/redesblock/hop/core/settlement/swap/chequebook/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -32,6 +33,7 @@ type testServerOptions struct {
 	Tags           *tags.Tags
 	AccountingOpts []accountingmock.Option
 	SettlementOpts []settlementmock.Option
+	ChequebookOpts []chequebookmock.Option
 }
 
 type testServer struct {
@@ -43,8 +45,8 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	topologyDriver := topologymock.NewTopologyDriver(o.TopologyOpts...)
 	acc := accountingmock.NewAccounting(o.AccountingOpts...)
 	settlement := settlementmock.NewSettlement(o.SettlementOpts...)
-
-	s := debugapi.New(o.Overlay, o.P2P, o.Pingpong, topologyDriver, o.Storer, logging.New(ioutil.Discard, 0), nil, o.Tags, acc, settlement)
+	chequebook := chequebookmock.NewChequebook(o.ChequebookOpts...)
+	s := debugapi.New(o.Overlay, o.P2P, o.Pingpong, topologyDriver, o.Storer, logging.New(ioutil.Discard, 0), nil, o.Tags, acc, settlement, true, chequebook)
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
