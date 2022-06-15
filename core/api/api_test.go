@@ -7,9 +7,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/resolver"
 	resolverMock "github.com/redesblock/hop/core/resolver/mock"
 	"github.com/redesblock/hop/core/storage"
@@ -19,36 +22,57 @@ import (
 )
 
 type testServerOptions struct {
-	Storer      storage.Storer
-	Resolver    resolver.Interface
-	Tags        *tags.Tags
-	GatewayMode bool
-	Logger      logging.Logger
+	Storer       storage.Storer
+	Resolver     resolver.Interface
+	Pss          pss.Interface
+	WsPath       string
+	Tags         *tags.Tags
+	GatewayMode  bool
+	WsPingPeriod time.Duration
+	Logger       logging.Logger
 }
 
-func newTestServer(t *testing.T, o testServerOptions) *http.Client {
+func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
 	if o.Logger == nil {
 		o.Logger = logging.New(ioutil.Discard, 0)
 	}
 	if o.Resolver == nil {
 		o.Resolver = resolverMock.NewResolver()
 	}
-	s := api.New(o.Tags, o.Storer, o.Resolver, o.Logger, nil, api.Options{
-		GatewayMode: o.GatewayMode,
+	if o.WsPingPeriod == 0 {
+		o.WsPingPeriod = 60 * time.Second
+	}
+	s := api.New(o.Tags, o.Storer, o.Resolver, o.Pss, o.Logger, nil, api.Options{
+		GatewayMode:  o.GatewayMode,
+		WsPingPeriod: o.WsPingPeriod,
 	})
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
-	return &http.Client{
-		Transport: web.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
-			u, err := url.Parse(ts.URL + r.URL.String())
-			if err != nil {
-				return nil, err
-			}
-			r.URL = u
-			return ts.Client().Transport.RoundTrip(r)
-		}),
+	var (
+		httpClient = &http.Client{
+			Transport: web.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				u, err := url.Parse(ts.URL + r.URL.String())
+				if err != nil {
+					return nil, err
+				}
+				r.URL = u
+				return ts.Client().Transport.RoundTrip(r)
+			}),
+		}
+		conn *websocket.Conn
+		err  error
+	)
+
+	if o.WsPath != "" {
+		u := url.URL{Scheme: "ws", Host: ts.Listener.Addr().String(), Path: o.WsPath}
+		conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+		if err != nil {
+			t.Fatalf("dial: %v. url %v", err, u.String())
+		}
+
 	}
+	return httpClient, conn, ts.Listener.Addr().String()
 }
 
 func TestParseName(t *testing.T) {
@@ -112,7 +136,7 @@ func TestParseName(t *testing.T) {
 				}))
 		}
 
-		s := api.New(nil, nil, tC.res, tC.log, nil, api.Options{}).(*api.Server)
+		s := api.New(nil, nil, tC.res, nil, tC.log, nil, api.Options{}).(*api.Server)
 
 		t.Run(tC.desc, func(t *testing.T) {
 			got, err := s.ResolveNameOrAddress(tC.name)

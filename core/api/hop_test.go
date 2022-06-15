@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
 	"strings"
 	"testing"
+
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file/pipeline"
@@ -32,7 +33,7 @@ func TestHop(t *testing.T) {
 		ctx                 = context.Background()
 		mockStatestore      = statestore.NewStateStore()
 		logger              = logging.New(ioutil.Discard, 0)
-		client              = newTestServer(t, testServerOptions{
+		client, _, _        = newTestServer(t, testServerOptions{
 			Storer: storer,
 			Tags:   tags.NewTags(mockStatestore, logger),
 			Logger: logging.New(ioutil.Discard, 5),

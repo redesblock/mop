@@ -1,9 +1,11 @@
 package debugapi
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -11,6 +13,7 @@ import (
 var (
 	errCantBalances  = "Cannot get balances"
 	errCantBalance   = "Cannot get balance"
+	errNoBalance     = "No balance for peer"
 	errInvaliAddress = "Invalid address"
 )
 
@@ -57,6 +60,10 @@ func (s *server) peerBalanceHandler(w http.ResponseWriter, r *http.Request) {
 
 	balance, err := s.Accounting.Balance(peer)
 	if err != nil {
+		if errors.Is(err, accounting.ErrPeerNoBalance) {
+			jsonhttp.NotFound(w, errNoBalance)
+			return
+		}
 		s.Logger.Debugf("debug api: balances peer: get peer %s balance: %v", peer.String(), err)
 		s.Logger.Errorf("debug api: balances peer: can't get peer %s balance", peer.String())
 		jsonhttp.InternalServerError(w, errCantBalance)

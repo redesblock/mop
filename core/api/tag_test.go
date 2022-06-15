@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/redesblock/hop/core/logging"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/redesblock/hop/core/logging"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -42,7 +43,7 @@ func TestTags(t *testing.T) {
 		logger             = logging.New(ioutil.Discard, 0)
 		tag                = tags.NewTags(mockStatestore, logger)
 		mockPusher         = mp.NewMockPusher(tag)
-		client             = newTestServer(t, testServerOptions{
+		client, _, _       = newTestServer(t, testServerOptions{
 			Storer: mock.NewStorer(),
 			Tags:   tag,
 		})

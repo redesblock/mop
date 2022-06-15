@@ -2,12 +2,13 @@ package api_test
 
 import (
 	"bytes"
-	"github.com/redesblock/hop/core/logging"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/redesblock/hop/core/logging"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/tags"
 
@@ -37,7 +38,7 @@ func TestChunkUploadDownload(t *testing.T) {
 		logger               = logging.New(ioutil.Discard, 0)
 		tag                  = tags.NewTags(mockStatestore, logger)
 		mockValidatingStorer = mock.NewStorer(mock.WithValidator(mockValidator))
-		client               = newTestServer(t, testServerOptions{
+		client, _, _         = newTestServer(t, testServerOptions{
 			Storer: mockValidatingStorer,
 			Tags:   tag,
 		})

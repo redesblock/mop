@@ -17,6 +17,7 @@ type (
 var (
 	ErrCantBalance         = errCantBalance
 	ErrCantBalances        = errCantBalances
+	ErrNoBalance           = errNoBalance
 	ErrCantSettlementsPeer = errCantSettlementsPeer
 	ErrCantSettlements     = errCantSettlements
 	ErrInvaliAddress       = errInvaliAddress

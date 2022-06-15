@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/accounting/mock"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -102,6 +103,23 @@ func TestBalancesPeersError(t *testing.T) {
 		jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 			Message: debugapi.ErrCantBalance,
 			Code:    http.StatusInternalServerError,
+		}),
+	)
+}
+
+func TestBalancesPeersNoBalance(t *testing.T) {
+	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
+	balanceFunc := func(swarm.Address) (int64, error) {
+		return 0, accounting.ErrPeerNoBalance
+	}
+	testServer := newTestServer(t, testServerOptions{
+		AccountingOpts: []mock.Option{mock.WithBalanceFunc(balanceFunc)},
+	})
+
+	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/balances/"+peer, http.StatusNotFound,
+		jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+			Message: debugapi.ErrNoBalance,
+			Code:    http.StatusNotFound,
 		}),
 	)
 }

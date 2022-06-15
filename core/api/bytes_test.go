@@ -2,10 +2,11 @@ package api_test
 
 import (
 	"bytes"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -27,7 +28,7 @@ func TestBytes(t *testing.T) {
 		mockStorer     = mock.NewStorer()
 		mockStatestore = statestore.NewStateStore()
 		logger         = logging.New(ioutil.Discard, 0)
-		client         = newTestServer(t, testServerOptions{
+		client, _, _   = newTestServer(t, testServerOptions{
 			Storer: mockStorer,
 			Tags:   tags.NewTags(mockStatestore, logger),
 			Logger: logging.New(ioutil.Discard, 5),

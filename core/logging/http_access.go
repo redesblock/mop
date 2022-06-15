@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"bufio"
 	"net"
 	"net/http"
 	"time"
@@ -83,6 +84,10 @@ func (l *responseLogger) Header() http.Header {
 
 func (l *responseLogger) Flush() {
 	l.w.(http.Flusher).Flush()
+}
+
+func (l *responseLogger) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return l.w.(http.Hijacker).Hijack()
 }
 
 func (l *responseLogger) CloseNotify() <-chan bool {
