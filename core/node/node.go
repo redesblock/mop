@@ -134,7 +134,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 	addressbook := addressbook.New(stateStore)
 	signer := crypto.NewDefaultSigner(swarmPrivateKey)
 
-	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, logger, tracer, libp2p.Options{
+	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
@@ -216,10 +216,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 	}
 	b.localstoreCloser = storer
 
-	settlement := pseudosettle.New(pseudosettle.Options{
-		Streamer: p2ps,
-		Logger:   logger,
-	})
+	settlement := pseudosettle.New(p2ps, logger, stateStore)
 
 	if err = p2ps.AddProtocol(settlement.Protocol()); err != nil {
 		return nil, fmt.Errorf("pseudosettle service: %w", err)
@@ -326,7 +323,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, swa
 
 	if o.DebugAPIAddr != "" {
 		// Debug API server
-		debugAPIService := debugapi.New(swarmAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc)
+		debugAPIService := debugapi.New(swarmAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement)
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)

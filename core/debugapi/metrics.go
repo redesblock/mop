@@ -17,7 +17,7 @@ func newMetricsRegistry() (r *prometheus.Registry) {
 		prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   metrics.Namespace,
 			Name:        "info",
-			Help:        "Node information.",
+			Help:        "Hop information.",
 			ConstLabels: prometheus.Labels{},
 		}),
 	)

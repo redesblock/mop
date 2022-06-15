@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	autonat "github.com/libp2p/go-libp2p-autonat-svc"
@@ -27,8 +28,10 @@ import (
 	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/p2p/libp2p/internal/blocklist"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/breaker"
 	handshake "github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/tracing"
@@ -51,6 +54,7 @@ type Service struct {
 	peers             *peerRegistry
 	topologyNotifiers []topology.Notifier
 	connectionBreaker breaker.Interface
+	blocklist         *blocklist.Blocklist
 	logger            logging.Logger
 	tracer            *tracing.Tracer
 }
@@ -65,7 +69,7 @@ type Options struct {
 	WelcomeMessage string
 }
 
-func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string, ab addressbook.Putter, logger logging.Logger, tracer *tracing.Tracer, o Options) (*Service, error) {
+func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string, ab addressbook.Putter, storer storage.StateStorer, logger logging.Logger, tracer *tracing.Tracer, o Options) (*Service, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("address: %w", err)
@@ -195,6 +199,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		networkID:         networkID,
 		peers:             peerRegistry,
 		addressbook:       ab,
+		blocklist:         blocklist.NewBlocklist(storer),
 		logger:            logger,
 		tracer:            tracer,
 		connectionBreaker: breaker.NewBreaker(breaker.Options{}), // use default options
@@ -219,6 +224,20 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			return
 		}
 
+		blocked, err := s.blocklist.Exists(i.HopAddress.Overlay)
+		if err != nil {
+			s.logger.Debugf("blocklisting: exists %s: %v", peerID, err)
+			s.logger.Errorf("internal error while connecting with peer %s", peerID)
+			_ = s.disconnect(peerID)
+			return
+		}
+
+		if blocked {
+			s.logger.Errorf("blocked connection from blocklisted peer %s", peerID)
+			_ = s.disconnect(peerID)
+			return
+		}
+
 		if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
 			if err = handshakeStream.FullClose(); err != nil {
 				s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
@@ -232,6 +251,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			s.logger.Debugf("handshake: could not close stream %s: %v", peerID, err)
 			s.logger.Errorf("unable to handshake with peer %v", peerID)
 			_ = s.disconnect(peerID)
+			return
 		}
 
 		err = s.addressbook.Put(i.HopAddress.Overlay, *i.HopAddress)
@@ -307,8 +327,20 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 
 			s.metrics.HandledStreamCount.Inc()
 			if err := ss.Handler(ctx, p2p.Peer{Address: overlay}, stream); err != nil {
-				var e *p2p.DisconnectError
-				if errors.As(err, &e) {
+				var de *p2p.DisconnectError
+				if errors.As(err, &de) {
+					_ = s.Disconnect(overlay)
+				}
+
+				var bpe *p2p.BlockPeerError
+				if errors.As(err, &bpe) {
+					if err := s.blocklist.Add(overlay, bpe.Duration()); err != nil {
+						s.logger.Debugf("blocklist: could blocklist peer %s: %v", peerID, err)
+						s.logger.Errorf("unable to blocklist peer %v", peerID)
+						_ = s.Disconnect(overlay)
+					}
+
+					s.logger.Trace("blocklisted a peer %s", peerID)
 					_ = s.Disconnect(overlay)
 				}
 
@@ -335,6 +367,17 @@ func (s *Service) Addresses() (addreses []ma.Multiaddr, err error) {
 
 func (s *Service) NATManager() basichost.NATManager {
 	return s.natManager
+}
+
+func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration) error {
+	if err := s.blocklist.Add(overlay, duration); err != nil {
+		s.logger.Debugf("blocklist: blocklist peer %s: %v", overlay, err)
+		_ = s.Disconnect(overlay)
+		return err
+	}
+
+	_ = s.Disconnect(overlay)
+	return nil
 }
 
 func buildUnderlayAddress(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr, error) {
@@ -377,6 +420,20 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 		_ = handshakeStream.Reset()
 		_ = s.disconnect(info.ID)
 		return nil, fmt.Errorf("handshake: %w", err)
+	}
+
+	blocked, err := s.blocklist.Exists(i.HopAddress.Overlay)
+	if err != nil {
+		s.logger.Debugf("blocklisting: exists %s: %v", info.ID, err)
+		s.logger.Errorf("internal error while connecting with peer %s", info.ID)
+		_ = s.disconnect(info.ID)
+		return nil, fmt.Errorf("peer blocklisted")
+	}
+
+	if blocked {
+		s.logger.Errorf("blocked connection from blocklisted peer %s", info.ID)
+		_ = s.disconnect(info.ID)
+		return nil, fmt.Errorf("peer blocklisted")
 	}
 
 	if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {

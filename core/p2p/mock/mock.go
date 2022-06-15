@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"errors"
+	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/hop"
@@ -21,6 +22,7 @@ type Service struct {
 	addressesFunc         func() ([]ma.Multiaddr, error)
 	setWelcomeMessageFunc func(string) error
 	getWelcomeMessageFunc func() string
+	blocklistFunc         func(swarm.Address, time.Duration) error
 	welcomeMessage        string
 }
 
@@ -77,6 +79,12 @@ func WithGetWelcomeMessageFunc(f func() string) Option {
 func WithSetWelcomeMessageFunc(f func(string) error) Option {
 	return optionFunc(func(s *Service) {
 		s.setWelcomeMessageFunc = f
+	})
+}
+
+func WithBlocklistFunc(f func(swarm.Address, time.Duration) error) Option {
+	return optionFunc(func(s *Service) {
+		s.blocklistFunc = f
 	})
 }
 
@@ -145,6 +153,13 @@ func (s *Service) GetWelcomeMessage() string {
 		return s.getWelcomeMessageFunc()
 	}
 	return s.welcomeMessage
+}
+
+func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration) error {
+	if s.blocklistFunc == nil {
+		return errors.New("function blocklist not configured")
+	}
+	return s.blocklistFunc(overlay, duration)
 }
 
 type Option interface {

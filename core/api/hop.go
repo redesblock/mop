@@ -15,9 +15,11 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
+	"github.com/redesblock/hop/core/tracing"
 )
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	logger := tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
 	targets := r.URL.Query().Get("targets")
 	r = r.WithContext(sctx.SetTargets(r.Context(), targets))
 	ctx := r.Context()
@@ -27,8 +29,8 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	address, err := s.resolveNameOrAddress(nameOrHex)
 	if err != nil {
-		s.Logger.Debugf("hop download: parse address %s: %v", nameOrHex, err)
-		s.Logger.Error("hop download: parse address")
+		logger.Debugf("hop download: parse address %s: %v", nameOrHex, err)
+		logger.Error("hop download: parse address")
 		jsonhttp.BadRequest(w, "invalid address")
 		return
 	}
@@ -41,16 +43,16 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	buf := bytes.NewBuffer(nil)
 	_, err = file.JoinReadAll(ctx, j, address, buf)
 	if err != nil {
-		s.Logger.Debugf("hop download: read entry %s: %v", address, err)
-		s.Logger.Errorf("hop download: read entry %s", address)
+		logger.Debugf("hop download: read entry %s: %v", address, err)
+		logger.Errorf("hop download: read entry %s", address)
 		jsonhttp.NotFound(w, nil)
 		return
 	}
 	e := &entry.Entry{}
 	err = e.UnmarshalBinary(buf.Bytes())
 	if err != nil {
-		s.Logger.Debugf("hop download: unmarshal entry %s: %v", address, err)
-		s.Logger.Errorf("hop download: unmarshal entry %s", address)
+		logger.Debugf("hop download: unmarshal entry %s: %v", address, err)
+		logger.Errorf("hop download: unmarshal entry %s", address)
 		jsonhttp.InternalServerError(w, "error unmarshaling entry")
 		return
 	}
@@ -59,16 +61,16 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	buf = bytes.NewBuffer(nil)
 	_, err = file.JoinReadAll(ctx, j, e.Metadata(), buf)
 	if err != nil {
-		s.Logger.Debugf("hop download: read metadata %s: %v", address, err)
-		s.Logger.Errorf("hop download: read metadata %s", address)
+		logger.Debugf("hop download: read metadata %s: %v", address, err)
+		logger.Errorf("hop download: read metadata %s", address)
 		jsonhttp.NotFound(w, nil)
 		return
 	}
 	manifestMetadata := &entry.Metadata{}
 	err = json.Unmarshal(buf.Bytes(), manifestMetadata)
 	if err != nil {
-		s.Logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
-		s.Logger.Errorf("hop download: unmarshal metadata %s", address)
+		logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
+		logger.Errorf("hop download: unmarshal metadata %s", address)
 		jsonhttp.InternalServerError(w, "error unmarshaling metadata")
 		return
 	}
@@ -82,16 +84,16 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		s.Storer,
 	)
 	if err != nil {
-		s.Logger.Debugf("hop download: not manifest %s: %v", address, err)
-		s.Logger.Error("hop download: not manifest")
+		logger.Debugf("hop download: not manifest %s: %v", address, err)
+		logger.Error("hop download: not manifest")
 		jsonhttp.BadRequest(w, "not manifest")
 		return
 	}
 
 	me, err := m.Lookup(path)
 	if err != nil {
-		s.Logger.Debugf("hop download: invalid path %s/%s: %v", address, path, err)
-		s.Logger.Error("hop download: invalid path")
+		logger.Debugf("hop download: invalid path %s/%s: %v", address, path, err)
+		logger.Error("hop download: invalid path")
 
 		if errors.Is(err, manifest.ErrNotFound) {
 			jsonhttp.NotFound(w, "path address not found")
@@ -107,16 +109,16 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	buf = bytes.NewBuffer(nil)
 	_, err = file.JoinReadAll(ctx, j, manifestEntryAddress, buf)
 	if err != nil {
-		s.Logger.Debugf("hop download: read file entry %s: %v", address, err)
-		s.Logger.Errorf("hop download: read file entry %s", address)
+		logger.Debugf("hop download: read file entry %s: %v", address, err)
+		logger.Errorf("hop download: read file entry %s", address)
 		jsonhttp.NotFound(w, nil)
 		return
 	}
 	fe := &entry.Entry{}
 	err = fe.UnmarshalBinary(buf.Bytes())
 	if err != nil {
-		s.Logger.Debugf("hop download: unmarshal file entry %s: %v", address, err)
-		s.Logger.Errorf("hop download: unmarshal file entry %s", address)
+		logger.Debugf("hop download: unmarshal file entry %s: %v", address, err)
+		logger.Errorf("hop download: unmarshal file entry %s", address)
 		jsonhttp.InternalServerError(w, "error unmarshaling file entry")
 		return
 	}
@@ -125,16 +127,16 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	buf = bytes.NewBuffer(nil)
 	_, err = file.JoinReadAll(ctx, j, fe.Metadata(), buf)
 	if err != nil {
-		s.Logger.Debugf("hop download: read file metadata %s: %v", address, err)
-		s.Logger.Errorf("hop download: read file metadata %s", address)
+		logger.Debugf("hop download: read file metadata %s: %v", address, err)
+		logger.Errorf("hop download: read file metadata %s", address)
 		jsonhttp.NotFound(w, nil)
 		return
 	}
 	fileMetadata := &entry.Metadata{}
 	err = json.Unmarshal(buf.Bytes(), fileMetadata)
 	if err != nil {
-		s.Logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
-		s.Logger.Errorf("hop download: unmarshal metadata %s", address)
+		logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
+		logger.Errorf("hop download: unmarshal metadata %s", address)
 		jsonhttp.InternalServerError(w, "error unmarshaling metadata")
 		return
 	}

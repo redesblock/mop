@@ -7,7 +7,8 @@ import (
 )
 
 type statusResponse struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Version string `json:"version"`
 }
 
 func (s *server) statusHandler(w http.ResponseWriter, r *http.Request) {

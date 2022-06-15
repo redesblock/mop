@@ -14,6 +14,7 @@ import (
 	p2pmock "github.com/redesblock/hop/core/p2p/mock"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/resolver"
+	settlementmock "github.com/redesblock/hop/core/settlement/pseudosettle/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -30,6 +31,7 @@ type testServerOptions struct {
 	TopologyOpts   []topologymock.Option
 	Tags           *tags.Tags
 	AccountingOpts []accountingmock.Option
+	SettlementOpts []settlementmock.Option
 }
 
 type testServer struct {
@@ -40,8 +42,9 @@ type testServer struct {
 func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	topologyDriver := topologymock.NewTopologyDriver(o.TopologyOpts...)
 	acc := accountingmock.NewAccounting(o.AccountingOpts...)
+	settlement := settlementmock.NewSettlement(o.SettlementOpts...)
 
-	s := debugapi.New(o.Overlay, o.P2P, o.Pingpong, topologyDriver, o.Storer, logging.New(ioutil.Discard, 0), nil, o.Tags, acc)
+	s := debugapi.New(o.Overlay, o.P2P, o.Pingpong, topologyDriver, o.Storer, logging.New(ioutil.Discard, 0), nil, o.Tags, acc, settlement)
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 

@@ -8,6 +8,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -30,12 +31,12 @@ type server struct {
 	Tracer         *tracing.Tracer
 	Tags           *tags.Tags
 	Accounting     accounting.Interface
+	Settlement     settlement.Interface
 	http.Handler
-
 	metricsRegistry *prometheus.Registry
 }
 
-func New(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, logger logging.Logger, tracer *tracing.Tracer, tags *tags.Tags, accounting accounting.Interface) Service {
+func New(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, logger logging.Logger, tracer *tracing.Tracer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface) Service {
 	s := &server{
 		Overlay:         overlay,
 		P2P:             p2p,
@@ -46,6 +47,7 @@ func New(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interfac
 		Tracer:          tracer,
 		Tags:            tags,
 		Accounting:      accounting,
+		Settlement:      settlement,
 		metricsRegistry: newMetricsRegistry(),
 	}
 
