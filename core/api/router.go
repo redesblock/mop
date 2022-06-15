@@ -74,6 +74,11 @@ func (s *server) setupRouting() {
 		),
 	})
 
+	handle(router, "/hop/{address}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := r.URL
+		u.Path += "/"
+		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
+	}))
 	handle(router, "/hop/{address}/{path:.*}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
 			s.newTracingHandler("hop-download"),

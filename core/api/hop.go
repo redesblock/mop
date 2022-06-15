@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -26,6 +27,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	nameOrHex := mux.Vars(r)["address"]
 	path := mux.Vars(r)["path"]
+	path = strings.TrimRight(path, "/")
 
 	address, err := s.resolveNameOrAddress(nameOrHex)
 	if err != nil {

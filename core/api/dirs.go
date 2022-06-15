@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file/pipeline"
@@ -50,7 +51,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Add the tag to the context
 	ctx := sctx.SetTag(r.Context(), tag)
 
-	reference, err := storeDir(ctx, r.Body, s.Storer, requestModePut(r), s.Logger, requestEncrypt(r))
+	reference, err := storeDir(ctx, r.Body, s.Storer, requestModePut(r), s.Logger, requestEncrypt(r), r.Header.Get(SwarmIndextHeader))
 	if err != nil {
 		logger.Debugf("dir upload: store dir err: %v", err)
 		logger.Errorf("dir upload: store dir")
@@ -90,7 +91,7 @@ func validateRequest(r *http.Request) error {
 
 // storeDir stores all files recursively contained in the directory given as a tar
 // it returns the hash for the uploaded manifest corresponding to the uploaded dir
-func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode storage.ModePut, log logging.Logger, encrypt bool) (swarm.Address, error) {
+func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode storage.ModePut, log logging.Logger, encrypt bool, indexFilename string) (swarm.Address, error) {
 	logger := tracing.NewLoggerWithTraceID(ctx, log)
 
 	dirManifest, err := manifest.NewDefaultManifest(encrypt, s)
@@ -141,6 +142,18 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 		err = dirManifest.Add(filePath, manifest.NewEntry(fileReference))
 		if err != nil {
 			return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
+		}
+
+		if indexFilename != "" && filePath == indexFilename || strings.HasSuffix(filePath, "/"+indexFilename) {
+			filePath := strings.TrimSuffix(filePath, indexFilename)
+			filePath = strings.TrimRight(filePath, "/")
+
+			// add file entry to dir manifest
+			err = dirManifest.Add(filePath, manifest.NewEntry(fileReference))
+			if err != nil {
+				return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
+			}
+
 		}
 
 		filesAdded++
