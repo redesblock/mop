@@ -12,14 +12,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-
 	"github.com/redesblock/hop/core/collection/entry"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	smock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
@@ -100,7 +99,7 @@ func TestHop(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		e := manifest.NewEntry(fileReference)
+		e := manifest.NewEntry(fileReference, nil)
 
 		err = m.Add(filePath, e)
 		if err != nil {

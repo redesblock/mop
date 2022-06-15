@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	SwarmPinHeader     = "Swarm-Pin"
-	SwarmTagUidHeader  = "Swarm-Tag-Uid"
-	SwarmEncryptHeader = "Swarm-Encrypt"
-	SwarmIndextHeader  = "Swarm-Index"
+	SwarmPinHeader           = "Swarm-Pin"
+	SwarmTagUidHeader        = "Swarm-Tag-Uid"
+	SwarmEncryptHeader       = "Swarm-Encrypt"
+	SwarmIndexDocumentHeader = "Swarm-Index-Document"
+	SwarmErrorDocumentHeader = "Swarm-Error-Document"
 )
 
 var (

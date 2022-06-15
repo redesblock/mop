@@ -36,6 +36,7 @@ const (
 	optionNameGlobalPinningEnabled = "global-pinning-enable"
 	optionNamePaymentThreshold     = "payment-threshold"
 	optionNamePaymentTolerance     = "payment-tolerance"
+	optionNamePaymentEarly         = "payment-early"
 	optionNameResolverEndpoints    = "resolver-options"
 	optionNameGatewayMode          = "gateway-mode"
 	optionNameClefSignerEnable     = "clef-signer-enable"
@@ -186,6 +187,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameGlobalPinningEnabled, false, "enable global pinning")
 	cmd.Flags().Uint64(optionNamePaymentThreshold, 100000, "threshold in HOP where you expect to get paid from your peers")
 	cmd.Flags().Uint64(optionNamePaymentTolerance, 10000, "excess debt above payment threshold in HOP where you disconnect from your peer")
+	cmd.Flags().Uint64(optionNamePaymentEarly, 10000, "amount in HOP below the peers payment threshold when we initiate settlement")
 	cmd.Flags().StringSlice(optionNameResolverEndpoints, []string{}, "resolver connection string, see help for format")
 	cmd.Flags().Bool(optionNameGatewayMode, false, "disable a set of sensitive features in the api")
 	cmd.Flags().Bool(optionNameClefSignerEnable, false, "enable clef signer")

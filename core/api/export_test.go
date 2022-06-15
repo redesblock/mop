@@ -18,6 +18,12 @@ var (
 )
 
 var (
+	ManifestRootPath                      = manifestRootPath
+	ManifestWebsiteIndexDocumentSuffixKey = manifestWebsiteIndexDocumentSuffixKey
+	ManifestWebsiteErrorDocumentPathKey   = manifestWebsiteErrorDocumentPathKey
+)
+
+var (
 	ErrNoResolver           = errNoResolver
 	ErrInvalidNameOrAddress = errInvalidNameOrAddress
 )

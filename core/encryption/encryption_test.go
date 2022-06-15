@@ -4,10 +4,10 @@ import (
 	"bytes"
 	crand "crypto/rand"
 	"encoding/hex"
-	"github.com/redesblock/hop/core/encryption"
 	"math/rand"
 	"testing"
 
+	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/swarm"
 	"golang.org/x/crypto/sha3"
 )

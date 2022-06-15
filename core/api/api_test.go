@@ -22,14 +22,15 @@ import (
 )
 
 type testServerOptions struct {
-	Storer       storage.Storer
-	Resolver     resolver.Interface
-	Pss          pss.Interface
-	WsPath       string
-	Tags         *tags.Tags
-	GatewayMode  bool
-	WsPingPeriod time.Duration
-	Logger       logging.Logger
+	Storer          storage.Storer
+	Resolver        resolver.Interface
+	Pss             pss.Interface
+	WsPath          string
+	Tags            *tags.Tags
+	GatewayMode     bool
+	WsPingPeriod    time.Duration
+	Logger          logging.Logger
+	PreventRedirect bool
 }
 
 func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
@@ -70,8 +71,14 @@ func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.
 		if err != nil {
 			t.Fatalf("dial: %v. url %v", err, u.String())
 		}
-
 	}
+
+	if o.PreventRedirect {
+		httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
+
 	return httpClient, conn, ts.Listener.Addr().String()
 }
 

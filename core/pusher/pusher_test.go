@@ -3,11 +3,12 @@ package pusher_test
 import (
 	"context"
 	"errors"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"io/ioutil"
 	"sync"
 	"testing"
 	"time"
+
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
@@ -233,7 +234,7 @@ func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.Pus
 	}
 	peerSuggester := mock.NewTopologyDriver(mockOpts...)
 
-	pusherService := pusher.New(pusherStorer, peerSuggester, pushSyncService, mtags, logger)
+	pusherService := pusher.New(pusherStorer, peerSuggester, pushSyncService, mtags, logger, nil)
 	return mtags, pusherService, pusherStorer
 }
 

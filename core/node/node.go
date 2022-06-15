@@ -38,8 +38,11 @@ import (
 	"github.com/redesblock/hop/core/recovery"
 	"github.com/redesblock/hop/core/resolver/multiresolver"
 	"github.com/redesblock/hop/core/retrieval"
+	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
+	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
@@ -92,6 +95,7 @@ type Options struct {
 	GlobalPinningEnabled   bool
 	PaymentThreshold       uint64
 	PaymentTolerance       uint64
+	PaymentEarly           uint64
 	ResolverConnectionCfgs []multiresolver.ConnectionConfig
 	GatewayMode            bool
 	SwapEndpoint           string
@@ -143,7 +147,8 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 	addressbook := addressbook.New(stateStore)
 
 	var chequebookService chequebook.Service
-
+	var chequeStore chequebook.ChequeStore
+	var overlayEthAddress common.Address
 	if o.SwapEnable {
 		swapBackend, err := ethclient.Dial(o.SwapEndpoint)
 		if err != nil {
@@ -153,7 +158,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		if err != nil {
 			return nil, err
 		}
-		overlayEthAddress, err := signer.EthereumAddress()
+		overlayEthAddress, err = signer.EthereumAddress()
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +166,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		// print ethereum address so users know which address we need to fund
 		logger.Infof("using ethereum address %x", overlayEthAddress)
 
-		chainId, err := swapBackend.ChainID(p2pCtx)
+		chainID, err := swapBackend.ChainID(p2pCtx)
 		if err != nil {
 			return nil, err
 		}
@@ -179,10 +184,9 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 			return nil, err
 		}
 
-		chequeSigner := chequebook.NewChequeSigner(signer, chainId.Int64())
+		chequeSigner := chequebook.NewChequeSigner(signer, chainID.Int64())
 
 		// initialize chequebook logic
-		// return value is ignored because we don't do anything yet after initialization. this will be passed into swap settlement.
 		chequebookService, err = chequebook.Init(p2pCtx,
 			chequebookFactory,
 			stateStore,
@@ -197,6 +201,8 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		if err != nil {
 			return nil, err
 		}
+
+		chequeStore = chequebook.NewChequeStore(stateStore, swapBackend, chequebookFactory, chainID.Int64(), overlayEthAddress, chequebook.NewSimpleSwapBindings, chequebook.RecoverCheque)
 	}
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, logger, tracer, libp2p.Options{
@@ -254,6 +260,38 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		}
 	}
 
+	var settlement settlement.Interface
+	if o.SwapEnable {
+		swapProtocol := swapprotocol.New(p2ps, logger, overlayEthAddress)
+		swapAddressBook := swap.NewAddressbook(stateStore)
+		swapService := swap.New(swapProtocol, logger, stateStore, chequebookService, chequeStore, swapAddressBook, networkID)
+		swapProtocol.SetSwap(swapService)
+		if err = p2ps.AddProtocol(swapProtocol.Protocol()); err != nil {
+			return nil, fmt.Errorf("swap protocol: %w", err)
+		}
+		settlement = swapService
+	} else {
+		pseudosettleService := pseudosettle.New(p2ps, logger, stateStore)
+		if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
+			return nil, fmt.Errorf("pseudosettle service: %w", err)
+		}
+		settlement = pseudosettleService
+	}
+
+	acc, err := accounting.NewAccounting(accounting.Options{
+		Logger:           logger,
+		Store:            stateStore,
+		PaymentThreshold: o.PaymentThreshold,
+		PaymentTolerance: o.PaymentTolerance,
+		EarlyPayment:     o.PaymentEarly,
+		Settlement:       settlement,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("accounting: %w", err)
+	}
+
+	settlement.SetPaymentObserver(acc)
+
 	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, Standalone: o.Standalone})
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
@@ -280,25 +318,6 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		return nil, fmt.Errorf("localstore: %w", err)
 	}
 	b.localstoreCloser = storer
-
-	settlement := pseudosettle.New(p2ps, logger, stateStore)
-
-	if err = p2ps.AddProtocol(settlement.Protocol()); err != nil {
-		return nil, fmt.Errorf("pseudosettle service: %w", err)
-	}
-
-	acc, err := accounting.NewAccounting(accounting.Options{
-		Logger:           logger,
-		Store:            stateStore,
-		PaymentThreshold: o.PaymentThreshold,
-		PaymentTolerance: o.PaymentTolerance,
-		Settlement:       settlement,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("accounting: %w", err)
-	}
-
-	settlement.SetPaymentObserver(acc)
 
 	chunkvalidator := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
 
@@ -347,7 +366,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		b.recoveryHandleCleanup = psss.Register(recovery.RecoveryTopic, chunkRepairHandler)
 	}
 
-	pushSyncPusher := pusher.New(storer, kad, pushSyncProtocol, tagg, logger)
+	pushSyncPusher := pusher.New(storer, kad, pushSyncProtocol, tagg, logger, tracer)
 	b.pusherCloser = pushSyncPusher
 
 	pullStorage := pullstorage.New(storer)
@@ -407,12 +426,15 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)
 		debugAPIService.MustRegisterMetrics(acc.Metrics()...)
-		debugAPIService.MustRegisterMetrics(settlement.Metrics()...)
 
 		if apiService != nil {
 			debugAPIService.MustRegisterMetrics(apiService.Metrics()...)
 		}
 		if l, ok := logger.(metrics.Collector); ok {
+			debugAPIService.MustRegisterMetrics(l.Metrics()...)
+		}
+
+		if l, ok := settlement.(metrics.Collector); ok {
 			debugAPIService.MustRegisterMetrics(l.Metrics()...)
 		}
 
