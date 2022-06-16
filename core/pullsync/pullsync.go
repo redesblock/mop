@@ -38,9 +38,17 @@ var (
 // how many maximum chunks in a batch
 var maxPage = 50
 
+// Interface is the PullSync interface.
 type Interface interface {
+	// SyncInterval syncs a requested interval from the given peer.
+	// It returns the BinID of highest chunk that was synced from the given
+	// interval. If the requested interval is too large, the downstream peer
+	// has the liberty to provide less chunks than requested.
 	SyncInterval(ctx context.Context, peer swarm.Address, bin uint8, from, to uint64) (topmost uint64, ruid uint32, err error)
+	// GetCursors retrieves all cursors from a downstream peer.
 	GetCursors(ctx context.Context, peer swarm.Address) ([]uint64, error)
+	// CancelRuid cancels active pullsync operation identified by ruid on
+	// a downstream peer.
 	CancelRuid(ctx context.Context, peer swarm.Address, ruid uint32) error
 }
 
@@ -255,7 +263,7 @@ func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (er
 	}
 
 	// make an offer to the upstream peer in return for the requested range
-	offer, addrs, err := s.makeOffer(ctx, rn)
+	offer, _, err := s.makeOffer(ctx, rn)
 	if err != nil {
 		return fmt.Errorf("make offer: %w", err)
 	}
@@ -275,12 +283,6 @@ func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (er
 		return fmt.Errorf("read want: %w", err)
 	}
 
-	// empty bitvector implies downstream peer does not want
-	// any chunks (it has them already). mark chunks as synced
-	if len(want.BitVector) == 0 {
-		return s.setChunks(ctx, addrs...)
-	}
-
 	chs, err := s.processWant(ctx, offer, &want)
 	if err != nil {
 		return fmt.Errorf("process want: %w", err)
@@ -293,18 +295,8 @@ func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (er
 		}
 	}
 
-	err = s.setChunks(ctx, addrs...)
-	if err != nil {
-		return err
-	}
-
 	time.Sleep(50 * time.Millisecond) //because of test, getting EOF w/o
 	return nil
-}
-
-func (s *Syncer) setChunks(ctx context.Context, addrs ...swarm.Address) error {
-	s.metrics.DbOpsCounter.Inc()
-	return s.storage.Set(ctx, storage.ModeSetSyncPull, addrs...)
 }
 
 // makeOffer tries to assemble an offer for a given requested interval.

@@ -13,7 +13,7 @@ import (
 	cmdfile "github.com/redesblock/hop/cmd/internal/file"
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/seekjoiner"
+	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/splitter"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/storage"
@@ -55,8 +55,12 @@ func getEntry(cmd *cobra.Command, args []string) (err error) {
 	buf := bytes.NewBuffer(nil)
 	writeCloser := cmdfile.NopWriteCloser(buf)
 	limitBuf := cmdfile.NewLimitWriteCloser(writeCloser, limitMetadataLength)
-	j := seekjoiner.NewSimpleJoiner(store)
-	_, err = file.JoinReadAll(cmd.Context(), j, addr, limitBuf)
+	j, _, err := joiner.New(cmd.Context(), store, addr)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.JoinReadAll(cmd.Context(), j, limitBuf)
 	if err != nil {
 		return err
 	}
@@ -66,8 +70,14 @@ func getEntry(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	j, _, err = joiner.New(cmd.Context(), store, e.Metadata())
+	if err != nil {
+		return err
+	}
+
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(cmd.Context(), j, e.Metadata(), buf)
+
+	_, err = file.JoinReadAll(cmd.Context(), j, buf)
 	if err != nil {
 		return err
 	}
@@ -113,7 +123,13 @@ func getEntry(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 	defer outFile.Close()
-	_, err = file.JoinReadAll(cmd.Context(), j, e.Reference(), outFile)
+
+	j, _, err = joiner.New(cmd.Context(), store, e.Reference())
+	if err != nil {
+		return err
+	}
+
+	_, err = file.JoinReadAll(cmd.Context(), j, outFile)
 	return err
 }
 

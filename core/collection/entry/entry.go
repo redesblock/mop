@@ -2,6 +2,7 @@ package entry
 
 import (
 	"errors"
+	"math"
 
 	"github.com/redesblock/hop/core/collection"
 	"github.com/redesblock/hop/core/encryption"
@@ -27,6 +28,18 @@ func New(reference, metadata swarm.Address) *Entry {
 		reference: reference,
 		metadata:  metadata,
 	}
+}
+
+// CanUnmarshal returns whether the entry may be might be unmarshaled based on
+// the size.
+func CanUnmarshal(size int64) bool {
+	if size < math.MaxInt32 {
+		switch int(size) {
+		case serializedDataSize, encryptedSerializedDataSize:
+			return true
+		}
+	}
+	return false
 }
 
 // Reference implements collection.Entry

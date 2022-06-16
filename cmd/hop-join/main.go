@@ -7,7 +7,7 @@ import (
 
 	cmdfile "github.com/redesblock/hop/cmd/internal/file"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/seekjoiner"
+	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -78,8 +78,11 @@ func Join(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// create the join and get its data reader
-	j := seekjoiner.NewSimpleJoiner(store)
-	_, err = file.JoinReadAll(cmd.Context(), j, addr, outFile)
+	j, _, err := joiner.New(cmd.Context(), store, addr)
+	if err != nil {
+		return err
+	}
+	_, err = file.JoinReadAll(cmd.Context(), j, outFile)
 	return err
 }
 

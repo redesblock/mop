@@ -16,10 +16,13 @@ var _ Interface = (*store)(nil)
 
 var ErrNotFound = errors.New("addressbook: not found")
 
+// Interface is the AddressBook interface.
 type Interface interface {
 	GetPutter
 	Remover
+	// Overlays returns a list of all overlay addresses saved in addressbook.
 	Overlays() ([]swarm.Address, error)
+	// Addresses returns a list of all hop.Address-es saved in addressbook.
 	Addresses() ([]hop.Address, error)
 }
 
@@ -29,14 +32,17 @@ type GetPutter interface {
 }
 
 type Getter interface {
+	// Get returns pointer to saved hop.Address for requested overlay address.
 	Get(overlay swarm.Address) (addr *hop.Address, err error)
 }
 
 type Putter interface {
+	// Put saves relation between peer overlay address and hop.Address address.
 	Put(overlay swarm.Address, addr hop.Address) (err error)
 }
 
 type Remover interface {
+	// Remove removes overlay address.
 	Remove(overlay swarm.Address) error
 }
 
@@ -44,6 +50,7 @@ type store struct {
 	store storage.StateStorer
 }
 
+// New creates new addressbook for state storer.
 func New(storer storage.StateStorer) Interface {
 	return &store{
 		store: storer,

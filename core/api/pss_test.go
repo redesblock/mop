@@ -26,11 +26,12 @@ import (
 )
 
 var (
-	target  = pss.Target([]byte{1})
-	targets = pss.Targets([]pss.Target{target})
-	payload = []byte("testdata")
-	topic   = pss.NewTopic("testtopic")
-	timeout = 10 * time.Second
+	target      = pss.Target([]byte{1})
+	targets     = pss.Targets([]pss.Target{target})
+	payload     = []byte("testdata")
+	topic       = pss.NewTopic("testtopic")
+	timeout     = 10 * time.Second
+	longTimeout = 30 * time.Second
 )
 
 // creates a single websocket handler for an arbitrary topic, and receives a message
@@ -44,7 +45,9 @@ func TestPssWebsocketSingleHandler(t *testing.T) {
 		done       = make(chan struct{})
 	)
 
-	err := cl.SetReadDeadline(time.Now().Add(timeout))
+	// the long timeout is needed so that we dont time out while still mining the message with Wrap()
+	// otherwise the test (and other tests below) flakes
+	err := cl.SetReadDeadline(time.Now().Add(longTimeout))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +79,7 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 		done       = make(chan struct{})
 	)
 
-	err := cl.SetReadDeadline(time.Now().Add(timeout))
+	err := cl.SetReadDeadline(time.Now().Add(longTimeout))
 
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +121,7 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 		t.Fatalf("dial: %v. url %v", err, u.String())
 	}
 
-	err = cl.SetReadDeadline(time.Now().Add(timeout))
+	err = cl.SetReadDeadline(time.Now().Add(longTimeout))
 	if err != nil {
 		t.Fatal(err)
 	}

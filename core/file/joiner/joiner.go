@@ -1,18 +1,22 @@
-package internal
+// Package joiner provides implementations of the file.Joiner interface
+package joiner
 
 import (
 	"context"
 	"encoding/binary"
 	"errors"
 	"io"
+	"sync"
 	"sync/atomic"
 
+	"github.com/redesblock/hop/core/encryption/store"
+	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"golang.org/x/sync/errgroup"
 )
 
-type SimpleJoiner struct {
+type joiner struct {
 	addr      swarm.Address
 	rootData  []byte
 	span      int64
@@ -23,8 +27,9 @@ type SimpleJoiner struct {
 	getter storage.Getter
 }
 
-// NewSimpleJoiner creates a new SimpleJoiner.
-func NewSimpleJoiner(ctx context.Context, getter storage.Getter, address swarm.Address) (*SimpleJoiner, int64, error) {
+// New creates a new Joiner. A Joiner provides Read, Seek and Size functionalities.
+func New(ctx context.Context, getter storage.Getter, address swarm.Address) (file.Joiner, int64, error) {
+	getter = store.New(getter)
 	// retrieve the root chunk to read the total data length the be retrieved
 	rootChunk, err := getter.Get(ctx, storage.ModeGetRequest, address)
 	if err != nil {
@@ -35,7 +40,7 @@ func NewSimpleJoiner(ctx context.Context, getter storage.Getter, address swarm.A
 
 	span := int64(binary.LittleEndian.Uint64(chunkData[:swarm.SpanSize]))
 
-	j := &SimpleJoiner{
+	j := &joiner{
 		addr:      rootChunk.Address(),
 		refLength: len(address.Bytes()),
 		ctx:       ctx,
@@ -49,7 +54,7 @@ func NewSimpleJoiner(ctx context.Context, getter storage.Getter, address swarm.A
 
 // Read is called by the consumer to retrieve the joined data.
 // It must be called with a buffer equal to the maximum chunk size.
-func (j *SimpleJoiner) Read(b []byte) (n int, err error) {
+func (j *joiner) Read(b []byte) (n int, err error) {
 	read, err := j.ReadAt(b, j.off)
 	if err != nil && err != io.EOF {
 		return read, err
@@ -59,7 +64,7 @@ func (j *SimpleJoiner) Read(b []byte) (n int, err error) {
 	return read, err
 }
 
-func (j *SimpleJoiner) ReadAt(b []byte, off int64) (read int, err error) {
+func (j *joiner) ReadAt(b []byte, off int64) (read int, err error) {
 	// since offset is int64 and swarm spans are uint64 it means we cannot seek beyond int64 max value
 	if off >= j.span {
 		return 0, io.EOF
@@ -81,7 +86,7 @@ func (j *SimpleJoiner) ReadAt(b []byte, off int64) (read int, err error) {
 	return int(atomic.LoadInt64(&bytesRead)), nil
 }
 
-func (j *SimpleJoiner) readAtOffset(b, data []byte, cur, subTrieSize, off, bufferOffset, bytesToRead int64, bytesRead *int64, eg *errgroup.Group) {
+func (j *joiner) readAtOffset(b, data []byte, cur, subTrieSize, off, bufferOffset, bytesToRead int64, bytesRead *int64, eg *errgroup.Group) {
 	// we are at a leaf data chunk
 	if subTrieSize <= int64(len(data)) {
 		dataOffsetStart := off - cur
@@ -175,7 +180,7 @@ func subtrieSection(data []byte, startIdx, refLen int, subtrieSize int64) int64 
 var errWhence = errors.New("seek: invalid whence")
 var errOffset = errors.New("seek: invalid offset")
 
-func (j *SimpleJoiner) Seek(offset int64, whence int) (int64, error) {
+func (j *joiner) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	case 0:
 		offset += 0
@@ -202,18 +207,70 @@ func (j *SimpleJoiner) Seek(offset int64, whence int) (int64, error) {
 
 }
 
-func (j *SimpleJoiner) Size() (int64, error) {
-	if j.rootData == nil {
-		chunk, err := j.getter.Get(j.ctx, storage.ModeGetRequest, j.addr)
-		if err != nil {
-			return 0, err
-		}
-		j.rootData = chunk.Data()
+func (j *joiner) IterateChunkAddresses(fn swarm.AddressIterFunc) error {
+	// report root address
+	stop := fn(j.addr)
+	if stop {
+		return nil
 	}
 
-	s := chunkToSpan(j.rootData)
+	var eg errgroup.Group
+	j.processChunkAddresses(fn, j.rootData, j.span, &eg)
 
-	return int64(s), nil
+	return eg.Wait()
+}
+
+func (j *joiner) processChunkAddresses(fn swarm.AddressIterFunc, data []byte, subTrieSize int64, eg *errgroup.Group) {
+	// we are at a leaf data chunk
+	if subTrieSize <= int64(len(data)) {
+		return
+	}
+
+	var wg sync.WaitGroup
+
+	for cursor := 0; cursor < len(data); cursor += j.refLength {
+		select {
+		case <-j.ctx.Done():
+			return
+		default:
+		}
+
+		address := swarm.NewAddress(data[cursor : cursor+j.refLength])
+
+		stop := fn(address)
+		if stop {
+			break
+		}
+
+		sec := subtrieSection(data, cursor, j.refLength, subTrieSize)
+		if sec <= 4096 {
+			continue
+		}
+
+		func(address swarm.Address, eg *errgroup.Group) {
+			wg.Add(1)
+
+			eg.Go(func() error {
+				defer wg.Done()
+
+				ch, err := j.getter.Get(j.ctx, storage.ModeGetRequest, address)
+				if err != nil {
+					return err
+				}
+
+				chunkData := ch.Data()[8:]
+				subtrieSpan := int64(chunkToSpan(ch.Data()))
+				j.processChunkAddresses(fn, chunkData, subtrieSpan, eg)
+				return nil
+			})
+		}(address, eg)
+
+		wg.Wait()
+	}
+}
+
+func (j *joiner) Size() int64 {
+	return j.span
 }
 
 func chunkToSpan(data []byte) uint64 {

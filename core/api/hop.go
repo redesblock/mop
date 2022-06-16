@@ -13,7 +13,7 @@ import (
 
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/seekjoiner"
+	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
@@ -49,9 +49,16 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	toDecrypt := len(address.Bytes()) == 64
 
 	// read manifest entry
-	j := seekjoiner.NewSimpleJoiner(s.Storer)
+	j, _, err := joiner.New(ctx, s.Storer, address)
+	if err != nil {
+		logger.Debugf("hop download: joiner manifest entry %s: %v", address, err)
+		logger.Errorf("hop download: joiner %s", address)
+		jsonhttp.NotFound(w, nil)
+		return
+	}
+
 	buf := bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, address, buf)
+	_, err = file.JoinReadAll(ctx, j, buf)
 	if err != nil {
 		logger.Debugf("hop download: read entry %s: %v", address, err)
 		logger.Errorf("hop download: read entry %s", address)
@@ -68,8 +75,17 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// read metadata
+	j, _, err = joiner.New(ctx, s.Storer, e.Metadata())
+	if err != nil {
+		logger.Debugf("hop download: joiner metadata %s: %v", address, err)
+		logger.Errorf("hop download: joiner %s", address)
+		jsonhttp.NotFound(w, nil)
+		return
+	}
+
+	// read metadata
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, e.Metadata(), buf)
+	_, err = file.JoinReadAll(ctx, j, buf)
 	if err != nil {
 		logger.Debugf("hop download: read metadata %s: %v", address, err)
 		logger.Errorf("hop download: read metadata %s", address)
@@ -110,7 +126,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 				// index document exists
 				logger.Debugf("hop download: serving path: %s", pathWithIndex)
 
-				s.serveManifestEntry(w, r, j, address, indexDocumentManifestEntry.Reference())
+				s.serveManifestEntry(w, r, address, indexDocumentManifestEntry.Reference())
 				return
 			}
 		}
@@ -150,7 +166,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 						// index document exists
 						logger.Debugf("hop download: serving path: %s", pathWithIndex)
 
-						s.serveManifestEntry(w, r, j, address, indexDocumentManifestEntry.Reference())
+						s.serveManifestEntry(w, r, address, indexDocumentManifestEntry.Reference())
 						return
 					}
 				}
@@ -164,7 +180,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 						// error document exists
 						logger.Debugf("hop download: serving path: %s", errorDocumentPath)
 
-						s.serveManifestEntry(w, r, j, address, errorDocumentManifestEntry.Reference())
+						s.serveManifestEntry(w, r, address, errorDocumentManifestEntry.Reference())
 						return
 					}
 				}
@@ -178,16 +194,26 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// serve requested path
-	s.serveManifestEntry(w, r, j, address, me.Reference())
+	s.serveManifestEntry(w, r, address, me.Reference())
 }
 
-func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, j file.JoinSeeker, address, manifestEntryAddress swarm.Address) {
-	logger := tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
-	ctx := r.Context()
+func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, address, manifestEntryAddress swarm.Address) {
+	var (
+		logger = tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
+		ctx    = r.Context()
+		buf    = bytes.NewBuffer(nil)
+	)
 
 	// read file entry
-	buf := bytes.NewBuffer(nil)
-	_, err := file.JoinReadAll(ctx, j, manifestEntryAddress, buf)
+	j, _, err := joiner.New(ctx, s.Storer, manifestEntryAddress)
+	if err != nil {
+		logger.Debugf("hop download: joiner read file entry %s: %v", address, err)
+		logger.Errorf("hop download: joiner read file entry %s", address)
+		jsonhttp.NotFound(w, nil)
+		return
+	}
+
+	_, err = file.JoinReadAll(ctx, j, buf)
 	if err != nil {
 		logger.Debugf("hop download: read file entry %s: %v", address, err)
 		logger.Errorf("hop download: read file entry %s", address)
@@ -204,8 +230,16 @@ func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, j fi
 	}
 
 	// read file metadata
+	j, _, err = joiner.New(ctx, s.Storer, fe.Metadata())
+	if err != nil {
+		logger.Debugf("hop download: joiner read file entry %s: %v", address, err)
+		logger.Errorf("hop download: joiner read file entry %s", address)
+		jsonhttp.NotFound(w, nil)
+		return
+	}
+
 	buf = bytes.NewBuffer(nil)
-	_, err = file.JoinReadAll(ctx, j, fe.Metadata(), buf)
+	_, err = file.JoinReadAll(ctx, j, buf)
 	if err != nil {
 		logger.Debugf("hop download: read file metadata %s: %v", address, err)
 		logger.Errorf("hop download: read file metadata %s", address)
