@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethersphere/sw3-bindings/v2/simpleswapfactory"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
 )
 
 func newTestFactory(t *testing.T, factoryAddress common.Address, backend chequebook.Backend, transactionService chequebook.TransactionService, simpleSwapFactoryBinding chequebook.SimpleSwapFactoryBinding) (chequebook.Factory, error) {
@@ -33,7 +34,7 @@ func TestFactoryERC20Address(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		&simpleSwapFactoryBindingMock{
 			erc20Address: func(*bind.CallOpts) (common.Address, error) {
@@ -59,8 +60,8 @@ func TestFactoryVerifySelf(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{
-			codeAt: func(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
+		backendmock.New(
+			backendmock.WithCodeAtFunc(func(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
 				if contract != factoryAddress {
 					t.Fatalf("called with wrong address. wanted %x, got %x", factoryAddress, contract)
 				}
@@ -68,8 +69,8 @@ func TestFactoryVerifySelf(t *testing.T) {
 					t.Fatal("not called for latest block")
 				}
 				return common.FromHex(simpleswapfactory.SimpleSwapFactoryDeployedCode), nil
-			},
-		},
+			}),
+		),
 		&transactionServiceMock{},
 		&simpleSwapFactoryBindingMock{})
 	if err != nil {
@@ -87,8 +88,8 @@ func TestFactoryVerifySelfInvalidCode(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{
-			codeAt: func(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
+		backendmock.New(
+			backendmock.WithCodeAtFunc(func(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
 				if contract != factoryAddress {
 					t.Fatalf("called with wrong address. wanted %x, got %x", factoryAddress, contract)
 				}
@@ -96,8 +97,8 @@ func TestFactoryVerifySelfInvalidCode(t *testing.T) {
 					t.Fatal("not called for latest block")
 				}
 				return common.FromHex(simpleswapfactory.AddressBin), nil
-			},
-		},
+			}),
+		),
 		&transactionServiceMock{},
 		&simpleSwapFactoryBindingMock{})
 	if err != nil {
@@ -119,7 +120,7 @@ func TestFactoryVerifyChequebook(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		&simpleSwapFactoryBindingMock{
 			deployedContracts: func(o *bind.CallOpts, address common.Address) (bool, error) {
@@ -145,7 +146,7 @@ func TestFactoryVerifyChequebookInvalid(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		&simpleSwapFactoryBindingMock{
 			deployedContracts: func(o *bind.CallOpts, address common.Address) (bool, error) {
@@ -178,7 +179,7 @@ func TestFactoryDeploy(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			send: func(ctx context.Context, request *chequebook.TxRequest) (txHash common.Hash, err error) {
 				if request.To != factoryAddress {
@@ -246,7 +247,7 @@ func TestFactoryDeployReverted(t *testing.T) {
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			waitForReceipt: func(ctx context.Context, txHash common.Hash) (receipt *types.Receipt, err error) {
 				if txHash != deployTransactionHash {

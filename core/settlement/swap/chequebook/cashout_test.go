@@ -12,6 +12,7 @@ import (
 	"github.com/ethersphere/sw3-bindings/v2/simpleswapfactory"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	chequestoremock "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
+	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
 )
 
@@ -52,14 +53,14 @@ func TestCashout(t *testing.T) {
 				},
 			}, nil
 		},
-		&backendMock{
-			transactionByHash: func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+		backendmock.New(
+			backendmock.WithTransactionByHashFunc(func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 				if hash != txHash {
 					t.Fatalf("fetching wrong transaction. wanted %v, got %v", txHash, hash)
 				}
 				return nil, false, nil
-			},
-			transactionReceipt: func(ctx context.Context, hash common.Hash) (*types.Receipt, error) {
+			}),
+			backendmock.WithTransactionReceiptFunc(func(ctx context.Context, hash common.Hash) (*types.Receipt, error) {
 				if hash != txHash {
 					t.Fatalf("fetching receipt for transaction. wanted %v, got %v", txHash, hash)
 				}
@@ -72,8 +73,8 @@ func TestCashout(t *testing.T) {
 						},
 					},
 				}, nil
-			},
-		},
+			}),
+		),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				if request.To != chequebookAddress {
@@ -187,14 +188,14 @@ func TestCashoutBounced(t *testing.T) {
 				},
 			}, nil
 		},
-		&backendMock{
-			transactionByHash: func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+		backendmock.New(
+			backendmock.WithTransactionByHashFunc(func(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error) {
 				if hash != txHash {
 					t.Fatalf("fetching wrong transaction. wanted %v, got %v", txHash, hash)
 				}
 				return nil, false, nil
-			},
-			transactionReceipt: func(ctx context.Context, hash common.Hash) (*types.Receipt, error) {
+			}),
+			backendmock.WithTransactionReceiptFunc(func(ctx context.Context, hash common.Hash) (*types.Receipt, error) {
 				if hash != txHash {
 					t.Fatalf("fetching receipt for transaction. wanted %v, got %v", txHash, hash)
 				}
@@ -211,8 +212,8 @@ func TestCashoutBounced(t *testing.T) {
 						},
 					},
 				}, nil
-			},
-		},
+			}),
+		),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				if request.To != chequebookAddress {
@@ -303,22 +304,22 @@ func TestCashoutStatusReverted(t *testing.T) {
 		func(common.Address, bind.ContractBackend) (chequebook.SimpleSwapBinding, error) {
 			return &simpleSwapBindingMock{}, nil
 		},
-		&backendMock{
-			transactionByHash: func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+		backendmock.New(
+			backendmock.WithTransactionByHashFunc(func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 				if hash != txHash {
 					t.Fatalf("fetching wrong transaction. wanted %v, got %v", txHash, hash)
 				}
 				return nil, false, nil
-			},
-			transactionReceipt: func(ctx context.Context, hash common.Hash) (*types.Receipt, error) {
+			}),
+			backendmock.WithTransactionReceiptFunc(func(ctx context.Context, hash common.Hash) (*types.Receipt, error) {
 				if hash != txHash {
 					t.Fatalf("fetching receipt for transaction. wanted %v, got %v", txHash, hash)
 				}
 				return &types.Receipt{
 					Status: types.ReceiptStatusFailed,
 				}, nil
-			},
-		},
+			}),
+		),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				return txHash, nil
@@ -385,14 +386,14 @@ func TestCashoutStatusPending(t *testing.T) {
 		func(common.Address, bind.ContractBackend) (chequebook.SimpleSwapBinding, error) {
 			return &simpleSwapBindingMock{}, nil
 		},
-		&backendMock{
-			transactionByHash: func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+		backendmock.New(
+			backendmock.WithTransactionByHashFunc(func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 				if hash != txHash {
 					t.Fatalf("fetching wrong transaction. wanted %v, got %v", txHash, hash)
 				}
 				return nil, true, nil
-			},
-		},
+			}),
+		),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				return txHash, nil

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 )
@@ -60,7 +61,7 @@ func TestChequebookAddress(t *testing.T) {
 	ownerAdress := common.HexToAddress("0xfff")
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		address,
 		erc20address,
@@ -85,7 +86,7 @@ func TestChequebookBalance(t *testing.T) {
 	balance := big.NewInt(10)
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		address,
 		erc20address,
@@ -121,7 +122,7 @@ func TestChequebookDeposit(t *testing.T) {
 	txHash := common.HexToHash("0xdddd")
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				if request.To != erc20address {
@@ -168,7 +169,7 @@ func TestChequebookWaitForDeposit(t *testing.T) {
 	txHash := common.HexToHash("0xdddd")
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			waitForReceipt: func(ctx context.Context, tx common.Hash) (*types.Receipt, error) {
 				if tx != txHash {
@@ -203,7 +204,7 @@ func TestChequebookWaitForDepositReverted(t *testing.T) {
 	txHash := common.HexToHash("0xdddd")
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			waitForReceipt: func(ctx context.Context, tx common.Hash) (*types.Receipt, error) {
 				if tx != txHash {
@@ -248,7 +249,7 @@ func TestChequebookIssue(t *testing.T) {
 
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		address,
 		erc20address,
@@ -399,7 +400,7 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		address,
 		erc20address,
@@ -447,7 +448,7 @@ func TestChequebookIssueOutOfFunds(t *testing.T) {
 
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{},
 		address,
 		erc20address,
@@ -492,7 +493,7 @@ func TestChequebookWithdraw(t *testing.T) {
 	store := storemock.NewStateStore()
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				if request.To != address {
@@ -549,7 +550,7 @@ func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 	store := storemock.NewStateStore()
 	chequebookService, err := newTestChequebook(
 		t,
-		&backendMock{},
+		backendmock.New(),
 		&transactionServiceMock{
 			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
 				if request.To != address {

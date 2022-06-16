@@ -339,7 +339,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 
 	chunkvalidator := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
 
-	retrieve := retrieval.New(swarmAddress, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), chunkvalidator, tracer)
+	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), chunkvalidator, tracer)
 	tagg := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagg
 
@@ -364,7 +364,6 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	} else {
 		ns = netstore.New(storer, nil, retrieve, logger, chunkvalidator)
 	}
-	retrieve.SetStorer(ns)
 
 	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
@@ -442,6 +441,15 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)
 		debugAPIService.MustRegisterMetrics(acc.Metrics()...)
+		debugAPIService.MustRegisterMetrics(storer.Metrics()...)
+		debugAPIService.MustRegisterMetrics(puller.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pushSyncProtocol.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pushSyncPusher.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pullSync.Metrics()...)
+
+		if pssService, ok := psss.(metrics.Collector); ok {
+			debugAPIService.MustRegisterMetrics(pssService.Metrics()...)
+		}
 
 		if apiService != nil {
 			debugAPIService.MustRegisterMetrics(apiService.Metrics()...)

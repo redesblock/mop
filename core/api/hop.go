@@ -41,7 +41,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Debugf("hop download: parse address %s: %v", nameOrHex, err)
 		logger.Error("hop download: parse address")
-		jsonhttp.BadRequest(w, "invalid address")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 
@@ -63,7 +63,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Debugf("hop download: unmarshal entry %s: %v", address, err)
 		logger.Errorf("hop download: unmarshal entry %s", address)
-		jsonhttp.InternalServerError(w, "error unmarshaling entry")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
 		logger.Errorf("hop download: unmarshal metadata %s", address)
-		jsonhttp.InternalServerError(w, "error unmarshaling metadata")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 
@@ -96,7 +96,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Debugf("hop download: not manifest %s: %v", address, err)
 		logger.Error("hop download: not manifest")
-		jsonhttp.BadRequest(w, "not manifest")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 			jsonhttp.NotFound(w, "path address not found")
 		} else {
-			jsonhttp.BadRequest(w, "invalid path address")
+			jsonhttp.NotFound(w, nil)
 		}
 		return
 	}
@@ -199,7 +199,7 @@ func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, j fi
 	if err != nil {
 		logger.Debugf("hop download: unmarshal file entry %s: %v", address, err)
 		logger.Errorf("hop download: unmarshal file entry %s", address)
-		jsonhttp.InternalServerError(w, "error unmarshaling file entry")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 
@@ -217,7 +217,7 @@ func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, j fi
 	if err != nil {
 		logger.Debugf("hop download: unmarshal metadata %s: %v", address, err)
 		logger.Errorf("hop download: unmarshal metadata %s", address)
-		jsonhttp.InternalServerError(w, "error unmarshaling metadata")
+		jsonhttp.NotFound(w, nil)
 		return
 	}
 

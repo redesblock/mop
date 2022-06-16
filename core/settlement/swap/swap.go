@@ -3,6 +3,7 @@ package swap
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -84,7 +85,8 @@ func (s *Service) ReceiveCheque(ctx context.Context, peer swarm.Address, cheque 
 
 	amount, err := s.chequeStore.ReceiveCheque(ctx, cheque)
 	if err != nil {
-		return err
+		s.metrics.ChequesRejected.Inc()
+		return fmt.Errorf("rejecting cheque: %w", err)
 	}
 
 	if !known {
@@ -106,7 +108,7 @@ func (s *Service) Pay(ctx context.Context, peer swarm.Address, amount uint64) er
 		return err
 	}
 	if !known {
-		s.logger.Warning("disconnecting non-swap peer %v", peer)
+		s.logger.Warningf("disconnecting non-swap peer %v", peer)
 		err = s.p2pService.Disconnect(peer)
 		if err != nil {
 			return err

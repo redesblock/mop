@@ -118,7 +118,7 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 
 	// compute the price we pay for this receipt and reserve it for the rest of this function
 	receiptPrice := ps.pricer.PeerPrice(peer, chunk.Address())
-	err = ps.accounting.Reserve(peer, receiptPrice)
+	err = ps.accounting.Reserve(ctx, peer, receiptPrice)
 	if err != nil {
 		return fmt.Errorf("reserve balance for peer %s: %w", peer.String(), err)
 	}
@@ -231,7 +231,7 @@ func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Re
 
 	// compute the price we pay for this receipt and reserve it for the rest of this function
 	receiptPrice := ps.pricer.PeerPrice(peer, ch.Address())
-	err = ps.accounting.Reserve(peer, receiptPrice)
+	err = ps.accounting.Reserve(ctx, peer, receiptPrice)
 	if err != nil {
 		return nil, fmt.Errorf("reserve balance for peer %s: %w", peer.String(), err)
 	}
