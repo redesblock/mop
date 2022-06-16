@@ -97,6 +97,7 @@ type simpleSwapBindingMock struct {
 	balance      func(*bind.CallOpts) (*big.Int, error)
 	issuer       func(*bind.CallOpts) (common.Address, error)
 	totalPaidOut func(o *bind.CallOpts) (*big.Int, error)
+	paidOut      func(*bind.CallOpts, common.Address) (*big.Int, error)
 }
 
 func (m *simpleSwapBindingMock) Balance(o *bind.CallOpts) (*big.Int, error) {
@@ -109,6 +110,10 @@ func (m *simpleSwapBindingMock) Issuer(o *bind.CallOpts) (common.Address, error)
 
 func (m *simpleSwapBindingMock) TotalPaidOut(o *bind.CallOpts) (*big.Int, error) {
 	return m.totalPaidOut(o)
+}
+
+func (m *simpleSwapBindingMock) PaidOut(o *bind.CallOpts, c common.Address) (*big.Int, error) {
+	return m.paidOut(o, c)
 }
 
 type erc20BindingMock struct {

@@ -2,8 +2,10 @@ package chequebook
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/storage"
@@ -41,6 +43,25 @@ func Init(
 		if err != storage.ErrNotFound {
 			return nil, err
 		}
+
+		if swapInitialDeposit != 0 {
+			erc20Token, err := erc20BindingFunc(erc20Address, swapBackend)
+			if err != nil {
+				return nil, err
+			}
+
+			balance, err := erc20Token.BalanceOf(&bind.CallOpts{
+				Context: ctx,
+			}, overlayEthAddress)
+			if err != nil {
+				return nil, err
+			}
+
+			if balance.Cmp(big.NewInt(int64(swapInitialDeposit))) < 0 {
+				return nil, errors.New("insufficient token for initial deposit")
+			}
+		}
+
 		// if we don't yet have a chequebook, deploy a new one
 		logger.Info("deploying new chequebook")
 

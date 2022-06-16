@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-
 	"github.com/redesblock/hop/core/accounting"
 	accountingmock "github.com/redesblock/hop/core/accounting/mock"
 	"github.com/redesblock/hop/core/localstore"
@@ -17,6 +15,7 @@ import (
 	"github.com/redesblock/hop/core/p2p/streamtest"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/pushsync/pb"
+	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
@@ -186,9 +185,8 @@ func TestHandler(t *testing.T) {
 
 	// mock call back function to see if pss message is delivered when it is received in the destination (closestPeer in this testcase)
 	hookWasCalled := make(chan bool, 1) // channel to check if hook is called
-	pssDeliver := func(ctx context.Context, ch swarm.Chunk) error {
+	pssDeliver := func(ctx context.Context, ch swarm.Chunk) {
 		hookWasCalled <- true
-		return nil
 	}
 
 	// Create the closest peer
@@ -275,7 +273,7 @@ func TestHandler(t *testing.T) {
 	}
 }
 
-func createPushSyncNode(t *testing.T, addr swarm.Address, recorder *streamtest.Recorder, pssDeliver func(context.Context, swarm.Chunk) error, mockOpts ...mock.Option) (*pushsync.PushSync, *localstore.DB, *tags.Tags, accounting.Interface) {
+func createPushSyncNode(t *testing.T, addr swarm.Address, recorder *streamtest.Recorder, pssDeliver func(context.Context, swarm.Chunk), mockOpts ...mock.Option) (*pushsync.PushSync, *localstore.DB, *tags.Tags, accounting.Interface) {
 	logger := logging.New(ioutil.Discard, 0)
 
 	storer, err := localstore.New("", addr.Bytes(), nil, logger)

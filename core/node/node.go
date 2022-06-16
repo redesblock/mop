@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -29,6 +30,7 @@ import (
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/pricing"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/puller"
 	"github.com/redesblock/hop/core/pullsync"
@@ -104,7 +106,7 @@ type Options struct {
 	SwapEnable             bool
 }
 
-func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, signer crypto.Signer, networkID uint64, logger logging.Logger, o Options) (*Node, error) {
+func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, keystore keystore.Service, signer crypto.Signer, networkID uint64, logger logging.Logger, o Options) (*Node, error) {
 	tracer, tracerCloser, err := tracing.NewTracer(&tracing.Options{
 		Enabled:     o.TracingEnabled,
 		Endpoint:    o.TracingEndpoint,
@@ -285,19 +287,18 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 		settlement = pseudosettleService
 	}
 
-	acc, err := accounting.NewAccounting(accounting.Options{
-		Logger:           logger,
-		Store:            stateStore,
-		PaymentThreshold: o.PaymentThreshold,
-		PaymentTolerance: o.PaymentTolerance,
-		EarlyPayment:     o.PaymentEarly,
-		Settlement:       settlement,
-	})
+	pricing := pricing.New(p2ps, logger, o.PaymentThreshold)
+	if err = p2ps.AddProtocol(pricing.Protocol()); err != nil {
+		return nil, fmt.Errorf("pricing service: %w", err)
+	}
+
+	acc, err := accounting.NewAccounting(o.PaymentThreshold, o.PaymentTolerance, o.PaymentEarly, logger, stateStore, settlement, pricing)
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
 
 	settlement.SetPaymentObserver(acc)
+	pricing.SetPaymentThresholdObserver(acc)
 
 	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, Standalone: o.Standalone})
 	b.topologyCloser = kad
@@ -355,15 +356,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 	}
 	retrieve.SetStorer(ns)
 
-	silenceNoHandlerFunc := func(ctx context.Context, ch swarm.Chunk) error {
-		err := psss.TryUnwrap(ctx, ch)
-		if errors.Is(err, pss.ErrNoHandler) {
-			return nil
-		}
-		return err
-	}
-
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, silenceNoHandlerFunc, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
 	// set the pushSyncer in the PSS
 	psss.SetPushSyncer(pushSyncProtocol)
@@ -433,7 +426,7 @@ func New(addr string, swarmAddress swarm.Address, keystore keystore.Service, sig
 
 	if o.DebugAPIAddr != "" {
 		// Debug API server
-		debugAPIService := debugapi.New(swarmAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement, o.SwapEnable, chequebookService)
+		debugAPIService := debugapi.New(swarmAddress, publicKey, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement, o.SwapEnable, chequebookService)
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)

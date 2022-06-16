@@ -11,6 +11,7 @@ import (
 
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/pricing"
 	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -43,20 +44,9 @@ type Interface interface {
 
 // accountingPeer holds all in-memory accounting information for one peer.
 type accountingPeer struct {
-	// Lock to be held during any accounting action for this peer.
-	lock sync.Mutex
-	// Amount currently reserved for active peer interaction
-	reservedBalance uint64
-}
-
-// Options are options provided to Accounting.
-type Options struct {
-	PaymentThreshold uint64
-	PaymentTolerance uint64
-	EarlyPayment     uint64
-	Logger           logging.Logger
-	Store            storage.StateStorer
-	Settlement       settlement.Interface
+	lock             sync.Mutex // lock to be held during any accounting action for this peer
+	reservedBalance  uint64     // amount currently reserved for active peer interaction
+	paymentThreshold uint64     // the threshold at which the peer expects us to pay
 }
 
 // Accounting is the main implementation of the accounting interface.
@@ -73,6 +63,7 @@ type Accounting struct {
 	paymentTolerance uint64
 	earlyPayment     uint64
 	settlement       settlement.Interface
+	pricing          pricing.Interface
 	metrics          metrics
 }
 
@@ -91,23 +82,32 @@ var (
 )
 
 // NewAccounting creates a new Accounting instance with the provided options.
-func NewAccounting(o Options) (*Accounting, error) {
-	if o.PaymentTolerance+o.PaymentThreshold > math.MaxInt64 {
+func NewAccounting(
+	PaymentThreshold uint64,
+	PaymentTolerance uint64,
+	EarlyPayment uint64,
+	Logger logging.Logger,
+	Store storage.StateStorer,
+	Settlement settlement.Interface,
+	Pricing pricing.Interface,
+) (*Accounting, error) {
+	if PaymentTolerance+PaymentThreshold > math.MaxInt64 {
 		return nil, fmt.Errorf("tolerance plus threshold too big: %w", ErrOverflow)
 	}
 
-	if o.PaymentTolerance > o.PaymentThreshold/2 {
+	if PaymentTolerance > PaymentThreshold/2 {
 		return nil, ErrInvalidPaymentTolerance
 	}
 
 	return &Accounting{
 		accountingPeers:  make(map[string]*accountingPeer),
-		paymentThreshold: o.PaymentThreshold,
-		paymentTolerance: o.PaymentTolerance,
-		earlyPayment:     o.EarlyPayment,
-		logger:           o.Logger,
-		store:            o.Store,
-		settlement:       o.Settlement,
+		paymentThreshold: PaymentThreshold,
+		paymentTolerance: PaymentTolerance,
+		earlyPayment:     EarlyPayment,
+		logger:           Logger,
+		store:            Store,
+		settlement:       Settlement,
+		pricing:          Pricing,
 		metrics:          newMetrics(),
 	}, nil
 }
@@ -229,7 +229,7 @@ func (a *Accounting) Credit(peer swarm.Address, price uint64) error {
 	// If our expected debt is less than earlyPayment away from our payment threshold (which we assume is
 	// also the peers payment threshold), trigger settlement.
 	// we pay early to avoid needlessly blocking request later when concurrent requests occur and we are already close to the payment threshold
-	threshold := a.paymentThreshold
+	threshold := accountingPeer.paymentThreshold
 	if threshold > a.earlyPayment {
 		threshold -= a.earlyPayment
 	} else {
@@ -366,6 +366,8 @@ func (a *Accounting) getAccountingPeer(peer swarm.Address) (*accountingPeer, err
 	if !ok {
 		peerData = &accountingPeer{
 			reservedBalance: 0,
+			// initially assume the peer has the same threshold as us
+			paymentThreshold: a.paymentThreshold,
 		}
 		a.accountingPeers[peer.String()] = peerData
 	}
@@ -501,4 +503,18 @@ func addI64pU64(a int64, b uint64) (result int64, err error) {
 	}
 
 	return result, nil
+}
+
+// NotifyPaymentThreshold should be called to notify accounting of changes in the payment threshold
+func (a *Accounting) NotifyPaymentThreshold(peer swarm.Address, paymentThreshold uint64) error {
+	accountingPeer, err := a.getAccountingPeer(peer)
+	if err != nil {
+		return err
+	}
+
+	accountingPeer.lock.Lock()
+	defer accountingPeer.lock.Unlock()
+
+	accountingPeer.paymentThreshold = paymentThreshold
+	return nil
 }

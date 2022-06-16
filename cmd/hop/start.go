@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"io/ioutil"
 
@@ -126,6 +127,7 @@ Welcome to the Swarm....
 
 			var signer crypto.Signer
 			var address swarm.Address
+			var publicKey *ecdsa.PublicKey
 
 			if c.config.GetBool(optionNameClefSignerEnable) {
 				endpoint := c.config.GetString(optionNameClefSignerEndpoint)
@@ -151,7 +153,7 @@ Welcome to the Swarm....
 					return err
 				}
 
-				publicKey, err := signer.PublicKey()
+				publicKey, err = signer.PublicKey()
 				if err != nil {
 					return err
 				}
@@ -168,9 +170,9 @@ Welcome to the Swarm....
 					return fmt.Errorf("swarm key: %w", err)
 				}
 				signer = crypto.NewDefaultSigner(swarmPrivateKey)
-				publicKey := swarmPrivateKey.PublicKey
+				publicKey = &swarmPrivateKey.PublicKey
 
-				address, err = crypto.NewOverlayAddress(publicKey, c.config.GetUint64(optionNameNetworkID))
+				address, err = crypto.NewOverlayAddress(*publicKey, c.config.GetUint64(optionNameNetworkID))
 				if err != nil {
 					return err
 				}
@@ -182,7 +184,9 @@ Welcome to the Swarm....
 				}
 			}
 
-			b, err := node.New(c.config.GetString(optionNameP2PAddr), address, keystore, signer, c.config.GetUint64(optionNameNetworkID), logger, node.Options{
+			logger.Infof("swarm public key %x", crypto.EncodeSecp256k1PublicKey(publicKey))
+
+			b, err := node.New(c.config.GetString(optionNameP2PAddr), address, *publicKey, keystore, signer, c.config.GetUint64(optionNameNetworkID), logger, node.Options{
 				DataDir:                c.config.GetString(optionNameDataDir),
 				DBCapacity:             c.config.GetUint64(optionNameDBCapacity),
 				Password:               password,
@@ -203,6 +207,7 @@ Welcome to the Swarm....
 				GlobalPinningEnabled:   c.config.GetBool(optionNameGlobalPinningEnabled),
 				PaymentThreshold:       c.config.GetUint64(optionNamePaymentThreshold),
 				PaymentTolerance:       c.config.GetUint64(optionNamePaymentTolerance),
+				PaymentEarly:           c.config.GetUint64(optionNamePaymentEarly),
 				ResolverConnectionCfgs: resolverCfgs,
 				GatewayMode:            c.config.GetBool(optionNameGatewayMode),
 				SwapEndpoint:           c.config.GetString(optionNameSwapEndpoint),

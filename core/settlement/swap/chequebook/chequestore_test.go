@@ -59,6 +59,12 @@ func TestReceiveCheque(t *testing.T) {
 				balance: func(*bind.CallOpts) (*big.Int, error) {
 					return cumulativePayout2, nil
 				},
+				paidOut: func(o *bind.CallOpts, b common.Address) (*big.Int, error) {
+					if b != beneficiary {
+						t.Fatalf("checking for wrong beneficiary. wanted %x, got %x", beneficiary, b)
+					}
+					return big.NewInt(0), nil
+				},
 			}, nil
 		},
 		func(c *chequebook.SignedCheque, cid int64) (common.Address, error) {
@@ -182,6 +188,9 @@ func TestReceiveChequeInvalidAmount(t *testing.T) {
 				balance: func(*bind.CallOpts) (*big.Int, error) {
 					return cumulativePayout, nil
 				},
+				paidOut: func(o *bind.CallOpts, b common.Address) (*big.Int, error) {
+					return big.NewInt(0), nil
+				},
 			}, nil
 		},
 		func(c *chequebook.SignedCheque, cid int64) (common.Address, error) {
@@ -242,6 +251,9 @@ func TestReceiveChequeInvalidChequebook(t *testing.T) {
 				},
 				balance: func(*bind.CallOpts) (*big.Int, error) {
 					return cumulativePayout, nil
+				},
+				paidOut: func(o *bind.CallOpts, b common.Address) (*big.Int, error) {
+					return big.NewInt(0), nil
 				},
 			}, nil
 		},
@@ -335,6 +347,9 @@ func TestReceiveChequeInsufficientBalance(t *testing.T) {
 				balance: func(*bind.CallOpts) (*big.Int, error) {
 					return big.NewInt(0).Sub(cumulativePayout, big.NewInt(1)), nil
 				},
+				paidOut: func(o *bind.CallOpts, b common.Address) (*big.Int, error) {
+					return big.NewInt(0), nil
+				},
 			}, nil
 		},
 		func(c *chequebook.SignedCheque, cid int64) (common.Address, error) {
@@ -351,5 +366,54 @@ func TestReceiveChequeInsufficientBalance(t *testing.T) {
 	})
 	if !errors.Is(err, chequebook.ErrBouncingCheque) {
 		t.Fatalf("wrong error. wanted %v, got %v", chequebook.ErrBouncingCheque, err)
+	}
+}
+
+func TestReceiveChequeSufficientBalancePaidOut(t *testing.T) {
+	store := storemock.NewStateStore()
+	beneficiary := common.HexToAddress("0xffff")
+	issuer := common.HexToAddress("0xbeee")
+	cumulativePayout := big.NewInt(10)
+	chequebookAddress := common.HexToAddress("0xeeee")
+	sig := make([]byte, 65)
+	chainID := int64(1)
+
+	chequestore := chequebook.NewChequeStore(
+		store,
+		&backendMock{},
+		&factoryMock{
+			verifyChequebook: func(ctx context.Context, address common.Address) error {
+				return nil
+			},
+		},
+		chainID,
+		beneficiary,
+		func(address common.Address, b bind.ContractBackend) (chequebook.SimpleSwapBinding, error) {
+			return &simpleSwapBindingMock{
+				issuer: func(*bind.CallOpts) (common.Address, error) {
+					return issuer, nil
+				},
+				balance: func(*bind.CallOpts) (*big.Int, error) {
+					return big.NewInt(0).Sub(cumulativePayout, big.NewInt(100)), nil
+				},
+				paidOut: func(o *bind.CallOpts, b common.Address) (*big.Int, error) {
+					return big.NewInt(100), nil
+				},
+			}, nil
+		},
+		func(c *chequebook.SignedCheque, cid int64) (common.Address, error) {
+			return issuer, nil
+		})
+
+	_, err := chequestore.ReceiveCheque(context.Background(), &chequebook.SignedCheque{
+		Cheque: chequebook.Cheque{
+			Beneficiary:      beneficiary,
+			CumulativePayout: cumulativePayout,
+			Chequebook:       chequebookAddress,
+		},
+		Signature: sig,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

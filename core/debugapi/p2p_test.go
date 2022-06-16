@@ -1,11 +1,13 @@
 package debugapi_test
 
 import (
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
@@ -14,6 +16,10 @@ import (
 )
 
 func TestAddresses(t *testing.T) {
+	privateKey, err := crypto.GenerateSecp256k1Key()
+	if err != nil {
+		t.Fatal(err)
+	}
 	overlay := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	addresses := []multiaddr.Multiaddr{
 		mustMultiaddr(t, "/ip4/127.0.0.1/tcp/7071/p2p/16Uiu2HAmTBuJT9LvNmBiQiNoTsxE5mtNy6YG3paw79m94CRa9sRb"),
@@ -22,7 +28,8 @@ func TestAddresses(t *testing.T) {
 	}
 
 	testServer := newTestServer(t, testServerOptions{
-		Overlay: overlay,
+		PublicKey: privateKey.PublicKey,
+		Overlay:   overlay,
 		P2P: mock.New(mock.WithAddressesFunc(func() ([]multiaddr.Multiaddr, error) {
 			return addresses, nil
 		})),
@@ -31,8 +38,9 @@ func TestAddresses(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/addresses", http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(debugapi.AddressesResponse{
-				Overlay:  overlay,
-				Underlay: addresses,
+				Overlay:   overlay,
+				Underlay:  addresses,
+				PublicKey: hex.EncodeToString(crypto.EncodeSecp256k1PublicKey(&privateKey.PublicKey)),
 			}),
 		)
 	})
