@@ -4,12 +4,14 @@ import (
 	"crypto/ecdsa"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/settlement"
+	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -26,6 +28,7 @@ type Service interface {
 type server struct {
 	Overlay           swarm.Address
 	PublicKey         ecdsa.PublicKey
+	EthereumAddress   common.Address
 	P2P               p2p.DebugService
 	Pingpong          pingpong.Interface
 	TopologyDriver    topology.Driver
@@ -37,14 +40,16 @@ type server struct {
 	Settlement        settlement.Interface
 	ChequebookEnabled bool
 	Chequebook        chequebook.Service
+	Swap              swap.ApiInterface
+	metricsRegistry   *prometheus.Registry
 	http.Handler
-	metricsRegistry *prometheus.Registry
 }
 
-func New(overlay swarm.Address, publicKey ecdsa.PublicKey, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, logger logging.Logger, tracer *tracing.Tracer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface, chequebookEnabled bool, chequebook chequebook.Service) Service {
+func New(overlay swarm.Address, publicKey ecdsa.PublicKey, ethereumAddress common.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, logger logging.Logger, tracer *tracing.Tracer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface, chequebookEnabled bool, swap swap.ApiInterface, chequebook chequebook.Service) Service {
 	s := &server{
 		Overlay:           overlay,
 		PublicKey:         publicKey,
+		EthereumAddress:   ethereumAddress,
 		P2P:               p2p,
 		Pingpong:          pingpong,
 		TopologyDriver:    topologyDriver,
@@ -57,6 +62,7 @@ func New(overlay swarm.Address, publicKey ecdsa.PublicKey, p2p p2p.DebugService,
 		metricsRegistry:   newMetricsRegistry(),
 		ChequebookEnabled: chequebookEnabled,
 		Chequebook:        chequebook,
+		Swap:              swap,
 	}
 
 	s.setupRouting()

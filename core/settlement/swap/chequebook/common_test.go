@@ -21,6 +21,7 @@ type backendMock struct {
 	estimateGas        func(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
 	transactionReceipt func(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	pendingNonceAt     func(ctx context.Context, account common.Address) (uint64, error)
+	transactionByHash  func(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
 }
 
 func (m *backendMock) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
@@ -63,6 +64,10 @@ func (m *backendMock) TransactionReceipt(ctx context.Context, txHash common.Hash
 	return m.transactionReceipt(ctx, txHash)
 }
 
+func (m *backendMock) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+	return m.transactionByHash(ctx, hash)
+}
+
 type transactionServiceMock struct {
 	send           func(ctx context.Context, request *chequebook.TxRequest) (txHash common.Hash, err error)
 	waitForReceipt func(ctx context.Context, txHash common.Hash) (receipt *types.Receipt, err error)
@@ -94,10 +99,12 @@ func (m *simpleSwapFactoryBindingMock) ERC20Address(o *bind.CallOpts) (common.Ad
 }
 
 type simpleSwapBindingMock struct {
-	balance      func(*bind.CallOpts) (*big.Int, error)
-	issuer       func(*bind.CallOpts) (common.Address, error)
-	totalPaidOut func(o *bind.CallOpts) (*big.Int, error)
-	paidOut      func(*bind.CallOpts, common.Address) (*big.Int, error)
+	balance            func(*bind.CallOpts) (*big.Int, error)
+	issuer             func(*bind.CallOpts) (common.Address, error)
+	totalPaidOut       func(o *bind.CallOpts) (*big.Int, error)
+	paidOut            func(*bind.CallOpts, common.Address) (*big.Int, error)
+	parseChequeCashed  func(types.Log) (*simpleswapfactory.ERC20SimpleSwapChequeCashed, error)
+	parseChequeBounced func(types.Log) (*simpleswapfactory.ERC20SimpleSwapChequeBounced, error)
 }
 
 func (m *simpleSwapBindingMock) Balance(o *bind.CallOpts) (*big.Int, error) {
@@ -110,6 +117,14 @@ func (m *simpleSwapBindingMock) Issuer(o *bind.CallOpts) (common.Address, error)
 
 func (m *simpleSwapBindingMock) TotalPaidOut(o *bind.CallOpts) (*big.Int, error) {
 	return m.totalPaidOut(o)
+}
+
+func (m *simpleSwapBindingMock) ParseChequeCashed(l types.Log) (*simpleswapfactory.ERC20SimpleSwapChequeCashed, error) {
+	return m.parseChequeCashed(l)
+}
+
+func (m *simpleSwapBindingMock) ParseChequeBounced(l types.Log) (*simpleswapfactory.ERC20SimpleSwapChequeBounced, error) {
+	return m.parseChequeBounced(l)
 }
 
 func (m *simpleSwapBindingMock) PaidOut(o *bind.CallOpts, c common.Address) (*big.Int, error) {
@@ -159,7 +174,8 @@ func (m *chequeSignerMock) Sign(cheque *chequebook.Cheque) ([]byte, error) {
 
 type factoryMock struct {
 	erc20Address     func(ctx context.Context) (common.Address, error)
-	deploy           func(ctx context.Context, issuer common.Address, defaultHardDepositTimeoutDuration *big.Int) (common.Address, error)
+	deploy           func(ctx context.Context, issuer common.Address, defaultHardDepositTimeoutDuration *big.Int) (common.Hash, error)
+	waitDeployed     func(ctx context.Context, txHash common.Hash) (common.Address, error)
 	verifyBytecode   func(ctx context.Context) error
 	verifyChequebook func(ctx context.Context, chequebook common.Address) error
 }
@@ -169,9 +185,12 @@ func (m *factoryMock) ERC20Address(ctx context.Context) (common.Address, error) 
 	return m.erc20Address(ctx)
 }
 
-// Deploy deploys a new chequebook and returns once confirmed.
-func (m *factoryMock) Deploy(ctx context.Context, issuer common.Address, defaultHardDepositTimeoutDuration *big.Int) (common.Address, error) {
+func (m *factoryMock) Deploy(ctx context.Context, issuer common.Address, defaultHardDepositTimeoutDuration *big.Int) (common.Hash, error) {
 	return m.deploy(ctx, issuer, defaultHardDepositTimeoutDuration)
+}
+
+func (m *factoryMock) WaitDeployed(ctx context.Context, txHash common.Hash) (common.Address, error) {
+	return m.waitDeployed(ctx, txHash)
 }
 
 // VerifyBytecode checks that the factory is valid.

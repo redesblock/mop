@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
@@ -27,9 +28,12 @@ func TestAddresses(t *testing.T) {
 		mustMultiaddr(t, "/ip4/127.0.0.1/udp/7071/quic/p2p/16Uiu2HAmTBuJT9LvNmBiQiNoTsxE5mtNy6YG3paw79m94CRa9sRb"),
 	}
 
+	ethereumAddress := common.HexToAddress("abcd")
+
 	testServer := newTestServer(t, testServerOptions{
-		PublicKey: privateKey.PublicKey,
-		Overlay:   overlay,
+		PublicKey:       privateKey.PublicKey,
+		Overlay:         overlay,
+		EthereumAddress: ethereumAddress,
 		P2P: mock.New(mock.WithAddressesFunc(func() ([]multiaddr.Multiaddr, error) {
 			return addresses, nil
 		})),
@@ -41,6 +45,7 @@ func TestAddresses(t *testing.T) {
 				Overlay:   overlay,
 				Underlay:  addresses,
 				PublicKey: hex.EncodeToString(crypto.EncodeSecp256k1PublicKey(&privateKey.PublicKey)),
+				Ethereum:  ethereumAddress,
 			}),
 		)
 	})

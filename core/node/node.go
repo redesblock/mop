@@ -40,7 +40,7 @@ import (
 	"github.com/redesblock/hop/core/recovery"
 	"github.com/redesblock/hop/core/resolver/multiresolver"
 	"github.com/redesblock/hop/core/retrieval"
-	"github.com/redesblock/hop/core/settlement"
+	settlement "github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
@@ -150,6 +150,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 
 	var chequebookService chequebook.Service
 	var chequeStore chequebook.ChequeStore
+	var cashoutService chequebook.CashoutService
 	var overlayEthAddress common.Address
 	if o.SwapEnable {
 		swapBackend, err := ethclient.Dial(o.SwapEndpoint)
@@ -170,7 +171,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 
 		chainID, err := swapBackend.ChainID(p2pCtx)
 		if err != nil {
-			return nil, err
+			logger.Infof("could not connect to backend at %v. In a swap-enabled network a working blockchain node (for goerli network in production) is required. Check your node or specify another node using --swap-endpoint.", o.SwapEndpoint)
+			return nil, fmt.Errorf("could not get chain id from ethereum backend: %w", err)
 		}
 
 		var factoryAddress common.Address
@@ -178,11 +180,11 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 			var found bool
 			factoryAddress, found = chequebook.DiscoverFactoryAddress(chainID.Int64())
 			if !found {
-				return nil, errors.New("no known factory address")
+				return nil, errors.New("no known factory address for this network")
 			}
 			logger.Infof("using default factory address for chain id %d: %x", chainID, factoryAddress)
 		} else if !common.IsHexAddress(o.SwapFactoryAddress) {
-			return nil, errors.New("invalid factory address")
+			return nil, errors.New("malformed factory address")
 		} else {
 			factoryAddress = common.HexToAddress(o.SwapFactoryAddress)
 			logger.Infof("using custom factory address: %x", factoryAddress)
@@ -203,6 +205,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 			o.SwapInitialDeposit,
 			transactionService,
 			swapBackend,
+			chainID.Int64(),
 			overlayEthAddress,
 			chequeSigner,
 			chequebook.NewSimpleSwapBindings,
@@ -212,6 +215,11 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 		}
 
 		chequeStore = chequebook.NewChequeStore(stateStore, swapBackend, chequebookFactory, chainID.Int64(), overlayEthAddress, chequebook.NewSimpleSwapBindings, chequebook.RecoverCheque)
+
+		cashoutService, err = chequebook.NewCashoutService(stateStore, chequebook.NewSimpleSwapBindings, swapBackend, transactionService, chequeStore)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, logger, tracer, libp2p.Options{
@@ -270,10 +278,12 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	}
 
 	var settlement settlement.Interface
+	var swapService *swap.Service
+
 	if o.SwapEnable {
 		swapProtocol := swapprotocol.New(p2ps, logger, overlayEthAddress)
 		swapAddressBook := swap.NewAddressbook(stateStore)
-		swapService := swap.New(swapProtocol, logger, stateStore, chequebookService, chequeStore, swapAddressBook, networkID)
+		swapService = swap.New(swapProtocol, logger, stateStore, chequebookService, chequeStore, swapAddressBook, networkID, cashoutService, p2ps)
 		swapProtocol.SetSwap(swapService)
 		if err = p2ps.AddProtocol(swapProtocol.Protocol()); err != nil {
 			return nil, fmt.Errorf("swap protocol: %w", err)
@@ -426,7 +436,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 
 	if o.DebugAPIAddr != "" {
 		// Debug API server
-		debugAPIService := debugapi.New(swarmAddress, publicKey, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement, o.SwapEnable, chequebookService)
+
+		debugAPIService := debugapi.New(swarmAddress, publicKey, overlayEthAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement, o.SwapEnable, swapService, chequebookService)
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)

@@ -2,7 +2,7 @@ package chequebook
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -22,6 +22,7 @@ func Init(
 	swapInitialDeposit uint64,
 	transactionService TransactionService,
 	swapBackend Backend,
+	chainId int64,
 	overlayEthAddress common.Address,
 	chequeSigner ChequeSigner,
 	simpleSwapBindingFunc SimpleSwapBindingFunc,
@@ -44,6 +45,7 @@ func Init(
 			return nil, err
 		}
 
+		logger.Info("no chequebook found, deploying new one.")
 		if swapInitialDeposit != 0 {
 			erc20Token, err := erc20BindingFunc(erc20Address, swapBackend)
 			if err != nil {
@@ -58,14 +60,23 @@ func Init(
 			}
 
 			if balance.Cmp(big.NewInt(int64(swapInitialDeposit))) < 0 {
-				return nil, errors.New("insufficient token for initial deposit")
+				logger.Warningf("please make sure there is sufficient eth and hop available on %x.", overlayEthAddress)
+				if chainId == 5 {
+					logger.Warning("on goerli you can get both goerli eth and goerli hop from https://faucet.ethswarm.org.")
+				}
+				return nil, fmt.Errorf("insufficient token for initial deposit")
 			}
 		}
 
 		// if we don't yet have a chequebook, deploy a new one
-		logger.Info("deploying new chequebook")
+		txHash, err := chequebookFactory.Deploy(ctx, overlayEthAddress, big.NewInt(0))
+		if err != nil {
+			return nil, err
+		}
 
-		chequebookAddress, err = chequebookFactory.Deploy(ctx, overlayEthAddress, big.NewInt(0))
+		logger.Infof("deploying new chequebook in transaction %x", txHash)
+
+		chequebookAddress, err = chequebookFactory.WaitDeployed(ctx, txHash)
 		if err != nil {
 			return nil, err
 		}
@@ -84,19 +95,19 @@ func Init(
 		}
 
 		if swapInitialDeposit != 0 {
-			logger.Info("depositing into new chequebook")
-
+			logger.Infof("depositing %d token into new chequebook", swapInitialDeposit)
 			depositHash, err := chequebookService.Deposit(ctx, big.NewInt(int64(swapInitialDeposit)))
 			if err != nil {
 				return nil, err
 			}
 
+			logger.Infof("sent deposit transaction %x", depositHash)
 			err = chequebookService.WaitForDeposit(ctx, depositHash)
 			if err != nil {
 				return nil, err
 			}
 
-			logger.Infof("deposited to chequebook %x in transaction %x", chequebookAddress, depositHash)
+			logger.Info("successfully deposited to chequebook")
 		}
 	} else {
 		chequebookService, err = New(swapBackend, transactionService, chequebookAddress, erc20Address, overlayEthAddress, stateStore, chequeSigner, simpleSwapBindingFunc, erc20BindingFunc)

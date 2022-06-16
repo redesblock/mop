@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -13,6 +14,7 @@ import (
 type addressesResponse struct {
 	Overlay   swarm.Address         `json:"overlay"`
 	Underlay  []multiaddr.Multiaddr `json:"underlay"`
+	Ethereum  common.Address        `json:"ethereum"`
 	PublicKey string                `json:"public_key"`
 }
 
@@ -26,6 +28,7 @@ func (s *server) addressesHandler(w http.ResponseWriter, r *http.Request) {
 	jsonhttp.OK(w, addressesResponse{
 		Overlay:   s.Overlay,
 		Underlay:  underlay,
+		Ethereum:  s.EthereumAddress,
 		PublicKey: hex.EncodeToString(crypto.EncodeSecp256k1PublicKey(&s.PublicKey)),
 	})
 }

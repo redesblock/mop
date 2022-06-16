@@ -28,7 +28,11 @@ func (s *server) setupRouting() {
 	router := mux.NewRouter()
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
-	router.Handle("/debug/pprof", http.HandlerFunc(pprof.Index))
+	router.Handle("/debug/pprof", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := r.URL
+		u.Path += "/"
+		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
+	}))
 	router.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 	router.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
 	router.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
@@ -98,7 +102,28 @@ func (s *server) setupRouting() {
 		router.Handle("/chequebook/address", jsonhttp.MethodHandler{
 			"GET": http.HandlerFunc(s.chequebookAddressHandler),
 		})
+
+		router.Handle("/chequebook/deposit", jsonhttp.MethodHandler{
+			"POST": http.HandlerFunc(s.chequebookDepositHandler),
+		})
+
+		router.Handle("/chequebook/withdraw", jsonhttp.MethodHandler{
+			"POST": http.HandlerFunc(s.chequebookWithdrawHandler),
+		})
 	}
+
+	router.Handle("/chequebook/cheque/{peer}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.chequebookLastPeerHandler),
+	})
+
+	router.Handle("/chequebook/cheque", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.chequebookAllLastHandler),
+	})
+
+	router.Handle("/chequebook/cashout/{peer}", jsonhttp.MethodHandler{
+		"GET":  http.HandlerFunc(s.swapCashoutStatusHandler),
+		"POST": http.HandlerFunc(s.swapCashoutHandler),
+	})
 
 	baseRouter.Handle("/", web.ChainHandlers(
 		logging.NewHTTPAccessLogHandler(s.Logger, logrus.InfoLevel, "debug api access"),

@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
@@ -24,6 +25,21 @@ var (
 	ErrUnknownBeneficary = errors.New("unknown beneficiary for peer")
 )
 
+type ApiInterface interface {
+	// LastSentCheque returns the last sent cheque for the peer
+	LastSentCheque(peer swarm.Address) (*chequebook.SignedCheque, error)
+	// LastSentCheques returns the list of last sent cheques for all peers
+	LastSentCheques() (map[string]*chequebook.SignedCheque, error)
+	// LastReceivedCheque returns the last received cheque for the peer
+	LastReceivedCheque(peer swarm.Address) (*chequebook.SignedCheque, error)
+	// LastReceivedCheques returns the list of last received cheques for all peers
+	LastReceivedCheques() (map[string]*chequebook.SignedCheque, error)
+	// CashCheque sends a cashing transaction for the last cheque of the peer
+	CashCheque(ctx context.Context, peer swarm.Address) (common.Hash, error)
+	// CashoutStatus gets the status of the latest cashout transaction for the peers chequebook
+	CashoutStatus(ctx context.Context, peer swarm.Address) (*chequebook.CashoutStatus, error)
+}
+
 // Service is the implementation of the swap settlement layer.
 type Service struct {
 	proto       swapprotocol.Interface
@@ -33,12 +49,14 @@ type Service struct {
 	metrics     metrics
 	chequebook  chequebook.Service
 	chequeStore chequebook.ChequeStore
+	cashout     chequebook.CashoutService
+	p2pService  p2p.Service
 	addressbook Addressbook
 	networkID   uint64
 }
 
 // New creates a new swap Service.
-func New(proto swapprotocol.Interface, logger logging.Logger, store storage.StateStorer, chequebook chequebook.Service, chequeStore chequebook.ChequeStore, addressbook Addressbook, networkID uint64) *Service {
+func New(proto swapprotocol.Interface, logger logging.Logger, store storage.StateStorer, chequebook chequebook.Service, chequeStore chequebook.ChequeStore, addressbook Addressbook, networkID uint64, cashout chequebook.CashoutService, p2pService p2p.Service) *Service {
 	return &Service{
 		proto:       proto,
 		logger:      logger,
@@ -48,6 +66,8 @@ func New(proto swapprotocol.Interface, logger logging.Logger, store storage.Stat
 		chequeStore: chequeStore,
 		addressbook: addressbook,
 		networkID:   networkID,
+		cashout:     cashout,
+		p2pService:  p2pService,
 	}
 }
 
@@ -86,6 +106,11 @@ func (s *Service) Pay(ctx context.Context, peer swarm.Address, amount uint64) er
 		return err
 	}
 	if !known {
+		s.logger.Warning("disconnecting non-swap peer %v", peer)
+		err = s.p2pService.Disconnect(peer)
+		if err != nil {
+			return err
+		}
 		return ErrUnknownBeneficary
 	}
 	err = s.chequebook.Issue(ctx, beneficiary, big.NewInt(int64(amount)), func(signedCheque *chequebook.SignedCheque) error {
@@ -207,4 +232,98 @@ func (s *Service) Handshake(peer swarm.Address, beneficiary common.Address) erro
 		return ErrWrongBeneficiary
 	}
 	return nil
+}
+
+// LastSentCheque returns the last sent cheque for the peer
+func (s *Service) LastSentCheque(peer swarm.Address) (*chequebook.SignedCheque, error) {
+
+	common, known, err := s.addressbook.Beneficiary(peer)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !known {
+		return nil, chequebook.ErrNoCheque
+	}
+
+	return s.chequebook.LastCheque(common)
+}
+
+// LastReceivedCheque returns the last received cheque for the peer
+func (s *Service) LastReceivedCheque(peer swarm.Address) (*chequebook.SignedCheque, error) {
+
+	common, known, err := s.addressbook.Chequebook(peer)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !known {
+		return nil, chequebook.ErrNoCheque
+	}
+
+	return s.chequeStore.LastCheque(common)
+}
+
+// LastSentCheques returns the list of last sent cheques for all peers
+func (s *Service) LastSentCheques() (map[string]*chequebook.SignedCheque, error) {
+	lastcheques, err := s.chequebook.LastCheques()
+	if err != nil {
+		return nil, err
+	}
+
+	resultmap := make(map[string]*chequebook.SignedCheque, len(lastcheques))
+
+	for i, j := range lastcheques {
+		addr, known, err := s.addressbook.BeneficiaryPeer(i)
+		if err == nil && known {
+			resultmap[addr.String()] = j
+		}
+	}
+
+	return resultmap, nil
+}
+
+// LastReceivedCheques returns the list of last received cheques for all peers
+func (s *Service) LastReceivedCheques() (map[string]*chequebook.SignedCheque, error) {
+	lastcheques, err := s.chequeStore.LastCheques()
+	if err != nil {
+		return nil, err
+	}
+
+	resultmap := make(map[string]*chequebook.SignedCheque, len(lastcheques))
+
+	for i, j := range lastcheques {
+		addr, known, err := s.addressbook.ChequebookPeer(i)
+		if err == nil && known {
+			resultmap[addr.String()] = j
+		}
+	}
+
+	return resultmap, nil
+}
+
+// CashCheque sends a cashing transaction for the last cheque of the peer
+func (s *Service) CashCheque(ctx context.Context, peer swarm.Address) (common.Hash, error) {
+	chequebookAddress, known, err := s.addressbook.Chequebook(peer)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if !known {
+		return common.Hash{}, chequebook.ErrNoCheque
+	}
+	return s.cashout.CashCheque(ctx, chequebookAddress, s.chequebook.Address())
+}
+
+// CashoutStatus gets the status of the latest cashout transaction for the peers chequebook
+func (s *Service) CashoutStatus(ctx context.Context, peer swarm.Address) (*chequebook.CashoutStatus, error) {
+	chequebookAddress, known, err := s.addressbook.Chequebook(peer)
+	if err != nil {
+		return nil, err
+	}
+	if !known {
+		return nil, chequebook.ErrNoCheque
+	}
+	return s.cashout.CashoutStatus(ctx, chequebookAddress)
 }
