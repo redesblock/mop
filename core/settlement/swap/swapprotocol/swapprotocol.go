@@ -87,7 +87,7 @@ func (s *Service) initHandler(ctx context.Context, p p2p.Peer, stream p2p.Stream
 		}
 	}()
 	var req pb.Handshake
-	if err := r.ReadMsg(&req); err != nil {
+	if err := r.ReadMsgWithContext(ctx, &req); err != nil {
 		return fmt.Errorf("read request from peer %v: %w", p.Address, err)
 	}
 
@@ -132,7 +132,7 @@ func (s *Service) init(ctx context.Context, p p2p.Peer) error {
 	}
 
 	var req pb.Handshake
-	if err := r.ReadMsg(&req); err != nil {
+	if err := r.ReadMsgWithContext(ctx, &req); err != nil {
 		return fmt.Errorf("read request from peer %v: %w", p.Address, err)
 	}
 
@@ -156,7 +156,7 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 		}
 	}()
 	var req pb.EmitCheque
-	if err := r.ReadMsg(&req); err != nil {
+	if err := r.ReadMsgWithContext(ctx, &req); err != nil {
 		return fmt.Errorf("read request from peer %v: %w", p.Address, err)
 	}
 

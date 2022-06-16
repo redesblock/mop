@@ -1,4 +1,3 @@
-// Package swarm contains most basic and general Swarm concepts.
 package soc
 
 import (

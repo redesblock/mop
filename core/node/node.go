@@ -45,6 +45,7 @@ import (
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
@@ -157,7 +158,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 		if err != nil {
 			return nil, err
 		}
-		transactionService, err := chequebook.NewTransactionService(logger, swapBackend, signer)
+		transactionService, err := transaction.NewService(logger, swapBackend, signer)
 		if err != nil {
 			return nil, err
 		}
@@ -235,17 +236,19 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	}
 	b.p2pService = p2ps
 
-	if natManager := p2ps.NATManager(); natManager != nil {
-		// wait for nat manager to init
-		logger.Debug("initializing NAT manager")
-		select {
-		case <-natManager.Ready():
-			// this is magic sleep to give NAT time to sync the mappings
-			// this is a hack, kind of alchemy and should be improved
-			time.Sleep(3 * time.Second)
-			logger.Debug("NAT manager initialized")
-		case <-time.After(10 * time.Second):
-			logger.Warning("NAT manager init timeout")
+	if !o.Standalone {
+		if natManager := p2ps.NATManager(); natManager != nil {
+			// wait for nat manager to init
+			logger.Debug("initializing NAT manager")
+			select {
+			case <-natManager.Ready():
+				// this is magic sleep to give NAT time to sync the mappings
+				// this is a hack, kind of alchemy and should be improved
+				time.Sleep(3 * time.Second)
+				logger.Debug("NAT manager initialized")
+			case <-time.After(10 * time.Second):
+				logger.Warning("NAT manager init timeout")
+			}
 		}
 	}
 
@@ -337,11 +340,11 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	}
 	b.localstoreCloser = storer
 
-	chunkvalidator := swarm.NewChunkValidator(soc.NewValidator(), content.NewValidator())
+	chunkvalidator := swarm.NewChunkValidator(content.NewValidator(), soc.NewValidator())
 
 	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), chunkvalidator, tracer)
-	tagg := tags.NewTags(stateStore, logger)
-	b.tagsCloser = tagg
+	tagService := tags.NewTags(stateStore, logger)
+	b.tagsCloser = tagService
 
 	if err = p2ps.AddProtocol(retrieve.Protocol()); err != nil {
 		return nil, fmt.Errorf("retrieval service: %w", err)
@@ -353,22 +356,22 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 		return nil, fmt.Errorf("swarm key: %w", err)
 	}
 
-	psss := pss.New(swarmPrivateKey, logger)
-	b.pssCloser = psss
+	pssService := pss.New(swarmPrivateKey, logger)
+	b.pssCloser = pssService
 
 	var ns storage.Storer
 	if o.GlobalPinningEnabled {
 		// create recovery callback for content repair
-		recoverFunc := recovery.NewRecoveryHook(psss)
+		recoverFunc := recovery.NewRecoveryHook(pssService)
 		ns = netstore.New(storer, recoverFunc, retrieve, logger, chunkvalidator)
 	} else {
 		ns = netstore.New(storer, nil, retrieve, logger, chunkvalidator)
 	}
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagg, psss.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
 	// set the pushSyncer in the PSS
-	psss.SetPushSyncer(pushSyncProtocol)
+	pssService.SetPushSyncer(pushSyncProtocol)
 
 	if err = p2ps.AddProtocol(pushSyncProtocol.Protocol()); err != nil {
 		return nil, fmt.Errorf("pushsync service: %w", err)
@@ -377,10 +380,10 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	if o.GlobalPinningEnabled {
 		// register function for chunk repair upon receiving a trojan message
 		chunkRepairHandler := recovery.NewRepairHandler(ns, logger, pushSyncProtocol)
-		b.recoveryHandleCleanup = psss.Register(recovery.RecoveryTopic, chunkRepairHandler)
+		b.recoveryHandleCleanup = pssService.Register(recovery.RecoveryTopic, chunkRepairHandler)
 	}
 
-	pushSyncPusher := pusher.New(storer, kad, pushSyncProtocol, tagg, logger, tracer)
+	pushSyncPusher := pusher.New(storer, kad, pushSyncProtocol, tagService, logger, tracer)
 	b.pusherCloser = pushSyncPusher
 
 	pullStorage := pullstorage.New(storer)
@@ -405,7 +408,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	var apiService api.Service
 	if o.APIAddr != "" {
 		// API server
-		apiService = api.New(tagg, ns, multiResolver, psss, logger, tracer, api.Options{
+		apiService = api.New(tagService, ns, multiResolver, pssService, logger, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,
@@ -436,7 +439,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 	if o.DebugAPIAddr != "" {
 		// Debug API server
 
-		debugAPIService := debugapi.New(swarmAddress, publicKey, overlayEthAddress, p2ps, pingPong, kad, storer, logger, tracer, tagg, acc, settlement, o.SwapEnable, swapService, chequebookService)
+		debugAPIService := debugapi.New(swarmAddress, publicKey, overlayEthAddress, p2ps, pingPong, kad, storer, logger, tracer, tagService, acc, settlement, o.SwapEnable, swapService, chequebookService)
 		// register metrics from components
 		debugAPIService.MustRegisterMetrics(p2ps.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)
@@ -447,8 +450,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, key
 		debugAPIService.MustRegisterMetrics(pushSyncPusher.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pullSync.Metrics()...)
 
-		if pssService, ok := psss.(metrics.Collector); ok {
-			debugAPIService.MustRegisterMetrics(pssService.Metrics()...)
+		if pssServiceMetrics, ok := pssService.(metrics.Collector); ok {
+			debugAPIService.MustRegisterMetrics(pssServiceMetrics.Metrics()...)
 		}
 
 		if apiService != nil {

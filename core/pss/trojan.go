@@ -11,7 +11,7 @@ import (
 	random "math/rand"
 
 	"github.com/btcsuite/btcd/btcec"
-	bmtlegacy "github.com/ethersphere/bmt/legacy"
+	"github.com/redesblock/hop/core/bmtpool"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/encryption/elgamal"
@@ -172,10 +172,10 @@ func checkTargets(targets Targets) error {
 }
 
 func hasher(span, b []byte) func([]byte) ([]byte, error) {
-	hashPool := bmtlegacy.NewTreePool(swarm.NewHasher, swarm.Branches, bmtlegacy.PoolSize)
 	return func(nonce []byte) ([]byte, error) {
 		s := append(nonce, b...)
-		hasher := bmtlegacy.New(hashPool)
+		hasher := bmtpool.Get()
+		defer bmtpool.Put(hasher)
 		if err := hasher.SetSpanBytes(span); err != nil {
 			return nil, err
 		}

@@ -46,6 +46,7 @@ type Service struct {
 	ctx               context.Context
 	host              host.Host
 	natManager        basichost.NATManager
+	natAddrResolver   *staticAddressResolver
 	libp2pPeerstore   peerstore.Peerstore
 	metrics           metrics
 	networkID         uint64
@@ -175,15 +176,17 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 	}
 
 	var advertisableAddresser handshake.AdvertisableAddressResolver
+	var natAddrResolver *staticAddressResolver
 	if o.NATAddr == "" {
 		advertisableAddresser = &UpnpAddressResolver{
 			host: h,
 		}
 	} else {
-		advertisableAddresser, err = newStaticAddressResolver(o.NATAddr)
+		natAddrResolver, err = newStaticAddressResolver(o.NATAddr)
 		if err != nil {
 			return nil, fmt.Errorf("static nat: %w", err)
 		}
+		advertisableAddresser = natAddrResolver
 	}
 
 	handshakeService, err := handshake.New(signer, advertisableAddresser, overlay, networkID, o.LightNode, o.WelcomeMessage, logger)
@@ -196,6 +199,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		ctx:               ctx,
 		host:              h,
 		natManager:        natManager,
+		natAddrResolver:   natAddrResolver,
 		handshakeService:  handshakeService,
 		libp2pPeerstore:   libp2pPeerstore,
 		metrics:           newMetrics(),
@@ -221,7 +225,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 	s.host.SetStreamHandlerMatch(id, matcher, func(stream network.Stream) {
 		peerID := stream.Conn().RemotePeer()
 		handshakeStream := NewStream(stream)
-		i, err := s.handshakeService.Handle(handshakeStream, stream.Conn().RemoteMultiaddr(), peerID)
+		i, err := s.handshakeService.Handle(ctx, handshakeStream, stream.Conn().RemoteMultiaddr(), peerID)
 		if err != nil {
 			s.logger.Debugf("handshake: handle %s: %v", peerID, err)
 			s.logger.Errorf("unable to handshake with peer %v", peerID)
@@ -386,6 +390,13 @@ func (s *Service) Addresses() (addreses []ma.Multiaddr, err error) {
 
 		addreses = append(addreses, a)
 	}
+	if s.natAddrResolver != nil && len(addreses) > 0 {
+		a, err := s.natAddrResolver.Resolve(addreses[0])
+		if err != nil {
+			return nil, err
+		}
+		addreses = append(addreses, a)
+	}
 
 	return addreses, nil
 }
@@ -440,7 +451,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	}
 
 	handshakeStream := NewStream(stream)
-	i, err := s.handshakeService.Handshake(handshakeStream, stream.Conn().RemoteMultiaddr(), stream.Conn().RemotePeer())
+	i, err := s.handshakeService.Handshake(ctx, handshakeStream, stream.Conn().RemoteMultiaddr(), stream.Conn().RemotePeer())
 	if err != nil {
 		_ = handshakeStream.Reset()
 		_ = s.host.Network().ClosePeer(info.ID)

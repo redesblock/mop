@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
 )
 
@@ -20,8 +21,8 @@ func Init(
 	stateStore storage.StateStorer,
 	logger logging.Logger,
 	swapInitialDeposit uint64,
-	transactionService TransactionService,
-	swapBackend Backend,
+	transactionService transaction.Service,
+	swapBackend transaction.Backend,
 	chainId int64,
 	overlayEthAddress common.Address,
 	chequeSigner ChequeSigner,

@@ -2,7 +2,6 @@ package mock
 
 import (
 	"context"
-	"io"
 	"math"
 	"sync"
 
@@ -159,13 +158,15 @@ func (p *PullSyncMock) SyncInterval(ctx context.Context, peer swarm.Address, bin
 	if isLive && p.blockLiveSync {
 		// don't respond, wait for quit
 		<-p.quit
-		return 0, 1, io.EOF
+		return 0, 1, context.Canceled
 	}
 
 	if isLive && len(p.liveSyncReplies) > 0 {
 		if p.liveSyncCalls >= len(p.liveSyncReplies) {
 			<-p.quit
-			return
+			// when shutting down, onthe puller side we cancel the context going into the pullsync protocol request
+			// this results in SyncInterval returning with a context cancelled error
+			return 0, 0, context.Canceled
 		}
 		p.mtx.Lock()
 		v := p.liveSyncReplies[p.liveSyncCalls]
@@ -204,7 +205,7 @@ func (p *PullSyncMock) SyncCalls(peer swarm.Address) (res []SyncCall) {
 	return res
 }
 
-func (p *PullSyncMock) CancelRuid(peer swarm.Address, ruid uint32) error {
+func (p *PullSyncMock) CancelRuid(ctx context.Context, peer swarm.Address, ruid uint32) error {
 	return nil
 }
 

@@ -12,7 +12,9 @@ import (
 	"github.com/ethersphere/sw3-bindings/v2/simpleswapfactory"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	chequestoremock "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
+	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
 )
 
@@ -75,8 +77,8 @@ func TestCashout(t *testing.T) {
 				}, nil
 			}),
 		),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				if request.To != chequebookAddress {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", chequebookAddress, request.To)
 				}
@@ -84,8 +86,8 @@ func TestCashout(t *testing.T) {
 					t.Fatal("sending ether to chequebook contract")
 				}
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		chequestoremock.NewChequeStore(
 			chequestoremock.WithLastChequeFunc(func(c common.Address) (*chequebook.SignedCheque, error) {
 				if c != chequebookAddress {
@@ -214,8 +216,8 @@ func TestCashoutBounced(t *testing.T) {
 				}, nil
 			}),
 		),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				if request.To != chequebookAddress {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", chequebookAddress, request.To)
 				}
@@ -223,8 +225,8 @@ func TestCashoutBounced(t *testing.T) {
 					t.Fatal("sending ether to chequebook contract")
 				}
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		chequestoremock.NewChequeStore(
 			chequestoremock.WithLastChequeFunc(func(c common.Address) (*chequebook.SignedCheque, error) {
 				if c != chequebookAddress {
@@ -320,11 +322,11 @@ func TestCashoutStatusReverted(t *testing.T) {
 				}, nil
 			}),
 		),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		chequestoremock.NewChequeStore(
 			chequestoremock.WithLastChequeFunc(func(c common.Address) (*chequebook.SignedCheque, error) {
 				if c != chequebookAddress {
@@ -394,11 +396,11 @@ func TestCashoutStatusPending(t *testing.T) {
 				return nil, true, nil
 			}),
 		),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		chequestoremock.NewChequeStore(
 			chequestoremock.WithLastChequeFunc(func(c common.Address) (*chequebook.SignedCheque, error) {
 				if c != chequebookAddress {

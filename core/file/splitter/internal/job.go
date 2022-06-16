@@ -5,10 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash"
 
-	"github.com/ethersphere/bmt"
-	bmtlegacy "github.com/ethersphere/bmt/legacy"
+	"github.com/redesblock/hop/core/bmtpool"
 	"github.com/redesblock/hop/core/encryption"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/sctx"
@@ -25,11 +23,6 @@ type Putter interface {
 // (128 ^ (9 - 1)) * 4096 = 295147905179352825856 bytes
 const levelBufferLimit = 9
 
-// hashFunc is a hasher factory used by the bmt hasher
-func hashFunc() hash.Hash {
-	return sha3.NewLegacyKeccak256()
-}
-
 // SimpleSplitterJob encapsulated a single splitter operation, accepting blockwise
 // writes of data whose length is defined in advance.
 //
@@ -42,12 +35,11 @@ func hashFunc() hash.Hash {
 type SimpleSplitterJob struct {
 	ctx        context.Context
 	putter     Putter
-	spanLength int64    // target length of data
-	length     int64    // number of bytes written to the data level of the hasher
-	sumCounts  []int    // number of sums performed, indexed per level
-	cursors    []int    // section write position, indexed per level
-	hasher     bmt.Hash // underlying hasher used for hashing the tree
-	buffer     []byte   // keeps data and hashes, indexed by cursors
+	spanLength int64  // target length of data
+	length     int64  // number of bytes written to the data level of the hasher
+	sumCounts  []int  // number of sums performed, indexed per level
+	cursors    []int  // section write position, indexed per level
+	buffer     []byte // keeps data and hashes, indexed by cursors
 	tag        *tags.Tag
 	toEncrypt  bool // to encryrpt the chunks or not
 	refSize    int64
@@ -62,7 +54,6 @@ func NewSimpleSplitterJob(ctx context.Context, putter Putter, spanLength int64, 
 	if toEncrypt {
 		refSize += encryption.KeyLength
 	}
-	p := bmtlegacy.NewTreePool(hashFunc, swarm.Branches, bmtlegacy.PoolSize)
 
 	return &SimpleSplitterJob{
 		ctx:        ctx,
@@ -70,7 +61,6 @@ func NewSimpleSplitterJob(ctx context.Context, putter Putter, spanLength int64, 
 		spanLength: spanLength,
 		sumCounts:  make([]int, levelBufferLimit),
 		cursors:    make([]int, levelBufferLimit),
-		hasher:     bmtlegacy.New(p),
 		buffer:     make([]byte, swarm.ChunkWithSpanSize*levelBufferLimit*2), // double size as temp workaround for weak calculation of needed buffer space
 		tag:        sctx.GetTag(ctx),
 		toEncrypt:  toEncrypt,
@@ -163,16 +153,21 @@ func (s *SimpleSplitterJob) sumLevel(lvl int) ([]byte, error) {
 		}
 	}
 
-	s.hasher.Reset()
-	err = s.hasher.SetSpanBytes(c[:8])
+	hasher := bmtpool.Get()
+
+	err = hasher.SetSpanBytes(c[:8])
 	if err != nil {
+		bmtpool.Put(hasher)
 		return nil, err
 	}
-	_, err = s.hasher.Write(c[8:])
+	_, err = hasher.Write(c[8:])
 	if err != nil {
+		bmtpool.Put(hasher)
 		return nil, err
 	}
-	ref := s.hasher.Sum(nil)
+	ref := hasher.Sum(nil)
+	bmtpool.Put(hasher)
+
 	addr = swarm.NewAddress(ref)
 
 	// Add tag to the chunk if tag is valid

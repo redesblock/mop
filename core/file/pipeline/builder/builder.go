@@ -30,7 +30,7 @@ func NewPipelineBuilder(ctx context.Context, s storage.Storer, mode storage.Mode
 func newPipeline(ctx context.Context, s storage.Storer, mode storage.ModePut) pipeline.Interface {
 	tw := hashtrie.NewHashTrieWriter(swarm.ChunkSize, swarm.Branches, swarm.HashSize, newShortPipelineFunc(ctx, s, mode))
 	lsw := store.NewStoreWriter(ctx, s, mode, tw)
-	b := bmt.NewBmtWriter(128, lsw)
+	b := bmt.NewBmtWriter(lsw)
 	return feeder.NewChunkFeederWriter(swarm.ChunkSize, b)
 }
 
@@ -39,7 +39,7 @@ func newPipeline(ctx context.Context, s storage.Storer, mode storage.ModePut) pi
 func newShortPipelineFunc(ctx context.Context, s storage.Storer, mode storage.ModePut) func() pipeline.ChainWriter {
 	return func() pipeline.ChainWriter {
 		lsw := store.NewStoreWriter(ctx, s, mode, nil)
-		return bmt.NewBmtWriter(128, lsw)
+		return bmt.NewBmtWriter(lsw)
 	}
 }
 
@@ -51,7 +51,7 @@ func newShortPipelineFunc(ctx context.Context, s storage.Storer, mode storage.Mo
 func newEncryptionPipeline(ctx context.Context, s storage.Storer, mode storage.ModePut) pipeline.Interface {
 	tw := hashtrie.NewHashTrieWriter(swarm.ChunkSize, 64, swarm.HashSize+encryption.KeyLength, newShortEncryptionPipelineFunc(ctx, s, mode))
 	lsw := store.NewStoreWriter(ctx, s, mode, tw)
-	b := bmt.NewBmtWriter(128, lsw)
+	b := bmt.NewBmtWriter(lsw)
 	enc := enc.NewEncryptionWriter(encryption.NewChunkEncrypter(), b)
 	return feeder.NewChunkFeederWriter(swarm.ChunkSize, enc)
 }
@@ -61,7 +61,7 @@ func newEncryptionPipeline(ctx context.Context, s storage.Storer, mode storage.M
 func newShortEncryptionPipelineFunc(ctx context.Context, s storage.Storer, mode storage.ModePut) func() pipeline.ChainWriter {
 	return func() pipeline.ChainWriter {
 		lsw := store.NewStoreWriter(ctx, s, mode, nil)
-		b := bmt.NewBmtWriter(128, lsw)
+		b := bmt.NewBmtWriter(lsw)
 		return enc.NewEncryptionWriter(encryption.NewChunkEncrypter(), b)
 	}
 }

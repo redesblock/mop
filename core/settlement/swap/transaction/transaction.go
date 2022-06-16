@@ -1,4 +1,4 @@
-package chequebook
+package transaction
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/crypto"
@@ -18,13 +17,6 @@ var (
 	ErrTransactionReverted = errors.New("transaction reverted")
 )
 
-// Backend is the minimum of blockchain backend functions we need.
-type Backend interface {
-	bind.ContractBackend
-	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
-}
-
 // TxRequest describes a request for a transaction that can be executed.
 type TxRequest struct {
 	To       common.Address // recipient of the transaction
@@ -34,8 +26,8 @@ type TxRequest struct {
 	Value    *big.Int       // amount of wei to send
 }
 
-// TransactionService is the service to send transactions. It takes care of gas price, gas limit and nonce management.
-type TransactionService interface {
+// Service is the service to send transactions. It takes care of gas price, gas limit and nonce management.
+type Service interface {
 	// Send creates a transaction based on the request and sends it.
 	Send(ctx context.Context, request *TxRequest) (txHash common.Hash, err error)
 	// WaitForReceipt waits until either the transaction with the given hash has been mined or the context is cancelled.
@@ -49,8 +41,8 @@ type transactionService struct {
 	sender  common.Address
 }
 
-// NewTransactionService creates a new transaction service.
-func NewTransactionService(logger logging.Logger, backend Backend, signer crypto.Signer) (TransactionService, error) {
+// NewService creates a new transaction service.
+func NewService(logger logging.Logger, backend Backend, signer crypto.Signer) (Service, error) {
 	senderAddress, err := signer.EthereumAddress()
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package chequebook_test
+package transaction_test
 
 import (
 	"bytes"
@@ -10,8 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	signermock "github.com/redesblock/hop/core/crypto/mock"
 	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
 )
 
@@ -25,13 +26,13 @@ func TestTransactionSend(t *testing.T) {
 	estimatedGasLimit := uint64(3)
 	nonce := uint64(2)
 
-	request := &chequebook.TxRequest{
+	request := &transaction.TxRequest{
 		To:    recipient,
 		Data:  txData,
 		Value: value,
 	}
 
-	transactionService, err := chequebook.NewTransactionService(logger,
+	transactionService, err := transaction.NewService(logger,
 		backendmock.New(
 			backendmock.WithSendTransactionFunc(func(ctx context.Context, tx *types.Transaction) error {
 				if tx != signedTx {
@@ -55,8 +56,8 @@ func TestTransactionSend(t *testing.T) {
 				return nonce, nil
 			}),
 		),
-		&signerMock{
-			signTx: func(transaction *types.Transaction) (*types.Transaction, error) {
+		signermock.New(
+			signermock.WithSignTxFunc(func(transaction *types.Transaction) (*types.Transaction, error) {
 				if !bytes.Equal(transaction.To().Bytes(), recipient.Bytes()) {
 					t.Fatalf("signing transaction with wrong recipient. wanted %x, got %x", recipient, transaction.To())
 				}
@@ -78,8 +79,9 @@ func TestTransactionSend(t *testing.T) {
 				}
 
 				return signedTx, nil
-			},
-		})
+			}),
+		),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +100,7 @@ func TestTransactionWaitForReceipt(t *testing.T) {
 	logger := logging.New(ioutil.Discard, 0)
 	txHash := common.HexToHash("0xabcdee")
 
-	transactionService, err := chequebook.NewTransactionService(logger,
+	transactionService, err := transaction.NewService(logger,
 		backendmock.New(
 			backendmock.WithTransactionReceiptFunc(func(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 				return &types.Receipt{
@@ -106,7 +108,8 @@ func TestTransactionWaitForReceipt(t *testing.T) {
 				}, nil
 			}),
 		),
-		&signerMock{})
+		signermock.New(),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

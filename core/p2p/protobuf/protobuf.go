@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"time"
 
 	ggio "github.com/gogo/protobuf/io"
 	"github.com/gogo/protobuf/proto"
@@ -66,23 +65,6 @@ func (r Reader) ReadMsgWithContext(ctx context.Context, msg proto.Message) error
 	}
 }
 
-func (r Reader) ReadMsgWithTimeout(d time.Duration, msg proto.Message) error {
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- r.ReadMsg(msg)
-	}()
-
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-
-	select {
-	case err := <-errChan:
-		return err
-	case <-timer.C:
-		return ErrTimeout
-	}
-}
-
 type Writer struct {
 	ggio.Writer
 }
@@ -102,22 +84,5 @@ func (w Writer) WriteMsgWithContext(ctx context.Context, msg proto.Message) erro
 		return err
 	case <-ctx.Done():
 		return ctx.Err()
-	}
-}
-
-func (w Writer) WriteMsgWithTimeout(d time.Duration, msg proto.Message) error {
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- w.WriteMsg(msg)
-	}()
-
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-
-	select {
-	case err := <-errChan:
-		return err
-	case <-timer.C:
-		return ErrTimeout
 	}
 }

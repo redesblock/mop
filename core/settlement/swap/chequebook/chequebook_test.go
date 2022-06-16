@@ -10,15 +10,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
+	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 )
 
 func newTestChequebook(
 	t *testing.T,
-	backend chequebook.Backend,
-	transactionService chequebook.TransactionService,
+	backend transaction.Backend,
+	transactionService transaction.Service,
 	address,
 	erc20address,
 	ownerAdress common.Address,
@@ -62,7 +64,7 @@ func TestChequebookAddress(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{},
+		transactionmock.New(),
 		address,
 		erc20address,
 		ownerAdress,
@@ -87,7 +89,7 @@ func TestChequebookBalance(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{},
+		transactionmock.New(),
 		address,
 		erc20address,
 		ownerAdress,
@@ -123,8 +125,8 @@ func TestChequebookDeposit(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				if request.To != erc20address {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", erc20address, request.To)
 				}
@@ -132,8 +134,8 @@ func TestChequebookDeposit(t *testing.T) {
 					t.Fatal("sending ether to token contract")
 				}
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		address,
 		erc20address,
 		ownerAdress,
@@ -170,16 +172,16 @@ func TestChequebookWaitForDeposit(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{
-			waitForReceipt: func(ctx context.Context, tx common.Hash) (*types.Receipt, error) {
+		transactionmock.New(
+			transactionmock.WithWaitForReceiptFunc(func(ctx context.Context, tx common.Hash) (*types.Receipt, error) {
 				if tx != txHash {
 					t.Fatalf("waiting for wrong transaction. wanted %x, got %x", txHash, tx)
 				}
 				return &types.Receipt{
 					Status: 1,
 				}, nil
-			},
-		},
+			}),
+		),
 		address,
 		erc20address,
 		ownerAdress,
@@ -205,16 +207,16 @@ func TestChequebookWaitForDepositReverted(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{
-			waitForReceipt: func(ctx context.Context, tx common.Hash) (*types.Receipt, error) {
+		transactionmock.New(
+			transactionmock.WithWaitForReceiptFunc(func(ctx context.Context, tx common.Hash) (*types.Receipt, error) {
 				if tx != txHash {
 					t.Fatalf("waiting for wrong transaction. wanted %x, got %x", txHash, tx)
 				}
 				return &types.Receipt{
 					Status: 0,
 				}, nil
-			},
-		},
+			}),
+		),
 		address,
 		erc20address,
 		ownerAdress,
@@ -230,8 +232,8 @@ func TestChequebookWaitForDepositReverted(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected reverted error")
 	}
-	if !errors.Is(err, chequebook.ErrTransactionReverted) {
-		t.Fatalf("wrong error. wanted %v, got %v", chequebook.ErrTransactionReverted, err)
+	if !errors.Is(err, transaction.ErrTransactionReverted) {
+		t.Fatalf("wrong error. wanted %v, got %v", transaction.ErrTransactionReverted, err)
 	}
 }
 
@@ -250,7 +252,7 @@ func TestChequebookIssue(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{},
+		transactionmock.New(),
 		address,
 		erc20address,
 		ownerAdress,
@@ -401,7 +403,7 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{},
+		transactionmock.New(),
 		address,
 		erc20address,
 		ownerAdress,
@@ -449,7 +451,7 @@ func TestChequebookIssueOutOfFunds(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{},
+		transactionmock.New(),
 		address,
 		erc20address,
 		ownerAdress,
@@ -494,8 +496,8 @@ func TestChequebookWithdraw(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				if request.To != address {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", address, request.To)
 				}
@@ -503,8 +505,8 @@ func TestChequebookWithdraw(t *testing.T) {
 					t.Fatal("sending ether to token contract")
 				}
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		address,
 		erc20address,
 		ownerAdress,
@@ -551,8 +553,8 @@ func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		&transactionServiceMock{
-			send: func(c context.Context, request *chequebook.TxRequest) (common.Hash, error) {
+		transactionmock.New(
+			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
 				if request.To != address {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", address, request.To)
 				}
@@ -560,8 +562,8 @@ func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 					t.Fatal("sending ether to token contract")
 				}
 				return txHash, nil
-			},
-		},
+			}),
+		),
 		address,
 		erc20address,
 		ownerAdress,

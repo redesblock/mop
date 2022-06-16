@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethersphere/sw3-bindings/v2/simpleswapfactory"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
 )
 
@@ -30,8 +31,8 @@ type CashoutService interface {
 type cashoutService struct {
 	store                 storage.StateStorer
 	simpleSwapBindingFunc SimpleSwapBindingFunc
-	backend               Backend
-	transactionService    TransactionService
+	backend               transaction.Backend
+	transactionService    transaction.Service
 	chequebookABI         abi.ABI
 	chequeStore           ChequeStore
 }
@@ -65,8 +66,8 @@ type cashoutAction struct {
 func NewCashoutService(
 	store storage.StateStorer,
 	simpleSwapBindingFunc SimpleSwapBindingFunc,
-	backend Backend,
-	transactionService TransactionService,
+	backend transaction.Backend,
+	transactionService transaction.Service,
 	chequeStore ChequeStore,
 ) (CashoutService, error) {
 	chequebookABI, err := abi.JSON(strings.NewReader(simpleswapfactory.ERC20SimpleSwapABI))
@@ -101,7 +102,7 @@ func (s *cashoutService) CashCheque(ctx context.Context, chequebook common.Addre
 		return common.Hash{}, err
 	}
 
-	request := &TxRequest{
+	request := &transaction.TxRequest{
 		To:       chequebook,
 		Data:     callData,
 		GasPrice: nil,

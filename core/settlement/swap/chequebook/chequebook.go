@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethersphere/sw3-bindings/v2/simpleswapfactory"
+	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
 )
 
@@ -54,8 +55,8 @@ type Service interface {
 
 type service struct {
 	lock               sync.Mutex
-	backend            Backend
-	transactionService TransactionService
+	backend            transaction.Backend
+	transactionService transaction.Service
 
 	address            common.Address
 	chequebookABI      abi.ABI
@@ -71,7 +72,7 @@ type service struct {
 }
 
 // New creates a new chequebook service for the provided chequebook contract.
-func New(backend Backend, transactionService TransactionService, address, erc20Address, ownerAddress common.Address, store storage.StateStorer, chequeSigner ChequeSigner, simpleSwapBindingFunc SimpleSwapBindingFunc, erc20BindingFunc ERC20BindingFunc) (Service, error) {
+func New(backend transaction.Backend, transactionService transaction.Service, address, erc20Address, ownerAddress common.Address, store storage.StateStorer, chequeSigner ChequeSigner, simpleSwapBindingFunc SimpleSwapBindingFunc, erc20BindingFunc ERC20BindingFunc) (Service, error) {
 	chequebookABI, err := abi.JSON(strings.NewReader(simpleswapfactory.ERC20SimpleSwapABI))
 	if err != nil {
 		return nil, err
@@ -131,7 +132,7 @@ func (s *service) Deposit(ctx context.Context, amount *big.Int) (hash common.Has
 		return common.Hash{}, err
 	}
 
-	request := &TxRequest{
+	request := &transaction.TxRequest{
 		To:       s.erc20Address,
 		Data:     callData,
 		GasPrice: nil,
@@ -187,7 +188,7 @@ func (s *service) WaitForDeposit(ctx context.Context, txHash common.Hash) error 
 		return err
 	}
 	if receipt.Status != 1 {
-		return ErrTransactionReverted
+		return transaction.ErrTransactionReverted
 	}
 	return nil
 }
@@ -342,7 +343,7 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 		return common.Hash{}, err
 	}
 
-	request := &TxRequest{
+	request := &transaction.TxRequest{
 		To:       s.address,
 		Data:     callData,
 		GasPrice: nil,

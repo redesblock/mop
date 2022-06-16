@@ -92,7 +92,9 @@ func (r *Recorder) NewStream(ctx context.Context, addr swarm.Address, h p2p.Head
 	go func() {
 		defer close(record.done)
 
-		err := handler(ctx, p2p.Peer{Address: addr}, streamIn)
+		// pass a new context to handler,
+		// do not cancel it with the client stream context
+		err := handler(context.Background(), p2p.Peer{Address: addr}, streamIn)
 		if err != nil && err != io.EOF {
 			record.setErr(err)
 		}
@@ -315,3 +317,52 @@ type Option interface {
 type optionFunc func(*Recorder)
 
 func (f optionFunc) apply(r *Recorder) { f(r) }
+
+var _ p2p.StreamerDisconnecter = (*RecorderDisconnecter)(nil)
+
+type RecorderDisconnecter struct {
+	*Recorder
+	disconnected map[string]struct{}
+	blocklisted  map[string]time.Duration
+	mu           sync.RWMutex
+}
+
+func NewRecorderDisconnecter(r *Recorder) *RecorderDisconnecter {
+	return &RecorderDisconnecter{
+		Recorder:     r,
+		disconnected: make(map[string]struct{}),
+		blocklisted:  make(map[string]time.Duration),
+	}
+}
+
+func (r *RecorderDisconnecter) Disconnect(overlay swarm.Address) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.disconnected[overlay.String()] = struct{}{}
+	return nil
+}
+
+func (r *RecorderDisconnecter) Blocklist(overlay swarm.Address, d time.Duration) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.blocklisted[overlay.String()] = d
+	return nil
+}
+
+func (r *RecorderDisconnecter) IsDisconnected(overlay swarm.Address) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	_, yes := r.disconnected[overlay.String()]
+	return yes
+}
+
+func (r *RecorderDisconnecter) IsBlocklisted(overlay swarm.Address) (bool, time.Duration) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	d, yes := r.blocklisted[overlay.String()]
+	return yes, d
+}
