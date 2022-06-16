@@ -3,6 +3,8 @@ package api_test
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/gorilla/websocket"
+	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
@@ -19,21 +23,21 @@ import (
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/trojan"
 )
 
 var (
-	target  = trojan.Target([]byte{1})
-	targets = trojan.Targets([]trojan.Target{target})
+	target  = pss.Target([]byte{1})
+	targets = pss.Targets([]pss.Target{target})
 	payload = []byte("testdata")
-	topic   = trojan.NewTopic("testtopic")
+	topic   = pss.NewTopic("testtopic")
 	timeout = 10 * time.Second
 )
 
 // creates a single websocket handler for an arbitrary topic, and receives a message
 func TestPssWebsocketSingleHandler(t *testing.T) {
 	var (
-		pss, cl, _ = newPssTest(t, opts{})
+		p, publicKey, cl, _ = newPssTest(t, opts{})
+
 		msgContent = make([]byte, len(payload))
 		tc         swarm.Chunk
 		mtx        sync.Mutex
@@ -48,20 +52,17 @@ func TestPssWebsocketSingleHandler(t *testing.T) {
 
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
-	m, err := trojan.NewMessage(topic, payload)
+
+	tc, err = pss.Wrap(context.Background(), topic, payload, publicKey, targets)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tc, err = m.Wrap(context.Background(), targets)
+	err = p.TryUnwrap(context.Background(), tc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = pss.TryUnwrap(context.Background(), tc)
-	if err != nil {
-		t.Fatal(err)
-	}
 	waitMessage(t, msgContent, payload, &mtx)
 }
 
@@ -70,7 +71,8 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 	// pss.TryUnwrap with a chunk designated for this handler and expect
 	// the handler to be notified
 	var (
-		pss, cl, _ = newPssTest(t, opts{})
+		p, publicKey, cl, _ = newPssTest(t, opts{})
+
 		msgContent = make([]byte, len(payload))
 		tc         swarm.Chunk
 		mtx        sync.Mutex
@@ -85,12 +87,8 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 	cl.SetReadLimit(swarm.ChunkSize)
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
-	m, err := trojan.NewMessage(topic, payload)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	tc, err = m.Wrap(context.Background(), targets)
+	tc, err = pss.Wrap(context.Background(), topic, payload, publicKey, targets)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +99,7 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = pss.TryUnwrap(context.Background(), tc)
+	err = p.TryUnwrap(context.Background(), tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,9 +109,10 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 
 func TestPssWebsocketMultiHandler(t *testing.T) {
 	var (
-		pss, cl, listener = newPssTest(t, opts{})
-		u                 = url.URL{Scheme: "ws", Host: listener, Path: "/pss/subscribe/testtopic"}
-		cl2, _, err       = websocket.DefaultDialer.Dial(u.String(), nil)
+		p, publicKey, cl, listener = newPssTest(t, opts{})
+
+		u           = url.URL{Scheme: "ws", Host: listener, Path: "/pss/subscribe/testtopic"}
+		cl2, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
 
 		msgContent  = make([]byte, len(payload))
 		msgContent2 = make([]byte, len(payload))
@@ -134,12 +133,8 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
 	go waitReadMessage(t, &mtx, cl2, msgContent2, done)
-	m, err := trojan.NewMessage(topic, payload)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	tc, err = m.Wrap(context.Background(), targets)
+	tc, err = pss.Wrap(context.Background(), topic, payload, publicKey, targets)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +145,7 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = pss.TryUnwrap(context.Background(), tc)
+	err = p.TryUnwrap(context.Background(), tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,28 +160,33 @@ func TestPssSend(t *testing.T) {
 		logger = logging.New(ioutil.Discard, 0)
 
 		mtx             sync.Mutex
-		recievedTargets trojan.Targets
-		recievedTopic   trojan.Topic
-		recievedBytes   []byte
+		receivedTopic   pss.Topic
+		receivedBytes   []byte
+		receivedTargets pss.Targets
 		done            bool
 
-		sendFn = func(_ context.Context, targets trojan.Targets, topic trojan.Topic, bytes []byte) error {
+		privk, _       = crypto.GenerateSecp256k1Key()
+		publicKeyBytes = (*btcec.PublicKey)(&privk.PublicKey).SerializeCompressed()
+
+		sendFn = func(ctx context.Context, targets pss.Targets, chunk swarm.Chunk) error {
 			mtx.Lock()
-			recievedTargets = targets
-			recievedTopic = topic
-			recievedBytes = bytes
+			topic, msg, err := pss.Unwrap(ctx, privk, chunk, []pss.Topic{topic})
+			receivedTopic = topic
+			receivedBytes = msg
+			receivedTargets = targets
 			done = true
 			mtx.Unlock()
-			return nil
+			return err
 		}
 
-		pss          = newMockPss(sendFn)
+		p            = newMockPss(sendFn)
 		client, _, _ = newTestServer(t, testServerOptions{
-			Pss:    pss,
+			Pss:    p,
 			Storer: mock.NewStorer(),
 			Logger: logger,
 		})
 
+		recipient = hex.EncodeToString(publicKeyBytes)
 		targets   = fmt.Sprintf("[[%d]]", 0x12)
 		topic     = "testtopic"
 		hasher    = swarm.NewHasher()
@@ -198,7 +198,7 @@ func TestPssSend(t *testing.T) {
 	}
 
 	t.Run("err - bad targets", func(t *testing.T) {
-		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/to/badtarget", http.StatusBadRequest,
+		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/to/badtarget?recipient="+recipient, http.StatusBadRequest,
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "Bad Request",
@@ -208,6 +208,26 @@ func TestPssSend(t *testing.T) {
 	})
 
 	t.Run("ok", func(t *testing.T) {
+		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/testtopic/12?recipient="+recipient, http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
+			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+				Message: "OK",
+				Code:    http.StatusOK,
+			}),
+		)
+		waitDone(t, &mtx, &done)
+		if !bytes.Equal(receivedBytes, payload) {
+			t.Fatalf("payload mismatch. want %v got %v", payload, receivedBytes)
+		}
+		if targets != fmt.Sprint(receivedTargets) {
+			t.Fatalf("targets mismatch. want %v got %v", targets, receivedTargets)
+		}
+		if string(topicHash) != string(receivedTopic[:]) {
+			t.Fatalf("topic mismatch. want %v got %v", topic, string(receivedTopic[:]))
+		}
+	})
+
+	t.Run("without recipient", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/testtopic/12", http.StatusOK,
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
@@ -216,14 +236,14 @@ func TestPssSend(t *testing.T) {
 			}),
 		)
 		waitDone(t, &mtx, &done)
-		if !bytes.Equal(recievedBytes, payload) {
-			t.Fatalf("payload mismatch. want %v got %v", payload, recievedBytes)
+		if !bytes.Equal(receivedBytes, payload) {
+			t.Fatalf("payload mismatch. want %v got %v", payload, receivedBytes)
 		}
-		if targets != fmt.Sprint(recievedTargets) {
-			t.Fatalf("targets mismatch. want %v got %v", targets, recievedTargets)
+		if targets != fmt.Sprint(receivedTargets) {
+			t.Fatalf("targets mismatch. want %v got %v", targets, receivedTargets)
 		}
-		if string(topicHash) != string(recievedTopic[:]) {
-			t.Fatalf("topic mismatch. want %v got %v", topic, string(recievedTopic[:]))
+		if string(topicHash) != string(receivedTopic[:]) {
+			t.Fatalf("topic mismatch. want %v got %v", topic, string(receivedTopic[:]))
 		}
 	})
 }
@@ -233,7 +253,7 @@ func TestPssSend(t *testing.T) {
 // The test opens a websocket, keeps it alive for 500ms, then receives a pss message.
 func TestPssPingPong(t *testing.T) {
 	var (
-		pss, cl, _ = newPssTest(t, opts{pingPeriod: 90 * time.Millisecond})
+		p, publicKey, cl, _ = newPssTest(t, opts{pingPeriod: 90 * time.Millisecond})
 
 		msgContent = make([]byte, len(payload))
 		tc         swarm.Chunk
@@ -250,18 +270,14 @@ func TestPssPingPong(t *testing.T) {
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
 
-	m, err := trojan.NewMessage(topic, payload)
+	tc, err = pss.Wrap(context.Background(), topic, payload, publicKey, targets)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tc, err = m.Wrap(context.Background(), targets)
-	if err != nil {
-		t.Fatal(err)
-	}
 	time.Sleep(500 * time.Millisecond) // wait to see that the websocket is kept alive
 
-	err = pss.TryUnwrap(context.Background(), tc)
+	err = p.TryUnwrap(context.Background(), tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,6 +330,8 @@ func waitDone(t *testing.T, mtx *sync.Mutex, done *bool) {
 }
 
 func waitMessage(t *testing.T, data, expData []byte, mtx *sync.Mutex) {
+	t.Helper()
+
 	ttl := time.After(timeout)
 	for {
 		select {
@@ -338,10 +356,16 @@ type opts struct {
 	pingPeriod time.Duration
 }
 
-func newPssTest(t *testing.T, o opts) (pss.Interface, *websocket.Conn, string) {
+func newPssTest(t *testing.T, o opts) (pss.Interface, *ecdsa.PublicKey, *websocket.Conn, string) {
+	t.Helper()
+
+	privkey, err := crypto.GenerateSecp256k1Key()
+	if err != nil {
+		t.Fatal(err)
+	}
 	var (
 		logger = logging.New(ioutil.Discard, 0)
-		pss    = pss.New(logger)
+		pss    = pss.New(privkey, logger)
 	)
 	if o.pingPeriod == 0 {
 		o.pingPeriod = 10 * time.Second
@@ -353,10 +377,10 @@ func newPssTest(t *testing.T, o opts) (pss.Interface, *websocket.Conn, string) {
 		Logger:       logger,
 		WsPingPeriod: o.pingPeriod,
 	})
-	return pss, cl, listener
+	return pss, &privkey.PublicKey, cl, listener
 }
 
-type pssSendFn func(context.Context, trojan.Targets, trojan.Topic, []byte) error
+type pssSendFn func(context.Context, pss.Targets, swarm.Chunk) error
 type mpss struct {
 	f pssSendFn
 }
@@ -366,12 +390,16 @@ func newMockPss(f pssSendFn) *mpss {
 }
 
 // Send arbitrary byte slice with the given topic to Targets.
-func (m *mpss) Send(ctx context.Context, targets trojan.Targets, topic trojan.Topic, bytes []byte) error {
-	return m.f(ctx, targets, topic, bytes)
+func (m *mpss) Send(ctx context.Context, topic pss.Topic, payload []byte, recipient *ecdsa.PublicKey, targets pss.Targets) error {
+	chunk, err := pss.Wrap(ctx, topic, payload, recipient, targets)
+	if err != nil {
+		return err
+	}
+	return m.f(ctx, targets, chunk)
 }
 
 // Register a Handler for a given Topic.
-func (m *mpss) Register(_ trojan.Topic, _ pss.Handler) func() {
+func (m *mpss) Register(_ pss.Topic, _ pss.Handler) func() {
 	panic("not implemented") // TODO: Implement
 }
 

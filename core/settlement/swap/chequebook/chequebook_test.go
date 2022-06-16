@@ -255,7 +255,14 @@ func TestChequebookIssue(t *testing.T) {
 		ownerAdress,
 		store,
 		chequeSigner,
-		&simpleSwapBindingMock{},
+		&simpleSwapBindingMock{
+			balance: func(*bind.CallOpts) (*big.Int, error) {
+				return big.NewInt(100), nil
+			},
+			totalPaidOut: func(*bind.CallOpts) (*big.Int, error) {
+				return big.NewInt(0), nil
+			},
+		},
 		&erc20BindingMock{})
 	if err != nil {
 		t.Fatal(err)
@@ -278,7 +285,7 @@ func TestChequebookIssue(t *testing.T) {
 		return sig, nil
 	}
 
-	err = chequebookService.Issue(beneficiary, amount, func(cheque *chequebook.SignedCheque) error {
+	err = chequebookService.Issue(context.Background(), beneficiary, amount, func(cheque *chequebook.SignedCheque) error {
 		if !cheque.Equal(expectedCheque) {
 			t.Fatalf("wrong cheque. wanted %v got %v", expectedCheque, cheque)
 		}
@@ -314,7 +321,7 @@ func TestChequebookIssue(t *testing.T) {
 		return sig, nil
 	}
 
-	err = chequebookService.Issue(beneficiary, amount2, func(cheque *chequebook.SignedCheque) error {
+	err = chequebookService.Issue(context.Background(), beneficiary, amount2, func(cheque *chequebook.SignedCheque) error {
 		if !cheque.Equal(expectedCheque) {
 			t.Fatalf("wrong cheque. wanted %v got %v", expectedCheque, cheque)
 		}
@@ -350,7 +357,7 @@ func TestChequebookIssue(t *testing.T) {
 		return sig, nil
 	}
 
-	err = chequebookService.Issue(ownerAdress, amount, func(cheque *chequebook.SignedCheque) error {
+	err = chequebookService.Issue(context.Background(), ownerAdress, amount, func(cheque *chequebook.SignedCheque) error {
 		if !cheque.Equal(expectedChequeOwner) {
 			t.Fatalf("wrong cheque. wanted %v got %v", expectedChequeOwner, cheque)
 		}
@@ -399,7 +406,14 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 		ownerAdress,
 		store,
 		chequeSigner,
-		&simpleSwapBindingMock{},
+		&simpleSwapBindingMock{
+			balance: func(*bind.CallOpts) (*big.Int, error) {
+				return amount, nil
+			},
+			totalPaidOut: func(*bind.CallOpts) (*big.Int, error) {
+				return big.NewInt(0), nil
+			},
+		},
 		&erc20BindingMock{})
 	if err != nil {
 		t.Fatal(err)
@@ -409,7 +423,7 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 		return sig, nil
 	}
 
-	err = chequebookService.Issue(beneficiary, amount, func(cheque *chequebook.SignedCheque) error {
+	err = chequebookService.Issue(context.Background(), beneficiary, amount, func(cheque *chequebook.SignedCheque) error {
 		return errors.New("err")
 	})
 	if err == nil {
@@ -418,9 +432,51 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 
 	// verify the cheque was not saved
 	_, err = chequebookService.LastCheque(beneficiary)
-	if err == nil {
-		t.Fatal("expected error")
+	if !errors.Is(err, chequebook.ErrNoCheque) {
+		t.Fatalf("wrong error. wanted %v, got %v", chequebook.ErrNoCheque, err)
 	}
+}
+
+func TestChequebookIssueOutOfFunds(t *testing.T) {
+	address := common.HexToAddress("0xabcd")
+	erc20address := common.HexToAddress("0xefff")
+	beneficiary := common.HexToAddress("0xdddd")
+	ownerAdress := common.HexToAddress("0xfff")
+	store := storemock.NewStateStore()
+	amount := big.NewInt(20)
+
+	chequebookService, err := newTestChequebook(
+		t,
+		&backendMock{},
+		&transactionServiceMock{},
+		address,
+		erc20address,
+		ownerAdress,
+		store,
+		&chequeSignerMock{},
+		&simpleSwapBindingMock{
+			balance: func(*bind.CallOpts) (*big.Int, error) {
+				return big.NewInt(0), nil
+			},
+			totalPaidOut: func(*bind.CallOpts) (*big.Int, error) {
+				return big.NewInt(0), nil
+			},
+		},
+		&erc20BindingMock{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = chequebookService.Issue(context.Background(), beneficiary, amount, func(cheque *chequebook.SignedCheque) error {
+		return nil
+	})
+	if !errors.Is(err, chequebook.ErrOutOfFunds) {
+		t.Fatalf("wrong error. wanted %v, got %v", chequebook.ErrOutOfFunds, err)
+	}
+
+	// verify the cheque was not saved
+	_, err = chequebookService.LastCheque(beneficiary)
+
 	if !errors.Is(err, chequebook.ErrNoCheque) {
 		t.Fatalf("wrong error. wanted %v, got %v", chequebook.ErrNoCheque, err)
 	}

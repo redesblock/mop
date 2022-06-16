@@ -2,14 +2,12 @@ package sctx
 
 import (
 	"context"
-
 	"encoding/hex"
 	"errors"
 	"strings"
 
+	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/tags"
-
-	"github.com/redesblock/hop/core/trojan"
 )
 
 var (
@@ -59,16 +57,16 @@ func SetTargets(ctx context.Context, targets string) context.Context {
 
 // GetTargets returns the specific target pinners for a corresponding chunk by
 // reading the prefix targets sent in the download API.
-func GetTargets(ctx context.Context) (trojan.Targets, error) {
+func GetTargets(ctx context.Context) pss.Targets {
 	targetString, ok := ctx.Value(targetsContextKey{}).(string)
 	if !ok {
-		return nil, ErrTargetPrefix
+		return nil
 	}
 
 	prefixes := strings.Split(targetString, ",")
-	var targets trojan.Targets
+	var targets pss.Targets
 	for _, prefix := range prefixes {
-		var target trojan.Target
+		var target pss.Target
 		target, err := hex.DecodeString(prefix)
 		if err != nil {
 			continue
@@ -76,7 +74,7 @@ func GetTargets(ctx context.Context) (trojan.Targets, error) {
 		targets = append(targets, target)
 	}
 	if len(targets) <= 0 {
-		return nil, ErrTargetPrefix
+		return nil
 	}
-	return targets, nil
+	return targets
 }

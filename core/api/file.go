@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethersphere/langos"
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
@@ -237,7 +238,9 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	targets := r.URL.Query().Get("targets")
-	r = r.WithContext(sctx.SetTargets(r.Context(), targets))
+	if targets != "" {
+		r = r.WithContext(sctx.SetTargets(r.Context(), targets))
+	}
 
 	// read entry.
 	j := seekjoiner.NewSimpleJoiner(s.Storer)
@@ -298,7 +301,9 @@ func (s *server) fileDownloadHandler(w http.ResponseWriter, r *http.Request) {
 func (s *server) downloadHandler(w http.ResponseWriter, r *http.Request, reference swarm.Address, additionalHeaders http.Header) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
 	targets := r.URL.Query().Get("targets")
-	r = r.WithContext(sctx.SetTargets(r.Context(), targets))
+	if targets != "" {
+		r = r.WithContext(sctx.SetTargets(r.Context(), targets))
+	}
 
 	rs := seekjoiner.NewSimpleJoiner(s.Storer)
 	reader, l, err := rs.Join(r.Context(), reference)
@@ -332,5 +337,5 @@ func (s *server) downloadHandler(w http.ResponseWriter, r *http.Request, referen
 	w.Header().Set("Decompressed-Content-Length", fmt.Sprintf("%d", l))
 	w.Header().Set(TargetsRecoveryHeader, targets)
 
-	http.ServeContent(w, r, "", time.Now(), reader)
+	http.ServeContent(w, r, "", time.Now(), langos.NewBufferedLangos(reader, lookaheadBufferSize(l)))
 }

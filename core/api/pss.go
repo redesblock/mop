@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"io/ioutil"
 	"net/http"
@@ -10,9 +11,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/trojan"
 )
 
 var (
@@ -24,18 +26,13 @@ var (
 	targetMaxLength = 2               // max target length in bytes, in order to prevent grieving by excess computation
 )
 
-type PssMessage struct {
-	Topic   string
-	Message string
-}
-
 func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
-	t := mux.Vars(r)["topic"]
-	topic := trojan.NewTopic(t)
+	topicVar := mux.Vars(r)["topic"]
+	topic := pss.NewTopic(topicVar)
 
-	tg := mux.Vars(r)["targets"]
-	var targets trojan.Targets
-	tgts := strings.Split(tg, ",")
+	targetsVar := mux.Vars(r)["targets"]
+	var targets pss.Targets
+	tgts := strings.Split(targetsVar, ",")
 
 	for _, v := range tgts {
 		target, err := hex.DecodeString(v)
@@ -48,6 +45,23 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		targets = append(targets, target)
 	}
 
+	recipientQueryString := r.URL.Query().Get("recipient")
+	var recipient *ecdsa.PublicKey
+	if recipientQueryString == "" {
+		// use topic-based encryption
+		privkey := crypto.Secp256k1PrivateKeyFromBytes(topic[:])
+		recipient = &privkey.PublicKey
+	} else {
+		var err error
+		recipient, err = pss.ParseRecipient(recipientQueryString)
+		if err != nil {
+			s.Logger.Debugf("pss recipient: %v", err)
+			s.Logger.Error("pss recipient")
+			jsonhttp.BadRequest(w, nil)
+			return
+		}
+	}
+
 	payload, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		s.Logger.Debugf("pss read payload: %v", err)
@@ -56,9 +70,9 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.Pss.Send(r.Context(), targets, topic, payload)
+	err = s.Pss.Send(r.Context(), topic, payload, recipient, targets)
 	if err != nil {
-		s.Logger.Debugf("pss send payload: %v. topic: %s", err, t)
+		s.Logger.Debugf("pss send payload: %v. topic: %s", err, topicVar)
 		s.Logger.Error("pss send payload")
 		jsonhttp.InternalServerError(w, nil)
 		return
@@ -87,7 +101,7 @@ func (s *server) pumpWs(conn *websocket.Conn, t string) {
 	var (
 		dataC  = make(chan []byte)
 		gone   = make(chan struct{})
-		topic  = trojan.NewTopic(t)
+		topic  = pss.NewTopic(t)
 		ticker = time.NewTicker(s.WsPingPeriod)
 		err    error
 	)
@@ -95,8 +109,8 @@ func (s *server) pumpWs(conn *websocket.Conn, t string) {
 		ticker.Stop()
 		_ = conn.Close()
 	}()
-	cleanup := s.Pss.Register(topic, func(_ context.Context, m *trojan.Message) {
-		dataC <- m.Payload
+	cleanup := s.Pss.Register(topic, func(_ context.Context, m []byte) {
+		dataC <- m
 	})
 
 	defer cleanup()
