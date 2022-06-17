@@ -295,7 +295,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
 
-	settlement.SetPaymentObserver(acc)
+	settlement.SetNotifyPaymentFunc(acc.AsyncNotifyPayment)
 	pricing.SetPaymentThresholdObserver(acc)
 
 	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, Standalone: o.Standalone})

@@ -297,7 +297,7 @@ func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Re
 		streamer, err := ps.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, streamName)
 		if err != nil {
 			lastErr = fmt.Errorf("new stream for peer %s: %w", peer.String(), err)
-			ps.logger.Debugf("pushsync-push: %w", lastErr)
+			ps.logger.Debugf("pushsync-push: %v", lastErr)
 			continue
 		}
 		deferFuncs = append(deferFuncs, func() { go streamer.FullClose() })
@@ -306,7 +306,7 @@ func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Re
 		if err := ps.sendChunkDelivery(ctx, w, ch); err != nil {
 			_ = streamer.Reset()
 			lastErr = fmt.Errorf("chunk deliver to peer %s: %w", peer.String(), err)
-			ps.logger.Debugf("pushsync-push: %w", lastErr)
+			ps.logger.Debugf("pushsync-push: %v", lastErr)
 			if errors.Is(err, context.DeadlineExceeded) {
 				ps.blocklistPeer(peer)
 			}
@@ -327,7 +327,7 @@ func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Re
 		if err != nil {
 			_ = streamer.Reset()
 			lastErr = fmt.Errorf("receive receipt from peer %s: %w", peer.String(), err)
-			ps.logger.Debugf("pushsync-push: %w", lastErr)
+			ps.logger.Debugf("pushsync-push: %v", lastErr)
 			if errors.Is(err, context.DeadlineExceeded) {
 				ps.blocklistPeer(peer)
 			}
