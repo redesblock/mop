@@ -23,26 +23,19 @@ type mantarayManifest struct {
 }
 
 // NewMantarayManifest creates a new mantaray-based manifest.
-func NewMantarayManifest(ls file.LoadSaver) (Interface, error) {
-	return &mantarayManifest{
-		trie: mantaray.New(),
-		ls:   ls,
-	}, nil
-}
-
-// NewMantarayManifestWithObfuscationKeyFn creates a new mantaray-based manifest
-// with configured obfuscation key
-//
-// NOTE: This should only be used in tests.
-func NewMantarayManifestWithObfuscationKeyFn(
+func NewMantarayManifest(
 	ls file.LoadSaver,
-	obfuscationKeyFn func([]byte) (int, error),
+	encrypted bool,
 ) (Interface, error) {
 	mm := &mantarayManifest{
 		trie: mantaray.New(),
 		ls:   ls,
 	}
-	mantaray.SetObfuscationKeyFn(obfuscationKeyFn)
+	// use empty obfuscation key if not encrypting
+	if !encrypted {
+		// NOTE: it will be copied to all trie nodes
+		mm.trie.SetObfuscationKey(mantaray.ZeroObfuscationKey)
+	}
 	return mm, nil
 }
 
@@ -134,22 +127,20 @@ func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn swarm.Addres
 		}
 
 		if node != nil {
-			var stop bool
-
 			if node.Reference() != nil {
 				ref := swarm.NewAddress(node.Reference())
 
-				stop = fn(ref)
-				if stop {
-					return errStopIterator
+				err = fn(ref)
+				if err != nil {
+					return err
 				}
 			}
 
 			if node.IsValueType() && node.Entry() != nil {
 				entry := swarm.NewAddress(node.Entry())
-				stop = fn(entry)
-				if stop {
-					return errStopIterator
+				err = fn(entry)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -159,10 +150,7 @@ func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn swarm.Addres
 
 	err := m.trie.WalkNode(ctx, []byte{}, m.ls, walker)
 	if err != nil {
-		if !errors.Is(err, errStopIterator) {
-			return fmt.Errorf("manifest iterate addresses: %w", err)
-		}
-		// ignore error if interation stopped by caller
+		return fmt.Errorf("manifest iterate addresses: %w", err)
 	}
 
 	return nil

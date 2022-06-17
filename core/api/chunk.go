@@ -8,9 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/redesblock/hop/core/content"
+	"github.com/redesblock/hop/core/bmtpool"
 	"github.com/redesblock/hop/core/netstore"
-	"github.com/redesblock/hop/core/soc"
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -20,35 +19,38 @@ import (
 	"github.com/redesblock/hop/core/tags"
 )
 
+type chunkAddressResponse struct {
+	Reference swarm.Address `json:"reference"`
+}
+
 func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
-	nameOrHex := mux.Vars(r)["addr"]
+	var (
+		tag *tags.Tag
+		ctx = r.Context()
+		err error
+	)
 
-	address, err := s.resolveNameOrAddress(nameOrHex)
-	if err != nil {
-		s.Logger.Debugf("chunk upload: parse chunk address %s: %v", nameOrHex, err)
-		s.Logger.Error("chunk upload: parse chunk address")
-		jsonhttp.BadRequest(w, "invalid chunk address")
-		return
-	}
+	if h := r.Header.Get(SwarmTagUidHeader); h != "" {
+		tag, err = s.getTag(h)
+		if err != nil {
+			s.Logger.Debugf("chunk upload: get tag: %v", err)
+			s.Logger.Error("chunk upload: get tag")
+			jsonhttp.BadRequest(w, "cannot get tag")
+			return
 
-	tag, _, err := s.getOrCreateTag(r.Header.Get(SwarmTagUidHeader))
-	if err != nil {
-		s.Logger.Debugf("chunk upload: get or create tag: %v", err)
-		s.Logger.Error("chunk upload: get or create tag")
-		jsonhttp.InternalServerError(w, "cannot get or create tag")
-		return
-	}
+		}
 
-	// Add the tag to the context
-	ctx := sctx.SetTag(r.Context(), tag)
+		// add the tag to the context if it exists
+		ctx = sctx.SetTag(r.Context(), tag)
 
-	// Increment the StateSplit here since we dont have a splitter for the file upload
-	err = tag.Inc(tags.StateSplit)
-	if err != nil {
-		s.Logger.Debugf("chunk upload: increment tag: %v", err)
-		s.Logger.Error("chunk upload: increment tag")
-		jsonhttp.InternalServerError(w, "increment tag")
-		return
+		// increment the StateSplit here since we dont have a splitter for the file upload
+		err = tag.Inc(tags.StateSplit)
+		if err != nil {
+			s.Logger.Debugf("chunk upload: increment tag: %v", err)
+			s.Logger.Error("chunk upload: increment tag")
+			jsonhttp.InternalServerError(w, "increment tag")
+			return
+		}
 	}
 
 	data, err := ioutil.ReadAll(r.Body)
@@ -56,21 +58,37 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		if jsonhttp.HandleBodyReadError(err, w) {
 			return
 		}
-		s.Logger.Debugf("chunk upload: read chunk data error: %v, addr %s", err, address)
+		s.Logger.Debugf("chunk upload: read chunk data error: %v", err)
 		s.Logger.Error("chunk upload: read chunk data error")
 		jsonhttp.InternalServerError(w, "cannot read chunk data")
 		return
 	}
 
-	chunk := swarm.NewChunk(address, data)
-	if !content.Valid(chunk) {
-		if !soc.Valid(chunk) {
-			s.Logger.Debugf("chunk upload: invalid chunk: %s", address)
-			s.Logger.Error("chunk upload: invalid chunk")
-			jsonhttp.BadRequest(w, nil)
-			return
-		}
+	if len(data) < swarm.SpanSize {
+		s.Logger.Debug("chunk upload: not enough data")
+		s.Logger.Error("chunk upload: data length")
+		jsonhttp.BadRequest(w, "data length")
+		return
 	}
+
+	hasher := bmtpool.Get()
+	defer bmtpool.Put(hasher)
+
+	err = hasher.SetSpanBytes(data[:swarm.SpanSize])
+	if err != nil {
+		s.Logger.Debugf("chunk upload: set span: %v", err)
+		s.Logger.Error("chunk upload: span error")
+		jsonhttp.InternalServerError(w, "span error")
+		return
+	}
+
+	_, err = hasher.Write(data[swarm.SpanSize:])
+	if err != nil {
+		return
+	}
+
+	address := swarm.NewAddress(hasher.Sum(nil))
+	chunk := swarm.NewChunk(address, data)
 
 	seen, err := s.Storer.Put(ctx, requestModePut(r), chunk)
 	if err != nil {
@@ -78,7 +96,7 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		s.Logger.Error("chunk upload: chunk write error")
 		jsonhttp.BadRequest(w, "chunk write error")
 		return
-	} else if len(seen) > 0 && seen[0] {
+	} else if len(seen) > 0 && seen[0] && tag != nil {
 		err := tag.Inc(tags.StateSeen)
 		if err != nil {
 			s.Logger.Debugf("chunk upload: increment tag", err)
@@ -88,18 +106,20 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Indicate that the chunk is stored
-	err = tag.Inc(tags.StateStored)
-	if err != nil {
-		s.Logger.Debugf("chunk upload: increment tag", err)
-		s.Logger.Error("chunk upload: increment tag")
-		jsonhttp.BadRequest(w, "increment tag")
-		return
+	if tag != nil {
+		// indicate that the chunk is stored
+		err = tag.Inc(tags.StateStored)
+		if err != nil {
+			s.Logger.Debugf("chunk upload: increment tag", err)
+			s.Logger.Error("chunk upload: increment tag")
+			jsonhttp.InternalServerError(w, "increment tag")
+			return
+		}
+		w.Header().Set(SwarmTagUidHeader, fmt.Sprint(tag.Uid))
 	}
 
-	w.Header().Set(SwarmTagUidHeader, fmt.Sprint(tag.Uid))
 	w.Header().Set("Access-Control-Expose-Headers", SwarmTagUidHeader)
-	jsonhttp.OK(w, nil)
+	jsonhttp.OK(w, chunkAddressResponse{Reference: address})
 }
 
 func (s *server) chunkGetHandler(w http.ResponseWriter, r *http.Request) {

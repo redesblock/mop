@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/traversal"
 )
@@ -29,8 +30,14 @@ func (s *server) pinFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !has {
-		jsonhttp.NotFound(w, nil)
-		return
+		_, err := s.Storer.Get(r.Context(), storage.ModeGetRequest, addr)
+		if err != nil {
+			s.Logger.Debugf("pin chunk: netstore get: %v", err)
+			s.Logger.Error("pin chunk: netstore")
+
+			jsonhttp.NotFound(w, nil)
+			return
+		}
 	}
 
 	ctx := r.Context()

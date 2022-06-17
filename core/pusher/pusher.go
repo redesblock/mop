@@ -3,6 +3,7 @@ package pusher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/tracing"
+	"github.com/sirupsen/logrus"
 )
 
 type Service struct {
@@ -61,6 +63,7 @@ func (s *Service) chunksWorker() {
 		inflight      = make(map[string]struct{})
 		mtx           sync.Mutex
 		span          opentracing.Span
+		logger        *logrus.Entry
 	)
 	defer timer.Stop()
 	defer close(s.chunksWorkerQuitC)
@@ -86,13 +89,14 @@ LOOP:
 			}
 
 			if span == nil {
-				span, _, ctx = s.tracer.StartSpanFromContext(cctx, "pusher-sync-batch", s.logger)
+				span, logger, ctx = s.tracer.StartSpanFromContext(cctx, "pusher-sync-batch", s.logger)
 			}
 
 			// postpone a retry only after we've finished processing everything in index
 			timer.Reset(retryInterval)
 			chunksInBatch++
-			s.metrics.TotalChunksToBeSentCounter.Inc()
+			s.metrics.TotalToPush.Inc()
+
 			select {
 			case sem <- struct{}{}:
 			case <-s.quit:
@@ -116,11 +120,19 @@ LOOP:
 			mtx.Unlock()
 
 			go func(ctx context.Context, ch swarm.Chunk) {
-				var err error
+				var (
+					err       error
+					startTime = time.Now()
+				)
 				defer func() {
 					if err == nil {
+						s.metrics.TotalSynced.Inc()
+						s.metrics.SyncTime.Observe(time.Since(startTime).Seconds())
 						// only print this if there was no error while sending the chunk
-						s.logger.Tracef("pusher pushed chunk %s", ch.Address().String())
+						logger.Tracef("pusher pushed chunk %s", ch.Address().String())
+					} else {
+						s.metrics.TotalErrors.Inc()
+						s.metrics.ErrorTime.Observe(time.Since(startTime).Seconds())
 					}
 					mtx.Lock()
 					delete(inflight, ch.Address().String())
@@ -132,16 +144,15 @@ LOOP:
 				_, err = s.pushSyncer.PushChunkToClosest(ctx, ch)
 				if err != nil {
 					if !errors.Is(err, topology.ErrNotFound) {
-						s.logger.Debugf("pusher: error while sending chunk or receiving receipt: %v", err)
+						logger.Debugf("pusher: error while sending chunk or receiving receipt: %v", err)
 					}
 					return
 				}
 				err = s.setChunkAsSynced(ctx, ch)
 				if err != nil {
-					s.logger.Debugf("pusher: error setting chunk as synced: %v", err)
+					logger.Debugf("pusher: error setting chunk as synced: %v", err)
 					return
 				}
-
 			}(ctx, ch)
 		case <-timer.C:
 			// initially timer is set to go off as well as every time we hit the end of push index
@@ -159,7 +170,7 @@ LOOP:
 
 			// reset timer to go off after retryInterval
 			timer.Reset(retryInterval)
-			s.metrics.MarkAndSweepTimer.Observe(time.Since(startTime).Seconds())
+			s.metrics.MarkAndSweepTime.Observe(time.Since(startTime).Seconds())
 
 			if span != nil {
 				span.Finish()
@@ -196,9 +207,9 @@ LOOP:
 
 func (s *Service) setChunkAsSynced(ctx context.Context, ch swarm.Chunk) error {
 	if err := s.storer.Set(ctx, storage.ModeSetSync, ch.Address()); err != nil {
-		s.logger.Errorf("pusher: error setting chunk as synced: %v", err)
-		s.metrics.ErrorSettingChunkToSynced.Inc()
+		return fmt.Errorf("set synced: %w", err)
 	}
+
 	t, err := s.tagg.Get(ch.TagID())
 	if err == nil && t != nil {
 		err = t.Inc(tags.StateSynced)

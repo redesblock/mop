@@ -16,6 +16,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/kardianos/service"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/crypto/clef"
 	"github.com/redesblock/hop/core/keystore"
@@ -27,6 +28,10 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+)
+
+const (
+	serviceName = "SwarmHopSvc"
 )
 
 func (c *command) initStartCmd() (err error) {
@@ -57,6 +62,19 @@ func (c *command) initStartCmd() (err error) {
 				return fmt.Errorf("unknown verbosity level %q", v)
 			}
 
+			isWindowsService, err := isWindowsService()
+			if err != nil {
+				return fmt.Errorf("failed to determine if we are running in service: %w", err)
+			}
+
+			if isWindowsService {
+				var err error
+				logger, err = createWindowsEventLogger(serviceName, logger)
+				if err != nil {
+					return fmt.Errorf("failed to create windows logger %w", err)
+				}
+			}
+
 			// If the resolver is specified, resolve all connection strings
 			// and fail on any errors.
 			var resolverCfgs []multiresolver.ConnectionConfig
@@ -68,22 +86,23 @@ func (c *command) initStartCmd() (err error) {
 				}
 			}
 
-			hop := `
+			hopASCII := `
 Welcome to the Swarm....
-                \     /                
-            \    o ^ o    /            
-              \ (     ) /              
-   ____________(%%%%%%%)____________   
-  (     /   /  )%%%%%%%(  \   \     )  
-  (___/___/__/           \__\___\___)  
-     (     /  /(%%%%%%%)\  \     )     
-      (__/___/ (%%%%%%%) \___\__)      
-              /(       )\              
-            /   (%%%%%)   \            
-                 (%%%)                 
+                \     /
+            \    o ^ o    /
+              \ (     ) /
+   ____________(%%%%%%%)____________
+  (     /   /  )%%%%%%%(  \   \     )
+  (___/___/__/           \__\___\___)
+     (     /  /(%%%%%%%)\  \     )
+      (__/___/ (%%%%%%%) \___\__)
+              /(       )\
+            /   (%%%%%)   \
+                 (%%%)
                    !                   `
 
-			fmt.Println(hop)
+			fmt.Println(hopASCII)
+			logger.Infof("version: %v", Version)
 
 			debugAPIAddr := c.config.GetString(optionNameDebugAPIAddr)
 			if !c.config.GetBool(optionNameDebugAPIEnable) {
@@ -132,31 +151,55 @@ Welcome to the Swarm....
 			interruptChannel := make(chan os.Signal, 1)
 			signal.Notify(interruptChannel, syscall.SIGINT, syscall.SIGTERM)
 
-			// Block main goroutine until it is interrupted
-			sig := <-interruptChannel
+			p := &program{
+				start: func() {
+					// Block main goroutine until it is interrupted
+					sig := <-interruptChannel
 
-			logger.Debugf("received signal: %v", sig)
-			logger.Info("shutting down")
+					logger.Debugf("received signal: %v", sig)
+					logger.Info("shutting down")
+				},
+				stop: func() {
+					// Shutdown
+					done := make(chan struct{})
+					go func() {
+						defer close(done)
 
-			// Shutdown
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
+						ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+						defer cancel()
 
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
+						if err := b.Shutdown(ctx); err != nil {
+							logger.Errorf("shutdown: %v", err)
+						}
+					}()
 
-				if err := b.Shutdown(ctx); err != nil {
-					logger.Errorf("shutdown: %v", err)
+					// If shutdown function is blocking too long,
+					// allow process termination by receiving another signal.
+					select {
+					case sig := <-interruptChannel:
+						logger.Debugf("received signal: %v", sig)
+					case <-done:
+					}
+				},
+			}
+
+			if isWindowsService {
+				s, err := service.New(p, &service.Config{
+					Name:        serviceName,
+					DisplayName: "Hop",
+					Description: "Hop, Swarm client.",
+				})
+				if err != nil {
+					return err
 				}
-			}()
 
-			// If shutdown function is blocking too long,
-			// allow process termination by receiving another signal.
-			select {
-			case sig := <-interruptChannel:
-				logger.Debugf("received signal: %v", sig)
-			case <-done:
+				if err = s.Run(); err != nil {
+					return err
+				}
+			} else {
+				// start blocks until some interrupt is received
+				p.start()
+				p.stop()
 			}
 
 			return nil
@@ -168,6 +211,22 @@ Welcome to the Swarm....
 
 	c.setAllFlags(cmd)
 	c.root.AddCommand(cmd)
+	return nil
+}
+
+type program struct {
+	start func()
+	stop  func()
+}
+
+func (p *program) Start(s service.Service) error {
+	// Start should not block. Do the actual work async.
+	go p.start()
+	return nil
+}
+
+func (p *program) Stop(s service.Service) error {
+	p.stop()
 	return nil
 }
 
@@ -257,6 +316,7 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 
 		logger.Infof("using swarm network address through clef: %s", address)
 	} else {
+		logger.Warning("clef is not enabled; portability and security of your keys is sub optimal")
 		swarmPrivateKey, created, err := keystore.Key("swarm", password)
 		if err != nil {
 			return nil, fmt.Errorf("swarm key: %w", err)

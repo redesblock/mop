@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
-	autonat "github.com/libp2p/go-libp2p-autonat-svc"
+	autonat "github.com/libp2p/go-libp2p-autonat"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -81,7 +81,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 	}
 
 	ip4Addr := "0.0.0.0"
-	ip6Addr := "::1"
+	ip6Addr := "::"
 
 	if host != "" {
 		ip := net.ParseIP(host)
@@ -169,14 +169,17 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		return nil, err
 	}
 
+	// Support same non default security and transport options as
+	// original host.
+	dialer, err := libp2p.New(ctx, append(transports, security)...)
+	if err != nil {
+		return nil, err
+	}
+
 	// If you want to help other peers to figure out if they are behind
 	// NATs, you can launch the server-side of AutoNAT too (AutoRelay
 	// already runs the client)
-	if _, err = autonat.NewAutoNATService(ctx, h,
-		// Support same non default security and transport options as
-		// original host.
-		append(transports, security)...,
-	); err != nil {
+	if _, err = autonat.New(ctx, h, autonat.EnableService(dialer.Network())); err != nil {
 		return nil, fmt.Errorf("autonat: %w", err)
 	}
 
@@ -297,7 +300,9 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		}
 
 		s.metrics.HandledStreamCount.Inc()
-		s.logger.Infof("successfully connected to peer (inbound) %s", i.HopAddress.ShortString())
+		s.logger.Debugf("successfully connected to peer %s (inbound)", i.HopAddress.ShortString())
+		s.logger.Infof("successfully connected to peer %s (inbound)", i.HopAddress.Overlay)
+
 	})
 
 	h.Network().SetConnHandler(func(_ network.Conn) {
@@ -364,14 +369,11 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 
 				var bpe *p2p.BlockPeerError
 				if errors.As(err, &bpe) {
-					if err := s.blocklist.Add(overlay, bpe.Duration()); err != nil {
-						s.logger.Debugf("blocklist: could blocklist peer %s: %v", peerID, err)
-						s.logger.Errorf("unable to blocklist peer %v", peerID)
-						_ = s.Disconnect(overlay)
+					if err := s.Blocklist(overlay, bpe.Duration()); err != nil {
+						logger.Debugf("blocklist: could not blocklist peer %s: %v", peerID, err)
+						logger.Errorf("unable to blocklist peer %v", peerID)
 					}
-
-					s.logger.Tracef("blocklisted a peer %s", peerID)
-					_ = s.Disconnect(overlay)
+					logger.Tracef("blocklisted a peer %s", peerID)
 				}
 
 				logger.Debugf("could not handle protocol %s/%s: stream %s: peer %s: error: %v", p.Name, p.Version, ss.Name, overlay, err)
@@ -412,10 +414,11 @@ func (s *Service) NATManager() basichost.NATManager {
 
 func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration) error {
 	if err := s.blocklist.Add(overlay, duration); err != nil {
-		s.logger.Debugf("blocklist: blocklist peer %s: %v", overlay, err)
+		s.metrics.BlocklistedPeerErrCount.Inc()
 		_ = s.Disconnect(overlay)
-		return err
+		return fmt.Errorf("blocklist peer %s: %v", overlay, err)
 	}
+	s.metrics.BlocklistedPeerCount.Inc()
 
 	_ = s.Disconnect(overlay)
 	return nil
@@ -449,8 +452,12 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 
 	remoteAddr := addr.Decapsulate(hostAddr)
 
-	if _, found := s.peers.isConnected(info.ID, remoteAddr); found {
-		return nil, p2p.ErrAlreadyConnected
+	if overlay, found := s.peers.isConnected(info.ID, remoteAddr); found {
+		address = &hop.Address{
+			Overlay:  overlay,
+			Underlay: addr,
+		}
+		return address, p2p.ErrAlreadyConnected
 	}
 
 	if err := s.connectionBreaker.Execute(func() error { return s.host.Connect(ctx, *info) }); err != nil {
@@ -520,11 +527,13 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	s.protocolsmu.RUnlock()
 
 	s.metrics.CreatedConnectionCount.Inc()
-	s.logger.Infof("successfully connected to peer (outbound) %s", i.HopAddress.ShortString())
+	s.logger.Debugf("successfully connected to peer %s (outbound)", i.HopAddress.ShortString())
+	s.logger.Infof("successfully connected to peer %s (outbound)", i.HopAddress.Overlay)
 	return i.HopAddress, nil
 }
 
 func (s *Service) Disconnect(overlay swarm.Address) error {
+	s.metrics.DisconnectCount.Inc()
 	found, peerID := s.peers.remove(overlay)
 	if !found {
 		return p2p.ErrPeerNotFound
@@ -572,6 +581,10 @@ func (s *Service) disconnected(address swarm.Address) {
 
 func (s *Service) Peers() []p2p.Peer {
 	return s.peers.peers()
+}
+
+func (s *Service) BlocklistedPeers() ([]p2p.Peer, error) {
+	return s.blocklist.Peers()
 }
 
 func (s *Service) NewStream(ctx context.Context, overlay swarm.Address, headers p2p.Headers, protocolName, protocolVersion, streamName string) (p2p.Stream, error) {

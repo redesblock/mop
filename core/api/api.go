@@ -136,12 +136,16 @@ func (s *server) getOrCreateTag(tagUid string) (*tags.Tag, bool, error) {
 		}
 		return tag, true, nil
 	}
+	t, err := s.getTag(tagUid)
+	return t, false, err
+}
+
+func (s *server) getTag(tagUid string) (*tags.Tag, error) {
 	uid, err := strconv.Atoi(tagUid)
 	if err != nil {
-		return nil, false, fmt.Errorf("cannot parse taguid: %w", err)
+		return nil, fmt.Errorf("cannot parse taguid: %w", err)
 	}
-	t, err := s.Tags.Get(uint32(uid))
-	return t, false, err
+	return s.Tags.Get(uint32(uid))
 }
 
 func (s *server) resolveNameOrAddress(str string) (swarm.Address, error) {
@@ -185,8 +189,20 @@ func requestEncrypt(r *http.Request) bool {
 func (s *server) newTracingHandler(spanName string) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			span, _, ctx := s.Tracer.StartSpanFromContext(r.Context(), spanName, s.Logger)
+			ctx, err := s.Tracer.WithContextFromHTTPHeaders(r.Context(), r.Header)
+			if err != nil && !errors.Is(err, tracing.ErrContextNotFound) {
+				s.Logger.Debugf("span '%s': extract tracing context: %v", spanName, err)
+				// ignore
+			}
+
+			span, _, ctx := s.Tracer.StartSpanFromContext(ctx, spanName, s.Logger)
 			defer span.Finish()
+
+			err = s.Tracer.AddContextHTTPHeader(ctx, r.Header)
+			if err != nil {
+				s.Logger.Debugf("span '%s': inject tracing context: %v", spanName, err)
+				// ignore
+			}
 
 			h.ServeHTTP(w, r.WithContext(ctx))
 		})

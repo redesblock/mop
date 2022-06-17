@@ -7,11 +7,12 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"resenje.org/web"
+
+	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/hop/core/logging/httpaccess"
+	"github.com/redesblock/hop/core/swarm"
 )
 
 func (s *server) setupRouting() {
@@ -66,11 +67,21 @@ func (s *server) setupRouting() {
 		),
 	})
 
-	handle(router, "/chunks/{addr}", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.chunkGetHandler),
+	handle(router, "/chunks", jsonhttp.MethodHandler{
 		"POST": web.ChainHandlers(
 			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
 			web.FinalHandlerFunc(s.chunkUploadHandler),
+		),
+	})
+
+	handle(router, "/chunks/{addr}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.chunkGetHandler),
+	})
+
+	handle(router, "/soc/{owner}/{id}", jsonhttp.MethodHandler{
+		"POST": web.ChainHandlers(
+			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
+			web.FinalHandlerFunc(s.socUploadHandler),
 		),
 	})
 
@@ -106,18 +117,18 @@ func (s *server) setupRouting() {
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"POST": web.ChainHandlers(
 				jsonhttp.NewMaxBodyBytesHandler(1024),
-				web.FinalHandlerFunc(s.createTag),
+				web.FinalHandlerFunc(s.createTagHandler),
 			),
 		})),
 	)
 	handle(router, "/tags/{id}", web.ChainHandlers(
 		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
-			"GET":    http.HandlerFunc(s.getTag),
-			"DELETE": http.HandlerFunc(s.deleteTag),
+			"GET":    http.HandlerFunc(s.getTagHandler),
+			"DELETE": http.HandlerFunc(s.deleteTagHandler),
 			"PATCH": web.ChainHandlers(
 				jsonhttp.NewMaxBodyBytesHandler(1024),
-				web.FinalHandlerFunc(s.doneSplit),
+				web.FinalHandlerFunc(s.doneSplitHandler),
 			),
 		})),
 	)
@@ -166,7 +177,7 @@ func (s *server) setupRouting() {
 	)
 
 	s.Handler = web.ChainHandlers(
-		logging.NewHTTPAccessLogHandler(s.Logger, logrus.InfoLevel, "api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.Logger, logrus.InfoLevel, s.Tracer, "api access"),
 		handlers.CompressHandler,
 		// todo: add recovery handler
 		s.pageviewMetricsHandler,

@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	mp "github.com/redesblock/hop/core/pusher/mock"
 	"github.com/redesblock/hop/core/storage/mock"
 	testingc "github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
@@ -36,14 +34,13 @@ func TestTags(t *testing.T) {
 		filesResource  = "/files"
 		dirResource    = "/dirs"
 		bytesResource  = "/bytes"
-		chunksResource = func(addr swarm.Address) string { return "/chunks/" + addr.String() }
+		chunksResource = "/chunks"
 		tagsResource   = "/tags"
 		chunk          = testingc.GenerateTestRandomChunk()
 		someTagName    = "file.jpg"
 		mockStatestore = statestore.NewStateStore()
 		logger         = logging.New(ioutil.Discard, 0)
 		tag            = tags.NewTags(mockStatestore, logger)
-		mockPusher     = mp.NewMockPusher(tag)
 		client, _, _   = newTestServer(t, testServerOptions{
 			Storer: mock.NewStorer(),
 			Tags:   tag,
@@ -77,11 +74,11 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("create tag with invalid id", func(t *testing.T) {
-		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusInternalServerError,
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusBadRequest,
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: "cannot get or create tag",
-				Code:    http.StatusInternalServerError,
+				Message: "cannot get tag",
+				Code:    http.StatusBadRequest,
 			}),
 			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, "invalid_id.jpg"), // the value should be uint32
 		)
@@ -105,18 +102,6 @@ func TestTags(t *testing.T) {
 		)
 	})
 
-	t.Run("tag id in chunk upload", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
-			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
-			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: http.StatusText(http.StatusOK),
-				Code:    http.StatusOK,
-			}),
-		)
-
-		isTagFoundInResponse(t, rcvdHeaders, nil)
-	})
-
 	t.Run("create tag upload chunk", func(t *testing.T) {
 		// create a tag using the API
 		tr := api.TagResponse{}
@@ -131,44 +116,19 @@ func TestTags(t *testing.T) {
 			t.Fatalf("sent tag name %s does not match received tag name %s", someTagName, tr.Name)
 		}
 
-		// now upload a chunk and see if we receive a tag with the same id
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
+		_ = jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
-			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: http.StatusText(http.StatusOK),
-				Code:    http.StatusOK,
-			}),
+			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
+		)
+
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
+			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
 			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, strconv.FormatUint(uint64(tr.Uid), 10)),
 		)
 
 		isTagFoundInResponse(t, rcvdHeaders, &tr)
 		tagValueTest(t, tr.Uid, 1, 1, 1, 0, 0, 0, swarm.ZeroAddress, client)
-	})
-
-	t.Run("tag counters", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
-			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
-			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: http.StatusText(http.StatusOK),
-				Code:    http.StatusOK,
-			}),
-		)
-		id := isTagFoundInResponse(t, rcvdHeaders, nil)
-
-		tag, err := tag.Get(id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = mockPusher.SendChunk(id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = mockPusher.RcvdReceipt(id)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		tagValueTest(t, id, tag.Split, tag.Stored, tag.Seen, tag.Sent, tag.Synced, tag.Total, swarm.ZeroAddress, client)
 	})
 
 	t.Run("delete tag error", func(t *testing.T) {
@@ -248,7 +208,7 @@ func TestTags(t *testing.T) {
 		addr := test.RandomAddress()
 
 		// upload content with tag
-		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, fmt.Sprint(tagId)),
 		)
@@ -302,32 +262,23 @@ func TestTags(t *testing.T) {
 	t.Run("dir tags", func(t *testing.T) {
 		// upload a dir without supplying tag
 		tarReader := tarFiles(t, []f{{
-			data: []byte("some data"),
+			data: []byte("some dir data"),
 			name: "binary-file",
 		}})
-
-		var respBytes []byte
+		expectedHash := swarm.MustParseHexAddress("3dc643abeb3db60a4dfb72008b577dd9a573abaa74c6afe37a75c63ceea829f6")
+		expectedResponse := api.FileUploadResponse{Reference: expectedHash}
 
 		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, dirResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(tarReader),
+			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
-			jsonhttptest.WithPutResponseBody(&respBytes),
 		)
-
-		read := bytes.NewReader(respBytes)
-
-		// get the reference as everytime it will change because of random encryption key
-		var resp api.FileUploadResponse
-		err := json.NewDecoder(read).Decode(&resp)
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		tagId, err := strconv.Atoi(respHeaders.Get(api.SwarmTagUidHeader))
 		if err != nil {
 			t.Fatal(err)
 		}
-		tagValueTest(t, uint32(tagId), 7, 7, 1, 0, 0, 7, resp.Reference, client)
+		tagValueTest(t, uint32(tagId), 7, 7, 0, 0, 0, 7, expectedHash, client)
 	})
 
 	t.Run("bytes tags", func(t *testing.T) {
@@ -382,6 +333,8 @@ func TestTags(t *testing.T) {
 // isTagFoundInResponse verifies that the tag id is found in the supplied HTTP headers
 // if an API tag response is supplied, it also verifies that it contains an id which matches the headers
 func isTagFoundInResponse(t *testing.T, headers http.Header, tr *api.TagResponse) uint32 {
+	t.Helper()
+
 	idStr := headers.Get(api.SwarmTagUidHeader)
 	if idStr == "" {
 		t.Fatalf("could not find tag id header in chunk upload response")

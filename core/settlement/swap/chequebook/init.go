@@ -44,9 +44,9 @@ func checkBalance(
 		}
 
 		if balance.Cmp(big.NewInt(int64(swapInitialDeposit))) < 0 {
-			logger.Warningf("please make sure there is sufficient eth and hop available on %x", overlayEthAddress)
+			logger.Warningf("cannot continue until there is sufficient ETH and HOP available on %x", overlayEthAddress)
 			if chainId == 5 {
-				logger.Warningf("on goerli you can get both goerli eth and goerli hop from https://faucet.ethswarm.org?address=%x", overlayEthAddress)
+				logger.Warningf("on the test network you can get both Goerli ETH and Goerli HOP from https://faucet.ethswarm.org?address=%x", overlayEthAddress)
 			}
 			select {
 			case <-time.After(backoffDuration):

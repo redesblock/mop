@@ -181,6 +181,19 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 		chequeSigner := chequebook.NewChequeSigner(signer, chainID.Int64())
 
+		maxDelay := 1 * time.Minute
+		synced, err := transaction.IsSynced(p2pCtx, swapBackend, maxDelay)
+		if err != nil {
+			return nil, err
+		}
+		if !synced {
+			logger.Infof("waiting for ethereum backend to be synced.")
+			err = transaction.WaitSynced(p2pCtx, swapBackend, maxDelay)
+			if err != nil {
+				return nil, fmt.Errorf("could not wait for ethereum backend to sync: %w", err)
+			}
+		}
+
 		// initialize chequebook logic
 		chequebookService, err = chequebook.Init(p2pCtx,
 			chequebookFactory,
@@ -334,8 +347,6 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	pssService := pss.New(pssPrivateKey, logger)
 	b.pssCloser = pssService
 
-	traversalService := traversal.NewService(storer)
-
 	var ns storage.Storer
 	if o.GlobalPinningEnabled {
 		// create recovery callback for content repair
@@ -344,6 +355,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	} else {
 		ns = netstore.New(storer, nil, retrieve, logger)
 	}
+
+	traversalService := traversal.NewService(ns)
 
 	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
@@ -428,6 +441,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		debugAPIService.MustRegisterMetrics(pushSyncProtocol.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pushSyncPusher.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pullSync.Metrics()...)
+		debugAPIService.MustRegisterMetrics(retrieve.Metrics()...)
 
 		if pssServiceMetrics, ok := pssService.(metrics.Collector); ok {
 			debugAPIService.MustRegisterMetrics(pssServiceMetrics.Metrics()...)

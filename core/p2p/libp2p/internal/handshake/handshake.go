@@ -46,7 +46,7 @@ var (
 	// ErrInvalidSyn is returned if observable address in ack is not a valid..
 	ErrInvalidSyn = errors.New("invalid syn")
 
-	// ErrWelcomeMessageLength is return if the welcome message is longer than the maximum length
+	// ErrWelcomeMessageLength is returned if the welcome message is longer than the maximum length
 	ErrWelcomeMessageLength = fmt.Errorf("handshake welcome message longer than maximum of %d characters", MaxWelcomeMessageLength)
 )
 
@@ -166,7 +166,7 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 
 	s.logger.Tracef("handshake finished for peer (outbound) %s", remoteHopAddress.Overlay.String())
 	if len(resp.Ack.WelcomeMessage) > 0 {
-		s.logger.Infof("greeting <%s> from peer: %s", resp.Ack.WelcomeMessage, remoteHopAddress.Overlay.String())
+		s.logger.Infof("greeting \"%s\" from peer: %s", resp.Ack.WelcomeMessage, remoteHopAddress.Overlay.String())
 	}
 
 	return &Info{

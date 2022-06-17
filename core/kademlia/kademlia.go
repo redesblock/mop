@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	nnLowWatermark  = 2 // the number of peers in consecutive deepest bins that constitute as nearest neighbours
-	maxConnAttempts = 3 // when there is maxConnAttempts failed connect calls for a given peer it is considered non-connectable
+	nnLowWatermark      = 2 // the number of peers in consecutive deepest bins that constitute as nearest neighbours
+	maxConnAttempts     = 3 // when there is maxConnAttempts failed connect calls for a given peer it is considered non-connectable
+	maxBootnodeAttempts = 3 // how many attempts to dial to bootnodes before giving up
 )
 
 var (
@@ -162,8 +163,6 @@ func (k *Kad) manage() {
 					return false, false, err
 				}
 
-				k.logger.Debugf("kademlia dialing to peer %s", peer.String())
-
 				err = k.connect(ctx, peer, hopAddr.Underlay, po)
 				if err != nil {
 					if errors.Is(err, errOverlayMismatch) {
@@ -172,8 +171,8 @@ func (k *Kad) manage() {
 							k.logger.Debugf("could not remove peer from addressbook: %s", peer.String())
 						}
 					}
-					k.logger.Debugf("could not connect to peer from kademlia %s: %v", hopAddr.String(), err)
-					k.logger.Warningf("could not connect to peer")
+					k.logger.Debugf("peer not reachable from kademlia %s: %v", hopAddr.String(), err)
+					k.logger.Warningf("peer not reachable when attempting to connect")
 					// continue to next
 					return false, false, nil
 				}
@@ -214,6 +213,7 @@ func (k *Kad) manage() {
 			}
 
 			if k.connectedPeers.Length() == 0 {
+				k.logger.Debug("kademlia has no connected peers, trying bootnodes")
 				k.connectBootnodes(ctx)
 			}
 
@@ -234,21 +234,28 @@ func (k *Kad) Start(ctx context.Context) error {
 }
 
 func (k *Kad) connectBootnodes(ctx context.Context) {
-	var count int
+	var attempts, connected int
+	var totalAttempts = maxBootnodeAttempts * len(k.bootnodes)
+
 	for _, addr := range k.bootnodes {
-		if count >= 3 {
+		if attempts >= totalAttempts || connected >= 3 {
 			return
 		}
 
 		if _, err := p2p.Discover(ctx, addr, func(addr ma.Multiaddr) (stop bool, err error) {
 			k.logger.Tracef("connecting to bootnode %s", addr)
+			if attempts >= maxBootnodeAttempts {
+				return true, nil
+			}
 			hopAddress, err := k.p2p.Connect(ctx, addr)
+			attempts++
 			if err != nil {
 				if !errors.Is(err, p2p.ErrAlreadyConnected) {
 					k.logger.Debugf("connect fail %s: %v", addr, err)
 					k.logger.Warningf("connect to bootnode %s", addr)
 					return false, err
 				}
+				k.logger.Debugf("connect to bootnode fail: %v", err)
 				return false, nil
 			}
 
@@ -256,9 +263,9 @@ func (k *Kad) connectBootnodes(ctx context.Context) {
 				return false, err
 			}
 			k.logger.Tracef("connected to bootnode %s", addr)
-			count++
+			connected++
 			// connect to max 3 bootnodes
-			return count >= 3, nil
+			return connected >= 3, nil
 		}); err != nil {
 			k.logger.Debugf("discover fail %s: %v", addr, err)
 			k.logger.Warningf("discover to bootnode %s", addr)
@@ -327,11 +334,16 @@ func recalcDepth(peers *pslice.PSlice) uint8 {
 // connect connects to a peer and gossips its address to our connected peers,
 // as well as sends the peers we are connected to to the newly connected peer
 func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr, po uint8) error {
+	k.logger.Infof("attempting to connect to peer %s", peer)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	i, err := k.p2p.Connect(ctx, ma)
 	if err != nil {
 		if errors.Is(err, p2p.ErrAlreadyConnected) {
+			if !i.Overlay.Equal(peer) {
+				return errOverlayMismatch
+			}
+
 			return nil
 		}
 
