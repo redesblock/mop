@@ -21,6 +21,10 @@ func TestAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pssPrivateKey, err := crypto.GenerateSecp256k1Key()
+	if err != nil {
+		t.Fatal(err)
+	}
 	overlay := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	addresses := []multiaddr.Multiaddr{
 		mustMultiaddr(t, "/ip4/127.0.0.1/tcp/7071/p2p/16Uiu2HAmTBuJT9LvNmBiQiNoTsxE5mtNy6YG3paw79m94CRa9sRb"),
@@ -32,6 +36,7 @@ func TestAddresses(t *testing.T) {
 
 	testServer := newTestServer(t, testServerOptions{
 		PublicKey:       privateKey.PublicKey,
+		PSSPublicKey:    pssPrivateKey.PublicKey,
 		Overlay:         overlay,
 		EthereumAddress: ethereumAddress,
 		P2P: mock.New(mock.WithAddressesFunc(func() ([]multiaddr.Multiaddr, error) {
@@ -42,10 +47,11 @@ func TestAddresses(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/addresses", http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(debugapi.AddressesResponse{
-				Overlay:   overlay,
-				Underlay:  addresses,
-				PublicKey: hex.EncodeToString(crypto.EncodeSecp256k1PublicKey(&privateKey.PublicKey)),
-				Ethereum:  ethereumAddress,
+				Overlay:      overlay,
+				Underlay:     addresses,
+				Ethereum:     ethereumAddress,
+				PublicKey:    hex.EncodeToString(crypto.EncodeSecp256k1PublicKey(&privateKey.PublicKey)),
+				PSSPublicKey: hex.EncodeToString(crypto.EncodeSecp256k1PublicKey(&pssPrivateKey.PublicKey)),
 			}),
 		)
 	})

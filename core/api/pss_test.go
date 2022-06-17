@@ -61,7 +61,7 @@ func TestPssWebsocketSingleHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.TryUnwrap(context.Background(), tc)
+	p.TryUnwrap(tc)
 
 	waitMessage(t, msgContent, payload, &mtx)
 }
@@ -99,7 +99,7 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.TryUnwrap(context.Background(), tc)
+	p.TryUnwrap(tc)
 
 	waitMessage(t, msgContent, nil, &mtx)
 }
@@ -142,7 +142,7 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p.TryUnwrap(context.Background(), tc)
+	p.TryUnwrap(tc)
 
 	waitMessage(t, msgContent, nil, &mtx)
 	waitMessage(t, msgContent2, nil, &mtx)
@@ -271,7 +271,7 @@ func TestPssPingPong(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond) // wait to see that the websocket is kept alive
 
-	p.TryUnwrap(context.Background(), tc)
+	p.TryUnwrap(tc)
 
 	waitMessage(t, msgContent, nil, &mtx)
 }
@@ -395,7 +395,7 @@ func (m *mpss) Register(_ pss.Topic, _ pss.Handler) func() {
 }
 
 // TryUnwrap tries to unwrap a wrapped trojan message.
-func (m *mpss) TryUnwrap(_ context.Context, _ swarm.Chunk) {
+func (m *mpss) TryUnwrap(_ swarm.Chunk) {
 	panic("not implemented") // TODO: Implement
 }
 

@@ -71,8 +71,6 @@ type topicMessage struct {
 // TestDeliver verifies that registering a handler on pss for a given topic and then submitting a trojan chunk with said topic to it
 // results in the execution of the expected handler func
 func TestDeliver(t *testing.T) {
-	ctx := context.Background()
-
 	privkey, err := crypto.GenerateSecp256k1Key()
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +102,7 @@ func TestDeliver(t *testing.T) {
 	p.Register(topic, handler)
 
 	// call pss TryUnwrap on chunk and verify test topic variable value changes
-	p.TryUnwrap(ctx, chunk)
+	p.TryUnwrap(chunk)
 
 	var message topicMessage
 	select {
@@ -168,7 +166,7 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.TryUnwrap(context.Background(), chunk1)
+	p.TryUnwrap(chunk1)
 
 	waitHandlerCallback(t, &msgChan, 1)
 
@@ -177,7 +175,7 @@ func TestRegister(t *testing.T) {
 
 	// register another topic handler on the same topic
 	cleanup := p.Register(topic1, h3)
-	p.TryUnwrap(context.Background(), chunk1)
+	p.TryUnwrap(chunk1)
 
 	waitHandlerCallback(t, &msgChan, 2)
 
@@ -187,7 +185,7 @@ func TestRegister(t *testing.T) {
 
 	cleanup() // remove the last handler
 
-	p.TryUnwrap(context.Background(), chunk1)
+	p.TryUnwrap(chunk1)
 
 	waitHandlerCallback(t, &msgChan, 1)
 
@@ -199,7 +197,7 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.TryUnwrap(context.Background(), chunk2)
+	p.TryUnwrap(chunk2)
 
 	waitHandlerCallback(t, &msgChan, 1)
 
