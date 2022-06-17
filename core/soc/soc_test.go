@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/redesblock/hop/core/content"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/swarm"
@@ -23,7 +22,7 @@ func TestToChunk(t *testing.T) {
 	id := make([]byte, 32)
 
 	payload := []byte("foo")
-	ch, err := content.NewChunk(payload)
+	ch, err := chunk(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +89,7 @@ func TestFromChunk(t *testing.T) {
 	id := make([]byte, 32)
 
 	payload := []byte("foo")
-	ch, err := content.NewChunk(payload)
+	ch, err := chunk(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,4 +116,10 @@ func TestFromChunk(t *testing.T) {
 	if !bytes.Equal(ownerEthereumAddress, u2.OwnerAddress()) {
 		t.Fatalf("owner address mismatch %x %x", ownerEthereumAddress, u2.OwnerAddress())
 	}
+}
+
+func chunk(data []byte) (swarm.Chunk, error) {
+	span := make([]byte, swarm.SpanSize)
+	binary.LittleEndian.PutUint64(span, uint64(len(data)))
+	return soc.ContentAddressedChunk(data, span)
 }

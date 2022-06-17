@@ -11,15 +11,16 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/redesblock/hop/core/collection/entry"
-	"github.com/redesblock/hop/core/file/pipeline/builder"
+	"github.com/redesblock/hop/core/file"
+	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tracing"
 )
@@ -56,8 +57,9 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Add the tag to the context
 	ctx := sctx.SetTag(r.Context(), tag)
-
-	reference, err := storeDir(ctx, r.Body, s.Storer, requestModePut(r), s.Logger, requestEncrypt(r), r.Header.Get(SwarmIndexDocumentHeader), r.Header.Get(SwarmErrorDocumentHeader))
+	p := requestPipelineFn(s.Storer, r)
+	l := loadsave.New(s.Storer, requestModePut(r), requestEncrypt(r))
+	reference, err := storeDir(ctx, r.Body, s.Logger, p, l, r.Header.Get(SwarmIndexDocumentHeader), r.Header.Get(SwarmErrorDocumentHeader))
 	if err != nil {
 		logger.Debugf("dir upload: store dir err: %v", err)
 		logger.Errorf("dir upload: store dir")
@@ -97,10 +99,10 @@ func validateRequest(r *http.Request) error {
 
 // storeDir stores all files recursively contained in the directory given as a tar
 // it returns the hash for the uploaded manifest corresponding to the uploaded dir
-func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode storage.ModePut, log logging.Logger, encrypt bool, indexFilename string, errorFilename string) (swarm.Address, error) {
+func storeDir(ctx context.Context, reader io.ReadCloser, log logging.Logger, p pipelineFunc, ls file.LoadSaver, indexFilename string, errorFilename string) (swarm.Address, error) {
 	logger := tracing.NewLoggerWithTraceID(ctx, log)
 
-	dirManifest, err := manifest.NewDefaultManifest(encrypt, s)
+	dirManifest, err := manifest.NewDefaultManifest(ls)
 	if err != nil {
 		return swarm.ZeroAddress, err
 	}
@@ -124,7 +126,17 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 			return swarm.ZeroAddress, fmt.Errorf("read tar stream: %w", err)
 		}
 
-		filePath := fileHeader.Name
+		filePath := filepath.Clean(fileHeader.Name)
+
+		if filePath == "." {
+			logger.Warning("skipping file upload empty path")
+			continue
+		}
+
+		if runtime.GOOS == "windows" {
+			// always use Unix path separator
+			filePath = filepath.ToSlash(filePath)
+		}
 
 		// only store regular files
 		if !fileHeader.FileInfo().Mode().IsRegular() {
@@ -142,14 +154,14 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 			contentType: contentType,
 			reader:      tarReader,
 		}
-		fileReference, err := storeFile(ctx, fileInfo, s, mode, encrypt)
+		fileReference, err := storeFile(ctx, fileInfo, p)
 		if err != nil {
 			return swarm.ZeroAddress, fmt.Errorf("store dir file: %w", err)
 		}
 		logger.Tracef("uploaded dir file %v with reference %v", filePath, fileReference)
 
 		// add file entry to dir manifest
-		err = dirManifest.Add(filePath, manifest.NewEntry(fileReference, nil))
+		err = dirManifest.Add(ctx, filePath, manifest.NewEntry(fileReference, nil))
 		if err != nil {
 			return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
 		}
@@ -172,14 +184,14 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 			metadata[manifestWebsiteErrorDocumentPathKey] = errorFilename
 		}
 		rootManifestEntry := manifest.NewEntry(swarm.ZeroAddress, metadata)
-		err = dirManifest.Add(manifestRootPath, rootManifestEntry)
+		err = dirManifest.Add(ctx, manifestRootPath, rootManifestEntry)
 		if err != nil {
 			return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
 		}
 	}
 
 	// save manifest
-	manifestBytesReference, err := dirManifest.Store(ctx, mode)
+	manifestBytesReference, err := dirManifest.Store(ctx)
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("store manifest: %w", err)
 	}
@@ -192,8 +204,7 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 		return swarm.ZeroAddress, fmt.Errorf("metadata marshal: %w", err)
 	}
 
-	pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
-	mr, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
+	mr, err := p(ctx, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("split metadata: %w", err)
 	}
@@ -205,8 +216,7 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 		return swarm.ZeroAddress, fmt.Errorf("entry marshal: %w", err)
 	}
 
-	pipe = builder.NewPipelineBuilder(ctx, s, mode, encrypt)
-	manifestFileReference, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
+	manifestFileReference, err := p(ctx, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("split entry: %w", err)
 	}
@@ -216,10 +226,9 @@ func storeDir(ctx context.Context, reader io.ReadCloser, s storage.Storer, mode 
 
 // storeFile uploads the given file and returns its reference
 // this function was extracted from `fileUploadHandler` and should eventually replace its current code
-func storeFile(ctx context.Context, fileInfo *fileUploadInfo, s storage.Storer, mode storage.ModePut, encrypt bool) (swarm.Address, error) {
+func storeFile(ctx context.Context, fileInfo *fileUploadInfo, p pipelineFunc) (swarm.Address, error) {
 	// first store the file and get its reference
-	pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
-	fr, err := builder.FeedPipeline(ctx, pipe, fileInfo.reader, fileInfo.size)
+	fr, err := p(ctx, fileInfo.reader, fileInfo.size)
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("split file: %w", err)
 	}
@@ -237,8 +246,7 @@ func storeFile(ctx context.Context, fileInfo *fileUploadInfo, s storage.Storer, 
 		return swarm.ZeroAddress, fmt.Errorf("metadata marshal: %w", err)
 	}
 
-	pipe = builder.NewPipelineBuilder(ctx, s, mode, encrypt)
-	mr, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
+	mr, err := p(ctx, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("split metadata: %w", err)
 	}
@@ -249,11 +257,10 @@ func storeFile(ctx context.Context, fileInfo *fileUploadInfo, s storage.Storer, 
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("entry marshal: %w", err)
 	}
-	pipe = builder.NewPipelineBuilder(ctx, s, mode, encrypt)
-	reference, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
+	ref, err := p(ctx, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
 	if err != nil {
 		return swarm.ZeroAddress, fmt.Errorf("split entry: %w", err)
 	}
 
-	return reference, nil
+	return ref, nil
 }

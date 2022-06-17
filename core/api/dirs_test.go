@@ -15,11 +15,13 @@ import (
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -30,6 +32,7 @@ func TestDirs(t *testing.T) {
 		dirUploadResource    = "/dirs"
 		fileDownloadResource = func(addr string) string { return "/files/" + addr }
 		hopDownloadResource  = func(addr, path string) string { return "/hop/" + addr + "/" + path }
+		ctx                  = context.Background()
 		storer               = mock.NewStorer()
 		mockStatestore       = statestore.NewStateStore()
 		logger               = logging.New(ioutil.Discard, 0)
@@ -219,6 +222,33 @@ func TestDirs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "invalid archive paths",
+			files: []f{
+				{
+					data:      []byte("<h1>Swarm"),
+					name:      "index.html",
+					dir:       "",
+					filePath:  "./index.html",
+					reference: swarm.MustParseHexAddress("bcb1bfe15c36f1a529a241f4d0c593e5648aa6d40859790894c6facb41a6ef28"),
+				},
+				{
+					data:      []byte("body {}"),
+					name:      "app.css",
+					dir:       "",
+					filePath:  "./app.css",
+					reference: swarm.MustParseHexAddress("9813953280d7e02cde1efea92fe4a8fc0fdfded61e185620b43128c9b74a3e9c"),
+				},
+				{
+					data: []byte(`User-agent: *
+Disallow: /`),
+					name:      "robots.txt",
+					dir:       "",
+					filePath:  "./robots.txt",
+					reference: swarm.MustParseHexAddress("84a620dcaf6b3ad25251c4b4d7097fa47266908a4664408057e07eb823a6a79e"),
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// tar all the test case files
@@ -275,11 +305,9 @@ func TestDirs(t *testing.T) {
 
 			// verify manifest content
 			verifyManifest, err := manifest.NewManifestReference(
-				context.Background(),
 				manifest.DefaultManifestType,
 				e.Reference(),
-				false,
-				storer,
+				loadsave.New(storer, storage.ModePutRequest, false),
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -288,7 +316,7 @@ func TestDirs(t *testing.T) {
 			validateFile := func(t *testing.T, file f, filePath string) {
 				t.Helper()
 
-				entry, err := verifyManifest.Lookup(filePath)
+				entry, err := verifyManifest.Lookup(ctx, filePath)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -318,7 +346,7 @@ func TestDirs(t *testing.T) {
 			validateHopPath := func(t *testing.T, fromPath, toPath string) {
 				t.Helper()
 
-				toEntry, err := verifyManifest.Lookup(toPath)
+				toEntry, err := verifyManifest.Lookup(ctx, toPath)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -341,7 +369,7 @@ func TestDirs(t *testing.T) {
 
 			// check index filename
 			if tc.wantIndexFilename != "" {
-				entry, err := verifyManifest.Lookup(api.ManifestRootPath)
+				entry, err := verifyManifest.Lookup(ctx, api.ManifestRootPath)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -363,7 +391,7 @@ func TestDirs(t *testing.T) {
 
 			// check error filename
 			if tc.wantErrorFilename != "" {
-				entry, err := verifyManifest.Lookup(api.ManifestRootPath)
+				entry, err := verifyManifest.Lookup(ctx, api.ManifestRootPath)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -391,9 +419,14 @@ func tarFiles(t *testing.T, files []f) *bytes.Buffer {
 	tw := tar.NewWriter(&buf)
 
 	for _, file := range files {
+		filePath := path.Join(file.dir, file.name)
+		if file.filePath != "" {
+			filePath = file.filePath
+		}
+
 		// create tar header and write it
 		hdr := &tar.Header{
-			Name: path.Join(file.dir, file.name),
+			Name: filePath,
 			Mode: 0600,
 			Size: int64(len(file.data)),
 		}
@@ -420,6 +453,7 @@ type f struct {
 	data      []byte
 	name      string
 	dir       string
+	filePath  string
 	reference swarm.Address
 	header    http.Header
 }

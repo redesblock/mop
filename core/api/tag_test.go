@@ -18,6 +18,7 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	mp "github.com/redesblock/hop/core/pusher/mock"
 	"github.com/redesblock/hop/core/storage/mock"
+	testingc "github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/swarm/test"
 	"github.com/redesblock/hop/core/tags"
@@ -37,8 +38,7 @@ func TestTags(t *testing.T) {
 		bytesResource  = "/bytes"
 		chunksResource = func(addr swarm.Address) string { return "/chunks/" + addr.String() }
 		tagsResource   = "/tags"
-		someHash       = swarm.MustParseHexAddress("aabbcc")
-		someContent    = []byte("bbaatt")
+		chunk          = testingc.GenerateTestRandomChunk()
 		someTagName    = "file.jpg"
 		mockStatestore = statestore.NewStateStore()
 		logger         = logging.New(ioutil.Discard, 0)
@@ -77,8 +77,8 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("create tag with invalid id", func(t *testing.T) {
-		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusInternalServerError,
-			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusInternalServerError,
+			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "cannot get or create tag",
 				Code:    http.StatusInternalServerError,
@@ -106,8 +106,8 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("tag id in chunk upload", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
-			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: http.StatusText(http.StatusOK),
 				Code:    http.StatusOK,
@@ -132,8 +132,8 @@ func TestTags(t *testing.T) {
 		}
 
 		// now upload a chunk and see if we receive a tag with the same id
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
-			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: http.StatusText(http.StatusOK),
 				Code:    http.StatusOK,
@@ -146,8 +146,8 @@ func TestTags(t *testing.T) {
 	})
 
 	t.Run("tag counters", func(t *testing.T) {
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
-			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: http.StatusText(http.StatusOK),
 				Code:    http.StatusOK,
@@ -248,8 +248,8 @@ func TestTags(t *testing.T) {
 		addr := test.RandomAddress()
 
 		// upload content with tag
-		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(someHash), http.StatusOK,
-			jsonhttptest.WithRequestBody(bytes.NewReader(someContent)),
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource(chunk.Address()), http.StatusOK,
+			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithRequestHeader(api.SwarmTagUidHeader, fmt.Sprint(tagId)),
 		)
 

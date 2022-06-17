@@ -10,6 +10,7 @@ import (
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -320,11 +321,9 @@ func (s *traversalService) checkIsManifest(
 
 	// NOTE: 'encrypted' parameter only used for saving manifest
 	m, err = manifest.NewManifestReference(
-		ctx,
 		metadata.MimeType,
 		e.Reference(),
-		false,
-		s.storer,
+		loadsave.New(s.storer, storage.ModePutRequest, false),
 	)
 	if err != nil {
 		if err == manifest.ErrInvalidManifestType {

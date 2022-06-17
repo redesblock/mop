@@ -17,6 +17,7 @@ import (
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
+	testingc "github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 )
@@ -39,18 +40,16 @@ func TestApiStore(t *testing.T) {
 	}
 	a := cmdfile.NewApiStore(host, port, false)
 
-	chunkAddr := swarm.MustParseHexAddress(hashOfFoo)
-	chunkData := []byte("foo")
-	ch := swarm.NewChunk(chunkAddr, chunkData)
+	ch := testingc.GenerateTestRandomChunk()
 	_, err = a.Put(ctx, storage.ModePutUpload, ch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = storer.Get(ctx, storage.ModeGetRequest, chunkAddr)
+	_, err = storer.Get(ctx, storage.ModeGetRequest, ch.Address())
 	if err != nil {
 		t.Fatal(err)
 	}
-	chResult, err := a.Get(ctx, storage.ModeGetRequest, chunkAddr)
+	chResult, err := a.Get(ctx, storage.ModeGetRequest, ch.Address())
 	if err != nil {
 		t.Fatal(err)
 	}

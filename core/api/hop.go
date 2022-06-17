@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +15,11 @@ import (
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tracing"
 )
@@ -44,9 +47,6 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.NotFound(w, nil)
 		return
 	}
-
-	// this is a hack and is needed because encryption is coupled into manifests
-	toDecrypt := len(address.Bytes()) == 64
 
 	// read manifest entry
 	j, _, err := joiner.New(ctx, s.Storer, address)
@@ -103,11 +103,9 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// we are expecting manifest Mime type here
 	m, err := manifest.NewManifestReference(
-		ctx,
 		manifestMetadata.MimeType,
 		e.Reference(),
-		toDecrypt,
-		s.Storer,
+		loadsave.New(s.Storer, storage.ModePutRequest, false), // mode and encryption values are fallback
 	)
 	if err != nil {
 		logger.Debugf("hop download: not manifest %s: %v", address, err)
@@ -119,9 +117,9 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	if pathVar == "" {
 		logger.Tracef("hop download: handle empty path %s", address)
 
-		if indexDocumentSuffixKey, ok := manifestMetadataLoad(m, manifestRootPath, manifestWebsiteIndexDocumentSuffixKey); ok {
+		if indexDocumentSuffixKey, ok := manifestMetadataLoad(ctx, m, manifestRootPath, manifestWebsiteIndexDocumentSuffixKey); ok {
 			pathWithIndex := path.Join(pathVar, indexDocumentSuffixKey)
-			indexDocumentManifestEntry, err := m.Lookup(pathWithIndex)
+			indexDocumentManifestEntry, err := m.Lookup(ctx, pathWithIndex)
 			if err == nil {
 				// index document exists
 				logger.Debugf("hop download: serving path: %s", pathWithIndex)
@@ -132,7 +130,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	me, err := m.Lookup(pathVar)
+	me, err := m.Lookup(ctx, pathVar)
 	if err != nil {
 		logger.Debugf("hop download: invalid path %s/%s: %v", address, pathVar, err)
 		logger.Error("hop download: invalid path")
@@ -142,7 +140,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(pathVar, "/") {
 				// check for directory
 				dirPath := pathVar + "/"
-				exists, err := m.HasPrefix(dirPath)
+				exists, err := m.HasPrefix(ctx, dirPath)
 				if err == nil && exists {
 					// redirect to directory
 					u := r.URL
@@ -157,11 +155,11 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// check index suffix path
-			if indexDocumentSuffixKey, ok := manifestMetadataLoad(m, manifestRootPath, manifestWebsiteIndexDocumentSuffixKey); ok {
+			if indexDocumentSuffixKey, ok := manifestMetadataLoad(ctx, m, manifestRootPath, manifestWebsiteIndexDocumentSuffixKey); ok {
 				if !strings.HasSuffix(pathVar, indexDocumentSuffixKey) {
 					// check if path is directory with index
 					pathWithIndex := path.Join(pathVar, indexDocumentSuffixKey)
-					indexDocumentManifestEntry, err := m.Lookup(pathWithIndex)
+					indexDocumentManifestEntry, err := m.Lookup(ctx, pathWithIndex)
 					if err == nil {
 						// index document exists
 						logger.Debugf("hop download: serving path: %s", pathWithIndex)
@@ -173,9 +171,9 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// check if error document is to be shown
-			if errorDocumentPath, ok := manifestMetadataLoad(m, manifestRootPath, manifestWebsiteErrorDocumentPathKey); ok {
+			if errorDocumentPath, ok := manifestMetadataLoad(ctx, m, manifestRootPath, manifestWebsiteErrorDocumentPathKey); ok {
 				if pathVar != errorDocumentPath {
-					errorDocumentManifestEntry, err := m.Lookup(errorDocumentPath)
+					errorDocumentManifestEntry, err := m.Lookup(ctx, errorDocumentPath)
 					if err == nil {
 						// error document exists
 						logger.Debugf("hop download: serving path: %s", errorDocumentPath)
@@ -268,8 +266,8 @@ func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, addr
 // manifestMetadataLoad returns the value for a key stored in the metadata of
 // manifest path, or empty string if no value is present.
 // The ok result indicates whether value was found in the metadata.
-func manifestMetadataLoad(manifest manifest.Interface, path, metadataKey string) (string, bool) {
-	me, err := manifest.Lookup(path)
+func manifestMetadataLoad(ctx context.Context, manifest manifest.Interface, path, metadataKey string) (string, bool) {
+	me, err := manifest.Lookup(ctx, path)
 	if err != nil {
 		return "", false
 	}

@@ -18,7 +18,6 @@ import (
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/content"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/hive"
@@ -45,7 +44,6 @@ import (
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
-	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/statestore/leveldb"
 	mockinmem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
@@ -325,9 +323,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	}
 	b.localstoreCloser = storer
 
-	chunkvalidator := swarm.NewMultiValidator([]swarm.Validator{content.NewValidator(), soc.NewValidator()})
-
-	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), chunkvalidator, tracer)
+	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
 
@@ -349,9 +345,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		ns = netstore.New(storer, nil, retrieve, logger)
 	}
 
-	chunkvalidatorWithCallback := swarm.NewMultiValidator([]swarm.Validator{content.NewValidator(), soc.NewValidator()}, pssService.TryUnwrap)
-
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, chunkvalidatorWithCallback, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -371,7 +365,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	pullStorage := pullstorage.New(storer)
 
-	pullSync := pullsync.New(p2ps, pullStorage, chunkvalidator, logger)
+	pullSync := pullsync.New(p2ps, pullStorage, pssService.TryUnwrap, logger)
 	b.pullSyncCloser = pullSync
 
 	if err = p2ps.AddProtocol(pullSync.Protocol()); err != nil {

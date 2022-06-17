@@ -8,7 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/redesblock/hop/core/content"
 	"github.com/redesblock/hop/core/netstore"
+	"github.com/redesblock/hop/core/soc"
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -60,7 +62,17 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seen, err := s.Storer.Put(ctx, requestModePut(r), swarm.NewChunk(address, data))
+	chunk := swarm.NewChunk(address, data)
+	if !content.Valid(chunk) {
+		if !soc.Valid(chunk) {
+			s.Logger.Debugf("chunk upload: invalid chunk: %s", address)
+			s.Logger.Error("chunk upload: invalid chunk")
+			jsonhttp.BadRequest(w, nil)
+			return
+		}
+	}
+
+	seen, err := s.Storer.Put(ctx, requestModePut(r), chunk)
 	if err != nil {
 		s.Logger.Debugf("chunk upload: chunk write error: %v, addr %s", err, address)
 		s.Logger.Error("chunk upload: chunk write error")

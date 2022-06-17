@@ -7,7 +7,6 @@ import (
 
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/storage/mock/validator"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -51,42 +50,4 @@ func TestMockStorer(t *testing.T) {
 	if !has {
 		t.Fatal("expected mock store to have key")
 	}
-}
-
-func TestMockValidatingStorer(t *testing.T) {
-	validAddressHex := "aabbcc"
-	invalidAddressHex := "bbccdd"
-
-	validAddress := swarm.MustParseHexAddress(validAddressHex)
-	invalidAddress := swarm.MustParseHexAddress(invalidAddressHex)
-
-	validContent := []byte("bbaatt")
-	invalidContent := []byte("bbaattss")
-
-	s := mock.NewStorer(mock.WithValidator(validator.NewMockValidator(validAddress, validContent)))
-
-	ctx := context.Background()
-
-	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(validAddress, validContent)); err != nil {
-		t.Fatalf("expected not error but got: %v", err)
-	}
-
-	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(invalidAddress, validContent)); err == nil {
-		t.Fatalf("expected error but got none")
-	}
-
-	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(invalidAddress, invalidContent)); err == nil {
-		t.Fatalf("expected error but got none")
-	}
-
-	if chunk, err := s.Get(ctx, storage.ModeGetRequest, validAddress); err != nil {
-		t.Fatalf("got error on get but expected none: %v", err)
-	} else if !bytes.Equal(chunk.Data(), validContent) {
-		t.Fatal("stored content not identical to input data")
-	}
-
-	if _, err := s.Get(ctx, storage.ModeGetRequest, invalidAddress); err == nil {
-		t.Fatal("got no error on get but expected one")
-	}
-
 }

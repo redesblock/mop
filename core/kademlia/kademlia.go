@@ -172,8 +172,8 @@ func (k *Kad) manage() {
 							k.logger.Debugf("could not remove peer from addressbook: %s", peer.String())
 						}
 					}
-					k.logger.Debugf("error connecting to peer from kademlia %s: %v", hopAddr.String(), err)
-					k.logger.Warningf("connecting to peer %s: %v", hopAddr.ShortString(), err)
+					k.logger.Debugf("could not connect to peer from kademlia %s: %v", hopAddr.String(), err)
+					k.logger.Warningf("could not connect to peer")
 					// continue to next
 					return false, false, nil
 				}
@@ -335,7 +335,7 @@ func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr, 
 			return nil
 		}
 
-		k.logger.Debugf("error connecting to peer %s: %v", peer, err)
+		k.logger.Debugf("could not connect to peer %s: %v", peer, err)
 		retryTime := time.Now().Add(timeToRetry)
 		var e *p2p.ConnectionBackoffError
 		k.waitNextMu.Lock()
@@ -395,7 +395,7 @@ func (k *Kad) announce(ctx context.Context, peer swarm.Address) error {
 		go func(connectedPeer swarm.Address) {
 			defer k.wg.Done()
 			if err := k.discovery.BroadcastPeers(context.Background(), connectedPeer, peer); err != nil {
-				k.logger.Debugf("error gossiping peer %s to peer %s: %v", peer, connectedPeer, err)
+				k.logger.Debugf("could not gossip peer %s to peer %s: %v", peer, connectedPeer, err)
 			}
 		}(connectedPeer)
 
@@ -725,7 +725,7 @@ func (k *Kad) marshal(indent bool) ([]byte, error) {
 func (k *Kad) String() string {
 	b, err := k.marshal(true)
 	if err != nil {
-		k.logger.Errorf("error marshaling kademlia into json: %v", err)
+		k.logger.Errorf("could not marshal kademlia into json: %v", err)
 		return ""
 	}
 	return string(b)

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/collection/entry"
+	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
@@ -94,19 +95,19 @@ func TestHop(t *testing.T) {
 		}
 
 		// save manifest
-		m, err := manifest.NewDefaultManifest(false, storer)
+		m, err := manifest.NewDefaultManifest(loadsave.New(storer, storage.ModePutRequest, false))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		e := manifest.NewEntry(fileReference, nil)
 
-		err = m.Add(filePath, e)
+		err = m.Add(ctx, filePath, e)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		manifestBytesReference, err := m.Store(context.Background(), storage.ModePutUpload)
+		manifestBytesReference, err := m.Store(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}

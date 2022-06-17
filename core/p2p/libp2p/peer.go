@@ -8,6 +8,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -157,6 +158,35 @@ func (r *peerRegistry) overlay(peerID libp2ppeer.ID) (swarm.Address, bool) {
 	overlay, found := r.overlays[peerID]
 	r.mu.RUnlock()
 	return overlay, found
+}
+
+func (r *peerRegistry) isConnected(peerID libp2ppeer.ID, remoteAddr ma.Multiaddr) (swarm.Address, bool) {
+	if remoteAddr == nil {
+		return swarm.ZeroAddress, false
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	overlay, found := r.overlays[peerID]
+	if !found {
+		return swarm.ZeroAddress, false
+	}
+
+	// check connection remote address
+	conns, ok := r.connections[peerID]
+	if !ok {
+		return swarm.ZeroAddress, false
+	}
+
+	for c := range conns {
+		if c.RemoteMultiaddr().Equal(remoteAddr) {
+			// we ARE connected to the peer on expected address
+			return overlay, true
+		}
+	}
+
+	return swarm.ZeroAddress, false
 }
 
 func (r *peerRegistry) remove(overlay swarm.Address) (bool, libp2ppeer.ID) {

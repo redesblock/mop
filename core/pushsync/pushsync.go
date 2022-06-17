@@ -8,10 +8,12 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/redesblock/hop/core/accounting"
+	"github.com/redesblock/hop/core/content"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
 	"github.com/redesblock/hop/core/pushsync/pb"
+	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -42,7 +44,7 @@ type PushSync struct {
 	storer        storage.Putter
 	peerSuggester topology.ClosestPeerer
 	tagger        *tags.Tags
-	validator     swarm.ValidatorWithCallback
+	unwrap        func(swarm.Chunk)
 	logger        logging.Logger
 	accounting    accounting.Interface
 	pricer        accounting.Pricer
@@ -52,13 +54,13 @@ type PushSync struct {
 
 var timeToWaitForReceipt = 3 * time.Second // time to wait to get a receipt for a chunk
 
-func New(streamer p2p.StreamerDisconnecter, storer storage.Putter, closestPeerer topology.ClosestPeerer, tagger *tags.Tags, validator swarm.ValidatorWithCallback, logger logging.Logger, accounting accounting.Interface, pricer accounting.Pricer, tracer *tracing.Tracer) *PushSync {
+func New(streamer p2p.StreamerDisconnecter, storer storage.Putter, closestPeerer topology.ClosestPeerer, tagger *tags.Tags, unwrap func(swarm.Chunk), logger logging.Logger, accounting accounting.Interface, pricer accounting.Pricer, tracer *tracing.Tracer) *PushSync {
 	ps := &PushSync{
 		streamer:      streamer,
 		storer:        storer,
 		peerSuggester: closestPeerer,
 		tagger:        tagger,
-		validator:     validator,
+		unwrap:        unwrap,
 		logger:        logger,
 		accounting:    accounting,
 		pricer:        pricer,
@@ -102,10 +104,14 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 
 	chunk := swarm.NewChunk(swarm.NewAddress(ch.Address), ch.Data)
 
-	// validate the chunk and returns the delivery callback for the validator
-	valid, callback := ps.validator.ValidWithCallback(chunk)
-	if !valid {
-		return swarm.ErrInvalidChunk
+	if content.Valid(chunk) {
+		if ps.unwrap != nil {
+			go ps.unwrap(chunk)
+		}
+	} else {
+		if !soc.Valid(chunk) {
+			return swarm.ErrInvalidChunk
+		}
 	}
 
 	span, _, ctx := ps.tracer.StartSpanFromContext(ctx, "pushsync-handler", ps.logger, opentracing.Tag{Key: "address", Value: chunk.Address().String()})
@@ -116,9 +122,6 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 	if err != nil {
 		// If i am the closest peer then store the chunk and send receipt
 		if errors.Is(err, topology.ErrWantSelf) {
-			if callback != nil {
-				go callback()
-			}
 			return ps.handleDeliveryResponse(ctx, w, p, chunk)
 		}
 		return err

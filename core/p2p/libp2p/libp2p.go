@@ -374,7 +374,7 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 					_ = s.Disconnect(overlay)
 				}
 
-				logger.Debugf("error handle protocol %s/%s: stream %s: peer %s: error: %v", p.Name, p.Version, ss.Name, overlay, err)
+				logger.Debugf("could not handle protocol %s/%s: stream %s: peer %s: error: %v", p.Name, p.Version, ss.Name, overlay, err)
 				return
 			}
 		})
@@ -421,9 +421,13 @@ func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration) error
 	return nil
 }
 
+func buildHostAddress(peerID libp2ppeer.ID) (ma.Multiaddr, error) {
+	return ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peerID.Pretty()))
+}
+
 func buildUnderlayAddress(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr, error) {
 	// Build host multiaddress
-	hostAddr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peerID.Pretty()))
+	hostAddr, err := buildHostAddress(peerID)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +442,14 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 		return nil, fmt.Errorf("addr from p2p: %w", err)
 	}
 
-	if _, found := s.peers.overlay(info.ID); found {
+	hostAddr, err := buildHostAddress(info.ID)
+	if err != nil {
+		return nil, fmt.Errorf("build host address: %w", err)
+	}
+
+	remoteAddr := addr.Decapsulate(hostAddr)
+
+	if _, found := s.peers.isConnected(info.ID, remoteAddr); found {
 		return nil, p2p.ErrAlreadyConnected
 	}
 

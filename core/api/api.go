@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/logging"
 	m "github.com/redesblock/hop/core/metrics"
 	"github.com/redesblock/hop/core/pss"
@@ -191,6 +193,13 @@ func (s *server) newTracingHandler(spanName string) func(h http.Handler) http.Ha
 	}
 }
 
+func lookaheadBufferSize(size int64) int {
+	if size <= largeBufferFilesizeThreshold {
+		return smallFileBufferSize
+	}
+	return largeFileBufferSize
+}
+
 // checkOrigin returns true if the origin is not set or is equal to the request host.
 func (s *server) checkOrigin(r *http.Request) bool {
 	origin := r.Header["Origin"]
@@ -209,13 +218,6 @@ func (s *server) checkOrigin(r *http.Request) bool {
 	}
 
 	return false
-}
-
-func lookaheadBufferSize(size int64) int {
-	if size <= largeBufferFilesizeThreshold {
-		return smallFileBufferSize
-	}
-	return largeFileBufferSize
 }
 
 // equalASCIIFold returns true if s is equal to t with ASCII case folding as
@@ -240,4 +242,14 @@ func equalASCIIFold(s, t string) bool {
 		}
 	}
 	return s == t
+}
+
+type pipelineFunc func(context.Context, io.Reader, int64) (swarm.Address, error)
+
+func requestPipelineFn(s storage.Storer, r *http.Request) pipelineFunc {
+	mode, encrypt := requestModePut(r), requestEncrypt(r)
+	return func(ctx context.Context, r io.Reader, l int64) (swarm.Address, error) {
+		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
+		return builder.FeedPipeline(ctx, pipe, r, l)
+	}
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
+	"io/ioutil"
 	"testing"
 
 	"github.com/redesblock/hop/core/logging"
@@ -126,7 +126,7 @@ func TestStartSpanFromContext_logger(t *testing.T) {
 	tracer, closer := newTracer(t)
 	defer closer.Close()
 
-	span, logger, _ := tracer.StartSpanFromContext(context.Background(), "some-operation", logging.New(os.Stdout, 5))
+	span, logger, _ := tracer.StartSpanFromContext(context.Background(), "some-operation", logging.New(ioutil.Discard, 0))
 	defer span.Finish()
 
 	wantTraceID := span.Context().(jaeger.SpanContext).TraceID()
@@ -165,7 +165,7 @@ func TestNewLoggerWithTraceID(t *testing.T) {
 	span, _, ctx := tracer.StartSpanFromContext(context.Background(), "some-operation", nil)
 	defer span.Finish()
 
-	logger := tracing.NewLoggerWithTraceID(ctx, logging.New(os.Stdout, 5))
+	logger := tracing.NewLoggerWithTraceID(ctx, logging.New(ioutil.Discard, 0))
 
 	wantTraceID := span.Context().(jaeger.SpanContext).TraceID()
 

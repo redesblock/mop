@@ -20,7 +20,6 @@ import (
 	"github.com/redesblock/hop/core/collection/entry"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
-	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
@@ -46,7 +45,6 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		logger                  = tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
 		fileName, contentLength string
 		fileSize                uint64
-		mode                    = requestModePut(r)
 		contentType             = r.Header.Get("Content-Type")
 	)
 
@@ -148,9 +146,10 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		reader = tmp
 	}
 
+	p := requestPipelineFn(s.Storer, r)
+
 	// first store the file and get its reference
-	pipe := builder.NewPipelineBuilder(ctx, s.Storer, mode, requestEncrypt(r))
-	fr, err := builder.FeedPipeline(ctx, pipe, reader, int64(fileSize))
+	fr, err := p(ctx, reader, int64(fileSize))
 	if err != nil {
 		logger.Debugf("file upload: file store, file %q: %v", fileName, err)
 		logger.Errorf("file upload: file store, file %q", fileName)
@@ -173,8 +172,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "metadata marshal error")
 		return
 	}
-	pipe = builder.NewPipelineBuilder(ctx, s.Storer, mode, requestEncrypt(r))
-	mr, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
+	mr, err := p(ctx, bytes.NewReader(metadataBytes), int64(len(metadataBytes)))
 	if err != nil {
 		logger.Debugf("file upload: metadata store, file %q: %v", fileName, err)
 		logger.Errorf("file upload: metadata store, file %q", fileName)
@@ -191,8 +189,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, "entry marshal error")
 		return
 	}
-	pipe = builder.NewPipelineBuilder(ctx, s.Storer, mode, requestEncrypt(r))
-	reference, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
+	reference, err := p(ctx, bytes.NewReader(fileEntryBytes), int64(len(fileEntryBytes)))
 	if err != nil {
 		logger.Debugf("file upload: entry store, file %q: %v", fileName, err)
 		logger.Errorf("file upload: entry store, file %q", fileName)
