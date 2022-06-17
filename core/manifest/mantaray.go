@@ -104,7 +104,10 @@ func (m *mantarayManifest) Lookup(path string) (Entry, error) {
 
 	node, err := m.trie.LookupNode(p, m.loader)
 	if err != nil {
-		return nil, ErrNotFound
+		if errors.Is(err, mantaray.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
 
 	if !node.IsValueType() {

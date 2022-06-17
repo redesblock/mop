@@ -35,7 +35,7 @@ type Interface interface {
 
 type Service struct {
 	addr          swarm.Address
-	streamer      p2p.StreamerDisconnecter
+	streamer      p2p.Streamer
 	peerSuggester topology.EachPeerer
 	storer        storage.Storer
 	singleflight  singleflight.Group
@@ -46,7 +46,7 @@ type Service struct {
 	tracer        *tracing.Tracer
 }
 
-func New(addr swarm.Address, storer storage.Storer, streamer p2p.StreamerDisconnecter, chunkPeerer topology.EachPeerer, logger logging.Logger, accounting accounting.Interface, pricer accounting.Pricer, validator swarm.Validator, tracer *tracing.Tracer) *Service {
+func New(addr swarm.Address, storer storage.Storer, streamer p2p.Streamer, chunkPeerer topology.EachPeerer, logger logging.Logger, accounting accounting.Interface, pricer accounting.Pricer, validator swarm.Validator, tracer *tracing.Tracer) *Service {
 	return &Service{
 		addr:          addr,
 		streamer:      streamer,
@@ -76,7 +76,6 @@ func (s *Service) Protocol() p2p.ProtocolSpec {
 const (
 	maxPeers             = 5
 	retrieveChunkTimeout = 10 * time.Second
-	blocklistDuration    = time.Minute
 )
 
 func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address) (swarm.Chunk, error) {
@@ -88,8 +87,17 @@ func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address) (swarm.
 		defer span.Finish()
 
 		var skipPeers []swarm.Address
+
+	LOOP:
 		for i := 0; i < maxPeers; i++ {
+			select {
+			case <-ctx.Done():
+				break LOOP
+			default:
+			}
+
 			var peer swarm.Address
+
 			chunk, peer, err := s.retrieveChunk(ctx, addr, skipPeers)
 			if err != nil {
 				if peer.IsZero() {
@@ -97,14 +105,6 @@ func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address) (swarm.
 				}
 				logger.Debugf("retrieval: failed to get chunk %s from peer %s: %v", addr, peer, err)
 				skipPeers = append(skipPeers, peer)
-				if errors.Is(err, context.DeadlineExceeded) {
-					if err := s.streamer.Blocklist(peer, blocklistDuration); err != nil {
-						s.logger.Errorf("retrieval: unable to block peer %s", peer)
-						s.logger.Debugf("retrieval: blocking peer %s: %v", peer, err)
-					} else {
-						s.logger.Warningf("retrieval: peer %s blocked as unresponsive", peer)
-					}
-				}
 				continue
 			}
 			logger.Tracef("retrieval: got chunk %s from peer %s", addr, peer)
@@ -259,7 +259,7 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 	}()
 	var req pb.Request
 	if err := r.ReadMsgWithContext(ctx, &req); err != nil {
-		return fmt.Errorf("read request: %w", err)
+		return fmt.Errorf("read request: %w peer %s", err, p.Address.String())
 	}
 	span, _, ctx := s.tracer.StartSpanFromContext(ctx, "handle-retrieve-chunk", s.logger, opentracing.Tag{Key: "address", Value: swarm.NewAddress(req.Addr).String()})
 	defer span.Finish()
@@ -282,8 +282,10 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 	if err := w.WriteMsgWithContext(ctx, &pb.Delivery{
 		Data: chunk.Data(),
 	}); err != nil {
-		return fmt.Errorf("write delivery: %w", err)
+		return fmt.Errorf("write delivery: %w peer %s", err, p.Address.String())
 	}
+
+	s.logger.Tracef("retrieval protocol debiting peer %s", p.Address.String())
 
 	// compute the price we charge for this chunk and debit it from p's balance
 	chunkPrice := s.pricer.Price(chunk.Address())
