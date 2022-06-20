@@ -17,9 +17,9 @@ var (
 )
 
 type settlementResponse struct {
-	Peer               string `json:"peer"`
-	SettlementReceived uint64 `json:"received"`
-	SettlementSent     uint64 `json:"sent"`
+	Peer               string   `json:"peer"`
+	SettlementReceived *big.Int `json:"received"`
+	SettlementSent     *big.Int `json:"sent"`
 }
 
 type settlementsResponse struct {
@@ -54,9 +54,9 @@ func (s *server) settlementsHandler(w http.ResponseWriter, r *http.Request) {
 		settlementResponses[a] = settlementResponse{
 			Peer:               a,
 			SettlementSent:     b,
-			SettlementReceived: 0,
+			SettlementReceived: big.NewInt(0),
 		}
-		totalSent.Add(big.NewInt(int64(b)), totalSent)
+		totalSent.Add(b, totalSent)
 	}
 
 	for a, b := range settlementsReceived {
@@ -67,11 +67,11 @@ func (s *server) settlementsHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			settlementResponses[a] = settlementResponse{
 				Peer:               a,
-				SettlementSent:     0,
+				SettlementSent:     big.NewInt(0),
 				SettlementReceived: b,
 			}
 		}
-		totalReceived.Add(big.NewInt(int64(b)), totalReceived)
+		totalReceived.Add(b, totalReceived)
 	}
 
 	settlementResponsesArray := make([]settlementResponse, len(settlementResponses))
@@ -103,6 +103,8 @@ func (s *server) peerSettlementsHandler(w http.ResponseWriter, r *http.Request) 
 			s.Logger.Errorf("debug api: settlements peer: can't get peer %s received settlement", peer.String())
 			jsonhttp.InternalServerError(w, errCantSettlementsPeer)
 			return
+		} else {
+			received = big.NewInt(0)
 		}
 	}
 
@@ -117,6 +119,8 @@ func (s *server) peerSettlementsHandler(w http.ResponseWriter, r *http.Request) 
 			s.Logger.Errorf("debug api: settlements peer: can't get peer %s sent settlement", peer.String())
 			jsonhttp.InternalServerError(w, errCantSettlementsPeer)
 			return
+		} else {
+			sent = big.NewInt(0)
 		}
 	}
 

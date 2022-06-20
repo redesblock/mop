@@ -72,7 +72,7 @@ func TestSendChunkAndReceiveReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != -int64(fixedPrice) {
+	if balance.Int64() != -int64(fixedPrice) {
 		t.Fatalf("unexpected balance on pivot. want %d got %d", -int64(fixedPrice), balance)
 	}
 
@@ -81,7 +81,7 @@ func TestSendChunkAndReceiveReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != int64(fixedPrice) {
+	if balance.Int64() != int64(fixedPrice) {
 		t.Fatalf("unexpected balance on peer. want %d got %d", int64(fixedPrice), balance)
 	}
 }
@@ -92,8 +92,8 @@ func TestPushChunkToClosest(t *testing.T) {
 	// chunk data to upload
 	chunk := testingc.FixtureChunk("7000")
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
-	closestPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110 -> po 1
+	pivotNode := swarm.MustParseHexAddress("0000")   // base is 0000
+	closestPeer := swarm.MustParseHexAddress("6000") // binary 0110 -> po 1
 	callbackC := make(chan struct{}, 1)
 	// peer is the node responding to the chunk receipt message
 	// mock should return ErrWantSelf since there's no one to forward to
@@ -107,7 +107,7 @@ func TestPushChunkToClosest(t *testing.T) {
 	psPivot, storerPivot, pivotTags, pivotAccounting := createPushSyncNode(t, pivotNode, recorder, nil, mock.WithClosestPeer(closestPeer))
 	defer storerPivot.Close()
 
-	ta, err := pivotTags.Create("test", 1)
+	ta, err := pivotTags.Create(1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestPushChunkToClosest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != -int64(fixedPrice) {
+	if balance.Int64() != -int64(fixedPrice) {
 		t.Fatalf("unexpected balance on pivot. want %d got %d", -int64(fixedPrice), balance)
 	}
 
@@ -160,7 +160,7 @@ func TestPushChunkToClosest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != int64(fixedPrice) {
+	if balance.Int64() != int64(fixedPrice) {
 		t.Fatalf("unexpected balance on peer. want %d got %d", int64(fixedPrice), balance)
 	}
 
@@ -177,10 +177,10 @@ func TestPushChunkToNextClosest(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
+	pivotNode := swarm.MustParseHexAddress("0000") // base is 0000
 
-	peer1 := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	peer2 := swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
+	peer1 := swarm.MustParseHexAddress("6000")
+	peer2 := swarm.MustParseHexAddress("5000")
 	peers := []swarm.Address{
 		peer1,
 		peer2,
@@ -221,12 +221,11 @@ func TestPushChunkToNextClosest(t *testing.T) {
 	// pivot node needs the streamer since the chunk is intercepted by
 	// the chunk worker, then gets sent by opening a new stream
 	psPivot, storerPivot, pivotTags, pivotAccounting := createPushSyncNode(t, pivotNode, recorder, nil,
-		mock.WithClosestPeerErr(topology.ErrNotFound),
 		mock.WithPeers(peers...),
 	)
 	defer storerPivot.Close()
 
-	ta, err := pivotTags.Create("test", 1)
+	ta, err := pivotTags.Create(1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +269,7 @@ func TestPushChunkToNextClosest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != -int64(fixedPrice) {
+	if balance.Int64() != -int64(fixedPrice) {
 		t.Fatalf("unexpected balance on pivot. want %d got %d", -int64(fixedPrice), balance)
 	}
 
@@ -279,7 +278,7 @@ func TestPushChunkToNextClosest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance2 != int64(fixedPrice) {
+	if balance2.Int64() != int64(fixedPrice) {
 		t.Fatalf("unexpected balance on peer2. want %d got %d", int64(fixedPrice), balance2)
 	}
 
@@ -288,7 +287,7 @@ func TestPushChunkToNextClosest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance1 != 0 {
+	if balance1.Int64() != 0 {
 		t.Fatalf("unexpected balance on peer1. want %d got %d", 0, balance1)
 	}
 }
@@ -351,7 +350,7 @@ func TestHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != -int64(fixedPrice) {
+	if balance.Int64() != -int64(fixedPrice) {
 		t.Fatalf("unexpected balance on trigger. want %d got %d", -int64(fixedPrice), balance)
 	}
 
@@ -361,7 +360,7 @@ func TestHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != int64(fixedPrice) {
+	if balance.Int64() != int64(fixedPrice) {
 		t.Fatalf("unexpected balance on pivot. want %d got %d", int64(fixedPrice), balance)
 	}
 
@@ -370,7 +369,7 @@ func TestHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != -int64(fixedPrice) {
+	if balance.Int64() != -int64(fixedPrice) {
 		t.Fatalf("unexpected balance on pivot. want %d got %d", -int64(fixedPrice), balance)
 	}
 
@@ -379,7 +378,7 @@ func TestHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if balance != int64(fixedPrice) {
+	if balance.Int64() != int64(fixedPrice) {
 		t.Fatalf("unexpected balance on closest. want %d got %d", int64(fixedPrice), balance)
 	}
 }

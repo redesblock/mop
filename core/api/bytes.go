@@ -9,6 +9,7 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
 )
 
@@ -20,12 +21,25 @@ type bytesPostResponse struct {
 func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
 
-	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagUidHeader))
+	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagHeader))
 	if err != nil {
 		logger.Debugf("bytes upload: get or create tag: %v", err)
 		logger.Error("bytes upload: get or create tag")
 		jsonhttp.InternalServerError(w, "cannot get or create tag")
 		return
+	}
+
+	if !created {
+		// only in the case when tag is sent via header (i.e. not created by this request)
+		if estimatedTotalChunks := requestCalculateNumberOfChunks(r); estimatedTotalChunks > 0 {
+			err = tag.IncN(tags.TotalChunks, estimatedTotalChunks)
+			if err != nil {
+				s.Logger.Debugf("bytes upload: increment tag: %v", err)
+				s.Logger.Error("bytes upload: increment tag")
+				jsonhttp.InternalServerError(w, "increment tag")
+				return
+			}
+		}
 	}
 
 	// Add the tag to the context
@@ -48,8 +62,8 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Header().Set(SwarmTagUidHeader, fmt.Sprint(tag.Uid))
-	w.Header().Set("Access-Control-Expose-Headers", SwarmTagUidHeader)
+	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
+	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
 	jsonhttp.OK(w, bytesPostResponse{
 		Reference: address,
 	})
@@ -72,5 +86,5 @@ func (s *server) bytesGetHandler(w http.ResponseWriter, r *http.Request) {
 		"Content-Type": {"application/octet-stream"},
 	}
 
-	s.downloadHandler(w, r, address, additionalHeaders)
+	s.downloadHandler(w, r, address, additionalHeaders, true)
 }

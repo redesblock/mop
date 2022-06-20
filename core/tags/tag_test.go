@@ -160,8 +160,7 @@ func TestTagsMultipleConcurrentIncrementsSyncMap(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(10 * 5 * n)
 	for i := 0; i < 10; i++ {
-		s := string([]byte{uint8(i)})
-		tag, err := ts.Create(s, int64(n))
+		tag, err := ts.Create(int64(n))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -207,7 +206,7 @@ func TestTagsMultipleConcurrentIncrementsSyncMap(t *testing.T) {
 func TestMarshallingWithAddr(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
 	logger := logging.New(ioutil.Discard, 0)
-	tg := NewTag(context.Background(), 111, "test/tag", 10, nil, mockStatestore, logger)
+	tg := NewTag(context.Background(), 111, 10, nil, mockStatestore, logger)
 	tg.Address = swarm.NewAddress([]byte{0, 1, 2, 3, 4, 5, 6})
 
 	for _, f := range allStates {
@@ -232,10 +231,6 @@ func TestMarshallingWithAddr(t *testing.T) {
 		t.Fatalf("tag uids not equal. want %d got %d", tg.Uid, unmarshalledTag.Uid)
 	}
 
-	if unmarshalledTag.Name != tg.Name {
-		t.Fatalf("tag names not equal. want %s got %s", tg.Name, unmarshalledTag.Name)
-	}
-
 	for _, state := range allStates {
 		uv, tv := unmarshalledTag.Get(state), tg.Get(state)
 		if uv != tv {
@@ -244,7 +239,7 @@ func TestMarshallingWithAddr(t *testing.T) {
 	}
 
 	if unmarshalledTag.TotalCounter() != tg.TotalCounter() {
-		t.Fatalf("tag names not equal. want %d got %d", tg.TotalCounter(), unmarshalledTag.TotalCounter())
+		t.Fatalf("tag total counters not equal. want %d got %d", tg.TotalCounter(), unmarshalledTag.TotalCounter())
 	}
 
 	if len(unmarshalledTag.Address.Bytes()) != len(tg.Address.Bytes()) {
@@ -260,7 +255,7 @@ func TestMarshallingWithAddr(t *testing.T) {
 func TestMarshallingNoAddr(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
 	logger := logging.New(ioutil.Discard, 0)
-	tg := NewTag(context.Background(), 111, "test/tag", 10, nil, mockStatestore, logger)
+	tg := NewTag(context.Background(), 111, 10, nil, mockStatestore, logger)
 	for _, f := range allStates {
 		err := tg.Inc(f)
 		if err != nil {
@@ -283,10 +278,6 @@ func TestMarshallingNoAddr(t *testing.T) {
 		t.Fatalf("tag uids not equal. want %d got %d", tg.Uid, unmarshalledTag.Uid)
 	}
 
-	if unmarshalledTag.Name != tg.Name {
-		t.Fatalf("tag names not equal. want %s got %s", tg.Name, unmarshalledTag.Name)
-	}
-
 	for _, state := range allStates {
 		uv, tv := unmarshalledTag.Get(state), tg.Get(state)
 		if uv != tv {
@@ -295,7 +286,7 @@ func TestMarshallingNoAddr(t *testing.T) {
 	}
 
 	if unmarshalledTag.TotalCounter() != tg.TotalCounter() {
-		t.Fatalf("tag names not equal. want %d got %d", tg.TotalCounter(), unmarshalledTag.TotalCounter())
+		t.Fatalf("tag total counters not equal. want %d got %d", tg.TotalCounter(), unmarshalledTag.TotalCounter())
 	}
 
 	if len(unmarshalledTag.Address.Bytes()) != len(tg.Address.Bytes()) {

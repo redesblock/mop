@@ -20,8 +20,8 @@ import (
 type SendChequeFunc func(cheque *SignedCheque) error
 
 const (
-	lastIssuedChequeKeyPrefix = "chequebook_last_issued_cheque_"
-	totalIssuedKey            = "chequebook_total_issued_"
+	lastIssuedChequeKeyPrefix = "swap_chequebook_last_issued_cheque_"
+	totalIssuedKey            = "swap_chequebook_total_issued_"
 )
 
 var (
@@ -197,7 +197,7 @@ func (s *service) WaitForDeposit(ctx context.Context, txHash common.Hash) error 
 
 // lastIssuedChequeKey computes the key where to store the last cheque for a beneficiary.
 func lastIssuedChequeKey(beneficiary common.Address) string {
-	return fmt.Sprintf("chequebook_last_issued_cheque_%x", beneficiary)
+	return fmt.Sprintf("%s%x", lastIssuedChequeKeyPrefix, beneficiary)
 }
 
 func (s *service) reserveTotalIssued(ctx context.Context, amount *big.Int) (*big.Int, error) {

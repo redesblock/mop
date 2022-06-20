@@ -85,6 +85,14 @@ func (s *server) setupRouting() {
 		),
 	})
 
+	handle(router, "/feeds/{owner}/{topic}", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.feedGetHandler),
+		"POST": web.ChainHandlers(
+			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
+			web.FinalHandlerFunc(s.feedPostHandler),
+		),
+	})
+
 	handle(router, "/hop/{address}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := r.URL
 		u.Path += "/"
@@ -115,6 +123,7 @@ func (s *server) setupRouting() {
 	handle(router, "/tags", web.ChainHandlers(
 		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
+			"GET": http.HandlerFunc(s.listTagsHandler),
 			"POST": web.ChainHandlers(
 				jsonhttp.NewMaxBodyBytesHandler(1024),
 				web.FinalHandlerFunc(s.createTagHandler),

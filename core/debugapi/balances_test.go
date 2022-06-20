@@ -2,6 +2,7 @@ package debugapi_test
 
 import (
 	"errors"
+	"math/big"
 	"net/http"
 	"reflect"
 	"testing"
@@ -15,11 +16,11 @@ import (
 )
 
 func TestBalances(t *testing.T) {
-	compensatedBalancesFunc := func() (ret map[string]int64, err error) {
-		ret = make(map[string]int64)
-		ret["DEAD"] = 1000000000000000000
-		ret["BEEF"] = -100000000000000000
-		ret["PARTY"] = 0
+	compensatedBalancesFunc := func() (ret map[string]*big.Int, err error) {
+		ret = make(map[string]*big.Int)
+		ret["DEAD"] = big.NewInt(1000000000000000000)
+		ret["BEEF"] = big.NewInt(-100000000000000000)
+		ret["PARTY"] = big.NewInt(0)
 		return ret, err
 	}
 	testServer := newTestServer(t, testServerOptions{
@@ -30,15 +31,15 @@ func TestBalances(t *testing.T) {
 		[]debugapi.BalanceResponse{
 			{
 				Peer:    "DEAD",
-				Balance: 1000000000000000000,
+				Balance: big.NewInt(1000000000000000000),
 			},
 			{
 				Peer:    "BEEF",
-				Balance: -100000000000000000,
+				Balance: big.NewInt(-100000000000000000),
 			},
 			{
 				Peer:    "PARTY",
-				Balance: 0,
+				Balance: big.NewInt(0),
 			},
 		},
 	}
@@ -57,7 +58,7 @@ func TestBalances(t *testing.T) {
 
 func TestBalancesError(t *testing.T) {
 	wantErr := errors.New("ASDF")
-	compensatedBalancesFunc := func() (ret map[string]int64, err error) {
+	compensatedBalancesFunc := func() (ret map[string]*big.Int, err error) {
 		return nil, wantErr
 	}
 	testServer := newTestServer(t, testServerOptions{
@@ -74,8 +75,8 @@ func TestBalancesError(t *testing.T) {
 
 func TestBalancesPeers(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
-	compensatedBalanceFunc := func(swarm.Address) (int64, error) {
-		return 1000000000000000000, nil
+	compensatedBalanceFunc := func(swarm.Address) (*big.Int, error) {
+		return big.NewInt(100000000000000000), nil
 	}
 	testServer := newTestServer(t, testServerOptions{
 		AccountingOpts: []mock.Option{mock.WithCompensatedBalanceFunc(compensatedBalanceFunc)},
@@ -84,7 +85,7 @@ func TestBalancesPeers(t *testing.T) {
 	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/balances/"+peer, http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.BalanceResponse{
 			Peer:    peer,
-			Balance: 1000000000000000000,
+			Balance: big.NewInt(100000000000000000),
 		}),
 	)
 }
@@ -92,8 +93,8 @@ func TestBalancesPeers(t *testing.T) {
 func TestBalancesPeersError(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
 	wantErr := errors.New("Error")
-	compensatedBalanceFunc := func(swarm.Address) (int64, error) {
-		return 0, wantErr
+	compensatedBalanceFunc := func(swarm.Address) (*big.Int, error) {
+		return nil, wantErr
 	}
 	testServer := newTestServer(t, testServerOptions{
 		AccountingOpts: []mock.Option{mock.WithCompensatedBalanceFunc(compensatedBalanceFunc)},
@@ -109,8 +110,8 @@ func TestBalancesPeersError(t *testing.T) {
 
 func TestBalancesPeersNoBalance(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
-	compensatedBalanceFunc := func(swarm.Address) (int64, error) {
-		return 0, accounting.ErrPeerNoBalance
+	compensatedBalanceFunc := func(swarm.Address) (*big.Int, error) {
+		return nil, accounting.ErrPeerNoBalance
 	}
 	testServer := newTestServer(t, testServerOptions{
 		AccountingOpts: []mock.Option{mock.WithCompensatedBalanceFunc(compensatedBalanceFunc)},
@@ -168,11 +169,11 @@ func equalBalances(a, b *debugapi.BalancesResponse) bool {
 }
 
 func TestConsumedBalances(t *testing.T) {
-	balancesFunc := func() (ret map[string]int64, err error) {
-		ret = make(map[string]int64)
-		ret["DEAD"] = 1000000000000000000
-		ret["BEEF"] = -100000000000000000
-		ret["PARTY"] = 0
+	balancesFunc := func() (ret map[string]*big.Int, err error) {
+		ret = make(map[string]*big.Int)
+		ret["DEAD"] = big.NewInt(1000000000000000000)
+		ret["BEEF"] = big.NewInt(-100000000000000000)
+		ret["PARTY"] = big.NewInt(0)
 		return ret, err
 	}
 	testServer := newTestServer(t, testServerOptions{
@@ -183,15 +184,15 @@ func TestConsumedBalances(t *testing.T) {
 		[]debugapi.BalanceResponse{
 			{
 				Peer:    "DEAD",
-				Balance: 1000000000000000000,
+				Balance: big.NewInt(1000000000000000000),
 			},
 			{
 				Peer:    "BEEF",
-				Balance: -100000000000000000,
+				Balance: big.NewInt(-100000000000000000),
 			},
 			{
 				Peer:    "PARTY",
-				Balance: 0,
+				Balance: big.NewInt(0),
 			},
 		},
 	}
@@ -210,7 +211,7 @@ func TestConsumedBalances(t *testing.T) {
 
 func TestConsumedError(t *testing.T) {
 	wantErr := errors.New("ASDF")
-	balancesFunc := func() (ret map[string]int64, err error) {
+	balancesFunc := func() (ret map[string]*big.Int, err error) {
 		return nil, wantErr
 	}
 	testServer := newTestServer(t, testServerOptions{
@@ -227,8 +228,8 @@ func TestConsumedError(t *testing.T) {
 
 func TestConsumedPeers(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
-	balanceFunc := func(swarm.Address) (int64, error) {
-		return 1000000000000000000, nil
+	balanceFunc := func(swarm.Address) (*big.Int, error) {
+		return big.NewInt(1000000000000000000), nil
 	}
 	testServer := newTestServer(t, testServerOptions{
 		AccountingOpts: []mock.Option{mock.WithBalanceFunc(balanceFunc)},
@@ -237,7 +238,7 @@ func TestConsumedPeers(t *testing.T) {
 	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/consumed/"+peer, http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.BalanceResponse{
 			Peer:    peer,
-			Balance: 1000000000000000000,
+			Balance: big.NewInt(1000000000000000000),
 		}),
 	)
 }
@@ -245,8 +246,8 @@ func TestConsumedPeers(t *testing.T) {
 func TestConsumedPeersError(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
 	wantErr := errors.New("Error")
-	balanceFunc := func(swarm.Address) (int64, error) {
-		return 0, wantErr
+	balanceFunc := func(swarm.Address) (*big.Int, error) {
+		return nil, wantErr
 	}
 	testServer := newTestServer(t, testServerOptions{
 		AccountingOpts: []mock.Option{mock.WithBalanceFunc(balanceFunc)},
@@ -262,8 +263,8 @@ func TestConsumedPeersError(t *testing.T) {
 
 func TestConsumedPeersNoBalance(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
-	balanceFunc := func(swarm.Address) (int64, error) {
-		return 0, accounting.ErrPeerNoBalance
+	balanceFunc := func(swarm.Address) (*big.Int, error) {
+		return nil, accounting.ErrPeerNoBalance
 	}
 	testServer := newTestServer(t, testServerOptions{
 		AccountingOpts: []mock.Option{mock.WithBalanceFunc(balanceFunc)},

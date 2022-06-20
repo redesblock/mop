@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/feeds"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/resolver"
@@ -34,6 +35,7 @@ type testServerOptions struct {
 	WsPingPeriod    time.Duration
 	Logger          logging.Logger
 	PreventRedirect bool
+	Feeds           feeds.Factory
 }
 
 func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
@@ -46,7 +48,7 @@ func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.
 	if o.WsPingPeriod == 0 {
 		o.WsPingPeriod = 60 * time.Second
 	}
-	s := api.New(o.Tags, o.Storer, o.Resolver, o.Pss, o.Traversal, o.Logger, nil, api.Options{
+	s := api.New(o.Tags, o.Storer, o.Resolver, o.Pss, o.Traversal, o.Feeds, o.Logger, nil, api.Options{
 		GatewayMode:  o.GatewayMode,
 		WsPingPeriod: o.WsPingPeriod,
 	})
@@ -163,7 +165,7 @@ func TestParseName(t *testing.T) {
 				}))
 		}
 
-		s := api.New(nil, nil, tC.res, nil, nil, tC.log, nil, api.Options{}).(*api.Server)
+		s := api.New(nil, nil, tC.res, nil, nil, nil, tC.log, nil, api.Options{}).(*api.Server)
 
 		t.Run(tC.desc, func(t *testing.T) {
 			got, err := s.ResolveNameOrAddress(tC.name)
@@ -175,5 +177,42 @@ func TestParseName(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+// TestCalculateNumberOfChunks is a unit test for
+// the chunk-number-according-to-content-length calculation.
+func TestCalculateNumberOfChunks(t *testing.T) {
+	for _, tc := range []struct{ len, chunks int64 }{
+		{len: 1000, chunks: 1},
+		{len: 5000, chunks: 3},
+		{len: 10000, chunks: 4},
+		{len: 100000, chunks: 26},
+		{len: 1000000, chunks: 248},
+		{len: 325839339210, chunks: 79550620 + 621490 + 4856 + 38 + 1},
+	} {
+		res := api.CalculateNumberOfChunks(tc.len, false)
+		if res != tc.chunks {
+			t.Fatalf("expected result for %d bytes to be %d got %d", tc.len, tc.chunks, res)
+		}
+	}
+}
+
+// TestCalculateNumberOfChunksEncrypted is a unit test for
+// the chunk-number-according-to-content-length calculation with encryption
+// (branching factor=64)
+func TestCalculateNumberOfChunksEncrypted(t *testing.T) {
+	for _, tc := range []struct{ len, chunks int64 }{
+		{len: 1000, chunks: 1},
+		{len: 5000, chunks: 3},
+		{len: 10000, chunks: 4},
+		{len: 100000, chunks: 26},
+		{len: 1000000, chunks: 245 + 4 + 1},
+		{len: 325839339210, chunks: 79550620 + 1242979 + 19422 + 304 + 5 + 1},
+	} {
+		res := api.CalculateNumberOfChunks(tc.len, true)
+		if res != tc.chunks {
+			t.Fatalf("expected result for %d bytes to be %d got %d", tc.len, tc.chunks, res)
+		}
 	}
 }

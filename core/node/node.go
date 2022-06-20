@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
+	"github.com/redesblock/hop/core/feeds/factory"
 	"github.com/redesblock/hop/core/hive"
 	"github.com/redesblock/hop/core/kademlia"
 	"github.com/redesblock/hop/core/localstore"
@@ -93,14 +95,14 @@ type Options struct {
 	TracingEndpoint        string
 	TracingServiceName     string
 	GlobalPinningEnabled   bool
-	PaymentThreshold       uint64
-	PaymentTolerance       uint64
-	PaymentEarly           uint64
+	PaymentThreshold       string
+	PaymentTolerance       string
+	PaymentEarly           string
 	ResolverConnectionCfgs []multiresolver.ConnectionConfig
 	GatewayMode            bool
 	SwapEndpoint           string
 	SwapFactoryAddress     string
-	SwapInitialDeposit     uint64
+	SwapInitialDeposit     string
 	SwapEnable             bool
 }
 
@@ -194,12 +196,16 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			}
 		}
 
+		swapInitialDeposit, ok := new(big.Int).SetString(o.SwapInitialDeposit, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid initial deposit: %s", swapInitialDeposit)
+		}
 		// initialize chequebook logic
 		chequebookService, err = chequebook.Init(p2pCtx,
 			chequebookFactory,
 			stateStore,
 			logger,
-			o.SwapInitialDeposit,
+			swapInitialDeposit,
 			transactionService,
 			swapBackend,
 			chainID.Int64(),
@@ -296,12 +302,32 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		settlement = pseudosettleService
 	}
 
-	pricing := pricing.New(p2ps, logger, o.PaymentThreshold)
+	paymentThreshold, ok := new(big.Int).SetString(o.PaymentThreshold, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
+	}
+	pricing := pricing.New(p2ps, logger, paymentThreshold)
 	if err = p2ps.AddProtocol(pricing.Protocol()); err != nil {
 		return nil, fmt.Errorf("pricing service: %w", err)
 	}
 
-	acc, err := accounting.NewAccounting(o.PaymentThreshold, o.PaymentTolerance, o.PaymentEarly, logger, stateStore, settlement, pricing)
+	paymentTolerance, ok := new(big.Int).SetString(o.PaymentTolerance, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid payment tolerance: %s", paymentTolerance)
+	}
+	paymentEarly, ok := new(big.Int).SetString(o.PaymentEarly, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid payment early: %s", paymentEarly)
+	}
+	acc, err := accounting.NewAccounting(
+		paymentThreshold,
+		paymentTolerance,
+		paymentEarly,
+		logger,
+		stateStore,
+		settlement,
+		pricing,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
@@ -336,7 +362,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	}
 	b.localstoreCloser = storer
 
-	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
+	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 1000000000), tracer)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
 
@@ -358,7 +384,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	traversalService := traversal.NewService(ns)
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 10), tracer)
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 1000000000), tracer)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -398,7 +424,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	var apiService api.Service
 	if o.APIAddr != "" {
 		// API server
-		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, logger, tracer, api.Options{
+		feedFactory := factory.New(ns)
+		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, feedFactory, logger, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,

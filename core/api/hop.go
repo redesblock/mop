@@ -3,16 +3,21 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 
+	"github.com/ethersphere/manifest/mantaray"
 	"github.com/redesblock/hop/core/collection/entry"
+	"github.com/redesblock/hop/core/feeds"
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/loadsave"
@@ -26,6 +31,9 @@ import (
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
+	ls := loadsave.New(s.Storer, storage.ModePutRequest, false)
+	feedDereferenced := false
+
 	targets := r.URL.Query().Get("targets")
 	if targets != "" {
 		r = r.WithContext(sctx.SetTargets(r.Context(), targets))
@@ -48,6 +56,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+FETCH:
 	// read manifest entry
 	j, _, err := joiner.New(ctx, s.Storer, address)
 	if err != nil {
@@ -64,6 +73,47 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("hop download: read entry %s", address)
 		jsonhttp.NotFound(w, nil)
 		return
+	}
+
+	// there's a possible ambiguity here, right now the data which was
+	// read can be an entry.Entry or a mantaray feed manifest. Try to
+	// unmarshal as mantaray first and possibly resolve the feed, otherwise
+	// go on normally.
+	if !feedDereferenced {
+		if l, err := s.manifestFeed(ctx, ls, buf.Bytes()); err == nil {
+			//we have a feed manifest here
+			ch, cur, _, err := l.At(ctx, time.Now().Unix(), 0)
+			if err != nil {
+				logger.Debugf("hop download: feed lookup: %v", err)
+				logger.Error("hop download: feed lookup")
+				jsonhttp.NotFound(w, "feed not found")
+				return
+			}
+			ref, _, err := parseFeedUpdate(ch)
+			if err != nil {
+				logger.Debugf("hop download: parse feed update: %v", err)
+				logger.Error("hop download: parse feed update")
+				jsonhttp.InternalServerError(w, "parse feed update")
+				return
+			}
+			address = ref
+			feedDereferenced = true
+			curBytes, err := cur.MarshalBinary()
+			if err != nil {
+				s.Logger.Debugf("hop download: marshal feed index: %v", err)
+				s.Logger.Error("hop download: marshal index")
+				jsonhttp.InternalServerError(w, "marshal index")
+				return
+			}
+
+			w.Header().Set(SwarmFeedIndexHeader, hex.EncodeToString(curBytes))
+			// this header might be overriding others. handle with care. in the future
+			// we should implement an append functionality for this specific header,
+			// since different parts of handlers might be overriding others' values
+			// resulting in inconsistent headers in the response.
+			w.Header().Set("Access-Control-Expose-Headers", SwarmFeedIndexHeader)
+			goto FETCH
+		}
 	}
 	e := &entry.Entry{}
 	err = e.UnmarshalBinary(buf.Bytes())
@@ -105,7 +155,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	m, err := manifest.NewManifestReference(
 		manifestMetadata.MimeType,
 		e.Reference(),
-		loadsave.New(s.Storer, storage.ModePutRequest, false), // mode and encryption values are fallback
+		ls,
 	)
 	if err != nil {
 		logger.Debugf("hop download: not manifest %s: %v", address, err)
@@ -124,7 +174,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 				// index document exists
 				logger.Debugf("hop download: serving path: %s", pathWithIndex)
 
-				s.serveManifestEntry(w, r, address, indexDocumentManifestEntry.Reference())
+				s.serveManifestEntry(w, r, address, indexDocumentManifestEntry.Reference(), !feedDereferenced)
 				return
 			}
 		}
@@ -164,7 +214,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 						// index document exists
 						logger.Debugf("hop download: serving path: %s", pathWithIndex)
 
-						s.serveManifestEntry(w, r, address, indexDocumentManifestEntry.Reference())
+						s.serveManifestEntry(w, r, address, indexDocumentManifestEntry.Reference(), !feedDereferenced)
 						return
 					}
 				}
@@ -178,7 +228,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 						// error document exists
 						logger.Debugf("hop download: serving path: %s", errorDocumentPath)
 
-						s.serveManifestEntry(w, r, address, errorDocumentManifestEntry.Reference())
+						s.serveManifestEntry(w, r, address, errorDocumentManifestEntry.Reference(), !feedDereferenced)
 						return
 					}
 				}
@@ -192,10 +242,10 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// serve requested path
-	s.serveManifestEntry(w, r, address, me.Reference())
+	s.serveManifestEntry(w, r, address, me.Reference(), !feedDereferenced)
 }
 
-func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, address, manifestEntryAddress swarm.Address) {
+func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, address, manifestEntryAddress swarm.Address, etag bool) {
 	var (
 		logger = tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
 		ctx    = r.Context()
@@ -260,7 +310,7 @@ func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, addr
 
 	fileEntryAddress := fe.Reference()
 
-	s.downloadHandler(w, r, fileEntryAddress, additionalHeaders)
+	s.downloadHandler(w, r, fileEntryAddress, additionalHeaders, etag)
 }
 
 // manifestMetadataLoad returns the value for a key stored in the metadata of
@@ -278,4 +328,42 @@ func manifestMetadataLoad(ctx context.Context, manifest manifest.Interface, path
 	}
 
 	return "", false
+}
+
+func (s *server) manifestFeed(ctx context.Context, ls file.LoadSaver, candidate []byte) (feeds.Lookup, error) {
+	node := new(mantaray.Node)
+	err := node.UnmarshalBinary(candidate)
+	if err != nil {
+		return nil, fmt.Errorf("node unmarshal: %w", err)
+	}
+
+	e, err := node.LookupNode(context.Background(), []byte("/"), ls)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup: %w", err)
+	}
+	var (
+		owner, topic []byte
+		t            = new(feeds.Type)
+	)
+	meta := e.Metadata()
+	if e := meta[feedMetadataEntryOwner]; e != "" {
+		owner, err = hex.DecodeString(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if e := meta[feedMetadataEntryTopic]; e != "" {
+		topic, err = hex.DecodeString(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if e := meta[feedMetadataEntryType]; e != "" {
+		err := t.FromString(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+	f := feeds.New(topic, common.BytesToAddress(owner))
+	return s.feedFactory.NewLookup(*t, f)
 }

@@ -13,12 +13,12 @@ import (
 	"github.com/redesblock/hop/core/storage"
 )
 
-const chequebookKey = "chequebook"
+const chequebookKey = "swap_chequebook"
 
 func checkBalance(
 	ctx context.Context,
 	logger logging.Logger,
-	swapInitialDeposit uint64,
+	swapInitialDeposit *big.Int,
 	swapBackend transaction.Backend,
 	chainId int64,
 	overlayEthAddress common.Address,
@@ -36,22 +36,53 @@ func checkBalance(
 	}
 
 	for {
-		balance, err := erc20Token.BalanceOf(&bind.CallOpts{
+		erc20Balance, err := erc20Token.BalanceOf(&bind.CallOpts{
 			Context: timeoutCtx,
 		}, overlayEthAddress)
 		if err != nil {
 			return err
 		}
 
-		if balance.Cmp(big.NewInt(int64(swapInitialDeposit))) < 0 {
-			logger.Warningf("cannot continue until there is sufficient ETH and HOP available on %x", overlayEthAddress)
+		ethBalance, err := swapBackend.BalanceAt(timeoutCtx, overlayEthAddress, nil)
+		if err != nil {
+			return err
+		}
+
+		gasPrice, err := swapBackend.SuggestGasPrice(timeoutCtx)
+		if err != nil {
+			return err
+		}
+
+		minimumEth := gasPrice.Mul(gasPrice, big.NewInt(2000000))
+
+		insufficientERC20 := erc20Balance.Cmp(swapInitialDeposit) < 0
+		insufficientETH := ethBalance.Cmp(minimumEth) < 0
+
+		if insufficientERC20 || insufficientETH {
+			neededERC20, mod := new(big.Int).DivMod(swapInitialDeposit, big.NewInt(10000000000000000), new(big.Int))
+			if mod.Cmp(big.NewInt(0)) > 0 {
+				// always round up the division as the hopaar cannot handle decimals
+				neededERC20.Add(neededERC20, big.NewInt(1))
+			}
+
+			if insufficientETH && insufficientERC20 {
+				logger.Warningf("cannot continue until there is sufficient ETH (for Gas) and at least %d HOP available on %x", neededERC20, overlayEthAddress)
+			} else if insufficientETH {
+				logger.Warningf("cannot continue until there is sufficient ETH (for Gas) available on %x", overlayEthAddress)
+			} else {
+				logger.Warningf("cannot continue until there is at least %d HOP available on %x", neededERC20, overlayEthAddress)
+			}
 			if chainId == 5 {
-				logger.Warningf("on the test network you can get both Goerli ETH and Goerli HOP from https://faucet.ethswarm.org?address=%x", overlayEthAddress)
+				logger.Warningf("get your Goerli ETH and Goerli HOP now via the hopaar at https://hop.ethswarm.org/?transaction=buy&amount=%d&slippage=30&receiver=0x%x", neededERC20, overlayEthAddress)
 			}
 			select {
 			case <-time.After(backoffDuration):
 			case <-timeoutCtx.Done():
-				return fmt.Errorf("insufficient token for initial deposit")
+				if insufficientERC20 {
+					return fmt.Errorf("insufficient HOP for initial deposit")
+				} else {
+					return fmt.Errorf("insufficient ETH for initial deposit")
+				}
 			}
 			continue
 		}
@@ -66,7 +97,7 @@ func Init(
 	chequebookFactory Factory,
 	stateStore storage.StateStorer,
 	logger logging.Logger,
-	swapInitialDeposit uint64,
+	swapInitialDeposit *big.Int,
 	transactionService transaction.Service,
 	swapBackend transaction.Backend,
 	chainId int64,
@@ -93,7 +124,7 @@ func Init(
 		}
 
 		logger.Info("no chequebook found, deploying new one.")
-		if swapInitialDeposit != 0 {
+		if swapInitialDeposit.Cmp(big.NewInt(0)) != 0 {
 			err = checkBalance(ctx, logger, swapInitialDeposit, swapBackend, chainId, overlayEthAddress, erc20BindingFunc, erc20Address, 20*time.Second, 10)
 			if err != nil {
 				return nil, err
@@ -126,9 +157,9 @@ func Init(
 			return nil, err
 		}
 
-		if swapInitialDeposit != 0 {
+		if swapInitialDeposit.Cmp(big.NewInt(0)) != 0 {
 			logger.Infof("depositing %d token into new chequebook", swapInitialDeposit)
-			depositHash, err := chequebookService.Deposit(ctx, big.NewInt(int64(swapInitialDeposit)))
+			depositHash, err := chequebookService.Deposit(ctx, swapInitialDeposit)
 			if err != nil {
 				return nil, err
 			}

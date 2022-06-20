@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/redesblock/hop/core/feeds"
 	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/logging"
 	m "github.com/redesblock/hop/core/metrics"
@@ -26,10 +28,12 @@ import (
 
 const (
 	SwarmPinHeader           = "Swarm-Pin"
-	SwarmTagUidHeader        = "Swarm-Tag-Uid"
+	SwarmTagHeader           = "Swarm-Tag"
 	SwarmEncryptHeader       = "Swarm-Encrypt"
 	SwarmIndexDocumentHeader = "Swarm-Index-Document"
 	SwarmErrorDocumentHeader = "Swarm-Error-Document"
+	SwarmFeedIndexHeader     = "Swarm-Feed-Index"
+	SwarmFeedIndexNextHeader = "Swarm-Feed-Index-Next"
 )
 
 // The size of buffer used for prefetching content with Langos.
@@ -57,13 +61,14 @@ type Service interface {
 }
 
 type server struct {
-	Tags      *tags.Tags
-	Storer    storage.Storer
-	Resolver  resolver.Interface
-	Pss       pss.Interface
-	Traversal traversal.Service
-	Logger    logging.Logger
-	Tracer    *tracing.Tracer
+	Tags        *tags.Tags
+	Storer      storage.Storer
+	Resolver    resolver.Interface
+	Pss         pss.Interface
+	Traversal   traversal.Service
+	Logger      logging.Logger
+	Tracer      *tracing.Tracer
+	feedFactory feeds.Factory
 	Options
 	http.Handler
 	metrics metrics
@@ -84,18 +89,19 @@ const (
 )
 
 // New will create a and initialize a new API service.
-func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Service, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
+func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Service, feedFactory feeds.Factory, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
 	s := &server{
-		Tags:      tags,
-		Storer:    storer,
-		Resolver:  resolver,
-		Pss:       pss,
-		Traversal: traversalService,
-		Options:   o,
-		Logger:    logger,
-		Tracer:    tracer,
-		metrics:   newMetrics(),
-		quit:      make(chan struct{}),
+		Tags:        tags,
+		Storer:      storer,
+		Resolver:    resolver,
+		Pss:         pss,
+		Traversal:   traversalService,
+		feedFactory: feedFactory,
+		Options:     o,
+		Logger:      logger,
+		Tracer:      tracer,
+		metrics:     newMetrics(),
+		quit:        make(chan struct{}),
 	}
 
 	s.setupRouting()
@@ -128,9 +134,7 @@ func (s *server) Close() error {
 func (s *server) getOrCreateTag(tagUid string) (*tags.Tag, bool, error) {
 	// if tag ID is not supplied, create a new tag
 	if tagUid == "" {
-		tagName := fmt.Sprintf("unnamed_tag_%d", time.Now().Unix())
-		var err error
-		tag, err := s.Tags.Create(tagName, 0)
+		tag, err := s.Tags.Create(0)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot create tag: %w", err)
 		}
@@ -268,4 +272,34 @@ func requestPipelineFn(s storage.Storer, r *http.Request) pipelineFunc {
 		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
 		return builder.FeedPipeline(ctx, pipe, r, l)
 	}
+}
+
+// calculateNumberOfChunks calculates the number of chunks in an arbitrary
+// content length.
+func calculateNumberOfChunks(contentLength int64, isEncrypted bool) int64 {
+	if contentLength <= swarm.ChunkSize {
+		return 1
+	}
+	branchingFactor := swarm.Branches
+	if isEncrypted {
+		branchingFactor = swarm.EncryptedBranches
+	}
+
+	dataChunks := math.Ceil(float64(contentLength) / float64(swarm.ChunkSize))
+	totalChunks := dataChunks
+	intermediate := dataChunks / float64(branchingFactor)
+
+	for intermediate > 1 {
+		totalChunks += math.Ceil(intermediate)
+		intermediate = intermediate / float64(branchingFactor)
+	}
+
+	return int64(totalChunks) + 1
+}
+
+func requestCalculateNumberOfChunks(r *http.Request) int64 {
+	if !strings.Contains(r.Header.Get(contentTypeHeader), "multipart") && r.ContentLength > 0 {
+		return calculateNumberOfChunks(r.ContentLength, requestEncrypt(r))
+	}
+	return 0
 }

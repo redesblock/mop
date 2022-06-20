@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -18,20 +17,16 @@ import (
 	"github.com/redesblock/hop/core/soc"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 )
 
 func TestSoc(t *testing.T) {
-
 	var (
 		socResource    = func(owner, id, sig string) string { return fmt.Sprintf("/soc/%s/%s?sig=%s", owner, id, sig) }
-		_              = testingc.GenerateTestRandomChunk()
 		mockStatestore = statestore.NewStateStore()
 		logger         = logging.New(ioutil.Discard, 0)
 		tag            = tags.NewTags(mockStatestore, logger)
-		_              = common.HexToAddress("8d3766440f0d7b949a5e32995d09619a7f86e632")
 		mockStorer     = mock.NewStorer()
 		client, _, _   = newTestServer(t, testServerOptions{
 			Storer: mockStorer,

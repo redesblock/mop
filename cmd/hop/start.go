@@ -132,14 +132,14 @@ Welcome to the Swarm....
 				TracingServiceName:     c.config.GetString(optionNameTracingServiceName),
 				Logger:                 logger,
 				GlobalPinningEnabled:   c.config.GetBool(optionNameGlobalPinningEnabled),
-				PaymentThreshold:       c.config.GetUint64(optionNamePaymentThreshold),
-				PaymentTolerance:       c.config.GetUint64(optionNamePaymentTolerance),
-				PaymentEarly:           c.config.GetUint64(optionNamePaymentEarly),
+				PaymentThreshold:       c.config.GetString(optionNamePaymentThreshold),
+				PaymentTolerance:       c.config.GetString(optionNamePaymentTolerance),
+				PaymentEarly:           c.config.GetString(optionNamePaymentEarly),
 				ResolverConnectionCfgs: resolverCfgs,
 				GatewayMode:            c.config.GetBool(optionNameGatewayMode),
 				SwapEndpoint:           c.config.GetString(optionNameSwapEndpoint),
 				SwapFactoryAddress:     c.config.GetString(optionNameSwapFactoryAddress),
-				SwapInitialDeposit:     c.config.GetUint64(optionNameSwapInitialDeposit),
+				SwapInitialDeposit:     c.config.GetString(optionNameSwapInitialDeposit),
 				SwapEnable:             c.config.GetBool(optionNameSwapEnable),
 			})
 			if err != nil {
@@ -238,6 +238,22 @@ type signerConfig struct {
 	pssPrivateKey    *ecdsa.PrivateKey
 }
 
+func waitForClef(logger logging.Logger, maxRetries uint64, endpoint string) (externalSigner *external.ExternalSigner, err error) {
+	for {
+		externalSigner, err = external.NewExternalSigner(endpoint)
+		if err == nil {
+			return externalSigner, nil
+		}
+		if maxRetries == 0 {
+			return nil, err
+		}
+		maxRetries--
+		logger.Errorf("cannot connect to clef signer: %v", err)
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
 func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (config *signerConfig, err error) {
 	var keystore keystore.Service
 	if c.config.GetString(optionNameDataDir) == "" {
@@ -289,7 +305,7 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 			}
 		}
 
-		externalSigner, err := external.NewExternalSigner(endpoint)
+		externalSigner, err := waitForClef(logger, 5, endpoint)
 		if err != nil {
 			return nil, err
 		}
