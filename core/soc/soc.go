@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/bmtpool"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -147,10 +147,7 @@ func FromChunk(sch swarm.Chunk) (*Soc, error) {
 	s.signature = chunkData[cursor : cursor+SignatureSize]
 	cursor += SignatureSize
 
-	spanBytes := chunkData[cursor : cursor+swarm.SpanSize]
-	cursor += swarm.SpanSize
-
-	ch, err := contentAddressedChunk(chunkData[cursor:], spanBytes)
+	ch, err := cac.NewWithDataSpan(chunkData[cursor:])
 	if err != nil {
 		return nil, err
 	}
@@ -253,24 +250,4 @@ func recoverAddress(signature, digest []byte) ([]byte, error) {
 		return nil, err
 	}
 	return recoveredEthereumAddress, nil
-}
-
-func contentAddressedChunk(data, spanBytes []byte) (swarm.Chunk, error) {
-	hasher := bmtpool.Get()
-	defer bmtpool.Put(hasher)
-
-	// execute hash, compare and return result
-	err := hasher.SetSpanBytes(spanBytes)
-	if err != nil {
-		return nil, err
-	}
-	_, err = hasher.Write(data)
-	if err != nil {
-		return nil, err
-	}
-	s := hasher.Sum(nil)
-
-	payload := append(append([]byte{}, spanBytes...), data...)
-	address := swarm.NewAddress(s)
-	return swarm.NewChunk(address, payload), nil
 }

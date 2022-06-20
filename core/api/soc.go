@@ -7,15 +7,13 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/bmtpool"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/swarm"
 )
 
-var (
-	errBadRequestParams = errors.New("owner, id or span is not well formed")
-)
+var errBadRequestParams = errors.New("owner, id or span is not well formed")
 
 type socPostResponse struct {
 	Reference swarm.Address `json:"reference"`
@@ -78,7 +76,7 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch, err := chunk(data)
+	ch, err := cac.NewWithDataSpan(data)
 	if err != nil {
 		s.logger.Debugf("soc upload: create content addressed chunk: %v", err)
 		s.logger.Error("soc upload: chunk data error")
@@ -101,7 +99,21 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
+
 	ctx := r.Context()
+
+	has, err := s.storer.Has(ctx, chunk.Address())
+	if err != nil {
+		s.logger.Debugf("soc upload: store has: %v", err)
+		s.logger.Error("soc upload: store has")
+		jsonhttp.InternalServerError(w, "storage error")
+		return
+	}
+	if has {
+		s.logger.Error("soc upload: chunk already exists")
+		jsonhttp.Conflict(w, "chunk already exists")
+		return
+	}
 
 	_, err = s.storer.Put(ctx, requestModePut(r), chunk)
 	if err != nil {
@@ -112,19 +124,4 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.Created(w, chunkAddressResponse{Reference: chunk.Address()})
-}
-
-func chunk(data []byte) (swarm.Chunk, error) {
-	hasher := bmtpool.Get()
-	defer bmtpool.Put(hasher)
-	err := hasher.SetSpanBytes(data[:swarm.SpanSize])
-	if err != nil {
-		return nil, err
-	}
-	_, err = hasher.Write(data[swarm.SpanSize:])
-	if err != nil {
-		return nil, err
-	}
-
-	return swarm.NewChunk(swarm.NewAddress(hasher.Sum(nil)), data), nil
 }

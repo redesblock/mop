@@ -97,7 +97,7 @@ func TestDirs(t *testing.T) {
 	}{
 		{
 			name:              "non-nested files without extension",
-			expectedReference: swarm.MustParseHexAddress("126140bb0a33d62c4efb0523db2c26be849fcf458504618de785e2a219bad374"),
+			expectedReference: swarm.MustParseHexAddress("015582aa1daf971f631ac2af7b343c379b80d03135734aaaec0221a36484993a"),
 			files: []f{
 				{
 					data:      []byte("first file data"),
@@ -121,7 +121,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:              "nested files with extension",
-			expectedReference: swarm.MustParseHexAddress("cad4b3847bd59532d9e73623d67c52e0c8d4e017d308bbaecb54f2866a91769d"),
+			expectedReference: swarm.MustParseHexAddress("2f615e786ac9776bc1b3dcc681e03526136421ae96eb00fea7b094be7175019d"),
 			files: []f{
 				{
 					data:      []byte("robots text"),
@@ -154,7 +154,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:              "no index filename",
-			expectedReference: swarm.MustParseHexAddress("a85aaea6a34a5c7127a3546196f2111f866fe369c6d6562ed5d3313a99388c03"),
+			expectedReference: swarm.MustParseHexAddress("efc4c4cb45f346416eaad92bc0a34c7a92fc042c2cdd8f713345c5fadb235706"),
 			files: []f{
 				{
 					data:      []byte("<h1>Swarm"),
@@ -169,7 +169,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:                "explicit index filename",
-			expectedReference:   swarm.MustParseHexAddress("7d41402220f8e397ddf74d0cf4ac2055e753102bde0d622c45b03cea2b28b023"),
+			expectedReference:   swarm.MustParseHexAddress("c7de365426351f0e28670879c7b8bdfb05b282977b1b00b243dea8bff796c831"),
 			wantIndexFilename:   "index.html",
 			indexFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmIndexDocumentHeader, "index.html"),
 			files: []f{
@@ -186,7 +186,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:                "nested index filename",
-			expectedReference:   swarm.MustParseHexAddress("45249cf9caad842b31b29b831a1ff12aa2b711e7c282fa7a5f8c0fb544143421"),
+			expectedReference:   swarm.MustParseHexAddress("0fe06395d12f1692da3562c0065883d03b25ec8ddb27ad18651e4359e6e68a04"),
 			wantIndexFilename:   "index.html",
 			indexFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmIndexDocumentHeader, "index.html"),
 			files: []f{
@@ -203,7 +203,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:                "explicit index and error filename",
-			expectedReference:   swarm.MustParseHexAddress("2046a4f758e2c0579ab923206a13fb041cec0925a6396f4f772c7ce859b8ca42"),
+			expectedReference:   swarm.MustParseHexAddress("d3d8a5a5842bfab4b54974baf0fe77948b12c2b3ea5b366c5ae800f296acc15a"),
 			wantIndexFilename:   "index.html",
 			wantErrorFilename:   "error.html",
 			indexFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmIndexDocumentHeader, "index.html"),
@@ -231,7 +231,7 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:              "invalid archive paths",
-			expectedReference: swarm.MustParseHexAddress("6e6adb1ce936990cf1b7ecf8f01a8e3e8f939375b9bddb3d666151e0bdc08d4e"),
+			expectedReference: swarm.MustParseHexAddress("a8987f3cece7cd39b44767e5c44638608461a106ddcd3e4d2dfbbcf1d2272508"),
 			files: []f{
 				{
 					data:      []byte("<h1>Swarm"),

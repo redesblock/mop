@@ -4,11 +4,11 @@ package p2p
 
 import (
 	"context"
+	"github.com/redesblock/hop/core/hop"
 	"io"
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/swarm"
 )
 

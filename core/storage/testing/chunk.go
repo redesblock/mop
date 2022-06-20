@@ -1,11 +1,10 @@
 package testing
 
 import (
-	"encoding/binary"
 	"math/rand"
 	"time"
 
-	"github.com/redesblock/hop/core/bmtpool"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -39,24 +38,8 @@ func init() {
 func GenerateTestRandomChunk() swarm.Chunk {
 	data := make([]byte, swarm.ChunkSize)
 	_, _ = rand.Read(data)
-	span := make([]byte, swarm.SpanSize)
-	binary.LittleEndian.PutUint64(span, uint64(len(data)))
-	data = append(span, data...)
-
-	hasher := bmtpool.Get()
-	defer bmtpool.Put(hasher)
-
-	err := hasher.SetSpanBytes(data[:swarm.SpanSize])
-	if err != nil {
-		panic(err)
-	}
-	_, err = hasher.Write(data[swarm.SpanSize:])
-	if err != nil {
-		panic(err)
-	}
-	ref := hasher.Sum(nil)
-
-	return swarm.NewChunk(swarm.NewAddress(ref), data)
+	ch, _ := cac.New(data)
+	return ch
 }
 
 // GenerateTestRandomInvalidChunk generates a random, however invalid, content

@@ -2,42 +2,19 @@ package sequence_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/feeds"
 	"github.com/redesblock/hop/core/feeds/sequence"
-	"github.com/redesblock/hop/core/storage"
+	feedstesting "github.com/redesblock/hop/core/feeds/testing"
 	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
 )
-
-type timeout struct {
-	storage.Storer
-}
-
-var searchTimeout = 30 * time.Millisecond
-
-// Get overrides the mock storer and introduces latency
-func (t *timeout) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address) (swarm.Chunk, error) {
-	ch, err := t.Storer.Get(ctx, mode, addr)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			time.Sleep(searchTimeout)
-		}
-		return ch, err
-	}
-	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-	return ch, nil
-}
 
 func BenchmarkFinder(b *testing.B) {
 	for _, prefill := range []int64{1, 100, 1000, 5000} {
-		storer := &timeout{mock.NewStorer()}
+		storer := &feedstesting.Timeout{Storer: mock.NewStorer()}
 		topicStr := "testtopic"
 		topic, err := crypto.LegacyKeccak256([]byte(topicStr))
 		if err != nil {

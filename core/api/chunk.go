@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/redesblock/hop/core/bmtpool"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/netstore"
 
 	"github.com/gorilla/mux"
@@ -71,28 +71,17 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasher := bmtpool.Get()
-	defer bmtpool.Put(hasher)
-
-	err = hasher.SetSpanBytes(data[:swarm.SpanSize])
+	chunk, err := cac.NewWithDataSpan(data)
 	if err != nil {
-		s.logger.Debugf("chunk upload: set span: %v", err)
-		s.logger.Error("chunk upload: span error")
-		jsonhttp.InternalServerError(w, "span error")
+		s.logger.Debugf("chunk upload: create chunk error: %v", err)
+		s.logger.Error("chunk upload: create chunk error")
+		jsonhttp.InternalServerError(w, "create chunk error")
 		return
 	}
-
-	_, err = hasher.Write(data[swarm.SpanSize:])
-	if err != nil {
-		return
-	}
-
-	address := swarm.NewAddress(hasher.Sum(nil))
-	chunk := swarm.NewChunk(address, data)
 
 	seen, err := s.storer.Put(ctx, requestModePut(r), chunk)
 	if err != nil {
-		s.logger.Debugf("chunk upload: chunk write error: %v, addr %s", err, address)
+		s.logger.Debugf("chunk upload: chunk write error: %v, addr %s", err, chunk.Address())
 		s.logger.Error("chunk upload: chunk write error")
 		jsonhttp.BadRequest(w, "chunk write error")
 		return
@@ -119,7 +108,7 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
-	jsonhttp.OK(w, chunkAddressResponse{Reference: address})
+	jsonhttp.OK(w, chunkAddressResponse{Reference: chunk.Address()})
 }
 
 func (s *server) chunkGetHandler(w http.ResponseWriter, r *http.Request) {
