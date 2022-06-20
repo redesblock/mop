@@ -127,7 +127,7 @@ func TestChequebookDeposit(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(
 			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
-				if request.To != erc20address {
+				if request.To != nil && *request.To != erc20address {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", erc20address, request.To)
 				}
 				if request.Value.Cmp(big.NewInt(0)) != 0 {
@@ -498,7 +498,7 @@ func TestChequebookWithdraw(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(
 			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
-				if request.To != address {
+				if request.To != nil && *request.To != address {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", address, request.To)
 				}
 				if request.Value.Cmp(big.NewInt(0)) != 0 {
@@ -555,7 +555,7 @@ func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(
 			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
-				if request.To != address {
+				if request.To != nil && *request.To != address {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", address, request.To)
 				}
 				if request.Value.Cmp(big.NewInt(0)) != 0 {

@@ -1,3 +1,5 @@
+// Package logging provides the logger interface abstraction
+// and implementation for HOP. It uses logrus under the hood.
 package logging
 
 import (

@@ -1,3 +1,7 @@
+// Package pusher provides protocol-orchestrating functionality
+// over the pushsync protocol. It makes sure that chunks meant
+// to be distributed over the network are sent used using the
+// pushsync protocol.
 package pusher
 
 import (

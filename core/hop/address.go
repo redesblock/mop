@@ -1,3 +1,6 @@
+// Package hop exposes the data structure and operations
+// necessary on the hop.Address type which used in the handshake
+// protocol, address-book and hive protocol.
 package hop
 
 import (

@@ -1,3 +1,5 @@
+// Package sctx provides convenience methods for context
+// value injection and extraction.
 package sctx
 
 import (

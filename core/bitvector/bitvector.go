@@ -1,3 +1,5 @@
+// Package bitvector provides functionality of a
+// simple bit vector implementation.
 package bitvector
 
 import (

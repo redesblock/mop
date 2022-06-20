@@ -1,3 +1,5 @@
+// Package encryption exposes functionalities needed for
+// encryption and decryption operations in hop.
 package encryption
 
 import (

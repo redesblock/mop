@@ -1,3 +1,5 @@
+// Package mock provides a mock implementation for the
+// accounting interface.
 package mock
 
 import (

@@ -1,3 +1,5 @@
+// Package pingpong exposes the simple ping-pong protocol
+// which measures round-trip-time with other peers.
 package pingpong
 
 import (

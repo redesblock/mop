@@ -1,3 +1,6 @@
+// Package node defines the concept of a Node node
+// by bootstrapping and injecting all necessary
+// dependencies.
 package node
 
 import (
@@ -129,7 +132,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		stateStore = mockinmem.NewStateStore()
 		logger.Warning("using in-mem state store. no node state will be persisted")
 	} else {
-		stateStore, err = leveldb.NewStateStore(filepath.Join(o.DataDir, "statestore"))
+		stateStore, err = leveldb.NewStateStore(filepath.Join(o.DataDir, "statestore"), logger)
 		if err != nil {
 			return nil, fmt.Errorf("statestore: %w", err)
 		}
@@ -146,7 +149,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		if err != nil {
 			return nil, err
 		}
-		transactionService, err := transaction.NewService(logger, swapBackend, signer)
+		transactionService, err := transaction.NewService(logger, swapBackend, signer, stateStore)
 		if err != nil {
 			return nil, err
 		}

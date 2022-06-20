@@ -1,3 +1,5 @@
+// Package p2p provides the peer-to-peer abstractions used
+// across different protocols in hop.
 package p2p
 
 import (

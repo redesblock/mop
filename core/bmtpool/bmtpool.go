@@ -1,3 +1,5 @@
+// Package bmtpool provides easy access to binary
+// merkle tree hashers managed in as a resource pool.
 package bmtpool
 
 import (

@@ -1,3 +1,7 @@
+// Package traversal provides abstraction and implementation
+// needed to traverse all chunks below a given root hash.
+// It tries to parse all manifests and collections in its
+// attempt to log all chunk addresses on the way.
 package traversal
 
 import (

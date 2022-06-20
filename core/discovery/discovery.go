@@ -1,3 +1,5 @@
+// Package discovery exposes the discovery driver interface
+// which is implemented by discovery protocols.
 package discovery
 
 import (

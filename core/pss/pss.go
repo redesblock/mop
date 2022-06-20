@@ -1,3 +1,8 @@
+// Package pss exposes functionalities needed to communicate
+// with other peers on the network. Pss uses pushsync and
+// pullsync for message delivery and mailboxing. All messages are disguised as content-addressed chunks. Sending and
+// receiving of messages is exposed over the HTTP API, with
+// websocket subscriptions for incoming messages.
 package pss
 
 import (

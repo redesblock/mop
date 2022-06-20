@@ -2,7 +2,9 @@ package transaction
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -10,23 +12,31 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/storage"
 	"golang.org/x/net/context"
 )
 
+const (
+	noncePrefix = "transaction_nonce_"
+)
+
 var (
+	// ErrTransactionReverted denotes that the sent transaction has been
+	// reverted.
 	ErrTransactionReverted = errors.New("transaction reverted")
 )
 
 // TxRequest describes a request for a transaction that can be executed.
 type TxRequest struct {
-	To       common.Address // recipient of the transaction
-	Data     []byte         // transaction data
-	GasPrice *big.Int       // gas price or nil if suggested gas price should be used
-	GasLimit uint64         // gas limit or 0 if it should be estimated
-	Value    *big.Int       // amount of wei to send
+	To       *common.Address // recipient of the transaction
+	Data     []byte          // transaction data
+	GasPrice *big.Int        // gas price or nil if suggested gas price should be used
+	GasLimit uint64          // gas limit or 0 if it should be estimated
+	Value    *big.Int        // amount of wei to send
 }
 
-// Service is the service to send transactions. It takes care of gas price, gas limit and nonce management.
+// Service is the service to send transactions. It takes care of gas price, gas
+// limit and nonce management.
 type Service interface {
 	// Send creates a transaction based on the request and sends it.
 	Send(ctx context.Context, request *TxRequest) (txHash common.Hash, err error)
@@ -35,14 +45,17 @@ type Service interface {
 }
 
 type transactionService struct {
+	lock sync.Mutex
+
 	logger  logging.Logger
 	backend Backend
 	signer  crypto.Signer
 	sender  common.Address
+	store   storage.StateStorer
 }
 
 // NewService creates a new transaction service.
-func NewService(logger logging.Logger, backend Backend, signer crypto.Signer) (Service, error) {
+func NewService(logger logging.Logger, backend Backend, signer crypto.Signer, store storage.StateStorer) (Service, error) {
 	senderAddress, err := signer.EthereumAddress()
 	if err != nil {
 		return nil, err
@@ -52,12 +65,21 @@ func NewService(logger logging.Logger, backend Backend, signer crypto.Signer) (S
 		backend: backend,
 		signer:  signer,
 		sender:  senderAddress,
+		store:   store,
 	}, nil
 }
 
 // Send creates and signs a transaction based on the request and sends it.
 func (t *transactionService) Send(ctx context.Context, request *TxRequest) (txHash common.Hash, err error) {
-	tx, err := prepareTransaction(ctx, request, t.sender, t.backend)
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	nonce, err := t.nextNonce(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	tx, err := prepareTransaction(ctx, request, t.sender, t.backend, nonce)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -72,10 +94,16 @@ func (t *transactionService) Send(ctx context.Context, request *TxRequest) (txHa
 		return common.Hash{}, err
 	}
 
+	err = t.putNonce(nonce + 1)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
 	return signedTx.Hash(), nil
 }
 
-// WaitForReceipt waits until either the transaction with the given hash has been mined or the context is cancelled.
+// WaitForReceipt waits until either the transaction with the given hash has
+// been mined or the context is cancelled.
 func (t *transactionService) WaitForReceipt(ctx context.Context, txHash common.Hash) (receipt *types.Receipt, err error) {
 	for {
 		receipt, err := t.backend.TransactionReceipt(ctx, txHash)
@@ -98,12 +126,12 @@ func (t *transactionService) WaitForReceipt(ctx context.Context, txHash common.H
 }
 
 // prepareTransaction creates a signable transaction based on a request.
-func prepareTransaction(ctx context.Context, request *TxRequest, from common.Address, backend Backend) (tx *types.Transaction, err error) {
+func prepareTransaction(ctx context.Context, request *TxRequest, from common.Address, backend Backend, nonce uint64) (tx *types.Transaction, err error) {
 	var gasLimit uint64
 	if request.GasLimit == 0 {
 		gasLimit, err = backend.EstimateGas(ctx, ethereum.CallMsg{
 			From: from,
-			To:   &request.To,
+			To:   request.To,
 			Data: request.Data,
 		})
 		if err != nil {
@@ -123,17 +151,54 @@ func prepareTransaction(ctx context.Context, request *TxRequest, from common.Add
 		gasPrice = request.GasPrice
 	}
 
-	nonce, err := backend.PendingNonceAt(ctx, from)
-	if err != nil {
-		return nil, err
+	if request.To != nil {
+		return types.NewTransaction(
+			nonce,
+			*request.To,
+			request.Value,
+			gasLimit,
+			gasPrice,
+			request.Data,
+		), nil
 	}
 
-	return types.NewTransaction(
+	return types.NewContractCreation(
 		nonce,
-		request.To,
 		request.Value,
 		gasLimit,
 		gasPrice,
 		request.Data,
 	), nil
+}
+
+func (t *transactionService) nonceKey() string {
+	return fmt.Sprintf("%s%x", noncePrefix, t.sender)
+}
+
+func (t *transactionService) nextNonce(ctx context.Context) (uint64, error) {
+	onchainNonce, err := t.backend.PendingNonceAt(ctx, t.sender)
+	if err != nil {
+		return 0, err
+	}
+
+	var nonce uint64
+	err = t.store.Get(t.nonceKey(), &nonce)
+	if err != nil {
+		// If no nonce was found locally used whatever we get from the backend.
+		if errors.Is(err, storage.ErrNotFound) {
+			return onchainNonce, nil
+		}
+		return 0, err
+	}
+
+	// If the nonce onchain is larger than what we have there were external
+	// transactions and we need to update our nonce.
+	if onchainNonce > nonce {
+		return onchainNonce, nil
+	}
+	return nonce, nil
+}
+
+func (t *transactionService) putNonce(nonce uint64) error {
+	return t.store.Put(t.nonceKey(), nonce)
 }

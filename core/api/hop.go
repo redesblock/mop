@@ -30,8 +30,8 @@ import (
 )
 
 func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
-	logger := tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
-	ls := loadsave.New(s.Storer, storage.ModePutRequest, false)
+	logger := tracing.NewLoggerWithTraceID(r.Context(), s.logger)
+	ls := loadsave.New(s.storer, storage.ModePutRequest, false)
 	feedDereferenced := false
 
 	targets := r.URL.Query().Get("targets")
@@ -58,7 +58,7 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 FETCH:
 	// read manifest entry
-	j, _, err := joiner.New(ctx, s.Storer, address)
+	j, _, err := joiner.New(ctx, s.storer, address)
 	if err != nil {
 		logger.Debugf("hop download: joiner manifest entry %s: %v", address, err)
 		logger.Errorf("hop download: joiner %s", address)
@@ -89,6 +89,12 @@ FETCH:
 				jsonhttp.NotFound(w, "feed not found")
 				return
 			}
+			if ch == nil {
+				logger.Debugf("hop download: feed lookup: no updates")
+				logger.Error("hop download: feed lookup")
+				jsonhttp.NotFound(w, "no update found")
+				return
+			}
 			ref, _, err := parseFeedUpdate(ch)
 			if err != nil {
 				logger.Debugf("hop download: parse feed update: %v", err)
@@ -100,8 +106,8 @@ FETCH:
 			feedDereferenced = true
 			curBytes, err := cur.MarshalBinary()
 			if err != nil {
-				s.Logger.Debugf("hop download: marshal feed index: %v", err)
-				s.Logger.Error("hop download: marshal index")
+				s.logger.Debugf("hop download: marshal feed index: %v", err)
+				s.logger.Error("hop download: marshal index")
 				jsonhttp.InternalServerError(w, "marshal index")
 				return
 			}
@@ -125,7 +131,7 @@ FETCH:
 	}
 
 	// read metadata
-	j, _, err = joiner.New(ctx, s.Storer, e.Metadata())
+	j, _, err = joiner.New(ctx, s.storer, e.Metadata())
 	if err != nil {
 		logger.Debugf("hop download: joiner metadata %s: %v", address, err)
 		logger.Errorf("hop download: joiner %s", address)
@@ -247,13 +253,13 @@ FETCH:
 
 func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, address, manifestEntryAddress swarm.Address, etag bool) {
 	var (
-		logger = tracing.NewLoggerWithTraceID(r.Context(), s.Logger)
+		logger = tracing.NewLoggerWithTraceID(r.Context(), s.logger)
 		ctx    = r.Context()
 		buf    = bytes.NewBuffer(nil)
 	)
 
 	// read file entry
-	j, _, err := joiner.New(ctx, s.Storer, manifestEntryAddress)
+	j, _, err := joiner.New(ctx, s.storer, manifestEntryAddress)
 	if err != nil {
 		logger.Debugf("hop download: joiner read file entry %s: %v", address, err)
 		logger.Errorf("hop download: joiner read file entry %s", address)
@@ -278,7 +284,7 @@ func (s *server) serveManifestEntry(w http.ResponseWriter, r *http.Request, addr
 	}
 
 	// read file metadata
-	j, _, err = joiner.New(ctx, s.Storer, fe.Metadata())
+	j, _, err = joiner.New(ctx, s.storer, fe.Metadata())
 	if err != nil {
 		logger.Debugf("hop download: joiner read file entry %s: %v", address, err)
 		logger.Errorf("hop download: joiner read file entry %s", address)

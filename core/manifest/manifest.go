@@ -1,3 +1,6 @@
+// Package manifest contains the abstractions needed for
+// collection representation in Swarm. It uses implementations
+// in ethersphere/manifest repo under the hood.
 package manifest
 
 import (

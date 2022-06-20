@@ -1,3 +1,5 @@
+// Package pullsync provides the pullsync protocol
+// implementation.
 package pullsync
 
 import (

@@ -1,3 +1,8 @@
+// Package intervalstore provides a persistence layer
+// for intervals relating to a peer. The store
+// provides basic operation such as adding intervals to
+// existing ones and persisting the results, as well as
+// getting next interval for a peer.
 package intervalstore
 
 import (

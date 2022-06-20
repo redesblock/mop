@@ -1,3 +1,7 @@
+// Package retrieval provides the retrieval protocol
+// implementation. The protocol is used to retrieve
+// chunks over the network using forwarding-kademlia
+// routing.
 package retrieval
 
 import (

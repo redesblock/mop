@@ -1,3 +1,5 @@
+// Package topology exposes abstractions needed in
+// topology-aware components.
 package topology
 
 import (

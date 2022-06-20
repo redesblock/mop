@@ -79,7 +79,7 @@ func TestCashout(t *testing.T) {
 		),
 		transactionmock.New(
 			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
-				if request.To != chequebookAddress {
+				if request.To != nil && *request.To != chequebookAddress {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", chequebookAddress, request.To)
 				}
 				if request.Value.Cmp(big.NewInt(0)) != 0 {
@@ -218,7 +218,7 @@ func TestCashoutBounced(t *testing.T) {
 		),
 		transactionmock.New(
 			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
-				if request.To != chequebookAddress {
+				if request.To != nil && *request.To != chequebookAddress {
 					t.Fatalf("sending to wrong contract. wanted %x, got %x", chequebookAddress, request.To)
 				}
 				if request.Value.Cmp(big.NewInt(0)) != 0 {

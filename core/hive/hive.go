@@ -1,3 +1,9 @@
+// Package hive exposes the hive protocol implementation
+// which is the discovery protocol used to inform and be
+// informed about other peers in the network. It gossips
+// about all peers by default and performs no specific
+// prioritization about which peers are gossipped to
+// others.
 package hive
 
 import (

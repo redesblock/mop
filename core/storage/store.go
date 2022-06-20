@@ -1,3 +1,5 @@
+// Package storage provides implementation contracts and notions
+// used across storage-aware components in hop.
 package storage
 
 import (

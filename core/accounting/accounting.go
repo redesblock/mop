@@ -1,3 +1,5 @@
+// Package accounting provides functionalities needed
+// to do per-peer accounting.
 package accounting
 
 import (

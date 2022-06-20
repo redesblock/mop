@@ -1,3 +1,6 @@
+// Package debugapi exposes the debug API used to
+// control and analyze low-level and runtime
+// features and functionalities of hop.
 package debugapi
 
 import (

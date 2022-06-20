@@ -1,3 +1,5 @@
+// Package pushsync provides the pushsync protocol
+// implementation.
 package pushsync
 
 import (

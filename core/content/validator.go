@@ -1,3 +1,4 @@
+// Package content exposes content-addressed validation.
 package content
 
 import (

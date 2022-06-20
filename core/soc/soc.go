@@ -1,3 +1,5 @@
+// Package soc provides the single-owner chunk implemenation
+// and validator.
 package soc
 
 import (

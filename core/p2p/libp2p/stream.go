@@ -32,6 +32,9 @@ func (s *stream) Headers() p2p.Headers {
 }
 
 func (s *stream) FullClose() error {
+	// close the stream to make sure it is gc'd
+	defer s.Close()
+
 	if err := s.CloseWrite(); err != nil {
 		_ = s.Reset()
 		return err
@@ -56,5 +59,4 @@ func (s *stream) FullClose() error {
 		return err
 	}
 	return nil
-
 }
