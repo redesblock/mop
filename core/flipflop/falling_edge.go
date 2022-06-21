@@ -44,11 +44,19 @@ func (d *detector) work() {
 				worstCase = time.After(d.worstCase)
 			}
 		case <-waitWrite:
-			d.out <- struct{}{}
+			select {
+			case d.out <- struct{}{}:
+			case <-d.quit:
+				return
+			}
 			worstCase = nil
 			waitWrite = nil
 		case <-worstCase:
-			d.out <- struct{}{}
+			select {
+			case d.out <- struct{}{}:
+			case <-d.quit:
+				return
+			}
 			worstCase = nil
 			waitWrite = nil
 		}
