@@ -9,6 +9,8 @@ import (
 
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/postage"
+	postagetesting "github.com/redesblock/hop/core/postage/testing"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/pushsync"
 	pushsyncmock "github.com/redesblock/hop/core/pushsync/mock"
@@ -38,9 +40,9 @@ func TestSend(t *testing.T) {
 		t.Fatal(err)
 	}
 	recipient := &privkey.PublicKey
-
+	s := &stamper{}
 	// call Send to store trojan chunk in localstore
-	if err = p.Send(ctx, topic, payload, recipient, targets); err != nil {
+	if err = p.Send(ctx, topic, payload, s, recipient, targets); err != nil {
 		t.Fatal(err)
 	}
 
@@ -224,4 +226,10 @@ func ensureCalls(t *testing.T, calls *int, exp int) {
 	if exp != *calls {
 		t.Fatalf("expected %d calls, found %d", exp, *calls)
 	}
+}
+
+type stamper struct{}
+
+func (s *stamper) Stamp(_ swarm.Address) (*postage.Stamp, error) {
+	return postagetesting.MustNewStamp(), nil
 }

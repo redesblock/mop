@@ -19,6 +19,8 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
+	pinning "github.com/redesblock/hop/core/pinning/mock"
+	mockpost "github.com/redesblock/hop/core/postage/mock"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	smock "github.com/redesblock/hop/core/storage/mock"
@@ -32,18 +34,23 @@ func TestHopFiles(t *testing.T) {
 		targets              = "0x222"
 		fileDownloadResource = func(addr string) string { return "/hop/" + addr }
 		simpleData           = []byte("this is a simple text")
-		mockStatestore       = statestore.NewStateStore()
+		storerMock           = smock.NewStorer()
+		statestoreMock       = statestore.NewStateStore()
+		pinningMock          = pinning.NewServiceMock()
 		logger               = logging.New(ioutil.Discard, 0)
 		client, _, _         = newTestServer(t, testServerOptions{
-			Storer: smock.NewStorer(),
-			Tags:   tags.NewTags(mockStatestore, logger),
-			Logger: logger,
+			Storer:  storerMock,
+			Pinning: pinningMock,
+			Tags:    tags.NewTags(statestoreMock, logger),
+			Logger:  logger,
+			Post:    mockpost.New(mockpost.WithAcceptAll()),
 		})
 	)
 
 	t.Run("invalid-content-type", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, fileUploadResource,
 			http.StatusBadRequest,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: api.InvalidContentType.Error(),
@@ -79,14 +86,89 @@ func TestHopFiles(t *testing.T) {
 				},
 			},
 		})
-		rootHash := "f30c0aa7e9e2a0ef4c9b1b750ebfeaeb7c7c24da700bb089da19a46e3677824b"
-		jsonhttptest.Request(t, client, http.MethodPost, fileUploadResource, http.StatusOK,
+		address := swarm.MustParseHexAddress("f30c0aa7e9e2a0ef4c9b1b750ebfeaeb7c7c24da700bb089da19a46e3677824b")
+		jsonhttptest.Request(t, client, http.MethodPost, fileUploadResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(tr),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
 			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
-				Reference: swarm.MustParseHexAddress(rootHash),
+				Reference: address,
 			}),
 		)
+
+		has, err := storerMock.Has(context.Background(), address)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !has {
+			t.Fatal("storer check root chunk address: have none; want one")
+		}
+
+		refs, err := pinningMock.Pins()
+		if err != nil {
+			t.Fatal("unable to get pinned references")
+		}
+		if have, want := len(refs), 0; have != want {
+			t.Fatalf("root pin count mismatch: have %d; want %d", have, want)
+		}
+	})
+
+	t.Run("tar-file-upload-with-pinning", func(t *testing.T) {
+		tr := tarFiles(t, []f{
+			{
+				data: []byte("robots text"),
+				name: "robots.txt",
+				dir:  "",
+				header: http.Header{
+					"Content-Type": {"text/plain; charset=utf-8"},
+				},
+			},
+			{
+				data: []byte("image 1"),
+				name: "1.png",
+				dir:  "img",
+				header: http.Header{
+					"Content-Type": {"image/png"},
+				},
+			},
+			{
+				data: []byte("image 2"),
+				name: "2.png",
+				dir:  "img",
+				header: http.Header{
+					"Content-Type": {"image/png"},
+				},
+			},
+		})
+		reference := swarm.MustParseHexAddress("f30c0aa7e9e2a0ef4c9b1b750ebfeaeb7c7c24da700bb089da19a46e3677824b")
+		jsonhttptest.Request(t, client, http.MethodPost, fileUploadResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "true"),
+			jsonhttptest.WithRequestBody(tr),
+			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
+			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+				Reference: reference,
+			}),
+		)
+
+		has, err := storerMock.Has(context.Background(), reference)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !has {
+			t.Fatal("storer check root chunk reference: have none; want one")
+		}
+
+		refs, err := pinningMock.Pins()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if have, want := len(refs), 1; have != want {
+			t.Fatalf("root pin count mismatch: have %d; want %d", have, want)
+		}
+		if have, want := refs[0], reference; !have.Equal(want) {
+			t.Fatalf("root pin reference mismatch: have %q; want %q", have, want)
+		}
 	})
 
 	t.Run("encrypt-decrypt", func(t *testing.T) {
@@ -94,7 +176,8 @@ func TestHopFiles(t *testing.T) {
 
 		var resp api.HopUploadResponse
 		jsonhttptest.Request(t, client, http.MethodPost,
-			fileUploadResource+"?name="+fileName, http.StatusOK,
+			fileUploadResource+"?name="+fileName, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
 			jsonhttptest.WithRequestHeader(api.SwarmEncryptHeader, "True"),
 			jsonhttptest.WithRequestHeader("Content-Type", "image/jpeg; charset=utf-8"),
@@ -124,7 +207,8 @@ func TestHopFiles(t *testing.T) {
 		rootHash := "4f9146b3813ccbd7ce45a18be23763d7e436ab7a3982ef39961c6f3cd4da1dcf"
 
 		jsonhttptest.Request(t, client, http.MethodPost,
-			fileUploadResource+"?name="+fileName, http.StatusOK,
+			fileUploadResource+"?name="+fileName, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
 			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
@@ -164,7 +248,8 @@ func TestHopFiles(t *testing.T) {
 		</html>`
 
 		rcvdHeader := jsonhttptest.Request(t, client, http.MethodPost,
-			fileUploadResource+"?name="+fileName, http.StatusOK,
+			fileUploadResource+"?name="+fileName, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(strings.NewReader(sampleHtml)),
 			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
@@ -202,7 +287,8 @@ func TestHopFiles(t *testing.T) {
 		rootHash := "65148cd89b58e91616773f5acea433f7b5a6274f2259e25f4893a332b74a7e28"
 
 		jsonhttptest.Request(t, client, http.MethodPost,
-			fileUploadResource+"?name="+fileName, http.StatusOK,
+			fileUploadResource+"?name="+fileName, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
 			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
@@ -315,11 +401,13 @@ func TestHopFilesRangeRequests(t *testing.T) {
 				Storer: smock.NewStorer(),
 				Tags:   tags.NewTags(mockStatestore, logger),
 				Logger: logger,
+				Post:   mockpost.New(mockpost.WithAcceptAll()),
 			})
 
 			var resp api.HopUploadResponse
 
 			testOpts := []jsonhttptest.Option{
+				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 				jsonhttptest.WithRequestBody(upload.reader),
 				jsonhttptest.WithRequestHeader("Content-Type", upload.contentType),
 				jsonhttptest.WithUnmarshalJSONResponse(&resp),
@@ -328,7 +416,7 @@ func TestHopFilesRangeRequests(t *testing.T) {
 				testOpts = append(testOpts, jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"))
 			}
 
-			jsonhttptest.Request(t, client, http.MethodPost, upload.uploadEndpoint, http.StatusOK,
+			jsonhttptest.Request(t, client, http.MethodPost, upload.uploadEndpoint, http.StatusCreated,
 				testOpts...,
 			)
 
@@ -428,6 +516,7 @@ func TestFeedIndirection(t *testing.T) {
 			Storer: storer,
 			Tags:   tags.NewTags(mockStatestore, logger),
 			Logger: logger,
+			Post:   mockpost.New(mockpost.WithAcceptAll()),
 		})
 	)
 	// tar all the test case files
@@ -443,6 +532,7 @@ func TestFeedIndirection(t *testing.T) {
 	var resp api.HopUploadResponse
 
 	options := []jsonhttptest.Option{
+		jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 		jsonhttptest.WithRequestBody(tarReader),
 		jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
 		jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
@@ -451,7 +541,7 @@ func TestFeedIndirection(t *testing.T) {
 	}
 
 	// verify directory tar upload response
-	jsonhttptest.Request(t, client, http.MethodPost, "/hop", http.StatusOK, options...)
+	jsonhttptest.Request(t, client, http.MethodPost, "/hop", http.StatusCreated, options...)
 
 	if resp.Reference.String() == "" {
 		t.Fatalf("expected file reference, did not got any")

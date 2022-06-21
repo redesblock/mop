@@ -17,6 +17,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/pricer"
 	pb "github.com/redesblock/hop/core/retrieval/pb"
 	"github.com/redesblock/hop/core/soc"
@@ -241,7 +242,12 @@ func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *ski
 		Observe(time.Since(startTimer).Seconds())
 	s.metrics.TotalRetrieved.Inc()
 
-	chunk = swarm.NewChunk(addr, d.Data)
+	stamp := new(postage.Stamp)
+	err = stamp.UnmarshalBinary(d.Stamp)
+	if err != nil {
+		return nil, peer, fmt.Errorf("stamp unmarshal: %w", err)
+	}
+	chunk = swarm.NewChunk(addr, d.Data).WithStamp(stamp)
 	if !cac.Valid(chunk) {
 		if !soc.Valid(chunk) {
 			s.metrics.InvalidChunkRetrieved.Inc()
@@ -348,8 +354,13 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 		}
 	}
 
+	stamp, err := chunk.Stamp().MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("stamp marshal: %w", err)
+	}
 	if err := w.WriteMsgWithContext(ctx, &pb.Delivery{
-		Data: chunk.Data(),
+		Data:  chunk.Data(),
+		Stamp: stamp,
 	}); err != nil {
 		return fmt.Errorf("write delivery: %w peer %s", err, p.Address.String())
 	}

@@ -72,7 +72,7 @@ func NewDefaultManifest(
 	return NewManifest(DefaultManifestType, ls, encrypted)
 }
 
-// NewDefaultManifest creates a new manifest with default type.
+// NewDefaultManifestReference creates a new manifest with default type.
 func NewDefaultManifestReference(
 	reference swarm.Address,
 	ls file.LoadSaver,

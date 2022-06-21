@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -65,8 +66,23 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
+	batch, err := requestPostageBatchId(r)
+	if err != nil {
+		s.logger.Debugf("pss: postage batch id: %v", err)
+		s.logger.Error("pss: postage batch id")
+		jsonhttp.BadRequest(w, "invalid postage batch id")
+		return
+	}
+	i, err := s.post.GetStampIssuer(batch)
+	if err != nil {
+		s.logger.Debugf("pss: postage batch issuer: %v", err)
+		s.logger.Error("pss: postage batch issue")
+		jsonhttp.BadRequest(w, "postage stamp issuer")
+		return
+	}
+	stamper := postage.NewStamper(i, s.signer)
 
-	err = s.pss.Send(r.Context(), topic, payload, recipient, targets)
+	err = s.pss.Send(r.Context(), topic, payload, stamper, recipient, targets)
 	if err != nil {
 		s.logger.Debugf("pss send payload: %v. topic: %s", err, topicVar)
 		s.logger.Error("pss send payload")
@@ -74,7 +90,7 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonhttp.OK(w, nil)
+	jsonhttp.Created(w, nil)
 }
 
 func (s *server) pssWsHandler(w http.ResponseWriter, r *http.Request) {

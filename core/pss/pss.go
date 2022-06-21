@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -25,7 +26,7 @@ var (
 
 type Sender interface {
 	// Send arbitrary byte slice with the given topic to Targets.
-	Send(context.Context, Topic, []byte, *ecdsa.PublicKey, Targets) error
+	Send(context.Context, Topic, []byte, postage.Stamper, *ecdsa.PublicKey, Targets) error
 }
 
 type Interface interface {
@@ -80,7 +81,7 @@ type Handler func(context.Context, []byte)
 // Send constructs a padded message with topic and payload,
 // wraps it in a trojan chunk such that one of the targets is a prefix of the chunk address.
 // Uses push-sync to deliver message.
-func (p *pss) Send(ctx context.Context, topic Topic, payload []byte, recipient *ecdsa.PublicKey, targets Targets) error {
+func (p *pss) Send(ctx context.Context, topic Topic, payload []byte, stamper postage.Stamper, recipient *ecdsa.PublicKey, targets Targets) error {
 	p.metrics.TotalMessagesSentCounter.Inc()
 
 	tStart := time.Now()
@@ -89,6 +90,12 @@ func (p *pss) Send(ctx context.Context, topic Topic, payload []byte, recipient *
 	if err != nil {
 		return err
 	}
+
+	stamp, err := stamper.Stamp(tc.Address())
+	if err != nil {
+		return err
+	}
+	tc = tc.WithStamp(stamp)
 
 	p.metrics.MessageMiningDuration.Set(time.Since(tStart).Seconds())
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -134,7 +135,24 @@ func (s *server) feedPostHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.BadRequest(w, "bad topic")
 		return
 	}
-	l := loadsave.New(s.storer, requestModePut(r), false)
+
+	batch, err := requestPostageBatchId(r)
+	if err != nil {
+		s.logger.Debugf("feed put: postage batch id: %v", err)
+		s.logger.Error("feed put: postage batch id")
+		jsonhttp.BadRequest(w, "invalid postage batch id")
+		return
+	}
+
+	putter, err := newStamperPutter(s.storer, s.post, s.signer, batch)
+	if err != nil {
+		s.logger.Debugf("feed put: putter: %v", err)
+		s.logger.Error("feed put: putter")
+		jsonhttp.BadRequest(w, nil)
+		return
+	}
+
+	l := loadsave.New(putter, requestModePut(r), false)
 	feedManifest, err := manifest.NewDefaultManifest(l, false)
 	if err != nil {
 		s.logger.Debugf("feed put: new manifest: %v", err)
@@ -166,6 +184,16 @@ func (s *server) feedPostHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
+
+	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+		if err := s.pinning.CreatePin(r.Context(), ref, false); err != nil {
+			s.logger.Debugf("feed post: creation of pin for %q failed: %v", ref, err)
+			s.logger.Error("feed post: creation of pin failed")
+			jsonhttp.InternalServerError(w, nil)
+			return
+		}
+	}
+
 	jsonhttp.Created(w, feedReferenceResponse{Reference: ref})
 }
 

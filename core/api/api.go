@@ -4,6 +4,7 @@ package api
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -15,10 +16,14 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/feeds"
 	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/logging"
 	m "github.com/redesblock/hop/core/metrics"
+	"github.com/redesblock/hop/core/pinning"
+	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/hop/core/postage/postagecontract"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/resolver"
 	"github.com/redesblock/hop/core/storage"
@@ -29,14 +34,15 @@ import (
 )
 
 const (
-	SwarmPinHeader           = "Swarm-Pin"
-	SwarmTagHeader           = "Swarm-Tag"
-	SwarmEncryptHeader       = "Swarm-Encrypt"
-	SwarmIndexDocumentHeader = "Swarm-Index-Document"
-	SwarmErrorDocumentHeader = "Swarm-Error-Document"
-	SwarmFeedIndexHeader     = "Swarm-Feed-Index"
-	SwarmFeedIndexNextHeader = "Swarm-Feed-Index-Next"
-	SwarmCollectionHeader    = "Swarm-Collection"
+	SwarmPinHeader            = "Swarm-Pin"
+	SwarmTagHeader            = "Swarm-Tag"
+	SwarmEncryptHeader        = "Swarm-Encrypt"
+	SwarmIndexDocumentHeader  = "Swarm-Index-Document"
+	SwarmErrorDocumentHeader  = "Swarm-Error-Document"
+	SwarmFeedIndexHeader      = "Swarm-Feed-Index"
+	SwarmFeedIndexNextHeader  = "Swarm-Feed-Index-Next"
+	SwarmCollectionHeader     = "Swarm-Collection"
+	SwarmPostageBatchIdHeader = "Swarm-Postage-Batch-Id"
 )
 
 // The size of buffer used for prefetching content with Langos.
@@ -60,11 +66,12 @@ const (
 var (
 	errInvalidNameOrAddress = errors.New("invalid name or hop address")
 	errNoResolver           = errors.New("no resolver connected")
-	invalidRequest          = errors.New("could not validate request")
-	invalidContentType      = errors.New("invalid content-type")
-	invalidContentLength    = errors.New("invalid content-length")
-	directoryStoreError     = errors.New("could not store directory")
-	fileStoreError          = errors.New("could not store file")
+	errInvalidRequest       = errors.New("could not validate request")
+	errInvalidContentType   = errors.New("invalid content-type")
+	errInvalidContentLength = errors.New("invalid content-length")
+	errDirectoryStore       = errors.New("could not store directory")
+	errFileStore            = errors.New("could not store file")
+	errInvalidPostageBatch  = errors.New("invalid postage batch id")
 )
 
 // Service is the API service interface.
@@ -75,14 +82,18 @@ type Service interface {
 }
 
 type server struct {
-	tags        *tags.Tags
-	storer      storage.Storer
-	resolver    resolver.Interface
-	pss         pss.Interface
-	traversal   traversal.Service
-	logger      logging.Logger
-	tracer      *tracing.Tracer
-	feedFactory feeds.Factory
+	tags            *tags.Tags
+	storer          storage.Storer
+	resolver        resolver.Interface
+	pss             pss.Interface
+	traversal       traversal.Traverser
+	pinning         pinning.Interface
+	logger          logging.Logger
+	tracer          *tracing.Tracer
+	feedFactory     feeds.Factory
+	signer          crypto.Signer
+	post            postage.Service
+	postageContract postagecontract.Interface
 	Options
 	http.Handler
 	metrics metrics
@@ -103,19 +114,23 @@ const (
 )
 
 // New will create a and initialize a new API service.
-func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Service, feedFactory feeds.Factory, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
+func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Traverser, pinning pinning.Interface, feedFactory feeds.Factory, post postage.Service, postageContract postagecontract.Interface, signer crypto.Signer, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
 	s := &server{
-		tags:        tags,
-		storer:      storer,
-		resolver:    resolver,
-		pss:         pss,
-		traversal:   traversalService,
-		feedFactory: feedFactory,
-		Options:     o,
-		logger:      logger,
-		tracer:      tracer,
-		metrics:     newMetrics(),
-		quit:        make(chan struct{}),
+		tags:            tags,
+		storer:          storer,
+		resolver:        resolver,
+		pss:             pss,
+		traversal:       traversalService,
+		pinning:         pinning,
+		feedFactory:     feedFactory,
+		post:            post,
+		postageContract: postageContract,
+		signer:          signer,
+		Options:         o,
+		logger:          logger,
+		tracer:          tracer,
+		metrics:         newMetrics(),
+		quit:            make(chan struct{}),
 	}
 
 	s.setupRouting()
@@ -204,6 +219,21 @@ func requestEncrypt(r *http.Request) bool {
 	return strings.ToLower(r.Header.Get(SwarmEncryptHeader)) == "true"
 }
 
+func requestPostageBatchId(r *http.Request) ([]byte, error) {
+	if h := strings.ToLower(r.Header.Get(SwarmPostageBatchIdHeader)); h != "" {
+		if len(h) != 64 {
+			return nil, errInvalidPostageBatch
+		}
+		b, err := hex.DecodeString(h)
+		if err != nil {
+			return nil, errInvalidPostageBatch
+		}
+		return b, nil
+	}
+
+	return nil, errInvalidPostageBatch
+}
+
 func (s *server) newTracingHandler(spanName string) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -278,9 +308,36 @@ func equalASCIIFold(s, t string) bool {
 	return s == t
 }
 
+type stamperPutter struct {
+	storage.Storer
+	stamper postage.Stamper
+}
+
+func newStamperPutter(s storage.Storer, post postage.Service, signer crypto.Signer, batch []byte) (storage.Storer, error) {
+	i, err := post.GetStampIssuer(batch)
+	if err != nil {
+		return nil, fmt.Errorf("stamp issuer: %w", err)
+	}
+
+	stamper := postage.NewStamper(i, signer)
+	return &stamperPutter{Storer: s, stamper: stamper}, nil
+}
+
+func (p *stamperPutter) Put(ctx context.Context, mode storage.ModePut, chs ...swarm.Chunk) (exist []bool, err error) {
+	for i, c := range chs {
+		stamp, err := p.stamper.Stamp(c.Address())
+		if err != nil {
+			return nil, err
+		}
+		chs[i] = c.WithStamp(stamp)
+	}
+
+	return p.Storer.Put(ctx, mode, chs...)
+}
+
 type pipelineFunc func(context.Context, io.Reader, int64) (swarm.Address, error)
 
-func requestPipelineFn(s storage.Storer, r *http.Request) pipelineFunc {
+func requestPipelineFn(s storage.Putter, r *http.Request) pipelineFunc {
 	mode, encrypt := requestModePut(r), requestEncrypt(r)
 	return func(ctx context.Context, r io.Reader, l int64) (swarm.Address, error) {
 		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)

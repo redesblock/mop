@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -15,11 +16,16 @@ import (
 
 // TestModePutRequest validates ModePutRequest index values on the provided DB.
 func TestModePutRequest(t *testing.T) {
+	t.Cleanup(setWithinRadiusFunc(func(_ *DB, _ shed.Item) bool { return false }))
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			db := newTestDB(t, nil)
 
 			chunks := generateTestRandomChunks(tc.count)
+			// call unreserve on the batch with radius 0 so that
+			// localstore is aware of the batch and the chunk can
+			// be inserted into the database
+			unreserveChunkBatch(t, db, 0, chunks...)
 
 			// keep the record when the chunk is stored
 			var storeTimestamp int64
@@ -42,6 +48,7 @@ func TestModePutRequest(t *testing.T) {
 				}
 
 				newItemsCountTest(db.gcIndex, tc.count)(t)
+				newItemsCountTest(db.pullIndex, tc.count)(t)
 				newIndexGCSizeTest(db)(t)
 			})
 
@@ -61,6 +68,7 @@ func TestModePutRequest(t *testing.T) {
 				}
 
 				newItemsCountTest(db.gcIndex, tc.count)(t)
+				newItemsCountTest(db.pullIndex, tc.count)(t)
 				newIndexGCSizeTest(db)(t)
 			})
 		})
@@ -69,17 +77,21 @@ func TestModePutRequest(t *testing.T) {
 
 // TestModePutRequestPin validates ModePutRequestPin index values on the provided DB.
 func TestModePutRequestPin(t *testing.T) {
+	t.Cleanup(setWithinRadiusFunc(func(_ *DB, _ shed.Item) bool { return false }))
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			db := newTestDB(t, nil)
 
 			chunks := generateTestRandomChunks(tc.count)
+			// call unreserve on the batch with radius 0 so that
+			// localstore is aware of the batch and the chunk can
+			// be inserted into the database
+			unreserveChunkBatch(t, db, 0, chunks...)
 
 			wantTimestamp := time.Now().UTC().UnixNano()
 			defer setNow(func() (t int64) {
 				return wantTimestamp
 			})()
-
 			_, err := db.Put(context.Background(), storage.ModePutRequestPin, chunks...)
 			if err != nil {
 				t.Fatal(err)
@@ -90,6 +102,46 @@ func TestModePutRequestPin(t *testing.T) {
 				newPinIndexTest(db, ch, nil)(t)
 			}
 
+			// gc index should be always 0 since we're pinning
+			newItemsCountTest(db.gcIndex, 0)(t)
+		})
+	}
+}
+
+// TestModePutRequestCache validates ModePutRequestCache index values on the provided DB.
+func TestModePutRequestCache(t *testing.T) {
+	// note: we set WithinRadius to be true, and verify that nevertheless
+	// the chunk lands in the cache
+	t.Cleanup(setWithinRadiusFunc(func(_ *DB, _ shed.Item) bool { return true }))
+	for _, tc := range multiChunkTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := newTestDB(t, nil)
+			var chunks []swarm.Chunk
+			for i := 0; i < tc.count; i++ {
+				chunk := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2)
+				chunks = append(chunks, chunk)
+			}
+			// call unreserve on the batch with radius 0 so that
+			// localstore is aware of the batch and the chunk can
+			// be inserted into the database. in the following case
+			// the radius is 2, and since chunk PO is 2, it falls within
+			// radius.
+			unreserveChunkBatch(t, db, 2, chunks...)
+
+			wantTimestamp := time.Now().UTC().UnixNano()
+			defer setNow(func() (t int64) {
+				return wantTimestamp
+			})()
+			_, err := db.Put(context.Background(), storage.ModePutRequestCache, chunks...)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, ch := range chunks {
+				newRetrieveIndexesTestWithAccess(db, ch, wantTimestamp, wantTimestamp)(t)
+				newPinIndexTest(db, ch, leveldb.ErrNotFound)(t)
+			}
+
 			newItemsCountTest(db.gcIndex, tc.count)(t)
 		})
 	}
@@ -97,6 +149,7 @@ func TestModePutRequestPin(t *testing.T) {
 
 // TestModePutSync validates ModePutSync index values on the provided DB.
 func TestModePutSync(t *testing.T) {
+	t.Cleanup(setWithinRadiusFunc(func(_ *DB, _ shed.Item) bool { return false }))
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			db := newTestDB(t, nil)
@@ -107,6 +160,10 @@ func TestModePutSync(t *testing.T) {
 			})()
 
 			chunks := generateTestRandomChunks(tc.count)
+			// call unreserve on the batch with radius 0 so that
+			// localstore is aware of the batch and the chunk can
+			// be inserted into the database
+			unreserveChunkBatch(t, db, 0, chunks...)
 
 			_, err := db.Put(context.Background(), storage.ModePutSync, chunks...)
 			if err != nil {
@@ -125,6 +182,8 @@ func TestModePutSync(t *testing.T) {
 				newItemsCountTest(db.gcIndex, tc.count)(t)
 				newIndexGCSizeTest(db)(t)
 			}
+			newItemsCountTest(db.gcIndex, tc.count)(t)
+			newIndexGCSizeTest(db)(t)
 		})
 	}
 }
@@ -141,6 +200,10 @@ func TestModePutUpload(t *testing.T) {
 			})()
 
 			chunks := generateTestRandomChunks(tc.count)
+			// call unreserve on the batch with radius 0 so that
+			// localstore is aware of the batch and the chunk can
+			// be inserted into the database
+			unreserveChunkBatch(t, db, 0, chunks...)
 
 			_, err := db.Put(context.Background(), storage.ModePutUpload, chunks...)
 			if err != nil {
@@ -174,6 +237,10 @@ func TestModePutUploadPin(t *testing.T) {
 			})()
 
 			chunks := generateTestRandomChunks(tc.count)
+			// call unreserve on the batch with radius 0 so that
+			// localstore is aware of the batch and the chunk can
+			// be inserted into the database
+			unreserveChunkBatch(t, db, 0, chunks...)
 
 			_, err := db.Put(context.Background(), storage.ModePutUploadPin, chunks...)
 			if err != nil {
@@ -254,6 +321,11 @@ func TestModePutUpload_parallel(t *testing.T) {
 			go func() {
 				for i := 0; i < uploadsCount; i++ {
 					chs := generateTestRandomChunks(tc.count)
+					// call unreserve on the batch with radius 0 so that
+					// localstore is aware of the batch and the chunk can
+					// be inserted into the database
+					unreserveChunkBatch(t, db, 0, chunks...)
+
 					select {
 					case chunksChan <- chs:
 					case <-doneChan:
@@ -292,8 +364,9 @@ func TestModePutUpload_parallel(t *testing.T) {
 }
 
 // TestModePut_sameChunk puts the same chunk multiple times
-// and validates that all relevant indexes have only one item
-// in them.
+// and validates that all relevant indexes have the correct counts.
+// The test assumes that chunk fall into the reserve part of
+// the store.
 func TestModePut_sameChunk(t *testing.T) {
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -308,6 +381,18 @@ func TestModePut_sameChunk(t *testing.T) {
 				{
 					name:      "ModePutRequest",
 					mode:      storage.ModePutRequest,
+					pullIndex: true,
+					pushIndex: false,
+				},
+				{
+					name:      "ModePutRequestPin",
+					mode:      storage.ModePutRequest,
+					pullIndex: true,
+					pushIndex: false,
+				},
+				{
+					name:      "ModePutRequestCache",
+					mode:      storage.ModePutRequestCache,
 					pullIndex: false,
 					pushIndex: false,
 				},
@@ -326,6 +411,10 @@ func TestModePut_sameChunk(t *testing.T) {
 			} {
 				t.Run(tcn.name, func(t *testing.T) {
 					db := newTestDB(t, nil)
+					// call unreserve on the batch with radius 0 so that
+					// localstore is aware of the batch and the chunk can
+					// be inserted into the database
+					unreserveChunkBatch(t, db, 0, chunks...)
 
 					for i := 0; i < 10; i++ {
 						exist, err := db.Put(context.Background(), tcn.mode, chunks...)
@@ -374,6 +463,7 @@ func TestPutDuplicateChunks(t *testing.T) {
 			db := newTestDB(t, nil)
 
 			ch := generateTestRandomChunk()
+			unreserveChunkBatch(t, db, 0, ch)
 
 			exist, err := db.Put(context.Background(), mode, ch, ch)
 			if err != nil {

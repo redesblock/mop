@@ -12,6 +12,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/streamtest"
+	"github.com/redesblock/hop/core/postage"
 	pricermock "github.com/redesblock/hop/core/pricer/mock"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/pushsync"
@@ -227,7 +228,11 @@ func newTestNetStore(t *testing.T, recoveryFunc recovery.Callback) storage.Store
 		streamtest.WithProtocols(server.Protocol()),
 	)
 	retrieve := retrieval.New(swarm.ZeroAddress, mockStorer, recorder, ps, logger, serverMockAccounting, pricerMock, nil)
-	ns := netstore.New(storer, recoveryFunc, retrieve, logger)
+	validStamp := func(ch swarm.Chunk, stamp []byte) (swarm.Chunk, error) {
+		return ch.WithStamp(postage.NewStamp(nil, nil)), nil
+	}
+
+	ns := netstore.New(storer, validStamp, recoveryFunc, retrieve, logger)
 	return ns
 }
 
@@ -247,7 +252,7 @@ type mockPssSender struct {
 }
 
 // Send mocks the pss Send function
-func (mp *mockPssSender) Send(ctx context.Context, topic pss.Topic, payload []byte, recipient *ecdsa.PublicKey, targets pss.Targets) error {
+func (mp *mockPssSender) Send(ctx context.Context, topic pss.Topic, payload []byte, _ postage.Stamper, recipient *ecdsa.PublicKey, targets pss.Targets) error {
 	mp.callbackC <- true
 	return nil
 }

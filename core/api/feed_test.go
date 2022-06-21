@@ -18,6 +18,8 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
+	"github.com/redesblock/hop/core/postage"
+	mockpost "github.com/redesblock/hop/core/postage/mock"
 	testingsoc "github.com/redesblock/hop/core/soc/testing"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
@@ -148,17 +150,20 @@ func TestFeed_Post(t *testing.T) {
 		logger         = logging.New(ioutil.Discard, 0)
 		tag            = tags.NewTags(mockStatestore, logger)
 		topic          = "aabbcc"
+		mp             = mockpost.New(mockpost.WithIssuer(postage.NewStampIssuer("", "", batchOk, 11, 10)))
 		mockStorer     = mock.NewStorer()
 		client, _, _   = newTestServer(t, testServerOptions{
 			Storer: mockStorer,
 			Tags:   tag,
 			Logger: logger,
+			Post:   mp,
 		})
+		url = fmt.Sprintf("/feeds/%s/%s?type=%s", ownerString, topic, "sequence")
 	)
 
 	t.Run("ok", func(t *testing.T) {
-		url := fmt.Sprintf("/feeds/%s/%s?type=%s", ownerString, topic, "sequence")
 		jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithExpectedJSONResponse(api.FeedReferenceResponse{
 				Reference: expReference,
 			}),
@@ -185,6 +190,31 @@ func TestFeed_Post(t *testing.T) {
 			t.Fatalf("type mismatch. got %s want %s", e, "Sequence")
 		}
 	})
+	t.Run("postage", func(t *testing.T) {
+		t.Run("err - bad batch", func(t *testing.T) {
+			hexbatch := hex.EncodeToString(batchInvalid)
+			jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusBadRequest,
+				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
+					Message: "invalid postage batch id",
+					Code:    http.StatusBadRequest,
+				}))
+		})
+
+		t.Run("ok - batch zeros", func(t *testing.T) {
+			hexbatch := hex.EncodeToString(batchOk)
+			jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusCreated,
+				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+			)
+		})
+		t.Run("bad request - batch empty", func(t *testing.T) {
+			hexbatch := hex.EncodeToString(batchEmpty)
+			jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusBadRequest,
+				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+			)
+		})
+	})
+
 }
 
 type factoryMock struct {

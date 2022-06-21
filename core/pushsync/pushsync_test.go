@@ -13,16 +13,17 @@ import (
 	accountingmock "github.com/redesblock/hop/core/accounting/mock"
 	"github.com/redesblock/hop/core/crypto"
 	cryptomock "github.com/redesblock/hop/core/crypto/mock"
-	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
 	"github.com/redesblock/hop/core/p2p/streamtest"
+	"github.com/redesblock/hop/core/postage"
 	pricermock "github.com/redesblock/hop/core/pricer/mock"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/pushsync/pb"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
+	mocks "github.com/redesblock/hop/core/storage/mock"
 	testingc "github.com/redesblock/hop/core/storage/testing"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -118,8 +119,9 @@ func TestReplicateBeforeReceipt(t *testing.T) {
 
 	// node that is connected to secondPeer
 	// it's address is closer to the chunk than secondPeer but it will not receive the chunk
-	_, storerEmpty, _, _ := createPushSyncNode(t, emptyPeer, defaultPrices, nil, nil, defaultSigner)
+	psEmpty, storerEmpty, _, _ := createPushSyncNode(t, emptyPeer, defaultPrices, nil, nil, defaultSigner)
 	defer storerEmpty.Close()
+	emptyRecorder := streamtest.New(streamtest.WithProtocols(psEmpty.Protocol()), streamtest.WithBaseAddr(secondPeer))
 
 	wFunc := func(addr swarm.Address) bool {
 		return true
@@ -127,7 +129,7 @@ func TestReplicateBeforeReceipt(t *testing.T) {
 
 	// node that is connected to closestPeer
 	// will receieve chunk from closestPeer
-	psSecond, storerSecond, _, secondAccounting := createPushSyncNode(t, secondPeer, defaultPrices, nil, nil, defaultSigner, mock.WithPeers(emptyPeer), mock.WithIsWithinFunc(wFunc))
+	psSecond, storerSecond, _, secondAccounting := createPushSyncNode(t, secondPeer, defaultPrices, emptyRecorder, nil, defaultSigner, mock.WithPeers(emptyPeer), mock.WithIsWithinFunc(wFunc))
 	defer storerSecond.Close()
 	secondRecorder := streamtest.New(streamtest.WithProtocols(psSecond.Protocol()), streamtest.WithBaseAddr(closestPeer))
 
@@ -545,14 +547,10 @@ func TestSignsReceipt(t *testing.T) {
 	}
 }
 
-func createPushSyncNode(t *testing.T, addr swarm.Address, prices pricerParameters, recorder *streamtest.Recorder, unwrap func(swarm.Chunk), signer crypto.Signer, mockOpts ...mock.Option) (*pushsync.PushSync, *localstore.DB, *tags.Tags, accounting.Interface) {
+func createPushSyncNode(t *testing.T, addr swarm.Address, prices pricerParameters, recorder *streamtest.Recorder, unwrap func(swarm.Chunk), signer crypto.Signer, mockOpts ...mock.Option) (*pushsync.PushSync, *mocks.MockStorer, *tags.Tags, accounting.Interface) {
 	t.Helper()
 	logger := logging.New(ioutil.Discard, 0)
-
-	storer, err := localstore.New("", addr.Bytes(), nil, logger)
-	if err != nil {
-		t.Fatal(err)
-	}
+	storer := mocks.NewStorer()
 
 	mockTopology := mock.NewTopologyDriver(mockOpts...)
 	mockStatestore := statestore.NewStateStore()
@@ -565,8 +563,11 @@ func createPushSyncNode(t *testing.T, addr swarm.Address, prices pricerParameter
 	if unwrap == nil {
 		unwrap = func(swarm.Chunk) {}
 	}
+	validStamp := func(ch swarm.Chunk, stamp []byte) (swarm.Chunk, error) {
+		return ch.WithStamp(postage.NewStamp(nil, nil)), nil
+	}
 
-	return pushsync.New(addr, recorderDisconnecter, storer, mockTopology, mtag, unwrap, logger, mockAccounting, mockPricer, signer, nil), storer, mtag, mockAccounting
+	return pushsync.New(addr, recorderDisconnecter, storer, mockTopology, mtag, true, unwrap, validStamp, logger, mockAccounting, mockPricer, signer, nil), storer, mtag, mockAccounting
 }
 
 func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.Recorder, add swarm.Address, data []byte) {

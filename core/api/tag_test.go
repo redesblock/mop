@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/logging"
+	mockpost "github.com/redesblock/hop/core/postage/mock"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/api"
@@ -43,6 +44,7 @@ func TestTags(t *testing.T) {
 			Storer: mock.NewStorer(),
 			Tags:   tag,
 			Logger: logger,
+			Post:   mockpost.New(mockpost.WithAcceptAll()),
 		})
 	)
 
@@ -100,12 +102,14 @@ func TestTags(t *testing.T) {
 			jsonhttptest.WithUnmarshalJSONResponse(&tr),
 		)
 
-		_ = jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusOK,
+		_ = jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
 		)
 
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusOK,
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
 			jsonhttptest.WithRequestHeader(api.SwarmTagHeader, strconv.FormatUint(uint64(tr.Uid), 10)),
@@ -224,7 +228,8 @@ func TestTags(t *testing.T) {
 		addr := test.RandomAddress()
 
 		// upload content with tag
-		jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusOK,
+		jsonhttptest.Request(t, client, http.MethodPost, chunksResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithRequestHeader(api.SwarmTagHeader, fmt.Sprint(tagId)),
 		)
@@ -263,7 +268,8 @@ func TestTags(t *testing.T) {
 		expectedResponse := api.HopUploadResponse{Reference: expectedHash}
 
 		respHeaders := jsonhttptest.Request(t, client, http.MethodPost,
-			hopResource+"?name=somefile", http.StatusOK,
+			hopResource+"?name=somefile", http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader([]byte("some data"))),
 			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
 			jsonhttptest.WithRequestHeader("Content-Type", "application/octet-stream"),
@@ -285,7 +291,8 @@ func TestTags(t *testing.T) {
 		expectedHash := swarm.MustParseHexAddress("42bc27c9137c93705ffbc2945fa1aab0e8e1826f1500b7f06f6e3f86f617213b")
 		expectedResponse := api.HopUploadResponse{Reference: expectedHash}
 
-		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, hopResource, http.StatusOK,
+		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, hopResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(tarReader),
 			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
 			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
@@ -303,6 +310,7 @@ func TestTags(t *testing.T) {
 		// create a tag using the API
 		tr := api.TagResponse{}
 		jsonhttptest.Request(t, client, http.MethodPost, tagsResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithJSONRequestBody(api.TagRequest{}),
 			jsonhttptest.WithUnmarshalJSONResponse(&tr),
 		)
@@ -322,7 +330,8 @@ func TestTags(t *testing.T) {
 		copy(content[swarm.ChunkSize:], dataChunk)
 		copy(content[:swarm.ChunkSize], dataChunk)
 
-		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, bytesResource, http.StatusOK,
+		rcvdHeaders := jsonhttptest.Request(t, client, http.MethodPost, bytesResource, http.StatusCreated,
+			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(content)),
 			jsonhttptest.WithExpectedJSONResponse(fileUploadResponse{
 				Reference: rootAddress,

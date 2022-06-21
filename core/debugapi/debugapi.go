@@ -14,6 +14,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
@@ -21,6 +22,7 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/topology"
+	"github.com/redesblock/hop/core/topology/lightnode"
 	"github.com/redesblock/hop/core/tracing"
 )
 
@@ -42,8 +44,10 @@ type Service struct {
 	chequebookEnabled  bool
 	chequebook         chequebook.Service
 	swap               swap.ApiInterface
+	batchStore         postage.Storer
 	corsAllowedOrigins []string
 	metricsRegistry    *prometheus.Registry
+	lightNodes         *lightnode.Container
 	// handler is changed in the Configure method
 	handler   http.Handler
 	handlerMu sync.RWMutex
@@ -72,7 +76,7 @@ func New(overlay swarm.Address, publicKey, pssPublicKey ecdsa.PublicKey, ethereu
 // Configure injects required dependencies and configuration parameters and
 // constructs HTTP routes that depend on them. It is intended and safe to call
 // this method only once.
-func (s *Service) Configure(p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface, chequebookEnabled bool, swap swap.ApiInterface, chequebook chequebook.Service) {
+func (s *Service) Configure(p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, settlement settlement.Interface, chequebookEnabled bool, swap swap.ApiInterface, chequebook chequebook.Service, batchStore postage.Storer) {
 	s.p2p = p2p
 	s.pingpong = pingpong
 	s.topologyDriver = topologyDriver
@@ -83,6 +87,8 @@ func (s *Service) Configure(p2p p2p.DebugService, pingpong pingpong.Interface, t
 	s.chequebookEnabled = chequebookEnabled
 	s.chequebook = chequebook
 	s.swap = swap
+	s.lightNodes = lightNodes
+	s.batchStore = batchStore
 
 	s.setRouter(s.newRouter())
 }

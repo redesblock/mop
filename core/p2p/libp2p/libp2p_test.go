@@ -17,6 +17,7 @@ import (
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/topology/lightnode"
 )
 
 type libp2pServiceOpts struct {
@@ -61,7 +62,10 @@ func newService(t *testing.T, networkID uint64, o libp2pServiceOpts) (s *libp2p.
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	s, err = libp2p.New(ctx, crypto.NewDefaultSigner(swarmKey), networkID, overlay, addr, o.Addressbook, statestore, o.Logger, nil, o.libp2pOpts)
+
+	lightnodes := lightnode.NewContainer()
+
+	s, err = libp2p.New(ctx, crypto.NewDefaultSigner(swarmKey), networkID, overlay, addr, o.Addressbook, statestore, lightnodes, o.Logger, nil, o.libp2pOpts)
 	if err != nil {
 		t.Fatal(err)
 	}

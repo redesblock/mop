@@ -6,6 +6,7 @@ package node
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,13 +26,19 @@ import (
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/feeds/factory"
 	"github.com/redesblock/hop/core/hive"
-	"github.com/redesblock/hop/core/kademlia"
 	"github.com/redesblock/hop/core/localstore"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/metrics"
 	"github.com/redesblock/hop/core/netstore"
+	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/pinning"
+	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/hop/core/postage/batchservice"
+	"github.com/redesblock/hop/core/postage/batchstore"
+	"github.com/redesblock/hop/core/postage/listener"
+	"github.com/redesblock/hop/core/postage/postagecontract"
 	"github.com/redesblock/hop/core/pricer"
 	"github.com/redesblock/hop/core/pricing"
 	"github.com/redesblock/hop/core/pss"
@@ -51,6 +58,8 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/hop/core/topology/kademlia"
+	"github.com/redesblock/hop/core/topology/lightnode"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/traversal"
 	"github.com/sirupsen/logrus"
@@ -77,6 +86,7 @@ type Node struct {
 	ethClientCloser          func()
 	transactionMonitorCloser io.Closer
 	recoveryHandleCleanup    func()
+	listenerCloser           io.Closer
 }
 
 type Options struct {
@@ -111,6 +121,9 @@ type Options struct {
 	SwapFactoryAddress       string
 	SwapInitialDeposit       string
 	SwapEnable               bool
+	FullNodeMode             bool
+	PostageContractAddress   string
+	PriceOracleAddress       string
 }
 
 func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (b *Node, err error) {
@@ -185,17 +198,18 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	addressbook := addressbook.New(stateStore)
 
-	var swapBackend *ethclient.Client
-	var overlayEthAddress common.Address
-	var chainID int64
-	var transactionService transaction.Service
-	var transactionMonitor transaction.Monitor
-	var chequebookFactory chequebook.Factory
-	var chequebookService chequebook.Service
-	var chequeStore chequebook.ChequeStore
-	var cashoutService chequebook.CashoutService
-
-	if o.SwapEnable {
+	var (
+		swapBackend        *ethclient.Client
+		overlayEthAddress  common.Address
+		chainID            int64
+		transactionService transaction.Service
+		transactionMonitor transaction.Monitor
+		chequebookFactory  chequebook.Factory
+		chequebookService  chequebook.Service
+		chequeStore        chequebook.ChequeStore
+		cashoutService     chequebook.CashoutService
+	)
+	if !o.Standalone {
 		swapBackend, overlayEthAddress, chainID, transactionMonitor, transactionService, err = InitChain(
 			p2pCtx,
 			logger,
@@ -204,11 +218,13 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			signer,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("init chain: %w", err)
 		}
 		b.ethClientCloser = swapBackend.Close
 		b.transactionMonitorCloser = transactionMonitor
+	}
 
+	if o.SwapEnable {
 		chequebookFactory, err = InitChequebookFactory(
 			logger,
 			swapBackend,
@@ -250,18 +266,90 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		)
 	}
 
-	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, logger, tracer, libp2p.Options{
+	lightNodes := lightnode.NewContainer()
+
+	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
 		EnableQUIC:     o.EnableQUIC,
 		Standalone:     o.Standalone,
 		WelcomeMessage: o.WelcomeMessage,
+		FullNode:       o.FullNodeMode,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("p2p service: %w", err)
 	}
 	b.p2pService = p2ps
+
+	// localstore depends on batchstore
+	var path string
+
+	if o.DataDir != "" {
+		path = filepath.Join(o.DataDir, "localstore")
+	}
+	lo := &localstore.Options{
+		Capacity:               o.DBCapacity,
+		OpenFilesLimit:         o.DBOpenFilesLimit,
+		BlockCacheCapacity:     o.DBBlockCacheCapacity,
+		WriteBufferSize:        o.DBWriteBufferSize,
+		DisableSeeksCompaction: o.DBDisableSeeksCompaction,
+	}
+
+	storer, err := localstore.New(path, swarmAddress.Bytes(), lo, logger)
+	if err != nil {
+		return nil, fmt.Errorf("localstore: %w", err)
+	}
+	b.localstoreCloser = storer
+
+	batchStore, err := batchstore.New(stateStore, storer.UnreserveBatch)
+	if err != nil {
+		return nil, fmt.Errorf("batchstore: %w", err)
+	}
+	validStamp := postage.ValidStamp(batchStore)
+	post := postage.NewService(stateStore, chainID)
+
+	var (
+		postageContractService postagecontract.Interface
+		batchSvc               postage.EventUpdater
+	)
+
+	if !o.Standalone {
+		postageContractAddress, priceOracleAddress, found := listener.DiscoverAddresses(chainID)
+		if o.PostageContractAddress != "" {
+			if !common.IsHexAddress(o.PostageContractAddress) {
+				return nil, errors.New("malformed postage stamp address")
+			}
+			postageContractAddress = common.HexToAddress(o.PostageContractAddress)
+		}
+		if o.PriceOracleAddress != "" {
+			if !common.IsHexAddress(o.PriceOracleAddress) {
+				return nil, errors.New("malformed price oracle address")
+			}
+			priceOracleAddress = common.HexToAddress(o.PriceOracleAddress)
+		}
+		if (o.PostageContractAddress == "" || o.PriceOracleAddress == "") && !found {
+			return nil, errors.New("no known postage stamp addresses for this network")
+		}
+
+		eventListener := listener.New(logger, swapBackend, postageContractAddress, priceOracleAddress)
+		b.listenerCloser = eventListener
+
+		batchSvc = batchservice.New(batchStore, logger, eventListener)
+
+		erc20Address, err := postagecontract.LookupERC20Address(p2pCtx, transactionService, postageContractAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		postageContractService = postagecontract.New(
+			overlayEthAddress,
+			postageContractAddress,
+			erc20Address,
+			transactionService,
+			post,
+		)
+	}
 
 	if !o.Standalone {
 		if natManager := p2ps.NATManager(); natManager != nil {
@@ -314,7 +402,20 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
 	p2ps.SetPickyNotifier(kad)
+	batchStore.SetRadiusSetter(kad)
 
+	if batchSvc != nil {
+		syncedChan := batchSvc.Start()
+		// wait for the postage contract listener to sync
+		logger.Info("waiting to sync postage contract data, this may take a while... more info available in Debug loglevel")
+
+		// arguably this is not a very nice solution since we dont support
+		// interrupts at this stage of the application lifecycle. some changes
+		// would be needed on the cmd level to support context cancellation at
+		// this stage
+		<-syncedChan
+
+	}
 	paymentThreshold, ok := new(big.Int).SetString(o.PaymentThreshold, 10)
 	if !ok {
 		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
@@ -385,31 +486,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	pricing.SetPaymentThresholdObserver(acc)
 	settlement.SetNotifyPaymentFunc(acc.AsyncNotifyPayment)
 
-	var path string
-
-	if o.DataDir != "" {
-		path = filepath.Join(o.DataDir, "localstore")
-	}
-	lo := &localstore.Options{
-		Capacity:               o.DBCapacity,
-		OpenFilesLimit:         o.DBOpenFilesLimit,
-		BlockCacheCapacity:     o.DBBlockCacheCapacity,
-		WriteBufferSize:        o.DBWriteBufferSize,
-		DisableSeeksCompaction: o.DBDisableSeeksCompaction,
-	}
-	storer, err := localstore.New(path, swarmAddress.Bytes(), lo, logger)
-	if err != nil {
-		return nil, fmt.Errorf("localstore: %w", err)
-	}
-	b.localstoreCloser = storer
-
 	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
-
-	if err = p2ps.AddProtocol(retrieve.Protocol()); err != nil {
-		return nil, fmt.Errorf("retrieval service: %w", err)
-	}
 
 	pssService := pss.New(pssPrivateKey, logger)
 	b.pssCloser = pssService
@@ -418,21 +497,19 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	if o.GlobalPinningEnabled {
 		// create recovery callback for content repair
 		recoverFunc := recovery.NewCallback(pssService)
-		ns = netstore.New(storer, recoverFunc, retrieve, logger)
+		ns = netstore.New(storer, validStamp, recoverFunc, retrieve, logger)
 	} else {
-		ns = netstore.New(storer, nil, retrieve, logger)
+		ns = netstore.New(storer, validStamp, nil, retrieve, logger)
 	}
 
 	traversalService := traversal.NewService(ns)
 
-	pushSyncProtocol := pushsync.New(swarmAddress, p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, pricer, signer, tracer)
+	pinningService := pinning.NewService(storer, stateStore, traversalService)
+
+	pushSyncProtocol := pushsync.New(swarmAddress, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
-
-	if err = p2ps.AddProtocol(pushSyncProtocol.Protocol()); err != nil {
-		return nil, fmt.Errorf("pushsync service: %w", err)
-	}
 
 	if o.GlobalPinningEnabled {
 		// register function for chunk repair upon receiving a trojan message
@@ -440,21 +517,39 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		b.recoveryHandleCleanup = pssService.Register(recovery.Topic, chunkRepairHandler)
 	}
 
-	pushSyncPusher := pusher.New(networkID, storer, kad, pushSyncProtocol, tagService, logger, tracer)
-	b.pusherCloser = pushSyncPusher
+	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, tagService, logger, tracer)
+	b.pusherCloser = pusherService
 
 	pullStorage := pullstorage.New(storer)
 
-	pullSync := pullsync.New(p2ps, pullStorage, pssService.TryUnwrap, logger)
-	b.pullSyncCloser = pullSync
+	pullSyncProtocol := pullsync.New(p2ps, pullStorage, pssService.TryUnwrap, validStamp, logger)
+	b.pullSyncCloser = pullSyncProtocol
 
-	if err = p2ps.AddProtocol(pullSync.Protocol()); err != nil {
-		return nil, fmt.Errorf("pullsync protocol: %w", err)
+	pullerService := puller.New(stateStore, kad, pullSyncProtocol, logger, puller.Options{})
+	b.pullerCloser = pullerService
+
+	retrieveProtocolSpec := retrieve.Protocol()
+	pushSyncProtocolSpec := pushSyncProtocol.Protocol()
+	pullSyncProtocolSpec := pullSyncProtocol.Protocol()
+
+	if o.FullNodeMode {
+		logger.Info("starting in full mode")
+	} else {
+		logger.Info("starting in light mode")
+		p2p.WithBlocklistStreams(p2p.DefaultBlocklistTime, retrieveProtocolSpec)
+		p2p.WithBlocklistStreams(p2p.DefaultBlocklistTime, pushSyncProtocolSpec)
+		p2p.WithBlocklistStreams(p2p.DefaultBlocklistTime, pullSyncProtocolSpec)
 	}
 
-	puller := puller.New(stateStore, kad, pullSync, logger, puller.Options{})
-
-	b.pullerCloser = puller
+	if err = p2ps.AddProtocol(retrieveProtocolSpec); err != nil {
+		return nil, fmt.Errorf("retrieval service: %w", err)
+	}
+	if err = p2ps.AddProtocol(pushSyncProtocolSpec); err != nil {
+		return nil, fmt.Errorf("pushsync service: %w", err)
+	}
+	if err = p2ps.AddProtocol(pullSyncProtocolSpec); err != nil {
+		return nil, fmt.Errorf("pullsync protocol: %w", err)
+	}
 
 	multiResolver := multiresolver.NewMultiResolver(
 		multiresolver.WithConnectionConfigs(o.ResolverConnectionCfgs),
@@ -466,7 +561,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	if o.APIAddr != "" {
 		// API server
 		feedFactory := factory.New(ns)
-		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, feedFactory, logger, tracer, api.Options{
+		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, pinningService, feedFactory, post, postageContractService, signer, logger, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,
@@ -502,11 +597,15 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		debugAPIService.MustRegisterMetrics(pingPong.Metrics()...)
 		debugAPIService.MustRegisterMetrics(acc.Metrics()...)
 		debugAPIService.MustRegisterMetrics(storer.Metrics()...)
-		debugAPIService.MustRegisterMetrics(puller.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pullerService.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pushSyncProtocol.Metrics()...)
-		debugAPIService.MustRegisterMetrics(pushSyncPusher.Metrics()...)
-		debugAPIService.MustRegisterMetrics(pullSync.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pusherService.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pullSyncProtocol.Metrics()...)
 		debugAPIService.MustRegisterMetrics(retrieve.Metrics()...)
+
+		if bs, ok := batchStore.(metrics.Collector); ok {
+			debugAPIService.MustRegisterMetrics(bs.Metrics()...)
+		}
 
 		if pssServiceMetrics, ok := pssService.(metrics.Collector); ok {
 			debugAPIService.MustRegisterMetrics(pssServiceMetrics.Metrics()...)
@@ -524,7 +623,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		}
 
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(p2ps, pingPong, kad, storer, tagService, acc, settlement, o.SwapEnable, swapService, chequebookService)
+		debugAPIService.Configure(p2ps, pingPong, kad, lightNodes, storer, tagService, acc, settlement, o.SwapEnable, swapService, chequebookService, batchStore)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {
@@ -591,8 +690,10 @@ func (b *Node) Shutdown(ctx context.Context) error {
 		errs.add(fmt.Errorf("p2p server: %w", err))
 	}
 
-	if err := b.transactionMonitorCloser.Close(); err != nil {
-		errs.add(fmt.Errorf("transaction monitor: %w", err))
+	if b.transactionMonitorCloser != nil {
+		if err := b.transactionMonitorCloser.Close(); err != nil {
+			errs.add(fmt.Errorf("transaction monitor: %w", err))
+		}
 	}
 
 	if c := b.ethClientCloser; c != nil {
@@ -605,6 +706,12 @@ func (b *Node) Shutdown(ctx context.Context) error {
 
 	if err := b.tagsCloser.Close(); err != nil {
 		errs.add(fmt.Errorf("tag persistence: %w", err))
+	}
+
+	if b.listenerCloser != nil {
+		if err := b.listenerCloser.Close(); err != nil {
+			errs.add(fmt.Errorf("error listener: %w", err))
+		}
 	}
 
 	if err := b.stateStoreCloser.Close(); err != nil {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"io/ioutil"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/redesblock/hop/core/node"
 	"github.com/redesblock/hop/core/resolver/multiresolver"
 	"github.com/redesblock/hop/core/swarm"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -45,22 +45,10 @@ func (c *command) initStartCmd() (err error) {
 				return cmd.Help()
 			}
 
-			var logger logging.Logger
-			switch v := strings.ToLower(c.config.GetString(optionNameVerbosity)); v {
-			case "0", "silent":
-				logger = logging.New(ioutil.Discard, 0)
-			case "1", "error":
-				logger = logging.New(cmd.OutOrStdout(), logrus.ErrorLevel)
-			case "2", "warn":
-				logger = logging.New(cmd.OutOrStdout(), logrus.WarnLevel)
-			case "3", "info":
-				logger = logging.New(cmd.OutOrStdout(), logrus.InfoLevel)
-			case "4", "debug":
-				logger = logging.New(cmd.OutOrStdout(), logrus.DebugLevel)
-			case "5", "trace":
-				logger = logging.New(cmd.OutOrStdout(), logrus.TraceLevel)
-			default:
-				return fmt.Errorf("unknown verbosity level %q", v)
+			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
+			logger, err := newLogger(cmd, v)
+			if err != nil {
+				return fmt.Errorf("new logger: %v", err)
 			}
 
 			isWindowsService, err := isWindowsService()
@@ -115,6 +103,13 @@ Welcome to the Swarm....
 				return err
 			}
 
+			bootNode := c.config.GetBool(optionNameBootnodeMode)
+			fullNode := c.config.GetBool(optionNameFullNode)
+
+			if bootNode && !fullNode {
+				return errors.New("boot node must be started as a full node")
+			}
+
 			b, err := node.New(c.config.GetString(optionNameP2PAddr), signerConfig.address, *signerConfig.publicKey, signerConfig.signer, c.config.GetUint64(optionNameNetworkID), logger, signerConfig.libp2pPrivateKey, signerConfig.pssPrivateKey, node.Options{
 				DataDir:                  c.config.GetString(optionNameDataDir),
 				DBCapacity:               c.config.GetUint64(optionNameDBCapacity),
@@ -142,11 +137,14 @@ Welcome to the Swarm....
 				PaymentEarly:             c.config.GetString(optionNamePaymentEarly),
 				ResolverConnectionCfgs:   resolverCfgs,
 				GatewayMode:              c.config.GetBool(optionNameGatewayMode),
-				BootnodeMode:             c.config.GetBool(optionNameBootnodeMode),
+				BootnodeMode:             bootNode,
 				SwapEndpoint:             c.config.GetString(optionNameSwapEndpoint),
 				SwapFactoryAddress:       c.config.GetString(optionNameSwapFactoryAddress),
 				SwapInitialDeposit:       c.config.GetString(optionNameSwapInitialDeposit),
 				SwapEnable:               c.config.GetBool(optionNameSwapEnable),
+				FullNodeMode:             fullNode,
+				PostageContractAddress:   c.config.GetString(optionNamePostageContractAddress),
+				PriceOracleAddress:       c.config.GetString(optionNamePriceOracleAddress),
 			})
 			if err != nil {
 				return err

@@ -20,17 +20,18 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
 	"github.com/redesblock/hop/core/sctx"
+	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
 	"github.com/redesblock/hop/core/tracing"
 )
 
 // dirUploadHandler uploads a directory supplied as a tar in an HTTP request
-func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer storage.Storer) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.logger)
 	if r.Body == http.NoBody {
 		logger.Error("hop upload dir: request has no body")
-		jsonhttp.BadRequest(w, invalidRequest)
+		jsonhttp.BadRequest(w, errInvalidRequest)
 		return
 	}
 	contentType := r.Header.Get(contentTypeHeader)
@@ -38,7 +39,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Errorf("hop upload dir: invalid content-type")
 		logger.Debugf("hop upload dir: invalid content-type err: %v", err)
-		jsonhttp.BadRequest(w, invalidContentType)
+		jsonhttp.BadRequest(w, errInvalidContentType)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 		dReader = &multipartReader{r: multipart.NewReader(r.Body, params["boundary"])}
 	default:
 		logger.Error("hop upload dir: invalid content-type for directory upload")
-		jsonhttp.BadRequest(w, invalidContentType)
+		jsonhttp.BadRequest(w, errInvalidContentType)
 		return
 	}
 	defer r.Body.Close()
@@ -64,13 +65,15 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add the tag to the context
+	ctx := sctx.SetTag(r.Context(), tag)
+
 	reference, err := storeDir(
-		sctx.SetTag(r.Context(), tag),
+		ctx,
 		requestEncrypt(r),
 		dReader,
 		s.logger,
-		requestPipelineFn(s.storer, r),
-		loadsave.New(s.storer, requestModePut(r), requestEncrypt(r)),
+		requestPipelineFn(storer, r),
+		loadsave.New(storer, requestModePut(r), requestEncrypt(r)),
 		r.Header.Get(SwarmIndexDocumentHeader),
 		r.Header.Get(SwarmErrorDocumentHeader),
 		tag,
@@ -79,7 +82,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Debugf("hop upload dir: store dir err: %v", err)
 		logger.Errorf("hop upload dir: store dir")
-		jsonhttp.InternalServerError(w, directoryStoreError)
+		jsonhttp.InternalServerError(w, errDirectoryStore)
 		return
 	}
 	if created {
@@ -91,8 +94,18 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+		if err := s.pinning.CreatePin(r.Context(), reference, false); err != nil {
+			logger.Debugf("hop upload dir: creation of pin for %q failed: %v", reference, err)
+			logger.Error("hop upload dir: creation of pin failed")
+			jsonhttp.InternalServerError(w, nil)
+			return
+		}
+	}
+
 	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
-	jsonhttp.OK(w, hopUploadResponse{
+	jsonhttp.Created(w, hopUploadResponse{
 		Reference: reference,
 	})
 }

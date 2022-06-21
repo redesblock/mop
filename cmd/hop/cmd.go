@@ -3,11 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -51,6 +54,9 @@ const (
 	optionNameSwapFactoryAddress        = "swap-factory-address"
 	optionNameSwapInitialDeposit        = "swap-initial-deposit"
 	optionNameSwapEnable                = "swap-enable"
+	optionNameFullNode                  = "full-node"
+	optionNamePostageContractAddress    = "postage-stamp-address"
+	optionNamePriceOracleAddress        = "price-oracle-address"
 )
 
 func init() {
@@ -107,6 +113,7 @@ func newCommand(opts ...option) (c *command, err error) {
 	}
 
 	c.initVersionCmd()
+	c.initDBCmd()
 
 	if err := c.initConfigurateOptionsCmd(); err != nil {
 		return nil, err
@@ -216,4 +223,28 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameSwapFactoryAddress, "", "swap factory address")
 	cmd.Flags().String(optionNameSwapInitialDeposit, "100000000000000000", "initial deposit if deploying a new chequebook")
 	cmd.Flags().Bool(optionNameSwapEnable, true, "enable swap")
+	cmd.Flags().Bool(optionNameFullNode, false, "cause the node to start in full mode")
+	cmd.Flags().String(optionNamePostageContractAddress, "", "postage stamp contract address")
+	cmd.Flags().String(optionNamePriceOracleAddress, "", "price oracle address")
+}
+
+func newLogger(cmd *cobra.Command, verbosity string) (logging.Logger, error) {
+	var logger logging.Logger
+	switch verbosity {
+	case "0", "silent":
+		logger = logging.New(ioutil.Discard, 0)
+	case "1", "error":
+		logger = logging.New(cmd.OutOrStdout(), logrus.ErrorLevel)
+	case "2", "warn":
+		logger = logging.New(cmd.OutOrStdout(), logrus.WarnLevel)
+	case "3", "info":
+		logger = logging.New(cmd.OutOrStdout(), logrus.InfoLevel)
+	case "4", "debug":
+		logger = logging.New(cmd.OutOrStdout(), logrus.DebugLevel)
+	case "5", "trace":
+		logger = logging.New(cmd.OutOrStdout(), logrus.TraceLevel)
+	default:
+		return nil, fmt.Errorf("unknown verbosity level %q", verbosity)
+	}
+	return logger, nil
 }

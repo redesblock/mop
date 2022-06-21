@@ -39,15 +39,32 @@ func (s *server) hopUploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Debugf("hop upload: parse content type header %q: %v", contentType, err)
 		logger.Errorf("hop upload: parse content type header %q", contentType)
-		jsonhttp.BadRequest(w, invalidContentType)
+		jsonhttp.BadRequest(w, errInvalidContentType)
 		return
 	}
+
+	batch, err := requestPostageBatchId(r)
+	if err != nil {
+		logger.Debugf("hop upload: postage batch id: %v", err)
+		logger.Error("hop upload: postage batch id")
+		jsonhttp.BadRequest(w, "invalid postage batch id")
+		return
+	}
+
+	putter, err := newStamperPutter(s.storer, s.post, s.signer, batch)
+	if err != nil {
+		logger.Debugf("hop upload: putter: %v", err)
+		logger.Error("hop upload: putter")
+		jsonhttp.BadRequest(w, nil)
+		return
+	}
+
 	isDir := r.Header.Get(SwarmCollectionHeader)
 	if strings.ToLower(isDir) == "true" || mediaType == multiPartFormData {
-		s.dirUploadHandler(w, r)
+		s.dirUploadHandler(w, r, putter)
 		return
 	}
-	s.fileUploadHandler(w, r)
+	s.fileUploadHandler(w, r, putter)
 }
 
 // fileUploadResponse is returned when an HTTP request to upload a file is successful
@@ -57,7 +74,7 @@ type hopUploadResponse struct {
 
 // fileUploadHandler uploads the file and its metadata supplied in the file body and
 // the headers
-func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, storer storage.Storer) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.logger)
 	var (
 		reader                  io.Reader
@@ -101,7 +118,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Debugf("hop upload file: content length, file %q: %v", fileName, err)
 			logger.Errorf("hop upload file: content length, file %q", fileName)
-			jsonhttp.BadRequest(w, invalidContentLength)
+			jsonhttp.BadRequest(w, errInvalidContentLength)
 			return
 		}
 	} else {
@@ -132,14 +149,14 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 		reader = tmp
 	}
 
-	p := requestPipelineFn(s.storer, r)
+	p := requestPipelineFn(storer, r)
 
 	// first store the file and get its reference
 	fr, err := p(ctx, reader, int64(fileSize))
 	if err != nil {
 		logger.Debugf("hop upload file: file store, file %q: %v", fileName, err)
 		logger.Errorf("hop upload file: file store, file %q", fileName)
-		jsonhttp.InternalServerError(w, fileStoreError)
+		jsonhttp.InternalServerError(w, errFileStore)
 		return
 	}
 
@@ -149,7 +166,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encrypt := requestEncrypt(r)
-	l := loadsave.New(s.storer, requestModePut(r), encrypt)
+	l := loadsave.New(storer, requestModePut(r), encrypt)
 
 	m, err := manifest.NewDefaultManifest(l, encrypt)
 	if err != nil {
@@ -220,10 +237,20 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+		if err := s.pinning.CreatePin(ctx, manifestReference, false); err != nil {
+			logger.Debugf("hop upload file: creation of pin for %q failed: %v", manifestReference, err)
+			logger.Error("hop upload file: creation of pin failed")
+			jsonhttp.InternalServerError(w, nil)
+			return
+		}
+	}
+
 	w.Header().Set("ETag", fmt.Sprintf("%q", manifestReference.String()))
 	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
 	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
-	jsonhttp.OK(w, hopUploadResponse{
+	jsonhttp.Created(w, hopUploadResponse{
 		Reference: manifestReference,
 	})
 }

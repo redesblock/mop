@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/redesblock/hop/core/flipflop"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -59,8 +60,9 @@ func (db *DB) SubscribePush(ctx context.Context) (c <-chan swarm.Chunk, stop fun
 						return true, err
 					}
 
+					stamp := postage.NewStamp(dataItem.BatchID, dataItem.Sig)
 					select {
-					case chunks <- swarm.NewChunk(swarm.NewAddress(dataItem.Address), dataItem.Data).WithTagID(item.Tag):
+					case chunks <- swarm.NewChunk(swarm.NewAddress(dataItem.Address), dataItem.Data).WithTagID(item.Tag).WithStamp(stamp):
 						count++
 						// set next iteration start item
 						// when its chunk is successfully sent to channel
