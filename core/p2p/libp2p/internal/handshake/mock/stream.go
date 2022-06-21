@@ -52,6 +52,10 @@ func (s *Stream) Headers() p2p.Headers {
 	return nil
 }
 
+func (s *Stream) ResponseHeaders() p2p.Headers {
+	return nil
+}
+
 func (s *Stream) Close() error {
 	return nil
 }

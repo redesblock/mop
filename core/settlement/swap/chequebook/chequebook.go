@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethersphere/sw3-bindings/v3/simpleswapfactory"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
@@ -59,12 +58,11 @@ type Service interface {
 
 type service struct {
 	lock               sync.Mutex
-	backend            transaction.Backend
 	transactionService transaction.Service
 
-	address            common.Address
-	chequebookInstance SimpleSwapBinding
-	ownerAddress       common.Address
+	address      common.Address
+	contract     *chequebookContract
+	ownerAddress common.Address
 
 	erc20Service erc20.Service
 
@@ -74,17 +72,11 @@ type service struct {
 }
 
 // New creates a new chequebook service for the provided chequebook contract.
-func New(backend transaction.Backend, transactionService transaction.Service, address, ownerAddress common.Address, store storage.StateStorer, chequeSigner ChequeSigner, erc20Service erc20.Service, simpleSwapBindingFunc SimpleSwapBindingFunc) (Service, error) {
-	chequebookInstance, err := simpleSwapBindingFunc(address, backend)
-	if err != nil {
-		return nil, err
-	}
-
+func New(transactionService transaction.Service, address, ownerAddress common.Address, store storage.StateStorer, chequeSigner ChequeSigner, erc20Service erc20.Service) (Service, error) {
 	return &service{
-		backend:             backend,
 		transactionService:  transactionService,
 		address:             address,
-		chequebookInstance:  chequebookInstance,
+		contract:            newChequebookContract(address, transactionService),
 		ownerAddress:        ownerAddress,
 		erc20Service:        erc20Service,
 		store:               store,
@@ -115,9 +107,7 @@ func (s *service) Deposit(ctx context.Context, amount *big.Int) (hash common.Has
 
 // Balance returns the token balance of the chequebook.
 func (s *service) Balance(ctx context.Context) (*big.Int, error) {
-	return s.chequebookInstance.Balance(&bind.CallOpts{
-		Context: ctx,
-	})
+	return s.contract.Balance(ctx)
 }
 
 // AvailableBalance returns the token balance of the chequebook which is not yet used for uncashed cheques.
@@ -132,9 +122,7 @@ func (s *service) AvailableBalance(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 
-	totalPaidOut, err := s.chequebookInstance.TotalPaidOut(&bind.CallOpts{
-		Context: ctx,
-	})
+	totalPaidOut, err := s.contract.TotalPaidOut(ctx)
 	if err != nil {
 		return nil, err
 	}

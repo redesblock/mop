@@ -319,6 +319,10 @@ func (noopWriteCloser) Headers() p2p.Headers {
 	return nil
 }
 
+func (noopWriteCloser) ResponseHeaders() p2p.Headers {
+	return nil
+}
+
 func (noopWriteCloser) Close() error {
 	return nil
 }
@@ -344,6 +348,10 @@ func (noopReadCloser) Read(p []byte) (n int, err error) {
 }
 
 func (noopReadCloser) Headers() p2p.Headers {
+	return nil
+}
+
+func (noopReadCloser) ResponseHeaders() p2p.Headers {
 	return nil
 }
 

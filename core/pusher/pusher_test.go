@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/hop/core/crypto"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 
 	"github.com/redesblock/hop/core/localstore"
@@ -69,12 +70,18 @@ func TestSendChunkToSyncWithTag(t *testing.T) {
 	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
 	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
+	key, _ := crypto.GenerateSecp256k1Key()
+	signer := crypto.NewDefaultSigner(key)
+
 	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address: swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Signature: signature,
 		}
 		return receipt, nil
 	})
+
 	mtags, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
 	defer storer.Close()
 
@@ -120,9 +127,14 @@ func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
 	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
+	key, _ := crypto.GenerateSecp256k1Key()
+	signer := crypto.NewDefaultSigner(key)
+
 	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address: swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Signature: signature,
 		}
 		return receipt, nil
 	})
@@ -199,11 +211,17 @@ func TestSendChunkAndTimeoutinReceivingReceipt(t *testing.T) {
 	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
 	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
+	key, _ := crypto.GenerateSecp256k1Key()
+	signer := crypto.NewDefaultSigner(key)
+
 	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
-		// Set 10 times more than the time we wait for the test to complete so that
-		// the response never reaches our testcase
 		time.Sleep(1 * time.Second)
-		return nil, nil
+		signature, _ := signer.Sign(chunk.Address().Bytes())
+		receipt := &pushsync.Receipt{
+			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Signature: signature,
+		}
+		return receipt, nil
 	})
 
 	_, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
@@ -247,10 +265,18 @@ func TestPusherClose(t *testing.T) {
 		close(goFuncAfterCloseC)
 	}()
 
+	key, _ := crypto.GenerateSecp256k1Key()
+	signer := crypto.NewDefaultSigner(key)
+
 	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
 		goFuncStartedC <- struct{}{}
 		<-goFuncAfterCloseC
-		return nil, nil
+		signature, _ := signer.Sign(chunk.Address().Bytes())
+		receipt := &pushsync.Receipt{
+			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Signature: signature,
+		}
+		return receipt, nil
 	})
 
 	_, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
@@ -356,7 +382,7 @@ func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.Pus
 	}
 	peerSuggester := mock.NewTopologyDriver(mockOpts...)
 
-	pusherService := pusher.New(pusherStorer, peerSuggester, pushSyncService, mtags, logger, nil)
+	pusherService := pusher.New(1, pusherStorer, peerSuggester, pushSyncService, mtags, logger, nil)
 	return mtags, pusherService, pusherStorer
 }
 

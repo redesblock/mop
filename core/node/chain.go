@@ -130,7 +130,6 @@ func InitChequebookService(
 		chainID,
 		overlayEthAddress,
 		chequeSigner,
-		chequebook.NewSimpleSwapBindings,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("chequebook init: %w", err)
@@ -149,11 +148,10 @@ func initChequeStoreCashout(
 ) (chequebook.ChequeStore, chequebook.CashoutService) {
 	chequeStore := chequebook.NewChequeStore(
 		stateStore,
-		swapBackend,
 		chequebookFactory,
 		chainID,
 		overlayEthAddress,
-		chequebook.NewSimpleSwapBindings,
+		transactionService,
 		chequebook.RecoverCheque,
 	)
 

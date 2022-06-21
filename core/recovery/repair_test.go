@@ -12,6 +12,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/streamtest"
+	pricermock "github.com/redesblock/hop/core/pricer/mock"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/pushsync"
 	pushsyncmock "github.com/redesblock/hop/core/pushsync/mock"
@@ -214,14 +215,14 @@ func newTestNetStore(t *testing.T, recoveryFunc recovery.Callback) storage.Store
 
 	mockStorer := storemock.NewStorer()
 	serverMockAccounting := accountingmock.NewAccounting()
-	price := uint64(12345)
-	pricerMock := accountingmock.NewPricer(price, price)
+
+	pricerMock := pricermock.NewMockService()
 	peerID := swarm.MustParseHexAddress("deadbeef")
 	ps := mockPeerSuggester{eachPeerRevFunc: func(f topology.EachPeerFunc) error {
 		_, _, _ = f(peerID, 0)
 		return nil
 	}}
-	server := retrieval.New(swarm.ZeroAddress, mockStorer, nil, ps, logger, serverMockAccounting, nil, nil)
+	server := retrieval.New(swarm.ZeroAddress, mockStorer, nil, ps, logger, serverMockAccounting, pricerMock, nil)
 	recorder := streamtest.New(
 		streamtest.WithProtocols(server.Protocol()),
 	)

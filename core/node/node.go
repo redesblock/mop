@@ -32,6 +32,7 @@ import (
 	"github.com/redesblock/hop/core/netstore"
 	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/pingpong"
+	"github.com/redesblock/hop/core/pricer"
 	"github.com/redesblock/hop/core/pricing"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/puller"
@@ -306,6 +307,35 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	var settlement settlement.Interface
 	var swapService *swap.Service
 
+	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
+	b.topologyCloser = kad
+	hive.SetAddPeersHandler(kad.AddPeers)
+	p2ps.SetPickyNotifier(kad)
+
+	paymentThreshold, ok := new(big.Int).SetString(o.PaymentThreshold, 10)
+	if !ok {
+		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
+	}
+
+	pricer := pricer.New(logger, stateStore, swarmAddress, 1000000000)
+	pricer.SetTopology(kad)
+
+	pricing := pricing.New(p2ps, logger, paymentThreshold, pricer)
+	pricing.SetPriceTableObserver(pricer)
+
+	if err = p2ps.AddProtocol(pricing.Protocol()); err != nil {
+		return nil, fmt.Errorf("pricing service: %w", err)
+	}
+
+	addrs, err := p2ps.Addresses()
+	if err != nil {
+		return nil, fmt.Errorf("get server addresses: %w", err)
+	}
+
+	for _, addr := range addrs {
+		logger.Debugf("p2p address: %s", addr)
+	}
+
 	if o.SwapEnable {
 		swapService, err = InitSwap(
 			p2ps,
@@ -329,15 +359,6 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		settlement = pseudosettleService
 	}
 
-	paymentThreshold, ok := new(big.Int).SetString(o.PaymentThreshold, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
-	}
-	pricing := pricing.New(p2ps, logger, paymentThreshold)
-	if err = p2ps.AddProtocol(pricing.Protocol()); err != nil {
-		return nil, fmt.Errorf("pricing service: %w", err)
-	}
-
 	paymentTolerance, ok := new(big.Int).SetString(o.PaymentTolerance, 10)
 	if !ok {
 		return nil, fmt.Errorf("invalid payment tolerance: %s", paymentTolerance)
@@ -355,25 +376,13 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		settlement,
 		pricing,
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
 
-	settlement.SetNotifyPaymentFunc(acc.AsyncNotifyPayment)
 	pricing.SetPaymentThresholdObserver(acc)
-
-	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
-	b.topologyCloser = kad
-	hive.SetAddPeersHandler(kad.AddPeers)
-	p2ps.SetPickyNotifier(kad)
-	addrs, err := p2ps.Addresses()
-	if err != nil {
-		return nil, fmt.Errorf("get server addresses: %w", err)
-	}
-
-	for _, addr := range addrs {
-		logger.Debugf("p2p address: %s", addr)
-	}
+	settlement.SetNotifyPaymentFunc(acc.AsyncNotifyPayment)
 
 	var path string
 
@@ -393,7 +402,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	}
 	b.localstoreCloser = storer
 
-	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, accounting.NewFixedPricer(swarmAddress, 1000000000), tracer)
+	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
 
@@ -415,7 +424,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	traversalService := traversal.NewService(ns)
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, accounting.NewFixedPricer(swarmAddress, 1000000000), tracer)
+	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, pricer, signer, tracer)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -430,7 +439,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		b.recoveryHandleCleanup = pssService.Register(recovery.Topic, chunkRepairHandler)
 	}
 
-	pushSyncPusher := pusher.New(storer, kad, pushSyncProtocol, tagService, logger, tracer)
+	pushSyncPusher := pusher.New(networkID, storer, kad, pushSyncProtocol, tagService, logger, tracer)
 	b.pusherCloser = pushSyncPusher
 
 	pullStorage := pullstorage.New(storer)

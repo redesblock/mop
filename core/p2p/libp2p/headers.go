@@ -8,6 +8,7 @@ import (
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/headers/pb"
 	"github.com/redesblock/hop/core/p2p/protobuf"
+	"github.com/redesblock/hop/core/swarm"
 )
 
 var sendHeadersTimeout = 10 * time.Second
@@ -32,7 +33,7 @@ func sendHeaders(ctx context.Context, headers p2p.Headers, stream *stream) error
 	return nil
 }
 
-func handleHeaders(headler p2p.HeadlerFunc, stream *stream) error {
+func handleHeaders(headler p2p.HeadlerFunc, stream *stream, peerAddress swarm.Address) error {
 	w, r := protobuf.NewWriterAndReader(stream)
 
 	ctx, cancel := context.WithTimeout(context.Background(), sendHeadersTimeout)
@@ -47,8 +48,10 @@ func handleHeaders(headler p2p.HeadlerFunc, stream *stream) error {
 
 	var h p2p.Headers
 	if headler != nil {
-		h = headler(stream.headers)
+		h = headler(stream.headers, peerAddress)
 	}
+
+	stream.responseHeaders = h
 
 	if err := w.WriteMsgWithContext(ctx, headersP2PToPB(h)); err != nil {
 		return fmt.Errorf("write message: %w", err)
