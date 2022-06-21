@@ -1,7 +1,6 @@
 package chequebook_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"math/big"
@@ -10,11 +9,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethersphere/sw3-bindings/v2/simpleswapfactory"
+	"github.com/ethersphere/sw3-bindings/v3/simpleswapfactory"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
 	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
+)
+
+var (
+	factoryABI              = transaction.ParseABIUnchecked(simpleswapfactory.SimpleSwapFactoryABI)
+	simpleSwapDeployedEvent = factoryABI.Events["SimpleSwapDeployed"]
 )
 
 func newTestFactory(t *testing.T, factoryAddress common.Address, backend transaction.Backend, transactionService transaction.Service, simpleSwapFactoryBinding chequebook.SimpleSwapFactoryBinding) (chequebook.Factory, error) {
@@ -177,7 +181,6 @@ func TestFactoryDeploy(t *testing.T) {
 	defaultTimeout := big.NewInt(1)
 	deployTransactionHash := common.HexToHash("0xffff")
 	deployAddress := common.HexToAddress("0xdddd")
-	logData := common.Hex2Bytes("0xcccc")
 	factory, err := newTestFactory(
 		t,
 		factoryAddress,
@@ -196,6 +199,10 @@ func TestFactoryDeploy(t *testing.T) {
 				if txHash != deployTransactionHash {
 					t.Fatalf("waiting for wrong transaction. wanted %x, got %x", deployTransactionHash, txHash)
 				}
+				logData, err := simpleSwapDeployedEvent.Inputs.NonIndexed().Pack(deployAddress)
+				if err != nil {
+					t.Fatal(err)
+				}
 				return &types.Receipt{
 					Status: 1,
 					Logs: []*types.Log{
@@ -204,22 +211,15 @@ func TestFactoryDeploy(t *testing.T) {
 						},
 						{
 							Address: factoryAddress,
+							Topics:  []common.Hash{simpleSwapDeployedEvent.ID},
 							Data:    logData,
 						},
 					},
 				}, nil
 			}),
 		),
-		&simpleSwapFactoryBindingMock{
-			parseSimpleSwapDeployed: func(log types.Log) (*simpleswapfactory.SimpleSwapFactorySimpleSwapDeployed, error) {
-				if !bytes.Equal(log.Data, logData) {
-					t.Fatal("trying to parse wrong log")
-				}
-				return &simpleswapfactory.SimpleSwapFactorySimpleSwapDeployed{
-					ContractAddress: deployAddress,
-				}, nil
-			},
-		})
+		nil,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

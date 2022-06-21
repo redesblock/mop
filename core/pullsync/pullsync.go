@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/redesblock/hop/core/bitvector"
-	"github.com/redesblock/hop/core/content"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
@@ -215,7 +215,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 		s.metrics.DeliveryCounter.Inc()
 
 		chunk := swarm.NewChunk(addr, delivery.Data)
-		if content.Valid(chunk) {
+		if cac.Valid(chunk) {
 			go s.unwrap(chunk)
 		} else if !soc.Valid(chunk) {
 			return 0, ru.Ruid, swarm.ErrInvalidChunk
@@ -308,7 +308,7 @@ func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (er
 		}
 	}
 
-	time.Sleep(50 * time.Millisecond) //because of test, getting EOF w/o
+	time.Sleep(50 * time.Millisecond) // because of test, getting EOF w/o
 	return nil
 }
 

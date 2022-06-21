@@ -17,7 +17,6 @@ import (
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
-	"gopkg.in/src-d/go-log.v1"
 )
 
 const (
@@ -59,7 +58,7 @@ func InitChain(
 		return nil, common.Address{}, 0, nil, fmt.Errorf("is synced: %w", err)
 	}
 	if !isSynced {
-		log.Infof("waiting to sync with the Ethereum backend")
+		logger.Infof("waiting to sync with the Ethereum backend")
 		err := transaction.WaitSynced(ctx, backend, maxDelay)
 		if err != nil {
 			return nil, common.Address{}, 0, nil, fmt.Errorf("waiting backend sync: %w", err)
@@ -84,12 +83,12 @@ func InitChequebookFactory(
 		if !found {
 			return nil, errors.New("no known factory address for this network")
 		}
-		log.Infof("using default factory address for chain id %d: %x", chainID, addr)
+		logger.Infof("using default factory address for chain id %d: %x", chainID, addr)
 	} else if !common.IsHexAddress(factoryAddress) {
 		return nil, errors.New("malformed factory address")
 	} else {
 		addr = common.HexToAddress(factoryAddress)
-		log.Infof("using custom factory address: %x", factoryAddress)
+		logger.Infof("using custom factory address: %x", addr)
 	}
 
 	chequebookFactory, err := chequebook.NewFactory(
@@ -154,7 +153,7 @@ func initChequeStoreCashout(
 	chainID int64,
 	overlayEthAddress common.Address,
 	transactionService transaction.Service,
-) (chequebook.ChequeStore, chequebook.CashoutService, error) {
+) (chequebook.ChequeStore, chequebook.CashoutService) {
 	chequeStore := chequebook.NewChequeStore(
 		stateStore,
 		swapBackend,
@@ -165,18 +164,14 @@ func initChequeStoreCashout(
 		chequebook.RecoverCheque,
 	)
 
-	cashout, err := chequebook.NewCashoutService(
+	cashout := chequebook.NewCashoutService(
 		stateStore,
-		chequebook.NewSimpleSwapBindings,
 		swapBackend,
 		transactionService,
 		chequeStore,
 	)
-	if err != nil {
-		return nil, nil, err
-	}
 
-	return chequeStore, cashout, nil
+	return chequeStore, cashout
 }
 
 // InitSwap will initialize and register the swap service.

@@ -10,7 +10,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/redesblock/hop/core/accounting"
-	"github.com/redesblock/hop/core/content"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
@@ -105,7 +105,7 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 
 	chunk := swarm.NewChunk(swarm.NewAddress(ch.Address), ch.Data)
 
-	if content.Valid(chunk) {
+	if cac.Valid(chunk) {
 		if ps.unwrap != nil {
 			go ps.unwrap(chunk)
 		}

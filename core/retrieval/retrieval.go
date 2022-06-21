@@ -13,7 +13,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/redesblock/hop/core/accounting"
-	"github.com/redesblock/hop/core/content"
+	"github.com/redesblock/hop/core/cac"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
@@ -238,7 +238,7 @@ func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *ski
 	s.metrics.TotalRetrieved.Inc()
 
 	chunk = swarm.NewChunk(addr, d.Data)
-	if !content.Valid(chunk) {
+	if !cac.Valid(chunk) {
 		if !soc.Valid(chunk) {
 			s.metrics.InvalidChunkRetrieved.Inc()
 			s.metrics.TotalErrors.Inc()
