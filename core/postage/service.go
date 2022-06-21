@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/redesblock/hop/core/storage"
@@ -23,8 +24,7 @@ type Service interface {
 	Add(*StampIssuer)
 	StampIssuers() []*StampIssuer
 	GetStampIssuer([]byte) (*StampIssuer, error)
-	Load() error
-	Save() error
+	io.Closer
 }
 
 // service handles postage batches
@@ -37,11 +37,28 @@ type service struct {
 }
 
 // NewService constructs a new Service.
-func NewService(store storage.StateStorer, chainID int64) Service {
-	return &service{
+func NewService(store storage.StateStorer, chainID int64) (Service, error) {
+	s := &service{
 		store:   store,
 		chainID: chainID,
 	}
+
+	n := 0
+	if err := s.store.Iterate(s.key(), func(_, _ []byte) (stop bool, err error) {
+		n++
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	for i := 0; i < n; i++ {
+		st := &StampIssuer{}
+		err := s.store.Get(s.keyForIndex(i), st)
+		if err != nil {
+			return nil, err
+		}
+		s.Add(st)
+	}
+	return s, nil
 }
 
 // Add adds a stamp issuer to the active issuers.
@@ -70,28 +87,8 @@ func (ps *service) GetStampIssuer(batchID []byte) (*StampIssuer, error) {
 	return nil, ErrNotFound
 }
 
-// Load loads all active batches (stamp issuers) from the statestore.
-func (ps *service) Load() error {
-	n := 0
-	if err := ps.store.Iterate(ps.key(), func(key, _ []byte) (stop bool, err error) {
-		n++
-		return false, nil
-	}); err != nil {
-		return err
-	}
-	for i := 0; i < n; i++ {
-		st := &StampIssuer{}
-		err := ps.store.Get(ps.keyForIndex(i), st)
-		if err != nil {
-			return err
-		}
-		ps.Add(st)
-	}
-	return nil
-}
-
-// Save saves all the active stamp issuers to statestore.
-func (ps *service) Save() error {
+// Close saves all the active stamp issuers to statestore.
+func (ps *service) Close() error {
 	for i, st := range ps.issuers {
 		if err := ps.store.Put(ps.keyForIndex(i), st); err != nil {
 			return err

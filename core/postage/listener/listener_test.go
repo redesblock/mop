@@ -41,7 +41,7 @@ func TestListener(t *testing.T) {
 				c.toLog(),
 			),
 		)
-		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress)
+		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress, 1)
 		listener.Listen(0, ev)
 
 		select {
@@ -72,7 +72,7 @@ func TestListener(t *testing.T) {
 				topup.toLog(),
 			),
 		)
-		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress)
+		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress, 1)
 		listener.Listen(0, ev)
 
 		select {
@@ -103,7 +103,7 @@ func TestListener(t *testing.T) {
 				depthIncrease.toLog(),
 			),
 		)
-		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress)
+		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress, 1)
 		listener.Listen(0, ev)
 
 		select {
@@ -132,7 +132,7 @@ func TestListener(t *testing.T) {
 				priceUpdate.toLog(),
 			),
 		)
-		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress)
+		listener := listener.New(logger, mf, postageStampAddress, priceOracleAddress, 1)
 		listener.Listen(0, ev)
 
 		select {
@@ -187,7 +187,7 @@ func TestListener(t *testing.T) {
 			),
 			WithBlockNumber(blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, priceOracleAddress)
+		l := listener.New(logger, mf, postageStampAddress, priceOracleAddress, 1)
 		l.Listen(0, ev)
 
 		select {

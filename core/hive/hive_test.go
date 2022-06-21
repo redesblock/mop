@@ -3,6 +3,7 @@ package hive_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -23,7 +24,75 @@ import (
 	"github.com/redesblock/hop/core/p2p/streamtest"
 	"github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/swarm/test"
 )
+
+func TestHandlerRateLimit(t *testing.T) {
+
+	logger := logging.New(ioutil.Discard, 0)
+	statestore := mock.NewStateStore()
+	addressbook := ab.New(statestore)
+	networkID := uint64(1)
+
+	addressbookclean := ab.New(mock.NewStateStore())
+
+	// create a hive server that handles the incoming stream
+	server := hive.New(nil, addressbookclean, networkID, logger)
+
+	serverAddress := test.RandomAddress()
+
+	// setup the stream recorder to record stream data
+	serverRecorder := streamtest.New(
+		streamtest.WithProtocols(server.Protocol()),
+		streamtest.WithBaseAddr(serverAddress),
+	)
+
+	peers := make([]swarm.Address, hive.LimitBurst+1)
+	for i := range peers {
+
+		underlay, err := ma.NewMultiaddr("/ip4/127.0.0.1/udp/" + strconv.Itoa(i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		pk, err := crypto.GenerateSecp256k1Key()
+		if err != nil {
+			t.Fatal(err)
+		}
+		signer := crypto.NewDefaultSigner(pk)
+		overlay, err := crypto.NewOverlayAddress(pk.PublicKey, networkID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = addressbook.Put(hopAddr.Overlay, *hopAddr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		peers[i] = hopAddr.Overlay
+	}
+
+	// create a hive client that will do broadcast
+	client := hive.New(serverRecorder, addressbook, networkID, logger)
+	err := client.BroadcastPeers(context.Background(), serverAddress, peers...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// // get a record for this stream
+	rec, err := serverRecorder.Records(serverAddress, "hive", "1.0.0", "peers")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lastRec := rec[len(rec)-1]
+	if !errors.Is(lastRec.Err(), hive.ErrRateLimitExceeded) {
+		t.Fatal(err)
+	}
+}
 
 func TestBroadcastPeers(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())

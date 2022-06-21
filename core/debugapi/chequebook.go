@@ -40,7 +40,7 @@ type chequebookBalanceResponse struct {
 }
 
 type chequebookAddressResponse struct {
-	Address string `json:"chequebookaddress"`
+	Address string `json:"chequebookAddress"`
 }
 
 type chequebookLastChequePeerResponse struct {

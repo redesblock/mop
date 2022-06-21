@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/tracing"
 )
 
@@ -29,7 +30,9 @@ func TestTracing(t *testing.T) {
 	}
 	defer closer2.Close()
 
-	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{libp2pOpts: libp2p.Options{
+		FullNode: true,
+	}})
 
 	s2, _ := newService(t, 1, libp2pServiceOpts{})
 

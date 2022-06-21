@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/accounting"
@@ -87,6 +88,7 @@ type Node struct {
 	transactionMonitorCloser io.Closer
 	recoveryHandleCleanup    func()
 	listenerCloser           io.Closer
+	postageServiceCloser     io.Closer
 }
 
 type Options struct {
@@ -122,8 +124,10 @@ type Options struct {
 	SwapInitialDeposit       string
 	SwapEnable               bool
 	FullNodeMode             bool
+	Transaction              string
 	PostageContractAddress   string
 	PriceOracleAddress       string
+	BlockTime                uint64
 }
 
 func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (b *Node, err error) {
@@ -216,6 +220,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			stateStore,
 			o.SwapEndpoint,
 			signer,
+			o.BlockTime,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("init chain: %w", err)
@@ -268,7 +273,14 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	lightNodes := lightnode.NewContainer()
 
-	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, logger, tracer, libp2p.Options{
+	txHash, err := getTxHash(stateStore, logger, o.Transaction)
+	if err != nil {
+		return nil, errors.New("no transaction hash provided or found")
+	}
+
+	senderMatcher := transaction.NewMatcher(swapBackend, types.NewEIP155Signer(big.NewInt(chainID)))
+
+	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
@@ -276,6 +288,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		Standalone:     o.Standalone,
 		WelcomeMessage: o.WelcomeMessage,
 		FullNode:       o.FullNodeMode,
+		Transaction:    txHash,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("p2p service: %w", err)
@@ -307,7 +320,11 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("batchstore: %w", err)
 	}
 	validStamp := postage.ValidStamp(batchStore)
-	post := postage.NewService(stateStore, chainID)
+	post, err := postage.NewService(stateStore, chainID)
+	if err != nil {
+		return nil, fmt.Errorf("postage service load: %w", err)
+	}
+	b.postageServiceCloser = post
 
 	var (
 		postageContractService postagecontract.Interface
@@ -332,7 +349,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			return nil, errors.New("no known postage stamp addresses for this network")
 		}
 
-		eventListener := listener.New(logger, swapBackend, postageContractAddress, priceOracleAddress)
+		eventListener := listener.New(logger, swapBackend, postageContractAddress, priceOracleAddress, o.BlockTime)
 		b.listenerCloser = eventListener
 
 		batchSvc = batchservice.New(batchStore, logger, eventListener)
@@ -423,7 +440,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	pricer := pricer.NewFixedPricer(swarmAddress, 1000000000)
 
-	pricing := pricing.New(p2ps, logger, paymentThreshold)
+	minThreshold := pricer.MostExpensive()
+
+	pricing := pricing.New(p2ps, logger, paymentThreshold, minThreshold)
 
 	if err = p2ps.AddProtocol(pricing.Protocol()); err != nil {
 		return nil, fmt.Errorf("pricing service: %w", err)
@@ -436,29 +455,6 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	for _, addr := range addrs {
 		logger.Debugf("p2p address: %s", addr)
-	}
-
-	if o.SwapEnable {
-		swapService, err = InitSwap(
-			p2ps,
-			logger,
-			stateStore,
-			networkID,
-			overlayEthAddress,
-			chequebookService,
-			chequeStore,
-			cashoutService,
-		)
-		if err != nil {
-			return nil, err
-		}
-		settlement = swapService
-	} else {
-		pseudosettleService := pseudosettle.New(p2ps, logger, stateStore)
-		if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
-			return nil, fmt.Errorf("pseudosettle service: %w", err)
-		}
-		settlement = pseudosettleService
 	}
 
 	paymentTolerance, ok := new(big.Int).SetString(o.PaymentTolerance, 10)
@@ -475,16 +471,39 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		paymentEarly,
 		logger,
 		stateStore,
-		settlement,
 		pricing,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
 
+	if o.SwapEnable {
+		swapService, err = InitSwap(
+			p2ps,
+			logger,
+			stateStore,
+			networkID,
+			overlayEthAddress,
+			chequebookService,
+			chequeStore,
+			cashoutService,
+			acc,
+		)
+		if err != nil {
+			return nil, err
+		}
+		settlement = swapService
+	} else {
+		pseudosettleService := pseudosettle.New(p2ps, logger, stateStore, acc)
+		if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
+			return nil, fmt.Errorf("pseudosettle service: %w", err)
+		}
+		settlement = pseudosettleService
+	}
+
+	acc.SetPayFunc(settlement.Pay)
+
 	pricing.SetPaymentThresholdObserver(acc)
-	settlement.SetNotifyPaymentFunc(acc.AsyncNotifyPayment)
 
 	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer)
 	tagService := tags.NewTags(stateStore, logger)
@@ -710,8 +729,12 @@ func (b *Node) Shutdown(ctx context.Context) error {
 
 	if b.listenerCloser != nil {
 		if err := b.listenerCloser.Close(); err != nil {
-			errs.add(fmt.Errorf("error listener: %w", err))
+			errs.add(fmt.Errorf("listener: %w", err))
 		}
+	}
+
+	if err := b.postageServiceCloser.Close(); err != nil {
+		errs.add(fmt.Errorf("postage service: %w", err))
 	}
 
 	if err := b.stateStoreCloser.Close(); err != nil {
@@ -765,4 +788,19 @@ func (e *multiError) add(err error) {
 
 func (e *multiError) hasErrors() bool {
 	return len(e.errors) > 0
+}
+
+func getTxHash(stateStore storage.StateStorer, logger logging.Logger, transaction string) ([]byte, error) {
+	if len(transaction) == 32 {
+		logger.Info("using the provided transaction hash")
+		return []byte(transaction), nil
+	}
+
+	var txHash common.Hash
+	key := chequebook.ChequebookDeploymentKey
+	if err := stateStore.Get(key, &txHash); err != nil {
+		return nil, err
+	}
+
+	return txHash.Bytes(), nil
 }

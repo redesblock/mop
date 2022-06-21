@@ -17,6 +17,7 @@ type MockStorer struct {
 	pinnedAddress   []swarm.Address // Stores the pinned address
 	pinnedCounter   []uint64        // and its respective counter. These are stored as slices to preserve the order.
 	subpull         []storage.Descriptor
+	subpullCalls    int
 	partialInterval bool
 	morePull        chan struct{}
 	mtx             sync.Mutex
@@ -216,6 +217,7 @@ func (m *MockStorer) LastPullSubscriptionBinID(bin uint8) (id uint64, err error)
 }
 
 func (m *MockStorer) SubscribePull(ctx context.Context, bin uint8, since, until uint64) (<-chan storage.Descriptor, <-chan struct{}, func()) {
+	m.subpullCalls++
 	c := make(chan storage.Descriptor)
 	done := make(chan struct{})
 	stop := func() {
@@ -269,6 +271,10 @@ func (m *MockStorer) SubscribePull(ctx context.Context, bin uint8, since, until 
 
 	}()
 	return c, m.quit, stop
+}
+
+func (m *MockStorer) SubscribePullCalls() int {
+	return m.subpullCalls
 }
 
 func (m *MockStorer) MorePull(d ...storage.Descriptor) {

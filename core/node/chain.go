@@ -12,6 +12,7 @@ import (
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p/libp2p"
+	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
@@ -21,7 +22,6 @@ import (
 
 const (
 	maxDelay          = 1 * time.Minute
-	pollingInterval   = 15 * time.Second
 	cancellationDepth = 6
 )
 
@@ -33,6 +33,7 @@ func InitChain(
 	stateStore storage.StateStorer,
 	endpoint string,
 	signer crypto.Signer,
+	blocktime uint64,
 ) (*ethclient.Client, common.Address, int64, transaction.Monitor, transaction.Service, error) {
 	backend, err := ethclient.Dial(endpoint)
 	if err != nil {
@@ -45,6 +46,7 @@ func InitChain(
 		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("get chain id: %w", err)
 	}
 
+	pollingInterval := time.Duration(blocktime) * time.Second
 	overlayEthAddress, err := signer.EthereumAddress()
 	if err != nil {
 		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth address: %w", err)
@@ -180,6 +182,7 @@ func InitSwap(
 	chequebookService chequebook.Service,
 	chequeStore chequebook.ChequeStore,
 	cashoutService chequebook.CashoutService,
+	accountingAPI settlement.AccountingAPI,
 ) (*swap.Service, error) {
 	swapProtocol := swapprotocol.New(p2ps, logger, overlayEthAddress)
 	swapAddressBook := swap.NewAddressbook(stateStore)
@@ -194,6 +197,7 @@ func InitSwap(
 		networkID,
 		cashoutService,
 		p2ps,
+		accountingAPI,
 	)
 
 	swapProtocol.SetSwap(swapService)

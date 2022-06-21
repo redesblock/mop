@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"math/rand"
 	mrand "math/rand"
 	"reflect"
 	"testing"
@@ -142,6 +143,7 @@ func TestUnmarshal02(t *testing.T) {
 }
 
 func TestMarshal(t *testing.T) {
+	rand.Seed(1)
 	ctx := context.Background()
 	n := New()
 	defer func(r func(*fork) []byte) { refBytes = r }(refBytes)

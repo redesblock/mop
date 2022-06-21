@@ -15,6 +15,7 @@ import (
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/mock"
 	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
 	"github.com/redesblock/hop/core/p2p/protobuf"
+	"github.com/redesblock/hop/core/swarm"
 
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -87,8 +88,9 @@ func TestHandshake(t *testing.T) {
 	}
 
 	aaddresser := &AdvertisableAddresserMock{}
+	senderMatcher := &MockSenderMatcher{v: true}
 
-	handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, testWelcomeMessage, logger)
+	handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, testWelcomeMessage, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +158,7 @@ func TestHandshake(t *testing.T) {
 		const LongMessage = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi consectetur urna ut lorem sollicitudin posuere. Donec sagittis laoreet sapien."
 
 		expectedErr := handshake.ErrWelcomeMessageLength
-		_, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, LongMessage, logger)
+		_, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, LongMessage, logger)
 		if err == nil || err.Error() != expectedErr.Error() {
 			t.Fatal("expected:", expectedErr, "got:", err)
 		}
@@ -364,7 +366,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - OK", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -421,7 +423,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -440,7 +442,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - write error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -467,7 +469,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - ack read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -496,7 +498,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - networkID mismatch ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -535,7 +537,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - duplicate handshake", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -597,7 +599,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - invalid ack", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -631,8 +633,45 @@ func TestHandshake(t *testing.T) {
 		}
 	})
 
+	t.Run("Handle - transaction is not on the blockchain", func(t *testing.T) {
+		sbMock := &MockSenderMatcher{v: false}
+
+		handshakeService, err := handshake.New(signer1, aaddresser, sbMock, node1Info.HopAddress.Overlay, networkID, true, []byte("0xff"), "", logger)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buffer1 bytes.Buffer
+		var buffer2 bytes.Buffer
+		stream1 := mock.NewStream(&buffer1, &buffer2)
+		stream2 := mock.NewStream(&buffer2, &buffer1)
+
+		w := protobuf.NewWriter(stream2)
+		if err := w.WriteMsg(&pb.Syn{
+			ObservedUnderlay: node1maBinary,
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := w.WriteMsg(&pb.Ack{
+			Address: &pb.HopAddress{
+				Underlay:  node2maBinary,
+				Overlay:   node2HopAddress.Overlay.Bytes(),
+				Signature: node2HopAddress.Signature,
+			},
+			NetworkID: networkID,
+			FullNode:  true,
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = handshakeService.Handle(context.Background(), stream1, node2AddrInfo.Addrs[0], node2AddrInfo.ID)
+		if !errors.Is(err, handshake.ErrAddressNotFound) {
+			t.Fatalf("expected error %v, got %v", handshake.ErrAddressNotFound, err)
+		}
+	})
+
 	t.Run("Handle - advertisable error", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, node1Info.HopAddress.Overlay, networkID, true, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -688,4 +727,12 @@ func (a *AdvertisableAddresserMock) Resolve(observedAdddress ma.Multiaddr) (ma.M
 	}
 
 	return observedAdddress, nil
+}
+
+type MockSenderMatcher struct {
+	v bool
+}
+
+func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, swarm.Address) (bool, error) {
+	return m.v, nil
 }

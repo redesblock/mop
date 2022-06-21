@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const blocktime = 15
+
 func (c *command) initDeployCmd() error {
 	cmd := &cobra.Command{
 		Use:   "deploy",
@@ -54,6 +56,7 @@ func (c *command) initDeployCmd() error {
 				stateStore,
 				swapEndpoint,
 				signer,
+				blocktime,
 			)
 			if err != nil {
 				return err

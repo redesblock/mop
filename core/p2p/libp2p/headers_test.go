@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/p2p/libp2p"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -19,7 +20,9 @@ func TestHeaders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{libp2pOpts: libp2p.Options{
+		FullNode: true,
+	}})
 
 	s2, overlay2 := newService(t, 1, libp2pServiceOpts{})
 
@@ -66,7 +69,9 @@ func TestHeaders_empty(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{libp2pOpts: libp2p.Options{
+		FullNode: true,
+	}})
 
 	s2, overlay2 := newService(t, 1, libp2pServiceOpts{})
 
@@ -122,7 +127,9 @@ func TestHeadler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s1, overlay1 := newService(t, 1, libp2pServiceOpts{})
+	s1, overlay1 := newService(t, 1, libp2pServiceOpts{libp2pOpts: libp2p.Options{
+		FullNode: true,
+	}})
 
 	s2, _ := newService(t, 1, libp2pServiceOpts{})
 

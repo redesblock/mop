@@ -12,6 +12,7 @@ message Ack {
     HopAddress Address = 1;
     uint64 NetworkID = 2;
     bool FullNode = 3;
+    bytes Transaction = 4;
     string WelcomeMessage  = 99;
 }
 
