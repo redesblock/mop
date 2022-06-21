@@ -100,13 +100,14 @@ type Options struct {
 	PaymentEarly           string
 	ResolverConnectionCfgs []multiresolver.ConnectionConfig
 	GatewayMode            bool
+	BootnodeMode           bool
 	SwapEndpoint           string
 	SwapFactoryAddress     string
 	SwapInitialDeposit     string
 	SwapEnable             bool
 }
 
-func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (*Node, error) {
+func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (b *Node, err error) {
 	tracer, tracerCloser, err := tracing.NewTracer(&tracing.Options{
 		Enabled:     o.TracingEnabled,
 		Endpoint:    o.TracingEndpoint,
@@ -117,14 +118,22 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	}
 
 	p2pCtx, p2pCancel := context.WithCancel(context.Background())
+	defer func() {
+		// if there's been an error on this function
+		// we'd like to cancel the p2p context so that
+		// incoming connections will not be possible
+		if err != nil {
+			p2pCancel()
+		}
+	}()
 
-	b := &Node{
+	b = &Node{
 		p2pCancel:      p2pCancel,
 		errorLogWriter: logger.WriterLevel(logrus.ErrorLevel),
 		tracerCloser:   tracerCloser,
 	}
 
-	var debugAPIService debugapi.Service
+	var debugAPIService *debugapi.Service
 	if o.DebugAPIAddr != "" {
 		overlayEthAddress, err := signer.EthereumAddress()
 		if err != nil {
@@ -162,6 +171,11 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, err
 	}
 	b.stateStoreCloser = stateStore
+
+	err = CheckOverlayWithStore(swarmAddress, stateStore)
+	if err != nil {
+		return nil, err
+	}
 
 	addressbook := addressbook.New(stateStore)
 
@@ -344,10 +358,10 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	settlement.SetNotifyPaymentFunc(acc.AsyncNotifyPayment)
 	pricing.SetPaymentThresholdObserver(acc)
 
-	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, Standalone: o.Standalone})
+	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
-	p2ps.SetNotifier(kad)
+	p2ps.SetPickyNotifier(kad)
 	addrs, err := p2ps.Addresses()
 	if err != nil {
 		return nil, fmt.Errorf("get server addresses: %w", err)
@@ -498,6 +512,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	if err := kad.Start(p2pCtx); err != nil {
 		return nil, err
 	}
+	p2ps.Ready()
 
 	return b, nil
 }

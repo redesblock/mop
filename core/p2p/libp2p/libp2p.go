@@ -57,9 +57,10 @@ type Service struct {
 	connectionBreaker breaker.Interface
 	blocklist         *blocklist.Blocklist
 	protocols         []p2p.ProtocolSpec
-	notifier          p2p.Notifier
+	notifier          p2p.PickyNotifier
 	logger            logging.Logger
 	tracer            *tracing.Tracer
+	ready             chan struct{}
 
 	protocolsmu sync.RWMutex
 }
@@ -218,6 +219,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		logger:            logger,
 		tracer:            tracer,
 		connectionBreaker: breaker.NewBreaker(breaker.Options{}), // use default options
+		ready:             make(chan struct{}),
 	}
 
 	peerRegistry.setDisconnecter(s)
@@ -231,6 +233,11 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 
 	// handshake
 	s.host.SetStreamHandlerMatch(id, matcher, func(stream network.Stream) {
+		select {
+		case <-s.ready:
+		case <-s.ctx.Done():
+			return
+		}
 		peerID := stream.Conn().RemotePeer()
 		handshakeStream := NewStream(stream)
 		i, err := s.handshakeService.Handle(ctx, handshakeStream, stream.Conn().RemoteMultiaddr(), peerID)
@@ -256,6 +263,15 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			_ = handshakeStream.Reset()
 			_ = s.host.Network().ClosePeer(peerID)
 			return
+		}
+
+		if s.notifier != nil {
+			if !s.notifier.Pick(p2p.Peer{Address: i.HopAddress.Overlay}) {
+				s.logger.Errorf("don't want incoming peer %s. disconnecting", peerID)
+				_ = handshakeStream.Reset()
+				_ = s.host.Network().ClosePeer(peerID)
+				return
+			}
 		}
 
 		if exists := s.peers.addIfNotExists(stream.Conn(), i.HopAddress.Overlay); exists {
@@ -292,12 +308,22 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 				}
 			}
 		}
-
 		s.protocolsmu.RUnlock()
 
 		if s.notifier != nil {
 			if err := s.notifier.Connected(ctx, peer); err != nil {
-				s.logger.Debugf("notifier.Connected: peer: %s: %v", i.HopAddress.Overlay, err)
+				s.logger.Debugf("notifier.Connected: peer disconnected: %s: %v", i.HopAddress.Overlay, err)
+				// note: this cannot be unit tested since the node
+				// waiting on handshakeStream.FullClose() on the other side
+				// might actually get a stream reset when we disconnect here
+				// resulting in a flaky response from the Connect method on
+				// the other side.
+				// that is why the Pick method has been added to the notifier
+				// interface, in addition to the possibility of deciding whether
+				// a peer connection is wanted prior to adding the peer to the
+				// peer registry and starting the protocols.
+				_ = s.Disconnect(i.HopAddress.Overlay)
+				return
 			}
 		}
 
@@ -316,7 +342,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 	return s, nil
 }
 
-func (s *Service) SetNotifier(n p2p.Notifier) {
+func (s *Service) SetPickyNotifier(n p2p.PickyNotifier) {
 	s.notifier = n
 }
 
@@ -489,12 +515,14 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	if err != nil {
 		s.logger.Debugf("blocklisting: exists %s: %v", info.ID, err)
 		s.logger.Errorf("internal error while connecting with peer %s", info.ID)
+		_ = handshakeStream.Reset()
 		_ = s.host.Network().ClosePeer(info.ID)
 		return nil, fmt.Errorf("peer blocklisted")
 	}
 
 	if blocked {
 		s.logger.Errorf("blocked connection from blocklisted peer %s", info.ID)
+		_ = handshakeStream.Reset()
 		_ = s.host.Network().ClosePeer(info.ID)
 		return nil, fmt.Errorf("peer blocklisted")
 	}
@@ -653,4 +681,8 @@ func (s *Service) SetWelcomeMessage(val string) error {
 // GetWelcomeMessage returns the value of the welcome message.
 func (s *Service) GetWelcomeMessage() string {
 	return s.handshakeService.GetWelcomeMessage()
+}
+
+func (s *Service) Ready() {
+	close(s.ready)
 }

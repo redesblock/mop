@@ -45,16 +45,21 @@ func (c *command) initDeployCmd() error {
 
 			stateStore, err := node.InitStateStore(logger, dataDir)
 			if err != nil {
-				return
+				return err
 			}
 
 			defer stateStore.Close()
 
 			signerConfig, err := c.configureSigner(cmd, logger)
 			if err != nil {
-				return
+				return err
 			}
 			signer := signerConfig.signer
+
+			err = node.CheckOverlayWithStore(signerConfig.address, stateStore)
+			if err != nil {
+				return err
+			}
 
 			ctx := cmd.Context()
 
@@ -66,7 +71,7 @@ func (c *command) initDeployCmd() error {
 				signer,
 			)
 			if err != nil {
-				return
+				return err
 			}
 			defer swapBackend.Close()
 
@@ -78,7 +83,7 @@ func (c *command) initDeployCmd() error {
 				factoryAddress,
 			)
 			if err != nil {
-				return
+				return err
 			}
 
 			_, err = node.InitChequebookService(
@@ -94,7 +99,7 @@ func (c *command) initDeployCmd() error {
 				swapInitialDeposit,
 			)
 
-			return
+			return err
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return c.config.BindPFlags(cmd.Flags())

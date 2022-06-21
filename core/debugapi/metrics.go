@@ -25,6 +25,6 @@ func newMetricsRegistry() (r *prometheus.Registry) {
 	return r
 }
 
-func (s *server) MustRegisterMetrics(cs ...prometheus.Collector) {
+func (s *Service) MustRegisterMetrics(cs ...prometheus.Collector) {
 	s.metricsRegistry.MustRegister(cs...)
 }

@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 
@@ -231,7 +230,7 @@ func TestFeedIndirection(t *testing.T) {
 	client, _, _ = newTestServer(t, testServerOptions{
 		Storer: storer,
 		Tags:   tags.NewTags(mockStatestore, logger),
-		Logger: logging.New(os.Stdout, 5),
+		Logger: logging.New(ioutil.Discard, 0),
 		Feeds:  factory,
 	})
 	_, err := storer.Put(ctx, storage.ModePutUpload, swarm.NewChunk(feedChunkAddr, feedChunkData))

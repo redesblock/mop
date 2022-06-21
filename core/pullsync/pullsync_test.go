@@ -129,8 +129,8 @@ func TestIncoming_WantAll(t *testing.T) {
 
 	// should have all
 	haveChunks(t, clientDb, addrs...)
-	if p := clientDb.PutCalls(); p != 5 {
-		t.Fatalf("want %d puts but got %d", 5, p)
+	if p := clientDb.PutCalls(); p != 1 {
+		t.Fatalf("want %d puts but got %d", 1, p)
 	}
 }
 

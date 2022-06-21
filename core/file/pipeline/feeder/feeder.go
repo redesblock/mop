@@ -14,6 +14,7 @@ type chunkFeeder struct {
 	next      pipeline.ChainWriter
 	buffer    []byte
 	bufferIdx int
+	wrote     int64
 }
 
 // newChunkFeederWriter creates a new chunkFeeder that allows for partial
@@ -79,6 +80,7 @@ func (f *chunkFeeder) Write(b []byte) (int, error) {
 		w += sp
 		sp = 0
 	}
+	f.wrote += int64(w)
 	return w, nil
 }
 
@@ -96,6 +98,19 @@ func (f *chunkFeeder) Sum() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		f.wrote += int64(len(d))
+	}
+
+	if f.wrote == 0 {
+		// this is an empty file, we should write the span of
+		// an empty file (0).
+		d := make([]byte, span)
+		args := &pipeline.PipeWriteArgs{Data: d, Span: d}
+		err := f.next.ChainWrite(args)
+		if err != nil {
+			return nil, err
+		}
+		f.wrote += int64(len(d))
 	}
 
 	return f.next.Sum()

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/node"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -37,8 +38,20 @@ func (c *command) initInitCmd() (err error) {
 				return fmt.Errorf("unknown verbosity level %q", v)
 			}
 
-			_, err = c.configureSigner(cmd, logger)
-			return err
+			signerConfig, err := c.configureSigner(cmd, logger)
+			if err != nil {
+				return err
+			}
+
+			dataDir := c.config.GetString(optionNameDataDir)
+			stateStore, err := node.InitStateStore(logger, dataDir)
+			if err != nil {
+				return err
+			}
+
+			defer stateStore.Close()
+
+			return node.CheckOverlayWithStore(signerConfig.address, stateStore)
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return c.config.BindPFlags(cmd.Flags())

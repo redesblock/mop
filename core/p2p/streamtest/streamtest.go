@@ -26,6 +26,7 @@ var (
 )
 
 type Recorder struct {
+	base        swarm.Address
 	records     map[string][]*Record
 	recordsMu   sync.Mutex
 	protocols   []p2p.ProtocolSpec
@@ -41,6 +42,12 @@ func WithProtocols(protocols ...p2p.ProtocolSpec) Option {
 func WithMiddlewares(middlewares ...p2p.HandlerMiddleware) Option {
 	return optionFunc(func(r *Recorder) {
 		r.middlewares = append(r.middlewares, middlewares...)
+	})
+}
+
+func WithBaseAddr(a swarm.Address) Option {
+	return optionFunc(func(r *Recorder) {
+		r.base = a
 	})
 }
 
@@ -94,7 +101,7 @@ func (r *Recorder) NewStream(ctx context.Context, addr swarm.Address, h p2p.Head
 
 		// pass a new context to handler,
 		// do not cancel it with the client stream context
-		err := handler(context.Background(), p2p.Peer{Address: addr}, streamIn)
+		err := handler(context.Background(), p2p.Peer{Address: r.base}, streamIn)
 		if err != nil && err != io.EOF {
 			record.setErr(err)
 		}

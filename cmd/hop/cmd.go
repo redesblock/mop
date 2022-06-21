@@ -13,38 +13,40 @@ import (
 )
 
 const (
-	optionNameDataDir              = "data-dir"
-	optionNameDBCapacity           = "db-capacity"
-	optionNamePassword             = "password"
-	optionNamePasswordFile         = "password-file"
-	optionNameAPIAddr              = "api-addr"
-	optionNameP2PAddr              = "p2p-addr"
-	optionNameNATAddr              = "nat-addr"
-	optionNameP2PWSEnable          = "p2p-ws-enable"
-	optionNameP2PQUICEnable        = "p2p-quic-enable"
-	optionNameDebugAPIEnable       = "debug-api-enable"
-	optionNameDebugAPIAddr         = "debug-api-addr"
-	optionNameBootnodes            = "bootnode"
-	optionNameNetworkID            = "network-id"
-	optionWelcomeMessage           = "welcome-message"
-	optionCORSAllowedOrigins       = "cors-allowed-origins"
-	optionNameStandalone           = "standalone"
-	optionNameTracingEnabled       = "tracing-enable"
-	optionNameTracingEndpoint      = "tracing-endpoint"
-	optionNameTracingServiceName   = "tracing-service-name"
-	optionNameVerbosity            = "verbosity"
-	optionNameGlobalPinningEnabled = "global-pinning-enable"
-	optionNamePaymentThreshold     = "payment-threshold"
-	optionNamePaymentTolerance     = "payment-tolerance"
-	optionNamePaymentEarly         = "payment-early"
-	optionNameResolverEndpoints    = "resolver-options"
-	optionNameGatewayMode          = "gateway-mode"
-	optionNameClefSignerEnable     = "clef-signer-enable"
-	optionNameClefSignerEndpoint   = "clef-signer-endpoint"
-	optionNameSwapEndpoint         = "swap-endpoint"
-	optionNameSwapFactoryAddress   = "swap-factory-address"
-	optionNameSwapInitialDeposit   = "swap-initial-deposit"
-	optionNameSwapEnable           = "swap-enable"
+	optionNameDataDir                   = "data-dir"
+	optionNameDBCapacity                = "db-capacity"
+	optionNamePassword                  = "password"
+	optionNamePasswordFile              = "password-file"
+	optionNameAPIAddr                   = "api-addr"
+	optionNameP2PAddr                   = "p2p-addr"
+	optionNameNATAddr                   = "nat-addr"
+	optionNameP2PWSEnable               = "p2p-ws-enable"
+	optionNameP2PQUICEnable             = "p2p-quic-enable"
+	optionNameDebugAPIEnable            = "debug-api-enable"
+	optionNameDebugAPIAddr              = "debug-api-addr"
+	optionNameBootnodes                 = "bootnode"
+	optionNameNetworkID                 = "network-id"
+	optionWelcomeMessage                = "welcome-message"
+	optionCORSAllowedOrigins            = "cors-allowed-origins"
+	optionNameStandalone                = "standalone"
+	optionNameTracingEnabled            = "tracing-enable"
+	optionNameTracingEndpoint           = "tracing-endpoint"
+	optionNameTracingServiceName        = "tracing-service-name"
+	optionNameVerbosity                 = "verbosity"
+	optionNameGlobalPinningEnabled      = "global-pinning-enable"
+	optionNamePaymentThreshold          = "payment-threshold"
+	optionNamePaymentTolerance          = "payment-tolerance"
+	optionNamePaymentEarly              = "payment-early"
+	optionNameResolverEndpoints         = "resolver-options"
+	optionNameBootnodeMode              = "bootnode-mode"
+	optionNameGatewayMode               = "gateway-mode"
+	optionNameClefSignerEnable          = "clef-signer-enable"
+	optionNameClefSignerEndpoint        = "clef-signer-endpoint"
+	optionNameClefSignerEthereumAddress = "clef-signer-ethereum-address"
+	optionNameSwapEndpoint              = "swap-endpoint"
+	optionNameSwapFactoryAddress        = "swap-factory-address"
+	optionNameSwapInitialDeposit        = "swap-initial-deposit"
+	optionNameSwapEnable                = "swap-enable"
 )
 
 func init() {
@@ -198,8 +200,10 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNamePaymentEarly, "1000000000000", "amount in HOP below the peers payment threshold when we initiate settlement")
 	cmd.Flags().StringSlice(optionNameResolverEndpoints, []string{}, "ENS compatible API endpoint for a TLD and with contract address, can be repeated, format [tld:][contract-addr@]url")
 	cmd.Flags().Bool(optionNameGatewayMode, false, "disable a set of sensitive features in the api")
+	cmd.Flags().Bool(optionNameBootnodeMode, false, "cause the node to always accept incoming connections")
 	cmd.Flags().Bool(optionNameClefSignerEnable, false, "enable clef signer")
 	cmd.Flags().String(optionNameClefSignerEndpoint, "", "clef signer endpoint")
+	cmd.Flags().String(optionNameClefSignerEthereumAddress, "", "ethereum address to use from clef signer")
 	cmd.Flags().String(optionNameSwapEndpoint, "http://localhost:8545", "swap ethereum blockchain endpoint")
 	cmd.Flags().String(optionNameSwapFactoryAddress, "", "swap factory address")
 	cmd.Flags().String(optionNameSwapInitialDeposit, "100000000000000000", "initial deposit if deploying a new chequebook")

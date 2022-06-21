@@ -45,7 +45,7 @@ func TestPinHopHandler(t *testing.T) {
 
 		tarReader := tarFiles(t, files)
 
-		rootHash := "a85aaea6a34a5c7127a3546196f2111f866fe369c6d6562ed5d3313a99388c03"
+		rootHash := "efc4c4cb45f346416eaad92bc0a34c7a92fc042c2cdd8f713345c5fadb235706"
 
 		// verify directory tar upload response
 		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusOK,
@@ -78,7 +78,7 @@ func TestPinHopHandler(t *testing.T) {
 	})
 
 	t.Run("unpin-hop-1", func(t *testing.T) {
-		rootHash := "a85aaea6a34a5c7127a3546196f2111f866fe369c6d6562ed5d3313a99388c03"
+		rootHash := "efc4c4cb45f346416eaad92bc0a34c7a92fc042c2cdd8f713345c5fadb235706"
 
 		jsonhttptest.Request(t, client, http.MethodDelete, pinHopAddressResource(rootHash), http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{

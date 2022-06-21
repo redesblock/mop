@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/external"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/kardianos/service"
 	"github.com/redesblock/hop/core/crypto"
@@ -137,6 +138,7 @@ Welcome to the Swarm....
 				PaymentEarly:           c.config.GetString(optionNamePaymentEarly),
 				ResolverConnectionCfgs: resolverCfgs,
 				GatewayMode:            c.config.GetBool(optionNameGatewayMode),
+				BootnodeMode:           c.config.GetBool(optionNameBootnodeMode),
 				SwapEndpoint:           c.config.GetString(optionNameSwapEndpoint),
 				SwapFactoryAddress:     c.config.GetString(optionNameSwapFactoryAddress),
 				SwapInitialDeposit:     c.config.GetString(optionNameSwapInitialDeposit),
@@ -248,7 +250,7 @@ func waitForClef(logger logging.Logger, maxRetries uint64, endpoint string) (ext
 			return nil, err
 		}
 		maxRetries--
-		logger.Errorf("cannot connect to clef signer: %v", err)
+		logger.Warningf("failing to connect to clef signer: %v", err)
 
 		time.Sleep(5 * time.Second)
 	}
@@ -315,7 +317,15 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 			return nil, err
 		}
 
-		signer, err = clef.NewSigner(externalSigner, clefRPC, crypto.Recover)
+		wantedAddress := c.config.GetString(optionNameClefSignerEthereumAddress)
+		var overlayEthAddress *common.Address = nil
+		// if wantedAddress was specified use that, otherwise clef account 0 will be selected.
+		if wantedAddress != "" {
+			ethAddress := common.HexToAddress(wantedAddress)
+			overlayEthAddress = &ethAddress
+		}
+
+		signer, err = clef.NewSigner(externalSigner, clefRPC, crypto.Recover, overlayEthAddress)
 		if err != nil {
 			return nil, err
 		}
