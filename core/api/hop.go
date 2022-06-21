@@ -499,3 +499,22 @@ func (s *server) manifestFeed(
 	f := feeds.New(topic, common.BytesToAddress(owner))
 	return s.feedFactory.NewLookup(*t, f)
 }
+
+func (s *server) hopPatchHandler(w http.ResponseWriter, r *http.Request) {
+	nameOrHex := mux.Vars(r)["address"]
+	address, err := s.resolveNameOrAddress(nameOrHex)
+	if err != nil {
+		s.logger.Debugf("hop patch: parse address %s: %v", nameOrHex, err)
+		s.logger.Error("hop patch: parse address")
+		jsonhttp.NotFound(w, nil)
+		return
+	}
+	err = s.steward.Reupload(r.Context(), address)
+	if err != nil {
+		s.logger.Debugf("hop patch: reupload %s: %v", address.String(), err)
+		s.logger.Error("hop patch: reupload")
+		jsonhttp.InternalServerError(w, nil)
+		return
+	}
+	jsonhttp.OK(w, nil)
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/core/postage/postagecontract"
 	"math/big"
 	"strings"
 	"sync"
@@ -14,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethersphere/go-storage-incentives-abi/postageabi"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	postageStampABI = parseABI(postageabi.PostageStampABIv0_1_0)
-	priceOracleABI  = parseABI(postageabi.PriceOracleABIv0_1_0)
+	postageStampABI = parseABI(postagecontract.PostageStampABIv0_1_0)
+	priceOracleABI  = parseABI(postagecontract.PriceOracleABIv0_1_0)
 	// batchCreatedTopic is the postage contract's batch created event topic
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 	// batchTopupTopic is the postage contract's batch topup event topic
@@ -274,11 +274,17 @@ type priceUpdateEvent struct {
 	Price *big.Int
 }
 
+var (
+	GoerliPostageStampContractAddress = common.HexToAddress("0xF7a041E7e2B79ccA1975852Eb6D4c6cE52986b4a")
+	GoerliPriceOracleContractAddress  = common.HexToAddress("0x1044534090de6f4014ece6d036C699130Bd5Df43")
+	GoerliStartBlock                  = uint64(4247101)
+)
+
 // DiscoverAddresses returns the canonical contracts for this chainID
-func DiscoverAddresses(chainID int64) (postageStamp, priceOracle common.Address, found bool) {
+func DiscoverAddresses(chainID int64) (postageStamp, priceOracle common.Address, startBlock uint64, found bool) {
 	if chainID == 5 {
 		// goerli
-		return common.HexToAddress("0xF7a041E7e2B79ccA1975852Eb6D4c6cE52986b4a"), common.HexToAddress("0x1044534090de6f4014ece6d036C699130Bd5Df43"), true
+		return GoerliPostageStampContractAddress, GoerliPriceOracleContractAddress, GoerliStartBlock, true
 	}
-	return common.Address{}, common.Address{}, false
+	return common.Address{}, common.Address{}, 0, false
 }

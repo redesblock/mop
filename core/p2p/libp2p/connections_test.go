@@ -395,6 +395,7 @@ func TestTopologyNotifier(t *testing.T) {
 			mtx.Lock()
 			defer mtx.Unlock()
 			expectZeroAddress(t, n1connectedPeer.Address) // fail if set more than once
+			expectFullNode(t, p)
 			n1connectedPeer = p
 			return nil
 		}
@@ -409,6 +410,7 @@ func TestTopologyNotifier(t *testing.T) {
 			defer mtx.Unlock()
 			expectZeroAddress(t, n2connectedPeer.Address) // fail if set more than once
 			n2connectedPeer = p
+			expectFullNode(t, p)
 			return nil
 		}
 		n2d = func(p p2p.Peer) {
@@ -673,6 +675,12 @@ func expectStreamReset(t *testing.T, s io.ReadCloser, err error) {
 				t.Errorf("expected stream reset error, got %v", err)
 			}
 		}
+	}
+}
+func expectFullNode(t *testing.T, p p2p.Peer) {
+	t.Helper()
+	if !p.FullNode {
+		t.Fatal("expected peer to be a full node")
 	}
 }
 

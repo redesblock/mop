@@ -66,6 +66,10 @@ func (t *testObserver) NotifyPaymentReceived(peer swarm.Address, amount *big.Int
 	return nil
 }
 
+func (t *testObserver) NotifyRefreshmentReceived(peer swarm.Address, amount *big.Int) error {
+	return nil
+}
+
 func (t *testObserver) NotifyPaymentSent(peer swarm.Address, amount *big.Int, err error) {
 	t.sentCalled <- notifyPaymentSentCall{
 		peer:   peer,
@@ -419,7 +423,7 @@ func TestPayIssueError(t *testing.T) {
 	)
 
 	observer := newTestObserver()
-	swap.SetAccountingAPI(observer)
+	swap.SetAccounting(observer)
 
 	swap.Pay(context.Background(), peer, amount)
 	select {

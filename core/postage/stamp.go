@@ -3,6 +3,7 @@ package postage
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/storage"
@@ -111,12 +112,12 @@ func ValidStamp(batchStore Storer) func(chunk swarm.Chunk, stampBytes []byte) (s
 		b, err := batchStore.Get(stamp.BatchID())
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				return nil, ErrNotFound
+				return nil, fmt.Errorf("batchstore get: %v, %w", err, ErrNotFound)
 			}
 			return nil, err
 		}
 		if err = stamp.Valid(chunk.Address(), b.Owner); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("chunk %s stamp invalid: %w", chunk.Address().String(), err)
 		}
 		return chunk.WithStamp(stamp).WithBatch(b.Radius, b.Depth), nil
 	}

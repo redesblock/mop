@@ -278,7 +278,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		}
 
 		if s.notifier != nil {
-			if !s.notifier.Pick(p2p.Peer{Address: overlay}) {
+			if !s.notifier.Pick(p2p.Peer{Address: overlay, FullNode: i.FullNode}) {
 				s.logger.Warningf("stream handler: don't want incoming peer %s. disconnecting", overlay)
 				_ = handshakeStream.Reset()
 				_ = s.host.Network().ClosePeer(peerID)
@@ -286,7 +286,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			}
 		}
 
-		if exists := s.peers.addIfNotExists(stream.Conn(), overlay); exists {
+		if exists := s.peers.addIfNotExists(stream.Conn(), overlay, i.FullNode); exists {
 			s.logger.Debugf("stream handler: peer %s already exists", overlay)
 			if err = handshakeStream.FullClose(); err != nil {
 				s.logger.Debugf("stream handler: could not close stream %s: %v", overlay, err)
@@ -313,7 +313,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 			}
 		}
 
-		peer := p2p.Peer{Address: overlay}
+		peer := p2p.Peer{Address: overlay, FullNode: i.FullNode}
 
 		s.protocolsmu.RLock()
 		for _, tn := range s.protocols {
@@ -392,6 +392,12 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 				s.logger.Debugf("overlay address for peer %q not found", peerID)
 				return
 			}
+			full, found := s.peers.fullnode(peerID)
+			if !found {
+				_ = streamlibp2p.Reset()
+				s.logger.Debugf("fullnode info for peer %q not found", peerID)
+				return
+			}
 
 			stream := newStream(streamlibp2p)
 
@@ -419,7 +425,7 @@ func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 			logger := tracing.NewLoggerWithTraceID(ctx, s.logger)
 
 			s.metrics.HandledStreamCount.Inc()
-			if err := ss.Handler(ctx, p2p.Peer{Address: overlay}, stream); err != nil {
+			if err := ss.Handler(ctx, p2p.Peer{Address: overlay, FullNode: full}, stream); err != nil {
 				var de *p2p.DisconnectError
 				if errors.As(err, &de) {
 					_ = stream.Reset()
@@ -569,7 +575,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 		return nil, fmt.Errorf("peer blocklisted")
 	}
 
-	if exists := s.peers.addIfNotExists(stream.Conn(), overlay); exists {
+	if exists := s.peers.addIfNotExists(stream.Conn(), overlay, i.FullNode); exists {
 		if err := handshakeStream.FullClose(); err != nil {
 			_ = s.Disconnect(overlay)
 			return nil, fmt.Errorf("peer exists, full close: %w", err)
@@ -594,7 +600,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	s.protocolsmu.RLock()
 	for _, tn := range s.protocols {
 		if tn.ConnectOut != nil {
-			if err := tn.ConnectOut(ctx, p2p.Peer{Address: overlay}); err != nil {
+			if err := tn.ConnectOut(ctx, p2p.Peer{Address: overlay, FullNode: i.FullNode}); err != nil {
 				s.logger.Debugf("connectOut: protocol: %s, version:%s, peer: %s: %v", tn.Name, tn.Version, overlay, err)
 				_ = s.Disconnect(overlay)
 				s.protocolsmu.RUnlock()
@@ -621,11 +627,12 @@ func (s *Service) Disconnect(overlay swarm.Address) error {
 
 	s.logger.Debugf("libp2p disconnect: disconnecting peer %s", overlay)
 
-	found, peerID := s.peers.remove(overlay)
+	// found is checked at the bottom of the function
+	found, full, peerID := s.peers.remove(overlay)
 
 	_ = s.host.Network().ClosePeer(peerID)
 
-	peer := p2p.Peer{Address: overlay}
+	peer := p2p.Peer{Address: overlay, FullNode: full}
 
 	s.protocolsmu.RLock()
 	for _, tn := range s.protocols {
@@ -656,6 +663,15 @@ func (s *Service) Disconnect(overlay swarm.Address) error {
 func (s *Service) disconnected(address swarm.Address) {
 
 	peer := p2p.Peer{Address: address}
+	peerID, found := s.peers.peerID(address)
+	if !found {
+		s.logger.Debugf("libp2p disconnected: cannot find peerID for overlay: %s", address.String())
+	} else {
+		full, found := s.peers.fullnode(peerID)
+		if found {
+			peer.FullNode = full
+		}
+	}
 	s.protocolsmu.RLock()
 	for _, tn := range s.protocols {
 		if tn.DisconnectIn != nil {

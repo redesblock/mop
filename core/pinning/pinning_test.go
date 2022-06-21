@@ -1,4 +1,4 @@
-package pinning
+package pinning_test
 
 import (
 	"context"
@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/redesblock/hop/core/file/pipeline/builder"
+	"github.com/redesblock/hop/core/pinning"
 	statestorem "github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/storage"
 	storagem "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/traversal"
 )
-
-var _ Interface = (*Service)(nil)
 
 func TestPinningService(t *testing.T) {
 	const content = "Hello, Hop!"
@@ -20,10 +19,10 @@ func TestPinningService(t *testing.T) {
 	var (
 		ctx        = context.Background()
 		storerMock = storagem.NewStorer()
-		service    = NewService(
+		service    = pinning.NewService(
 			storerMock,
 			statestorem.NewStateStore(),
-			traversal.NewService(storerMock),
+			traversal.New(storerMock),
 		)
 	)
 

@@ -94,6 +94,10 @@ func (s *server) setupRouting() {
 			s.newTracingHandler("hop-download"),
 			web.FinalHandlerFunc(s.hopDownloadHandler),
 		),
+		"PATCH": web.ChainHandlers(
+			s.newTracingHandler("hop-patch"),
+			web.FinalHandlerFunc(s.hopPatchHandler),
+		),
 	})
 
 	handle("/pss/send/{topic}/{targets}", web.ChainHandlers(

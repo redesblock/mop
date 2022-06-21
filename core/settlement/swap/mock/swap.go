@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/swarm"
@@ -116,18 +115,10 @@ func WithCashoutStatusFunc(f func(ctx context.Context, peer swarm.Address) (*che
 }
 
 // New creates the mock swap implementation
-func New(opts ...Option) settlement.Interface {
+func New(opts ...Option) swap.Interface {
 	mock := new(Service)
 	mock.settlementsSent = make(map[string]*big.Int)
 	mock.settlementsRecv = make(map[string]*big.Int)
-	for _, o := range opts {
-		o.apply(mock)
-	}
-	return mock
-}
-
-func NewApiInterface(opts ...Option) swap.ApiInterface {
-	mock := new(Service)
 	for _, o := range opts {
 		o.apply(mock)
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/redesblock/hop/core/postage/postagecontract"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/resolver"
+	"github.com/redesblock/hop/core/steward"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -87,6 +88,7 @@ type server struct {
 	pss             pss.Interface
 	traversal       traversal.Traverser
 	pinning         pinning.Interface
+	steward         steward.Reuploader
 	logger          logging.Logger
 	tracer          *tracing.Tracer
 	feedFactory     feeds.Factory
@@ -113,7 +115,7 @@ const (
 )
 
 // New will create a and initialize a new API service.
-func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Traverser, pinning pinning.Interface, feedFactory feeds.Factory, post postage.Service, postageContract postagecontract.Interface, signer crypto.Signer, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
+func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Traverser, pinning pinning.Interface, feedFactory feeds.Factory, post postage.Service, postageContract postagecontract.Interface, steward steward.Reuploader, signer crypto.Signer, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
 	s := &server{
 		tags:            tags,
 		storer:          storer,
@@ -124,6 +126,7 @@ func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, ps
 		feedFactory:     feedFactory,
 		post:            post,
 		postageContract: postageContract,
+		steward:         steward,
 		signer:          signer,
 		Options:         o,
 		logger:          logger,

@@ -1,7 +1,9 @@
 package batchstore
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/redesblock/hop/core/postage"
@@ -81,7 +83,7 @@ func (s *store) Get(id []byte) (*postage.Batch, error) {
 	b := &postage.Batch{}
 	err := s.store.Get(batchKey(id), b)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get batch %s: %w", hex.EncodeToString(id), err)
 	}
 	b.Radius = s.rs.radius(s.rs.tier(b.Value))
 	return b, nil

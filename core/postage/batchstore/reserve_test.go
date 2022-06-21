@@ -80,7 +80,7 @@ func TestBatchStoreUnreserveEvents(t *testing.T) {
 		for id := range batches {
 			b, err := bStore.Get([]byte(id))
 			if err != nil {
-				if errors.Is(storage.ErrNotFound, err) {
+				if errors.Is(err, storage.ErrNotFound) {
 					continue
 				}
 				t.Fatal(err)
@@ -106,7 +106,7 @@ func TestBatchStoreUnreserveEvents(t *testing.T) {
 		for id := range batches {
 			b, err := bStore.Get([]byte(id))
 			if err != nil {
-				if errors.Is(storage.ErrNotFound, err) {
+				if errors.Is(err, storage.ErrNotFound) {
 					continue
 				}
 				t.Fatal(err)
@@ -155,7 +155,7 @@ func TestBatchStoreUnreserveAll(t *testing.T) {
 				n := rand.Intn(len(batches))
 				b, err = bStore.Get(batches[n])
 				if err != nil {
-					if errors.Is(storage.ErrNotFound, err) {
+					if errors.Is(err, storage.ErrNotFound) {
 						continue
 					}
 					t.Fatal(err)

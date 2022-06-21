@@ -1,5 +1,5 @@
 // Package storage provides implementation contracts and notions
-// used across storage-aware components in hop.
+// used across storage-aware components in Bee.
 package storage
 
 import (
@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var (
@@ -169,6 +170,8 @@ type StateStorer interface {
 	Put(key string, i interface{}) (err error)
 	Delete(key string) (err error)
 	Iterate(prefix string, iterFunc StateIterFunc) (err error)
+	// DB returns the underlying DB storage.
+	DB() *leveldb.DB
 	io.Closer
 }
 

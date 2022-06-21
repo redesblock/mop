@@ -11,8 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethersphere/go-storage-incentives-abi/postageabi"
-	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 )
@@ -20,8 +18,8 @@ import (
 var (
 	BucketDepth = uint8(16)
 
-	postageStampABI   = parseABI(postageabi.PostageStampABIv0_1_0)
-	erc20ABI          = parseABI(sw3abi.ERC20ABIv0_3_1)
+	postageStampABI   = parseABI(PostageStampABIv0_1_0)
+	erc20ABI          = parseABI(ERC20ABIv0_3_1)
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 
 	ErrBatchCreate       = errors.New("batch creation failed")

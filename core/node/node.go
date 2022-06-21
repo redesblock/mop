@@ -51,11 +51,12 @@ import (
 	"github.com/redesblock/hop/core/recovery"
 	"github.com/redesblock/hop/core/resolver/multiresolver"
 	"github.com/redesblock/hop/core/retrieval"
-	settlement "github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
+	"github.com/redesblock/hop/core/shed"
+	"github.com/redesblock/hop/core/steward"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -92,43 +93,49 @@ type Node struct {
 }
 
 type Options struct {
-	DataDir                  string
-	DBCapacity               uint64
-	DBOpenFilesLimit         uint64
-	DBWriteBufferSize        uint64
-	DBBlockCacheCapacity     uint64
-	DBDisableSeeksCompaction bool
-	APIAddr                  string
-	DebugAPIAddr             string
-	Addr                     string
-	NATAddr                  string
-	EnableWS                 bool
-	EnableQUIC               bool
-	WelcomeMessage           string
-	Bootnodes                []string
-	CORSAllowedOrigins       []string
-	Logger                   logging.Logger
-	Standalone               bool
-	TracingEnabled           bool
-	TracingEndpoint          string
-	TracingServiceName       string
-	GlobalPinningEnabled     bool
-	PaymentThreshold         string
-	PaymentTolerance         string
-	PaymentEarly             string
-	ResolverConnectionCfgs   []multiresolver.ConnectionConfig
-	GatewayMode              bool
-	BootnodeMode             bool
-	SwapEndpoint             string
-	SwapFactoryAddress       string
-	SwapInitialDeposit       string
-	SwapEnable               bool
-	FullNodeMode             bool
-	Transaction              string
-	PostageContractAddress   string
-	PriceOracleAddress       string
-	BlockTime                uint64
+	DataDir                    string
+	DBCapacity                 uint64
+	DBOpenFilesLimit           uint64
+	DBWriteBufferSize          uint64
+	DBBlockCacheCapacity       uint64
+	DBDisableSeeksCompaction   bool
+	APIAddr                    string
+	DebugAPIAddr               string
+	Addr                       string
+	NATAddr                    string
+	EnableWS                   bool
+	EnableQUIC                 bool
+	WelcomeMessage             string
+	Bootnodes                  []string
+	CORSAllowedOrigins         []string
+	Logger                     logging.Logger
+	Standalone                 bool
+	TracingEnabled             bool
+	TracingEndpoint            string
+	TracingServiceName         string
+	GlobalPinningEnabled       bool
+	PaymentThreshold           string
+	PaymentTolerance           string
+	PaymentEarly               string
+	ResolverConnectionCfgs     []multiresolver.ConnectionConfig
+	GatewayMode                bool
+	BootnodeMode               bool
+	SwapEndpoint               string
+	SwapFactoryAddress         string
+	SwapLegacyFactoryAddresses []string
+	SwapInitialDeposit         string
+	SwapEnable                 bool
+	FullNodeMode               bool
+	Transaction                string
+	PostageContractAddress     string
+	PriceOracleAddress         string
+	BlockTime                  uint64
 }
+
+const (
+	refreshRate = int64(1000000000000)
+	basePrice   = 1000000000
+)
 
 func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (b *Node, err error) {
 	tracer, tracerCloser, err := tracing.NewTracer(&tracing.Options{
@@ -191,6 +198,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	stateStore, err := InitStateStore(logger, o.DataDir)
 	if err != nil {
+		_ = stateStore.Close()
 		return nil, err
 	}
 	b.stateStoreCloser = stateStore
@@ -236,6 +244,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			chainID,
 			transactionService,
 			o.SwapFactoryAddress,
+			o.SwapLegacyFactoryAddresses,
 		)
 		if err != nil {
 			return nil, err
@@ -273,7 +282,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	lightNodes := lightnode.NewContainer()
 
-	txHash, err := getTxHash(stateStore, logger, o.Transaction)
+	txHash, err := getTxHash(stateStore, logger, o)
 	if err != nil {
 		return nil, errors.New("no transaction hash provided or found")
 	}
@@ -331,8 +340,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		batchSvc               postage.EventUpdater
 	)
 
+	var postageSyncStart uint64 = 0
 	if !o.Standalone {
-		postageContractAddress, priceOracleAddress, found := listener.DiscoverAddresses(chainID)
+		postageContractAddress, priceOracleAddress, startBlock, found := listener.DiscoverAddresses(chainID)
 		if o.PostageContractAddress != "" {
 			if !common.IsHexAddress(o.PostageContractAddress) {
 				return nil, errors.New("malformed postage stamp address")
@@ -347,6 +357,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		}
 		if (o.PostageContractAddress == "" || o.PriceOracleAddress == "") && !found {
 			return nil, errors.New("no known postage stamp addresses for this network")
+		}
+		if found {
+			postageSyncStart = startBlock
 		}
 
 		eventListener := listener.New(logger, swapBackend, postageContractAddress, priceOracleAddress, o.BlockTime)
@@ -412,17 +425,21 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		}
 	}
 
-	var settlement settlement.Interface
 	var swapService *swap.Service
 
-	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
+	metricsDB, err := shed.NewDBWrap(stateStore.DB())
+	if err != nil {
+		return nil, fmt.Errorf("unable to create metrics storage for kademlia: %w", err)
+	}
+
+	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, metricsDB, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
 	b.topologyCloser = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
 	p2ps.SetPickyNotifier(kad)
 	batchStore.SetRadiusSetter(kad)
 
 	if batchSvc != nil {
-		syncedChan := batchSvc.Start()
+		syncedChan := batchSvc.Start(postageSyncStart)
 		// wait for the postage contract listener to sync
 		logger.Info("waiting to sync postage contract data, this may take a while... more info available in Debug loglevel")
 
@@ -438,7 +455,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
 	}
 
-	pricer := pricer.NewFixedPricer(swarmAddress, 1000000000)
+	pricer := pricer.NewFixedPricer(swarmAddress, basePrice)
 
 	minThreshold := pricer.MostExpensive()
 
@@ -465,6 +482,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	if !ok {
 		return nil, fmt.Errorf("invalid payment early: %s", paymentEarly)
 	}
+
 	acc, err := accounting.NewAccounting(
 		paymentThreshold,
 		paymentTolerance,
@@ -472,10 +490,18 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		logger,
 		stateStore,
 		pricing,
+		big.NewInt(refreshRate),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
+
+	pseudosettleService := pseudosettle.New(p2ps, logger, stateStore, acc, big.NewInt(refreshRate), p2ps)
+	if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
+		return nil, fmt.Errorf("pseudosettle service: %w", err)
+	}
+
+	acc.SetRefreshFunc(pseudosettleService.Pay)
 
 	if o.SwapEnable {
 		swapService, err = InitSwap(
@@ -492,16 +518,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		if err != nil {
 			return nil, err
 		}
-		settlement = swapService
-	} else {
-		pseudosettleService := pseudosettle.New(p2ps, logger, stateStore, acc)
-		if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
-			return nil, fmt.Errorf("pseudosettle service: %w", err)
-		}
-		settlement = pseudosettleService
+		acc.SetPayFunc(swapService.Pay)
 	}
-
-	acc.SetPayFunc(settlement.Pay)
 
 	pricing.SetPaymentThresholdObserver(acc)
 
@@ -521,7 +539,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		ns = netstore.New(storer, validStamp, nil, retrieve, logger)
 	}
 
-	traversalService := traversal.NewService(ns)
+	traversalService := traversal.New(ns)
 
 	pinningService := pinning.NewService(storer, stateStore, traversalService)
 
@@ -580,7 +598,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	if o.APIAddr != "" {
 		// API server
 		feedFactory := factory.New(ns)
-		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, pinningService, feedFactory, post, postageContractService, signer, logger, tracer, api.Options{
+		steward := steward.New(storer, traversalService, pushSyncProtocol)
+		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, pinningService, feedFactory, post, postageContractService, steward, signer, logger, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,
@@ -637,12 +656,14 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			debugAPIService.MustRegisterMetrics(l.Metrics()...)
 		}
 
-		if l, ok := settlement.(metrics.Collector); ok {
-			debugAPIService.MustRegisterMetrics(l.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pseudosettleService.Metrics()...)
+
+		if swapService != nil {
+			debugAPIService.MustRegisterMetrics(swapService.Metrics()...)
 		}
 
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(p2ps, pingPong, kad, lightNodes, storer, tagService, acc, settlement, o.SwapEnable, swapService, chequebookService, batchStore)
+		debugAPIService.Configure(p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {
@@ -790,10 +811,13 @@ func (e *multiError) hasErrors() bool {
 	return len(e.errors) > 0
 }
 
-func getTxHash(stateStore storage.StateStorer, logger logging.Logger, transaction string) ([]byte, error) {
-	if len(transaction) == 32 {
+func getTxHash(stateStore storage.StateStorer, logger logging.Logger, o Options) ([]byte, error) {
+	if o.Standalone {
+		return nil, nil // in standalone mode tx hash is not used
+	}
+	if len(o.Transaction) == 32 {
 		logger.Info("using the provided transaction hash")
-		return []byte(transaction), nil
+		return []byte(o.Transaction), nil
 	}
 
 	var txHash common.Hash
