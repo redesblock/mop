@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/hop/core/flipflop"
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -24,17 +25,18 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 	db.metrics.SubscribePull.Inc()
 
 	chunkDescriptors := make(chan storage.Descriptor)
-	trigger := make(chan struct{}, 1)
+
+	in, out, clean := flipflop.NewFallingEdge(flipFlopBufferDuration, flipFlopWorstCaseDuration)
 
 	db.pullTriggersMu.Lock()
 	if _, ok := db.pullTriggers[bin]; !ok {
-		db.pullTriggers[bin] = make([]chan struct{}, 0)
+		db.pullTriggers[bin] = make([]chan<- struct{}, 0)
 	}
-	db.pullTriggers[bin] = append(db.pullTriggers[bin], trigger)
+	db.pullTriggers[bin] = append(db.pullTriggers[bin], in)
 	db.pullTriggersMu.Unlock()
 
 	// send signal for the initial iteration
-	trigger <- struct{}{}
+	in <- struct{}{}
 
 	stopChan := make(chan struct{})
 	var stopChanOnce sync.Once
@@ -45,6 +47,7 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 
 	db.subscritionsWG.Add(1)
 	go func() {
+		defer clean()
 		defer db.subscritionsWG.Done()
 		db.metrics.SubscribePullStop.Inc()
 		// close the returned store.Descriptor channel at the end to
@@ -62,7 +65,7 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 		first := true // first iteration flag for SkipStartFromItem
 		for {
 			select {
-			case <-trigger:
+			case <-out:
 				// iterate until:
 				// - last index Item is reached
 				// - subscription stop is called
@@ -153,7 +156,7 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 		defer db.pullTriggersMu.Unlock()
 
 		for i, t := range db.pullTriggers[bin] {
-			if t == trigger {
+			if t == in {
 				db.pullTriggers[bin] = append(db.pullTriggers[bin][:i], db.pullTriggers[bin][i+1:]...)
 				break
 			}

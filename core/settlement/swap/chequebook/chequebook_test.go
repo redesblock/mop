@@ -3,6 +3,7 @@ package chequebook_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/erc20"
+	erc20mock "github.com/redesblock/hop/core/settlement/swap/erc20/mock"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
 	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
@@ -22,20 +25,20 @@ func newTestChequebook(
 	backend transaction.Backend,
 	transactionService transaction.Service,
 	address,
-	erc20address,
 	ownerAdress common.Address,
 	store storage.StateStorer,
 	chequeSigner chequebook.ChequeSigner,
+	erc20 erc20.Service,
 	simpleSwapBinding chequebook.SimpleSwapBinding,
-	erc20Binding chequebook.ERC20Binding) (chequebook.Service, error) {
+) (chequebook.Service, error) {
 	return chequebook.New(
 		backend,
 		transactionService,
 		address,
-		erc20address,
 		ownerAdress,
 		store,
 		chequeSigner,
+		erc20,
 		func(addr common.Address, b bind.ContractBackend) (chequebook.SimpleSwapBinding, error) {
 			if addr != address {
 				t.Fatalf("initialised binding with wrong address. wanted %x, got %x", address, addr)
@@ -45,33 +48,23 @@ func newTestChequebook(
 			}
 			return simpleSwapBinding, nil
 		},
-		func(addr common.Address, b bind.ContractBackend) (chequebook.ERC20Binding, error) {
-			if addr != erc20address {
-				t.Fatalf("initialised binding with wrong address. wanted %x, got %x", erc20address, addr)
-			}
-			if b != backend {
-				t.Fatal("initialised binding with wrong backend")
-			}
-			return erc20Binding, nil
-		},
 	)
 }
 
 func TestChequebookAddress(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
 		transactionmock.New(),
 		address,
-		erc20address,
 		ownerAdress,
 		nil,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +76,6 @@ func TestChequebookAddress(t *testing.T) {
 
 func TestChequebookBalance(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	balance := big.NewInt(10)
 	chequebookService, err := newTestChequebook(
@@ -91,16 +83,16 @@ func TestChequebookBalance(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(),
 		address,
-		erc20address,
 		ownerAdress,
 		nil,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{
 			balance: func(*bind.CallOpts) (*big.Int, error) {
 				return balance, nil
 			},
 		},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +109,6 @@ func TestChequebookBalance(t *testing.T) {
 
 func TestChequebookDeposit(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	balance := big.NewInt(30)
 	depositAmount := big.NewInt(20)
@@ -125,31 +116,30 @@ func TestChequebookDeposit(t *testing.T) {
 	chequebookService, err := newTestChequebook(
 		t,
 		backendmock.New(),
-		transactionmock.New(
-			transactionmock.WithSendFunc(func(c context.Context, request *transaction.TxRequest) (common.Hash, error) {
-				if request.To != nil && *request.To != erc20address {
-					t.Fatalf("sending to wrong contract. wanted %x, got %x", erc20address, request.To)
+		transactionmock.New(),
+		address,
+		ownerAdress,
+		nil,
+		&chequeSignerMock{},
+		erc20mock.New(
+			erc20mock.WithBalanceOfFunc(func(ctx context.Context, address common.Address) (*big.Int, error) {
+				if address != ownerAdress {
+					return nil, errors.New("getting balance of wrong address")
 				}
-				if request.Value.Cmp(big.NewInt(0)) != 0 {
-					t.Fatal("sending ether to token contract")
+				return balance, nil
+			}),
+			erc20mock.WithTransferFunc(func(ctx context.Context, to common.Address, value *big.Int) (common.Hash, error) {
+				if to != address {
+					return common.Hash{}, fmt.Errorf("sending to wrong address. wanted %x, got %x", address, to)
+				}
+				if depositAmount.Cmp(value) != 0 {
+					return common.Hash{}, fmt.Errorf("sending wrong value. wanted %d, got %d", depositAmount, value)
 				}
 				return txHash, nil
 			}),
 		),
-		address,
-		erc20address,
-		ownerAdress,
-		nil,
-		&chequeSignerMock{},
 		&simpleSwapBindingMock{},
-		&erc20BindingMock{
-			balanceOf: func(b *bind.CallOpts, addr common.Address) (*big.Int, error) {
-				if addr != ownerAdress {
-					t.Fatalf("looking up balance of wrong account. wanted %x, got %x", ownerAdress, addr)
-				}
-				return balance, nil
-			},
-		})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +156,6 @@ func TestChequebookDeposit(t *testing.T) {
 
 func TestChequebookWaitForDeposit(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	txHash := common.HexToHash("0xdddd")
 	chequebookService, err := newTestChequebook(
@@ -183,12 +172,12 @@ func TestChequebookWaitForDeposit(t *testing.T) {
 			}),
 		),
 		address,
-		erc20address,
 		ownerAdress,
 		nil,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +190,6 @@ func TestChequebookWaitForDeposit(t *testing.T) {
 
 func TestChequebookWaitForDepositReverted(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	txHash := common.HexToHash("0xdddd")
 	chequebookService, err := newTestChequebook(
@@ -218,12 +206,12 @@ func TestChequebookWaitForDepositReverted(t *testing.T) {
 			}),
 		),
 		address,
-		erc20address,
 		ownerAdress,
 		nil,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +227,6 @@ func TestChequebookWaitForDepositReverted(t *testing.T) {
 
 func TestChequebookIssue(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	beneficiary := common.HexToAddress("0xdddd")
 	ownerAdress := common.HexToAddress("0xfff")
 	store := storemock.NewStateStore()
@@ -254,10 +241,10 @@ func TestChequebookIssue(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(),
 		address,
-		erc20address,
 		ownerAdress,
 		store,
 		chequeSigner,
+		erc20mock.New(),
 		&simpleSwapBindingMock{
 			balance: func(*bind.CallOpts) (*big.Int, error) {
 				return big.NewInt(100), nil
@@ -266,7 +253,7 @@ func TestChequebookIssue(t *testing.T) {
 				return big.NewInt(0), nil
 			},
 		},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -392,7 +379,6 @@ func TestChequebookIssue(t *testing.T) {
 
 func TestChequebookIssueErrorSend(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	beneficiary := common.HexToAddress("0xdddd")
 	ownerAdress := common.HexToAddress("0xfff")
 	store := storemock.NewStateStore()
@@ -405,10 +391,10 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(),
 		address,
-		erc20address,
 		ownerAdress,
 		store,
 		chequeSigner,
+		erc20mock.New(),
 		&simpleSwapBindingMock{
 			balance: func(*bind.CallOpts) (*big.Int, error) {
 				return amount, nil
@@ -417,7 +403,7 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 				return big.NewInt(0), nil
 			},
 		},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +428,6 @@ func TestChequebookIssueErrorSend(t *testing.T) {
 
 func TestChequebookIssueOutOfFunds(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	beneficiary := common.HexToAddress("0xdddd")
 	ownerAdress := common.HexToAddress("0xfff")
 	store := storemock.NewStateStore()
@@ -453,10 +438,10 @@ func TestChequebookIssueOutOfFunds(t *testing.T) {
 		backendmock.New(),
 		transactionmock.New(),
 		address,
-		erc20address,
 		ownerAdress,
 		store,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{
 			balance: func(*bind.CallOpts) (*big.Int, error) {
 				return big.NewInt(0), nil
@@ -465,7 +450,7 @@ func TestChequebookIssueOutOfFunds(t *testing.T) {
 				return big.NewInt(0), nil
 			},
 		},
-		&erc20BindingMock{})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,7 +472,6 @@ func TestChequebookIssueOutOfFunds(t *testing.T) {
 
 func TestChequebookWithdraw(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	balance := big.NewInt(30)
 	withdrawAmount := big.NewInt(20)
@@ -508,10 +492,10 @@ func TestChequebookWithdraw(t *testing.T) {
 			}),
 		),
 		address,
-		erc20address,
 		ownerAdress,
 		store,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{
 			balance: func(*bind.CallOpts) (*big.Int, error) {
 				return balance, nil
@@ -520,14 +504,7 @@ func TestChequebookWithdraw(t *testing.T) {
 				return big.NewInt(0), nil
 			},
 		},
-		&erc20BindingMock{
-			balanceOf: func(b *bind.CallOpts, addr common.Address) (*big.Int, error) {
-				if addr != ownerAdress {
-					t.Fatalf("looking up balance of wrong account. wanted %x, got %x", ownerAdress, addr)
-				}
-				return balance, nil
-			},
-		})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +521,6 @@ func TestChequebookWithdraw(t *testing.T) {
 
 func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 	address := common.HexToAddress("0xabcd")
-	erc20address := common.HexToAddress("0xefff")
 	ownerAdress := common.HexToAddress("0xfff")
 	balance := big.NewInt(30)
 	withdrawAmount := big.NewInt(20)
@@ -563,12 +539,15 @@ func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 				}
 				return txHash, nil
 			}),
+			transactionmock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
+				return balance.FillBytes(make([]byte, 32)), nil
+			}),
 		),
 		address,
-		erc20address,
 		ownerAdress,
 		store,
 		&chequeSignerMock{},
+		erc20mock.New(),
 		&simpleSwapBindingMock{
 			balance: func(*bind.CallOpts) (*big.Int, error) {
 				return big.NewInt(0), nil
@@ -577,14 +556,7 @@ func TestChequebookWithdrawInsufficientFunds(t *testing.T) {
 				return big.NewInt(0), nil
 			},
 		},
-		&erc20BindingMock{
-			balanceOf: func(b *bind.CallOpts, addr common.Address) (*big.Int, error) {
-				if addr != ownerAdress {
-					t.Fatalf("looking up balance of wrong account. wanted %x, got %x", ownerAdress, addr)
-				}
-				return balance, nil
-			},
-		})
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

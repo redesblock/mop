@@ -131,7 +131,6 @@ func InitChequebookService(
 		overlayEthAddress,
 		chequeSigner,
 		chequebook.NewSimpleSwapBindings,
-		chequebook.NewERC20Bindings,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("chequebook init: %w", err)

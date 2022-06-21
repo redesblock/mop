@@ -97,6 +97,7 @@ func (s *Service) ReceiveCheque(ctx context.Context, peer swarm.Address, cheque 
 	}
 
 	s.metrics.TotalReceived.Add(float64(amount.Uint64()))
+	s.metrics.ChequesReceived.Inc()
 
 	return s.notifyPaymentFunc(peer, amount)
 }
@@ -125,6 +126,7 @@ func (s *Service) Pay(ctx context.Context, peer swarm.Address, amount *big.Int) 
 	s.metrics.AvailableBalance.Set(bal)
 	amountFloat, _ := big.NewFloat(0).SetInt(amount).Float64()
 	s.metrics.TotalSent.Add(amountFloat)
+	s.metrics.ChequesSent.Inc()
 	return nil
 }
 

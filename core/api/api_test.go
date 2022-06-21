@@ -25,17 +25,18 @@ import (
 )
 
 type testServerOptions struct {
-	Storer          storage.Storer
-	Resolver        resolver.Interface
-	Pss             pss.Interface
-	Traversal       traversal.Service
-	WsPath          string
-	Tags            *tags.Tags
-	GatewayMode     bool
-	WsPingPeriod    time.Duration
-	Logger          logging.Logger
-	PreventRedirect bool
-	Feeds           feeds.Factory
+	Storer             storage.Storer
+	Resolver           resolver.Interface
+	Pss                pss.Interface
+	Traversal          traversal.Service
+	WsPath             string
+	Tags               *tags.Tags
+	GatewayMode        bool
+	WsPingPeriod       time.Duration
+	Logger             logging.Logger
+	PreventRedirect    bool
+	Feeds              feeds.Factory
+	CORSAllowedOrigins []string
 }
 
 func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
@@ -49,8 +50,9 @@ func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.
 		o.WsPingPeriod = 60 * time.Second
 	}
 	s := api.New(o.Tags, o.Storer, o.Resolver, o.Pss, o.Traversal, o.Feeds, o.Logger, nil, api.Options{
-		GatewayMode:  o.GatewayMode,
-		WsPingPeriod: o.WsPingPeriod,
+		CORSAllowedOrigins: o.CORSAllowedOrigins,
+		GatewayMode:        o.GatewayMode,
+		WsPingPeriod:       o.WsPingPeriod,
 	})
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)

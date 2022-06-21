@@ -80,7 +80,6 @@ func TestHop(t *testing.T) {
 		}
 
 		fileMetadataReference, err := pipeWriteAll(bytes.NewReader(fileMetadataBytes), int64(len(fileMetadataBytes)))
-
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -167,7 +166,6 @@ func TestHop(t *testing.T) {
 			}),
 		)
 	})
-
 }
 
 func TestFeedIndirection(t *testing.T) {
@@ -215,7 +213,7 @@ func TestFeedIndirection(t *testing.T) {
 	// called from the hop endpoint. then call the hop endpoint with
 	// the pregenerated feed root manifest hash
 
-	feedUpdate, _ := toChunk(121212, resp.Reference.Bytes())
+	feedUpdate := toChunk(t, 121212, resp.Reference.Bytes())
 
 	var (
 		feedChunkAddr       = swarm.MustParseHexAddress("891a1d1c8436c792d02fc2e8883fef7ab387eaeaacd25aa9f518be7be7856d54")

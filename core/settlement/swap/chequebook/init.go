@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/settlement/swap/erc20"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
 )
@@ -16,6 +16,9 @@ import (
 const (
 	chequebookKey           = "swap_chequebook"
 	chequebookDeploymentKey = "swap_chequebook_transaction_deployment"
+
+	balanceCheckBackoffDuration = 20 * time.Second
+	balanceCheckMaxRetries      = 10
 )
 
 func checkBalance(
@@ -25,23 +28,12 @@ func checkBalance(
 	swapBackend transaction.Backend,
 	chainId int64,
 	overlayEthAddress common.Address,
-	erc20BindingFunc ERC20BindingFunc,
-	erc20Address common.Address,
-	backoffDuration time.Duration,
-	maxRetries uint64,
+	erc20Token erc20.Service,
 ) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, backoffDuration*time.Duration(maxRetries))
+	timeoutCtx, cancel := context.WithTimeout(ctx, balanceCheckBackoffDuration*time.Duration(balanceCheckMaxRetries))
 	defer cancel()
-
-	erc20Token, err := erc20BindingFunc(erc20Address, swapBackend)
-	if err != nil {
-		return err
-	}
-
 	for {
-		erc20Balance, err := erc20Token.BalanceOf(&bind.CallOpts{
-			Context: timeoutCtx,
-		}, overlayEthAddress)
+		erc20Balance, err := erc20Token.BalanceOf(timeoutCtx, overlayEthAddress)
 		if err != nil {
 			return err
 		}
@@ -79,7 +71,7 @@ func checkBalance(
 				logger.Warningf("get your Goerli ETH and Goerli HOP now via the hopaar at https://hop.ethswarm.org/?transaction=buy&amount=%d&slippage=30&receiver=0x%x", neededERC20, overlayEthAddress)
 			}
 			select {
-			case <-time.After(backoffDuration):
+			case <-time.After(balanceCheckBackoffDuration):
 			case <-timeoutCtx.Done():
 				if insufficientERC20 {
 					return fmt.Errorf("insufficient HOP for initial deposit")
@@ -107,7 +99,7 @@ func Init(
 	overlayEthAddress common.Address,
 	chequeSigner ChequeSigner,
 	simpleSwapBindingFunc SimpleSwapBindingFunc,
-	erc20BindingFunc ERC20BindingFunc) (chequebookService Service, err error) {
+) (chequebookService Service, err error) {
 	// verify that the supplied factory is valid
 	err = chequebookFactory.VerifyBytecode(ctx)
 	if err != nil {
@@ -118,6 +110,8 @@ func Init(
 	if err != nil {
 		return nil, err
 	}
+
+	erc20Service := erc20.New(swapBackend, transactionService, erc20Address)
 
 	var chequebookAddress common.Address
 	err = stateStore.Get(chequebookKey, &chequebookAddress)
@@ -134,7 +128,7 @@ func Init(
 		if err == storage.ErrNotFound {
 			logger.Info("no chequebook found, deploying new one.")
 			if swapInitialDeposit.Cmp(big.NewInt(0)) != 0 {
-				err = checkBalance(ctx, logger, swapInitialDeposit, swapBackend, chainId, overlayEthAddress, erc20BindingFunc, erc20Address, 20*time.Second, 10)
+				err = checkBalance(ctx, logger, swapInitialDeposit, swapBackend, chainId, overlayEthAddress, erc20Service)
 				if err != nil {
 					return nil, err
 				}
@@ -169,7 +163,7 @@ func Init(
 			return nil, err
 		}
 
-		chequebookService, err = New(swapBackend, transactionService, chequebookAddress, erc20Address, overlayEthAddress, stateStore, chequeSigner, simpleSwapBindingFunc, erc20BindingFunc)
+		chequebookService, err = New(swapBackend, transactionService, chequebookAddress, overlayEthAddress, stateStore, chequeSigner, erc20Service, simpleSwapBindingFunc)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +184,7 @@ func Init(
 			logger.Info("successfully deposited to chequebook")
 		}
 	} else {
-		chequebookService, err = New(swapBackend, transactionService, chequebookAddress, erc20Address, overlayEthAddress, stateStore, chequeSigner, simpleSwapBindingFunc, erc20BindingFunc)
+		chequebookService, err = New(swapBackend, transactionService, chequebookAddress, overlayEthAddress, stateStore, chequeSigner, erc20Service, simpleSwapBindingFunc)
 		if err != nil {
 			return nil, err
 		}

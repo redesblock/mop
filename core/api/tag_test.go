@@ -281,7 +281,7 @@ func TestTags(t *testing.T) {
 			data: []byte("some dir data"),
 			name: "binary-file",
 		}})
-		expectedHash := swarm.MustParseHexAddress("3dc643abeb3db60a4dfb72008b577dd9a573abaa74c6afe37a75c63ceea829f6")
+		expectedHash := swarm.MustParseHexAddress("553b138377e9c3dbe07906d7a71ec7c2750b81c3c7ef95730c0d40284e9c3392")
 		expectedResponse := api.FileUploadResponse{Reference: expectedHash}
 
 		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, dirResource, http.StatusOK,

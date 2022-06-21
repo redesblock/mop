@@ -1,4 +1,4 @@
-package debugapi_test
+package api_test
 
 import (
 	"net/http"
@@ -70,7 +70,7 @@ func TestCORSHeaders(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			testServer := newTestServer(t, testServerOptions{
+			client, _, _ := newTestServer(t, testServerOptions{
 				CORSAllowedOrigins: tc.allowedOrigins,
 			})
 
@@ -82,7 +82,7 @@ func TestCORSHeaders(t *testing.T) {
 				req.Header.Set("Origin", tc.origin)
 			}
 
-			r, err := testServer.Client.Do(req)
+			r, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
 			}
