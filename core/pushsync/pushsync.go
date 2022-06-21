@@ -16,7 +16,6 @@ import (
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
 	"github.com/redesblock/hop/core/pricer"
-	"github.com/redesblock/hop/core/pricer/headerutils"
 	"github.com/redesblock/hop/core/pushsync/pb"
 	"github.com/redesblock/hop/core/soc"
 	"github.com/redesblock/hop/core/storage"
@@ -36,6 +35,10 @@ const (
 	maxPeers = 5
 )
 
+var (
+	ErrOutOfDepthReplication = errors.New("replication outside of the neighborhood")
+)
+
 type PushSyncer interface {
 	PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Receipt, error)
 }
@@ -46,34 +49,38 @@ type Receipt struct {
 }
 
 type PushSync struct {
-	streamer      p2p.StreamerDisconnecter
-	storer        storage.Putter
-	peerSuggester topology.ClosestPeerer
-	tagger        *tags.Tags
-	unwrap        func(swarm.Chunk)
-	logger        logging.Logger
-	accounting    accounting.Interface
-	pricer        pricer.Interface
-	metrics       metrics
-	tracer        *tracing.Tracer
-	signer        crypto.Signer
+	address        swarm.Address
+	streamer       p2p.StreamerDisconnecter
+	storer         storage.Putter
+	topologyDriver topology.Driver
+	tagger         *tags.Tags
+	unwrap         func(swarm.Chunk)
+	logger         logging.Logger
+	accounting     accounting.Interface
+	pricer         pricer.Interface
+	metrics        metrics
+	tracer         *tracing.Tracer
+	signer         crypto.Signer
 }
 
-var timeToLive = 5 * time.Second // request time to live
+var timeToLive = 5 * time.Second                      // request time to live
+var timeToWaitForPushsyncToNeighbor = 3 * time.Second // time to wait to get a receipt for a chunk
+var nPeersToPushsync = 3                              // number of peers to replicate to as receipt is sent upstream
 
-func New(streamer p2p.StreamerDisconnecter, storer storage.Putter, closestPeerer topology.ClosestPeerer, tagger *tags.Tags, unwrap func(swarm.Chunk), logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer) *PushSync {
+func New(address swarm.Address, streamer p2p.StreamerDisconnecter, storer storage.Putter, topologyDriver topology.Driver, tagger *tags.Tags, unwrap func(swarm.Chunk), logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer) *PushSync {
 	ps := &PushSync{
-		streamer:      streamer,
-		storer:        storer,
-		peerSuggester: closestPeerer,
-		tagger:        tagger,
-		unwrap:        unwrap,
-		logger:        logger,
-		accounting:    accounting,
-		pricer:        pricer,
-		metrics:       newMetrics(),
-		tracer:        tracer,
-		signer:        signer,
+		address:        address,
+		streamer:       streamer,
+		storer:         storer,
+		topologyDriver: topologyDriver,
+		tagger:         tagger,
+		unwrap:         unwrap,
+		logger:         logger,
+		accounting:     accounting,
+		pricer:         pricer,
+		metrics:        newMetrics(),
+		tracer:         tracer,
+		signer:         signer,
 	}
 	return ps
 }
@@ -86,7 +93,6 @@ func (s *PushSync) Protocol() p2p.ProtocolSpec {
 			{
 				Name:    streamName,
 				Handler: s.handler,
-				Headler: s.pricer.PriceHeadler,
 			},
 		},
 	}
@@ -122,18 +128,32 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 		return swarm.ErrInvalidChunk
 	}
 
+	price := ps.pricer.Price(chunk.Address())
+
+	// if the peer is closer to the chunk, we were selected for replication. Return early.
+	if dcmp, _ := swarm.DistanceCmp(chunk.Address().Bytes(), p.Address.Bytes(), ps.address.Bytes()); dcmp == 1 {
+		if ps.topologyDriver.IsWithinDepth(chunk.Address()) {
+			_, err = ps.storer.Put(ctx, storage.ModePutSync, chunk)
+			if err != nil {
+				ps.logger.Errorf("pushsync: chunk store: %v", err)
+			}
+
+			return ps.accounting.Debit(p.Address, price)
+		}
+
+		return ErrOutOfDepthReplication
+	}
+
+	// forwarding replication
+	if ps.topologyDriver.IsWithinDepth(chunk.Address()) {
+		_, err = ps.storer.Put(ctx, storage.ModePutSync, chunk)
+		if err != nil {
+			ps.logger.Warningf("pushsync: within depth peer's attempt to store chunk failed: %v", err)
+		}
+	}
+
 	span, _, ctx := ps.tracer.StartSpanFromContext(ctx, "pushsync-handler", ps.logger, opentracing.Tag{Key: "address", Value: chunk.Address().String()})
 	defer span.Finish()
-
-	// Get price we charge for upstream peer read at headler
-	responseHeaders := stream.ResponseHeaders()
-	price, err := headerutils.ParsePriceHeader(responseHeaders)
-
-	if err != nil {
-		// if not found in returned header, compute the price we charge for this chunk and
-		ps.logger.Warningf("push sync: peer %v no price in previously issued response headers: %v", p.Address, err)
-		price = ps.pricer.PriceForPeer(p.Address, chunk.Address())
-	}
 
 	receipt, err := ps.pushToClosest(ctx, chunk)
 	if err != nil {
@@ -143,10 +163,80 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 				return fmt.Errorf("chunk store: %w", err)
 			}
 
+			count := 0
+			// Push the chunk to some peers in the neighborhood in parallel for replication.
+			// Any errors here should NOT impact the rest of the handler.
+			err = ps.topologyDriver.EachNeighbor(func(peer swarm.Address, po uint8) (bool, bool, error) {
+
+				// skip forwarding peer
+				if peer.Equal(p.Address) {
+					return false, false, nil
+				}
+
+				if count == nPeersToPushsync {
+					return true, false, nil
+				}
+				count++
+
+				go func(peer swarm.Address) {
+
+					var err error
+					defer func() {
+						if err != nil {
+							ps.logger.Tracef("pushsync replication: %v", err)
+							ps.metrics.TotalReplicatedError.Inc()
+						} else {
+							ps.metrics.TotalReplicated.Inc()
+						}
+					}()
+
+					// price for neighborhood replication
+					receiptPrice := ps.pricer.PeerPrice(peer, chunk.Address())
+
+					ctx, cancel := context.WithTimeout(context.Background(), timeToWaitForPushsyncToNeighbor)
+					defer cancel()
+
+					err = ps.accounting.Reserve(ctx, peer, receiptPrice)
+					if err != nil {
+						err = fmt.Errorf("reserve balance for peer %s: %w", peer.String(), err)
+						return
+					}
+					defer ps.accounting.Release(peer, receiptPrice)
+
+					streamer, err := ps.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, streamName)
+					if err != nil {
+						err = fmt.Errorf("new stream for peer %s: %w", peer.String(), err)
+						return
+					}
+					defer streamer.Close()
+
+					w := protobuf.NewWriter(streamer)
+
+					err = w.WriteMsgWithContext(ctx, &pb.Delivery{
+						Address: chunk.Address().Bytes(),
+						Data:    chunk.Data(),
+					})
+					if err != nil {
+						_ = streamer.Reset()
+						return
+					}
+
+					err = ps.accounting.Credit(peer, receiptPrice)
+
+				}(peer)
+
+				return false, false, nil
+			})
+			if err != nil {
+				ps.logger.Tracef("pushsync replication closest peer: %w", err)
+			}
+
 			signature, err := ps.signer.Sign(ch.Address)
 			if err != nil {
 				return fmt.Errorf("receipt signature: %w", err)
 			}
+
+			// return back receipt
 			receipt := pb.Receipt{Address: chunk.Address().Bytes(), Signature: signature}
 			if err := w.WriteMsgWithContext(ctx, &receipt); err != nil {
 				return fmt.Errorf("send receipt to peer %s: %w", p.Address.String(), err)
@@ -207,8 +297,8 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk) (rr *pb.R
 
 		defersFn()
 
-		// find next closest peer
-		peer, err := ps.peerSuggester.ClosestPeer(ch.Address(), skipPeers...)
+		// find the next closest peer
+		peer, err := ps.topologyDriver.ClosestPeer(ch.Address(), skipPeers...)
 		if err != nil {
 			// ClosestPeer can return ErrNotFound in case we are not connected to any peers
 			// in which case we should return immediately.
@@ -229,34 +319,14 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk) (rr *pb.R
 		// compute the price we pay for this receipt and reserve it for the rest of this function
 		receiptPrice := ps.pricer.PeerPrice(peer, ch.Address())
 
-		headers, err := headerutils.MakePricingHeaders(receiptPrice, ch.Address())
-		if err != nil {
-			return nil, err
-		}
-
-		streamer, err := ps.streamer.NewStream(ctx, peer, headers, protocolName, protocolVersion, streamName)
+		streamer, err := ps.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, streamName)
 		if err != nil {
 			lastErr = fmt.Errorf("new stream for peer %s: %w", peer.String(), err)
 			continue
 		}
 		deferFuncs = append(deferFuncs, func() { go streamer.FullClose() })
 
-		returnedHeaders := streamer.Headers()
-		_, returnedPrice, returnedIndex, err := headerutils.ParsePricingResponseHeaders(returnedHeaders)
-		if err != nil {
-			return nil, fmt.Errorf("push price headers: read returned: %w", err)
-		}
-
-		// check if returned price matches presumed price, if not, update price
-		if returnedPrice != receiptPrice {
-			err = ps.pricer.NotifyPeerPrice(peer, returnedPrice, returnedIndex) // save priceHeaders["price"] corresponding row for peer
-			if err != nil {
-				return nil, err
-			}
-			receiptPrice = returnedPrice
-		}
-
-		// Reserve to see whether we can make the request based on actual price
+		// Reserve to see whether we can make the request
 		err = ps.accounting.Reserve(ctx, peer, receiptPrice)
 		if err != nil {
 			return nil, fmt.Errorf("reserve balance for peer %s: %w", peer.String(), err)

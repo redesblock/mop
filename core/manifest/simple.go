@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ethersphere/manifest/simple"
 	"github.com/redesblock/hop/core/file"
+	"github.com/redesblock/hop/core/manifest/simple"
 	"github.com/redesblock/hop/core/swarm"
 )
 

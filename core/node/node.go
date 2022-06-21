@@ -58,24 +58,25 @@ import (
 )
 
 type Node struct {
-	p2pService            io.Closer
-	p2pCancel             context.CancelFunc
-	apiCloser             io.Closer
-	apiServer             *http.Server
-	debugAPIServer        *http.Server
-	resolverCloser        io.Closer
-	errorLogWriter        *io.PipeWriter
-	tracerCloser          io.Closer
-	tagsCloser            io.Closer
-	stateStoreCloser      io.Closer
-	localstoreCloser      io.Closer
-	topologyCloser        io.Closer
-	pusherCloser          io.Closer
-	pullerCloser          io.Closer
-	pullSyncCloser        io.Closer
-	pssCloser             io.Closer
-	ethClientCloser       func()
-	recoveryHandleCleanup func()
+	p2pService               io.Closer
+	p2pCancel                context.CancelFunc
+	apiCloser                io.Closer
+	apiServer                *http.Server
+	debugAPIServer           *http.Server
+	resolverCloser           io.Closer
+	errorLogWriter           *io.PipeWriter
+	tracerCloser             io.Closer
+	tagsCloser               io.Closer
+	stateStoreCloser         io.Closer
+	localstoreCloser         io.Closer
+	topologyCloser           io.Closer
+	pusherCloser             io.Closer
+	pullerCloser             io.Closer
+	pullSyncCloser           io.Closer
+	pssCloser                io.Closer
+	ethClientCloser          func()
+	transactionMonitorCloser io.Closer
+	recoveryHandleCleanup    func()
 }
 
 type Options struct {
@@ -188,13 +189,14 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	var overlayEthAddress common.Address
 	var chainID int64
 	var transactionService transaction.Service
+	var transactionMonitor transaction.Monitor
 	var chequebookFactory chequebook.Factory
 	var chequebookService chequebook.Service
 	var chequeStore chequebook.ChequeStore
 	var cashoutService chequebook.CashoutService
 
 	if o.SwapEnable {
-		swapBackend, overlayEthAddress, chainID, transactionService, err = InitChain(
+		swapBackend, overlayEthAddress, chainID, transactionMonitor, transactionService, err = InitChain(
 			p2pCtx,
 			logger,
 			stateStore,
@@ -205,6 +207,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			return nil, err
 		}
 		b.ethClientCloser = swapBackend.Close
+		b.transactionMonitorCloser = transactionMonitor
 
 		chequebookFactory, err = InitChequebookFactory(
 			logger,
@@ -317,11 +320,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
 	}
 
-	pricer := pricer.New(logger, stateStore, swarmAddress, 1000000000)
-	pricer.SetTopology(kad)
+	pricer := pricer.NewFixedPricer(swarmAddress, 1000000000)
 
-	pricing := pricing.New(p2ps, logger, paymentThreshold, pricer)
-	pricing.SetPriceTableObserver(pricer)
+	pricing := pricing.New(p2ps, logger, paymentThreshold)
 
 	if err = p2ps.AddProtocol(pricing.Protocol()); err != nil {
 		return nil, fmt.Errorf("pricing service: %w", err)
@@ -424,7 +425,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	traversalService := traversal.NewService(ns)
 
-	pushSyncProtocol := pushsync.New(p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, pricer, signer, tracer)
+	pushSyncProtocol := pushsync.New(swarmAddress, p2ps, storer, kad, tagService, pssService.TryUnwrap, logger, acc, pricer, signer, tracer)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -588,6 +589,10 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	b.p2pCancel()
 	if err := b.p2pService.Close(); err != nil {
 		errs.add(fmt.Errorf("p2p server: %w", err))
+	}
+
+	if err := b.transactionMonitorCloser.Close(); err != nil {
+		errs.add(fmt.Errorf("transaction monitor: %w", err))
 	}
 
 	if c := b.ethClientCloser; c != nil {

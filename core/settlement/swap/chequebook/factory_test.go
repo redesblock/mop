@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethersphere/sw3-bindings/v3/simpleswapfactory"
+	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	factoryABI              = transaction.ParseABIUnchecked(simpleswapfactory.SimpleSwapFactoryABI)
+	factoryABI              = transaction.ParseABIUnchecked(sw3abi.SimpleSwapFactoryABIv0_3_1)
 	simpleSwapDeployedEvent = factoryABI.Events["SimpleSwapDeployed"]
 )
 
@@ -56,7 +56,7 @@ func TestFactoryVerifySelf(t *testing.T) {
 				if blockNumber != nil {
 					t.Fatal("not called for latest block")
 				}
-				return common.FromHex(simpleswapfactory.SimpleSwapFactoryDeployedCode), nil
+				return common.FromHex(sw3abi.SimpleSwapFactoryDeployedBinv0_3_1), nil
 			}),
 		),
 		transactionmock.New(),
@@ -80,7 +80,7 @@ func TestFactoryVerifySelfInvalidCode(t *testing.T) {
 				if blockNumber != nil {
 					t.Fatal("not called for latest block")
 				}
-				return common.FromHex(simpleswapfactory.AddressBin), nil
+				return common.FromHex("abcd"), nil
 			}),
 		),
 		transactionmock.New(),

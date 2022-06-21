@@ -551,6 +551,32 @@ func recalcDepth(peers *pslice.PSlice) uint8 {
 		shallowestEmpty, noEmptyBins = peers.ShallowestEmpty()
 	)
 
+	shallowestUnsaturated := uint8(0)
+	binCount := 0
+	_ = peers.EachBinRev(func(_ swarm.Address, bin uint8) (bool, bool, error) {
+		if bin == shallowestUnsaturated {
+			binCount++
+			return false, false, nil
+		}
+		if bin > shallowestUnsaturated && binCount < saturationPeers {
+			// this means we have less than saturationPeers in the previous bin
+			// therefore we can return assuming that bin is the unsaturated one.
+			return true, false, nil
+		}
+		// bin > shallowestUnsaturated && binCount >= saturationPeers
+		shallowestUnsaturated = bin
+		binCount = 1
+
+		return false, false, nil
+	})
+
+	// if there are some empty bins and the shallowestEmpty is
+	// smaller than the shallowestUnsaturated then set shallowest
+	// unsaturated to the empty bin.
+	if !noEmptyBins && shallowestEmpty < shallowestUnsaturated {
+		shallowestUnsaturated = shallowestEmpty
+	}
+
 	_ = peers.EachBin(func(_ swarm.Address, po uint8) (bool, bool, error) {
 		peersCtr++
 		if peersCtr >= nnLowWatermark {
@@ -559,12 +585,11 @@ func recalcDepth(peers *pslice.PSlice) uint8 {
 		}
 		return false, false, nil
 	})
-
-	if noEmptyBins || shallowestEmpty > candidate {
+	if shallowestUnsaturated > candidate {
 		return candidate
 	}
 
-	return shallowestEmpty
+	return shallowestUnsaturated
 }
 
 // connect connects to a peer and gossips its address to our connected peers,
@@ -885,8 +910,8 @@ func (k *Kad) ClosestPeer(addr swarm.Address, skipPeers ...swarm.Address) (swarm
 }
 
 // IsWithinDepth returns if an address is within the neighborhood depth of a node.
-func (k *Kad) IsWithinDepth(adr swarm.Address) bool {
-	return swarm.Proximity(k.base.Bytes(), adr.Bytes()) >= k.NeighborhoodDepth()
+func (k *Kad) IsWithinDepth(addr swarm.Address) bool {
+	return swarm.Proximity(k.base.Bytes(), addr.Bytes()) >= k.NeighborhoodDepth()
 }
 
 // // EachNeighbor iterates from closest bin to farthest of the neighborhood peers.
@@ -989,51 +1014,10 @@ func (k *Kad) IsBalanced(bin uint8) bool {
 	return true
 }
 
-// MarshalJSON returns a JSON representation of Kademlia.
-func (k *Kad) MarshalJSON() ([]byte, error) {
-	return k.marshal(false)
-}
-
-func (k *Kad) marshal(indent bool) ([]byte, error) {
-	type binInfo struct {
-		BinPopulation     uint     `json:"population"`
-		BinConnected      uint     `json:"connected"`
-		DisconnectedPeers []string `json:"disconnectedPeers"`
-		ConnectedPeers    []string `json:"connectedPeers"`
-	}
-
-	type kadBins struct {
-		Bin0  binInfo `json:"bin_0"`
-		Bin1  binInfo `json:"bin_1"`
-		Bin2  binInfo `json:"bin_2"`
-		Bin3  binInfo `json:"bin_3"`
-		Bin4  binInfo `json:"bin_4"`
-		Bin5  binInfo `json:"bin_5"`
-		Bin6  binInfo `json:"bin_6"`
-		Bin7  binInfo `json:"bin_7"`
-		Bin8  binInfo `json:"bin_8"`
-		Bin9  binInfo `json:"bin_9"`
-		Bin10 binInfo `json:"bin_10"`
-		Bin11 binInfo `json:"bin_11"`
-		Bin12 binInfo `json:"bin_12"`
-		Bin13 binInfo `json:"bin_13"`
-		Bin14 binInfo `json:"bin_14"`
-		Bin15 binInfo `json:"bin_15"`
-	}
-
-	type kadParams struct {
-		Base           string    `json:"baseAddr"`       // base address string
-		Population     int       `json:"population"`     // known
-		Connected      int       `json:"connected"`      // connected count
-		Timestamp      time.Time `json:"timestamp"`      // now
-		NNLowWatermark int       `json:"nnLowWatermark"` // low watermark for depth calculation
-		Depth          uint8     `json:"depth"`          // current depth
-		Bins           kadBins   `json:"bins"`           // individual bin info
-	}
-
-	var infos []binInfo
+func (k *Kad) Snapshot() *topology.KadParams {
+	var infos []topology.BinInfo
 	for i := int(swarm.MaxPO); i >= 0; i-- {
-		infos = append(infos, binInfo{})
+		infos = append(infos, topology.BinInfo{})
 	}
 
 	_ = k.connectedPeers.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
@@ -1057,14 +1041,14 @@ func (k *Kad) marshal(indent bool) ([]byte, error) {
 		return false, false, nil
 	})
 
-	j := &kadParams{
+	return &topology.KadParams{
 		Base:           k.base.String(),
 		Population:     k.knownPeers.Length(),
 		Connected:      k.connectedPeers.Length(),
 		Timestamp:      time.Now(),
 		NNLowWatermark: nnLowWatermark,
 		Depth:          k.NeighborhoodDepth(),
-		Bins: kadBins{
+		Bins: topology.KadBins{
 			Bin0:  infos[0],
 			Bin1:  infos[1],
 			Bin2:  infos[2],
@@ -1083,15 +1067,12 @@ func (k *Kad) marshal(indent bool) ([]byte, error) {
 			Bin15: infos[15],
 		},
 	}
-	if indent {
-		return json.MarshalIndent(j, "", "  ")
-	}
-	return json.Marshal(j)
 }
 
 // String returns a string represenstation of Kademlia.
 func (k *Kad) String() string {
-	b, err := k.marshal(true)
+	j := k.Snapshot()
+	b, err := json.MarshalIndent(j, "", "  ")
 	if err != nil {
 		k.logger.Errorf("could not marshal kademlia into json: %v", err)
 		return ""

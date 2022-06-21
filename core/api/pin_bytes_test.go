@@ -43,7 +43,7 @@ func TestPinBytesHandler(t *testing.T) {
 
 		jsonhttptest.Request(t, client, http.MethodPost, bytesUploadResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
-			jsonhttptest.WithExpectedJSONResponse(api.FileUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 		)
@@ -106,7 +106,7 @@ func TestPinBytesHandler(t *testing.T) {
 
 		jsonhttptest.Request(t, client, http.MethodPost, bytesUploadResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(bytes.NewReader(b)),
-			jsonhttptest.WithExpectedJSONResponse(api.FileUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 		)

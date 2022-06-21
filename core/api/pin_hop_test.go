@@ -18,7 +18,7 @@ import (
 
 func TestPinHopHandler(t *testing.T) {
 	var (
-		dirUploadResource     = "/dirs"
+		dirUploadResource     = "/hop"
 		pinHopResource        = "/pin/hop"
 		pinHopAddressResource = func(addr string) string { return pinHopResource + "/" + addr }
 		pinChunksResource     = "/pin/chunks"
@@ -31,6 +31,7 @@ func TestPinHopHandler(t *testing.T) {
 			Storer:    mockStorer,
 			Traversal: traversalService,
 			Tags:      tags.NewTags(mockStatestore, logger),
+			Logger:    logger,
 		})
 	)
 
@@ -45,13 +46,14 @@ func TestPinHopHandler(t *testing.T) {
 
 		tarReader := tarFiles(t, files)
 
-		rootHash := "efc4c4cb45f346416eaad92bc0a34c7a92fc042c2cdd8f713345c5fadb235706"
+		rootHash := "9e178dbd1ed4b748379e25144e28dfb29c07a4b5114896ef454480115a56b237"
 
 		// verify directory tar upload response
 		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(tarReader),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
-			jsonhttptest.WithExpectedJSONResponse(api.FileUploadResponse{
+			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
+			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 		)
@@ -63,7 +65,7 @@ func TestPinHopHandler(t *testing.T) {
 			}),
 		)
 
-		expectedChunkCount := 7
+		expectedChunkCount := 3
 
 		// get the reference as everytime it will change because of random encryption key
 		var resp api.ListPinnedChunksResponse
@@ -78,7 +80,7 @@ func TestPinHopHandler(t *testing.T) {
 	})
 
 	t.Run("unpin-hop-1", func(t *testing.T) {
-		rootHash := "efc4c4cb45f346416eaad92bc0a34c7a92fc042c2cdd8f713345c5fadb235706"
+		rootHash := "9e178dbd1ed4b748379e25144e28dfb29c07a4b5114896ef454480115a56b237"
 
 		jsonhttptest.Request(t, client, http.MethodDelete, pinHopAddressResource(rootHash), http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{

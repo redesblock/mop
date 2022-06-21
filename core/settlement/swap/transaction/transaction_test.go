@@ -16,6 +16,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
+	"github.com/redesblock/hop/core/settlement/swap/transaction/monitormock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
 )
 
@@ -114,6 +115,7 @@ func TestTransactionSend(t *testing.T) {
 			signerMockForTransaction(signedTx, sender, chainID, t),
 			store,
 			chainID,
+			monitormock.New(),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -174,6 +176,7 @@ func TestTransactionSend(t *testing.T) {
 			signerMockForTransaction(signedTx, sender, chainID, t),
 			store,
 			chainID,
+			monitormock.New(),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -239,6 +242,7 @@ func TestTransactionSend(t *testing.T) {
 			signerMockForTransaction(signedTx, sender, chainID, t),
 			store,
 			chainID,
+			monitormock.New(),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -298,6 +302,7 @@ func TestTransactionSend(t *testing.T) {
 			signerMockForTransaction(signedTx, sender, chainID, t),
 			storemock.NewStateStore(),
 			chainID,
+			monitormock.New(),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -318,6 +323,17 @@ func TestTransactionWaitForReceipt(t *testing.T) {
 	logger := logging.New(ioutil.Discard, 0)
 	txHash := common.HexToHash("0xabcdee")
 	chainID := big.NewInt(5)
+	nonce := uint64(10)
+
+	store := storemock.NewStateStore()
+	defer store.Close()
+
+	err := store.Put(transaction.StoredTransactionKey(txHash), transaction.StoredTransaction{
+		Nonce: nonce,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	transactionService, err := transaction.NewService(logger,
 		backendmock.New(
@@ -328,8 +344,23 @@ func TestTransactionWaitForReceipt(t *testing.T) {
 			}),
 		),
 		signermock.New(),
-		nil,
+		store,
 		chainID,
+		monitormock.New(
+			monitormock.WithWatchTransactionFunc(func(txh common.Hash, n uint64) (<-chan types.Receipt, <-chan error, error) {
+				if nonce != n {
+					return nil, nil, fmt.Errorf("nonce mismatch. wanted %d, got %d", nonce, n)
+				}
+				if txHash != txh {
+					return nil, nil, fmt.Errorf("hash mismatch. wanted %x, got %x", txHash, txh)
+				}
+				receiptC := make(chan types.Receipt, 1)
+				receiptC <- types.Receipt{
+					TxHash: txHash,
+				}
+				return receiptC, nil, nil
+			}),
+		),
 	)
 	if err != nil {
 		t.Fatal(err)

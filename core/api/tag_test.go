@@ -31,8 +31,7 @@ func tagsWithIdResource(id uint32) string { return fmt.Sprintf("/tags/%d", id) }
 
 func TestTags(t *testing.T) {
 	var (
-		filesResource  = "/files"
-		dirResource    = "/dirs"
+		hopResource    = "/hop"
 		bytesResource  = "/bytes"
 		chunksResource = "/chunks"
 		tagsResource   = "/tags"
@@ -43,6 +42,7 @@ func TestTags(t *testing.T) {
 		client, _, _   = newTestServer(t, testServerOptions{
 			Storer: mock.NewStorer(),
 			Tags:   tag,
+			Logger: logger,
 		})
 	)
 
@@ -259,10 +259,11 @@ func TestTags(t *testing.T) {
 
 	t.Run("file tags", func(t *testing.T) {
 		// upload a file without supplying tag
-		expectedHash := swarm.MustParseHexAddress("8e27bb803ff049e8c2f4650357026723220170c15ebf9b635a7026539879a1a8")
-		expectedResponse := api.FileUploadResponse{Reference: expectedHash}
+		expectedHash := swarm.MustParseHexAddress("40e739ebdfd18292925bba4138cd097db9aa18c1b57e74042f48469b48da33a8")
+		expectedResponse := api.HopUploadResponse{Reference: expectedHash}
 
-		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, filesResource, http.StatusOK,
+		respHeaders := jsonhttptest.Request(t, client, http.MethodPost,
+			hopResource+"?name=somefile", http.StatusOK,
 			jsonhttptest.WithRequestBody(bytes.NewReader([]byte("some data"))),
 			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
 			jsonhttptest.WithRequestHeader("Content-Type", "application/octet-stream"),
@@ -272,7 +273,7 @@ func TestTags(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tagValueTest(t, uint32(tagId), 3, 3, 0, 0, 0, 3, expectedHash, client)
+		tagValueTest(t, uint32(tagId), 4, 4, 0, 0, 0, 4, expectedHash, client)
 	})
 
 	t.Run("dir tags", func(t *testing.T) {
@@ -281,11 +282,12 @@ func TestTags(t *testing.T) {
 			data: []byte("some dir data"),
 			name: "binary-file",
 		}})
-		expectedHash := swarm.MustParseHexAddress("553b138377e9c3dbe07906d7a71ec7c2750b81c3c7ef95730c0d40284e9c3392")
-		expectedResponse := api.FileUploadResponse{Reference: expectedHash}
+		expectedHash := swarm.MustParseHexAddress("42bc27c9137c93705ffbc2945fa1aab0e8e1826f1500b7f06f6e3f86f617213b")
+		expectedResponse := api.HopUploadResponse{Reference: expectedHash}
 
-		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, dirResource, http.StatusOK,
+		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, hopResource, http.StatusOK,
 			jsonhttptest.WithRequestBody(tarReader),
+			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
 			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
 		)
@@ -294,7 +296,7 @@ func TestTags(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tagValueTest(t, uint32(tagId), 7, 7, 0, 0, 0, 7, expectedHash, client)
+		tagValueTest(t, uint32(tagId), 3, 3, 0, 0, 0, 3, expectedHash, client)
 	})
 
 	t.Run("bytes tags", func(t *testing.T) {

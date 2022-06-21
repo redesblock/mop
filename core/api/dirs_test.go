@@ -5,15 +5,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/collection/entry"
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
 	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
@@ -28,26 +29,27 @@ import (
 
 func TestDirs(t *testing.T) {
 	var (
-		dirUploadResource    = "/dirs"
-		fileDownloadResource = func(addr string) string { return "/files/" + addr }
-		hopDownloadResource  = func(addr, path string) string { return "/hop/" + addr + "/" + path }
-		ctx                  = context.Background()
-		storer               = mock.NewStorer()
-		mockStatestore       = statestore.NewStateStore()
-		logger               = logging.New(ioutil.Discard, 0)
-		client, _, _         = newTestServer(t, testServerOptions{
+		dirUploadResource   = "/hop"
+		hopDownloadResource = func(addr, path string) string { return "/hop/" + addr + "/" + path }
+		ctx                 = context.Background()
+		storer              = mock.NewStorer()
+		mockStatestore      = statestore.NewStateStore()
+		logger              = logging.New(ioutil.Discard, 0)
+		client, _, _        = newTestServer(t, testServerOptions{
 			Storer:          storer,
 			Tags:            tags.NewTags(mockStatestore, logger),
-			Logger:          logging.New(ioutil.Discard, 5),
+			Logger:          logger,
 			PreventRedirect: true,
 		})
 	)
 
 	t.Run("empty request body", func(t *testing.T) {
-		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusBadRequest,
+		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource,
+			http.StatusBadRequest,
 			jsonhttptest.WithRequestBody(bytes.NewReader(nil)),
+			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: "could not validate request",
+				Message: api.InvalidRequest.Error(),
 				Code:    http.StatusBadRequest,
 			}),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
@@ -57,10 +59,12 @@ func TestDirs(t *testing.T) {
 	t.Run("non tar file", func(t *testing.T) {
 		file := bytes.NewReader([]byte("some data"))
 
-		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusInternalServerError,
+		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource,
+			http.StatusInternalServerError,
 			jsonhttptest.WithRequestBody(file),
+			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: "could not store dir",
+				Message: api.DirectoryStoreError.Error(),
 				Code:    http.StatusInternalServerError,
 			}),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
@@ -74,10 +78,12 @@ func TestDirs(t *testing.T) {
 		}})
 
 		// submit valid tar, but with wrong content-type
-		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusBadRequest,
+		jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource,
+			http.StatusBadRequest,
 			jsonhttptest.WithRequestBody(tarReader),
+			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-				Message: "could not validate request",
+				Message: api.InvalidContentType.Error(),
 				Code:    http.StatusBadRequest,
 			}),
 			jsonhttptest.WithRequestHeader("Content-Type", "other"),
@@ -93,26 +99,25 @@ func TestDirs(t *testing.T) {
 		wantErrorFilename   string
 		indexFilenameOption jsonhttptest.Option
 		errorFilenameOption jsonhttptest.Option
+		doMultipart         bool
 		files               []f // files in dir for test case
 	}{
 		{
 			name:              "non-nested files without extension",
-			expectedReference: swarm.MustParseHexAddress("015582aa1daf971f631ac2af7b343c379b80d03135734aaaec0221a36484993a"),
+			expectedReference: swarm.MustParseHexAddress("f3312af64715d26b5e1a3dc90f012d2c9cc74a167899dab1d07cdee8c107f939"),
 			files: []f{
 				{
-					data:      []byte("first file data"),
-					name:      "file1",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("3c07cd2cf5c46208d69d554b038f4dce203f53ac02cb8a313a0fe1e3fe6cc3cf"),
+					data: []byte("first file data"),
+					name: "file1",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {""},
 					},
 				},
 				{
-					data:      []byte("second file data"),
-					name:      "file2",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("47e1a2a8f16e02da187fac791d57e6794f3e9b5d2400edd00235da749ad36683"),
+					data: []byte("second file data"),
+					name: "file2",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {""},
 					},
@@ -121,31 +126,28 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:              "nested files with extension",
-			expectedReference: swarm.MustParseHexAddress("2f615e786ac9776bc1b3dcc681e03526136421ae96eb00fea7b094be7175019d"),
+			expectedReference: swarm.MustParseHexAddress("4c9c76d63856102e54092c38a7cd227d769752d768b7adc8c3542e3dd9fcf295"),
 			files: []f{
 				{
-					data:      []byte("robots text"),
-					name:      "robots.txt",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("17b96d0a800edca59aaf7e40c6053f7c4c0fb80dd2eb3f8663d51876bf350b12"),
+					data: []byte("robots text"),
+					name: "robots.txt",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {"text/plain; charset=utf-8"},
 					},
 				},
 				{
-					data:      []byte("image 1"),
-					name:      "1.png",
-					dir:       "img",
-					reference: swarm.MustParseHexAddress("3c1b3fc640e67f0595d9c1db23f10c7a2b0bdc9843b0e27c53e2ac2a2d6c4674"),
+					data: []byte("image 1"),
+					name: "1.png",
+					dir:  "img",
 					header: http.Header{
 						"Content-Type": {"image/png"},
 					},
 				},
 				{
-					data:      []byte("image 2"),
-					name:      "2.png",
-					dir:       "img",
-					reference: swarm.MustParseHexAddress("b234ea7954cab7b2ccc5e07fe8487e932df11b2275db6b55afcbb7bad0be73fb"),
+					data: []byte("image 2"),
+					name: "2.png",
+					dir:  "img",
 					header: http.Header{
 						"Content-Type": {"image/png"},
 					},
@@ -154,13 +156,13 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:              "no index filename",
-			expectedReference: swarm.MustParseHexAddress("efc4c4cb45f346416eaad92bc0a34c7a92fc042c2cdd8f713345c5fadb235706"),
+			expectedReference: swarm.MustParseHexAddress("9e178dbd1ed4b748379e25144e28dfb29c07a4b5114896ef454480115a56b237"),
+			doMultipart:       true,
 			files: []f{
 				{
-					data:      []byte("<h1>Swarm"),
-					name:      "index.html",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("bcb1bfe15c36f1a529a241f4d0c593e5648aa6d40859790894c6facb41a6ef28"),
+					data: []byte("<h1>Swarm"),
+					name: "index.html",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {"text/html; charset=utf-8"},
 					},
@@ -169,15 +171,15 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:                "explicit index filename",
-			expectedReference:   swarm.MustParseHexAddress("c7de365426351f0e28670879c7b8bdfb05b282977b1b00b243dea8bff796c831"),
+			expectedReference:   swarm.MustParseHexAddress("a58484e3d77bbdb40323ddc9020c6e96e5eb5deb52015d3e0f63cce629ac1aa6"),
 			wantIndexFilename:   "index.html",
 			indexFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmIndexDocumentHeader, "index.html"),
+			doMultipart:         true,
 			files: []f{
 				{
-					data:      []byte("<h1>Swarm"),
-					name:      "index.html",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("bcb1bfe15c36f1a529a241f4d0c593e5648aa6d40859790894c6facb41a6ef28"),
+					data: []byte("<h1>Swarm"),
+					name: "index.html",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {"text/html; charset=utf-8"},
 					},
@@ -186,15 +188,14 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:                "nested index filename",
-			expectedReference:   swarm.MustParseHexAddress("0fe06395d12f1692da3562c0065883d03b25ec8ddb27ad18651e4359e6e68a04"),
+			expectedReference:   swarm.MustParseHexAddress("3e2f008a578c435efa7a1fce146e21c4ae8c20b80fbb4c4e0c1c87ca08fef414"),
 			wantIndexFilename:   "index.html",
 			indexFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmIndexDocumentHeader, "index.html"),
 			files: []f{
 				{
-					data:      []byte("<h1>Swarm"),
-					name:      "index.html",
-					dir:       "dir",
-					reference: swarm.MustParseHexAddress("bcb1bfe15c36f1a529a241f4d0c593e5648aa6d40859790894c6facb41a6ef28"),
+					data: []byte("<h1>Swarm"),
+					name: "index.html",
+					dir:  "dir",
 					header: http.Header{
 						"Content-Type": {"text/html; charset=utf-8"},
 					},
@@ -203,26 +204,25 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:                "explicit index and error filename",
-			expectedReference:   swarm.MustParseHexAddress("d3d8a5a5842bfab4b54974baf0fe77948b12c2b3ea5b366c5ae800f296acc15a"),
+			expectedReference:   swarm.MustParseHexAddress("2cd9a6ac11eefbb71b372fb97c3ef64109c409955964a294fdc183c1014b3844"),
 			wantIndexFilename:   "index.html",
 			wantErrorFilename:   "error.html",
 			indexFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmIndexDocumentHeader, "index.html"),
 			errorFilenameOption: jsonhttptest.WithRequestHeader(api.SwarmErrorDocumentHeader, "error.html"),
+			doMultipart:         true,
 			files: []f{
 				{
-					data:      []byte("<h1>Swarm"),
-					name:      "index.html",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("bcb1bfe15c36f1a529a241f4d0c593e5648aa6d40859790894c6facb41a6ef28"),
+					data: []byte("<h1>Swarm"),
+					name: "index.html",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {"text/html; charset=utf-8"},
 					},
 				},
 				{
-					data:      []byte("<h2>404"),
-					name:      "error.html",
-					dir:       "",
-					reference: swarm.MustParseHexAddress("b1f309c095d650521b75760b23122a9c59c2b581af28fc6daaf9c58da86a204d"),
+					data: []byte("<h2>404"),
+					name: "error.html",
+					dir:  "",
 					header: http.Header{
 						"Content-Type": {"text/html; charset=utf-8"},
 					},
@@ -231,29 +231,26 @@ func TestDirs(t *testing.T) {
 		},
 		{
 			name:              "invalid archive paths",
-			expectedReference: swarm.MustParseHexAddress("a8987f3cece7cd39b44767e5c44638608461a106ddcd3e4d2dfbbcf1d2272508"),
+			expectedReference: swarm.MustParseHexAddress("133c92414c047708f3d6a8561571a0cc96512899ff0edbd9690c857f01ab6883"),
 			files: []f{
 				{
-					data:      []byte("<h1>Swarm"),
-					name:      "index.html",
-					dir:       "",
-					filePath:  "./index.html",
-					reference: swarm.MustParseHexAddress("bcb1bfe15c36f1a529a241f4d0c593e5648aa6d40859790894c6facb41a6ef28"),
+					data:     []byte("<h1>Swarm"),
+					name:     "index.html",
+					dir:      "",
+					filePath: "./index.html",
 				},
 				{
-					data:      []byte("body {}"),
-					name:      "app.css",
-					dir:       "",
-					filePath:  "./app.css",
-					reference: swarm.MustParseHexAddress("9813953280d7e02cde1efea92fe4a8fc0fdfded61e185620b43128c9b74a3e9c"),
+					data:     []byte("body {}"),
+					name:     "app.css",
+					dir:      "",
+					filePath: "./app.css",
 				},
 				{
 					data: []byte(`User-agent: *
-Disallow: /`),
-					name:      "robots.txt",
-					dir:       "",
-					filePath:  "./robots.txt",
-					reference: swarm.MustParseHexAddress("84a620dcaf6b3ad25251c4b4d7097fa47266908a4664408057e07eb823a6a79e"),
+		Disallow: /`),
+					name:     "robots.txt",
+					dir:      "",
+					filePath: "./robots.txt",
 				},
 			},
 		},
@@ -270,34 +267,8 @@ Disallow: /`),
 			},
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			// tar all the test case files
-			tarReader := tarFiles(t, tc.files)
-
-			var resp api.FileUploadResponse
-
-			options := []jsonhttptest.Option{
-				jsonhttptest.WithRequestBody(tarReader),
-				jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
-				jsonhttptest.WithUnmarshalJSONResponse(&resp),
-			}
-			if tc.indexFilenameOption != nil {
-				options = append(options, tc.indexFilenameOption)
-			}
-			if tc.errorFilenameOption != nil {
-				options = append(options, tc.errorFilenameOption)
-			}
-			if tc.encrypt {
-				options = append(options, jsonhttptest.WithRequestHeader(api.SwarmEncryptHeader, "true"))
-			}
-
-			// verify directory tar upload response
-			jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusOK, options...)
-
-			if resp.Reference.String() == "" {
-				t.Fatalf("expected file reference, did not got any")
-			}
-
+		verify := func(t *testing.T, resp api.HopUploadResponse) {
+			t.Helper()
 			// NOTE: reference will be different each time when encryption is enabled
 			if !tc.encrypt {
 				if !resp.Reference.Equal(tc.expectedReference) {
@@ -305,27 +276,9 @@ Disallow: /`),
 				}
 			}
 
-			// read manifest metadata
-			j, _, err := joiner.New(context.Background(), storer, resp.Reference)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			buf := bytes.NewBuffer(nil)
-			_, err = file.JoinReadAll(context.Background(), j, buf)
-			if err != nil {
-				t.Fatal(err)
-			}
-			e := &entry.Entry{}
-			err = e.UnmarshalBinary(buf.Bytes())
-			if err != nil {
-				t.Fatal(err)
-			}
-
 			// verify manifest content
-			verifyManifest, err := manifest.NewManifestReference(
-				manifest.DefaultManifestType,
-				e.Reference(),
+			verifyManifest, err := manifest.NewDefaultManifestReference(
+				resp.Reference,
 				loadsave.New(storer, storage.ModePutRequest, false),
 			)
 			if err != nil {
@@ -335,20 +288,9 @@ Disallow: /`),
 			validateFile := func(t *testing.T, file f, filePath string) {
 				t.Helper()
 
-				entry, err := verifyManifest.Lookup(ctx, filePath)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				fileReference := entry.Reference()
-
-				if !tc.encrypt {
-					if !bytes.Equal(file.reference.Bytes(), fileReference.Bytes()) {
-						t.Fatalf("expected file reference to match %s, got %s", file.reference, fileReference)
-					}
-				}
-
-				jsonhttptest.Request(t, client, http.MethodGet, fileDownloadResource(fileReference.String()), http.StatusOK,
+				jsonhttptest.Request(t, client, http.MethodGet,
+					hopDownloadResource(resp.Reference.String(), filePath),
+					http.StatusOK,
 					jsonhttptest.WithExpectedResponse(file.data),
 					jsonhttptest.WithRequestHeader("Content-Type", file.header.Get("Content-Type")),
 				)
@@ -357,28 +299,28 @@ Disallow: /`),
 			validateIsPermanentRedirect := func(t *testing.T, fromPath, toPath string) {
 				t.Helper()
 
-				expectedResponse := fmt.Sprintf("<a href=\"%s\">Permanent Redirect</a>.\n\n", hopDownloadResource(resp.Reference.String(), toPath))
+				expectedResponse := fmt.Sprintf("<a href=\"%s\">Permanent Redirect</a>.\n\n",
+					hopDownloadResource(resp.Reference.String(), toPath))
 
-				jsonhttptest.Request(t, client, http.MethodGet, hopDownloadResource(resp.Reference.String(), fromPath), http.StatusPermanentRedirect,
+				jsonhttptest.Request(t, client, http.MethodGet,
+					hopDownloadResource(resp.Reference.String(), fromPath),
+					http.StatusPermanentRedirect,
 					jsonhttptest.WithExpectedResponse([]byte(expectedResponse)),
 				)
 			}
 
-			validateHopPath := func(t *testing.T, fromPath, toPath string) {
+			validateAltPath := func(t *testing.T, fromPath, toPath string) {
 				t.Helper()
-
-				toEntry, err := verifyManifest.Lookup(ctx, toPath)
-				if err != nil {
-					t.Fatal(err)
-				}
 
 				var respBytes []byte
 
-				jsonhttptest.Request(t, client, http.MethodGet, fileDownloadResource(toEntry.Reference().String()), http.StatusOK,
+				jsonhttptest.Request(t, client, http.MethodGet,
+					hopDownloadResource(resp.Reference.String(), toPath), http.StatusOK,
 					jsonhttptest.WithPutResponseBody(&respBytes),
 				)
 
-				jsonhttptest.Request(t, client, http.MethodGet, hopDownloadResource(resp.Reference.String(), fromPath), http.StatusOK,
+				jsonhttptest.Request(t, client, http.MethodGet,
+					hopDownloadResource(resp.Reference.String(), fromPath), http.StatusOK,
 					jsonhttptest.WithExpectedResponse(respBytes),
 				)
 			}
@@ -390,13 +332,13 @@ Disallow: /`),
 
 			// check index filename
 			if tc.wantIndexFilename != "" {
-				entry, err := verifyManifest.Lookup(ctx, api.ManifestRootPath)
+				entry, err := verifyManifest.Lookup(ctx, manifest.RootPath)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				manifestRootMetadata := entry.Metadata()
-				indexDocumentSuffixPath, ok := manifestRootMetadata[api.ManifestWebsiteIndexDocumentSuffixKey]
+				indexDocumentSuffixPath, ok := manifestRootMetadata[manifest.WebsiteIndexDocumentSuffixKey]
 				if !ok {
 					t.Fatalf("expected index filename '%s', did not find any", tc.wantIndexFilename)
 				}
@@ -405,28 +347,94 @@ Disallow: /`),
 				for _, file := range tc.files {
 					if file.dir != "" {
 						validateIsPermanentRedirect(t, file.dir, file.dir+"/")
-						validateHopPath(t, file.dir+"/", path.Join(file.dir, indexDocumentSuffixPath))
+						validateAltPath(t, file.dir+"/", path.Join(file.dir, indexDocumentSuffixPath))
 					}
 				}
 			}
 
 			// check error filename
 			if tc.wantErrorFilename != "" {
-				entry, err := verifyManifest.Lookup(ctx, api.ManifestRootPath)
+				entry, err := verifyManifest.Lookup(ctx, manifest.RootPath)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				manifestRootMetadata := entry.Metadata()
-				errorDocumentPath, ok := manifestRootMetadata[api.ManifestWebsiteErrorDocumentPathKey]
+				errorDocumentPath, ok := manifestRootMetadata[manifest.WebsiteErrorDocumentPathKey]
 				if !ok {
 					t.Fatalf("expected error filename '%s', did not find any", tc.wantErrorFilename)
 				}
 
 				// check error document
-				validateHopPath(t, "_non_existent_file_path_", errorDocumentPath)
+				validateAltPath(t, "_non_existent_file_path_", errorDocumentPath)
 			}
 
+		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Run("tar_upload", func(t *testing.T) {
+				// tar all the test case files
+				tarReader := tarFiles(t, tc.files)
+
+				var resp api.HopUploadResponse
+
+				options := []jsonhttptest.Option{
+					jsonhttptest.WithRequestBody(tarReader),
+					jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
+					jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
+					jsonhttptest.WithUnmarshalJSONResponse(&resp),
+				}
+				if tc.indexFilenameOption != nil {
+					options = append(options, tc.indexFilenameOption)
+				}
+				if tc.errorFilenameOption != nil {
+					options = append(options, tc.errorFilenameOption)
+				}
+				if tc.encrypt {
+					options = append(options, jsonhttptest.WithRequestHeader(api.SwarmEncryptHeader, "true"))
+				}
+
+				// verify directory tar upload response
+				jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusOK, options...)
+
+				if resp.Reference.String() == "" {
+					t.Fatalf("expected file reference, did not got any")
+				}
+
+				verify(t, resp)
+			})
+			if tc.doMultipart {
+				t.Run("multipart_upload", func(t *testing.T) {
+					// tar all the test case files
+					mwReader, mwBoundary := multipartFiles(t, tc.files)
+
+					var resp api.HopUploadResponse
+
+					options := []jsonhttptest.Option{
+						jsonhttptest.WithRequestBody(mwReader),
+						jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),
+						jsonhttptest.WithRequestHeader("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%q", mwBoundary)),
+						jsonhttptest.WithUnmarshalJSONResponse(&resp),
+					}
+					if tc.indexFilenameOption != nil {
+						options = append(options, tc.indexFilenameOption)
+					}
+					if tc.errorFilenameOption != nil {
+						options = append(options, tc.errorFilenameOption)
+					}
+					if tc.encrypt {
+						options = append(options, jsonhttptest.WithRequestHeader(api.SwarmEncryptHeader, "true"))
+					}
+
+					// verify directory tar upload response
+					jsonhttptest.Request(t, client, http.MethodPost, dirUploadResource, http.StatusOK, options...)
+
+					if resp.Reference.String() == "" {
+						t.Fatalf("expected file reference, did not got any")
+					}
+
+					verify(t, resp)
+				})
+			}
 		})
 	}
 }
@@ -469,12 +477,49 @@ func tarFiles(t *testing.T, files []f) *bytes.Buffer {
 	return &buf
 }
 
+func multipartFiles(t *testing.T, files []f) (*bytes.Buffer, string) {
+	t.Helper()
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+
+	for _, file := range files {
+		hdr := make(textproto.MIMEHeader)
+		if file.name != "" {
+			hdr.Set("Content-Disposition", fmt.Sprintf("form-data; name=%q", file.name))
+
+		}
+		contentType := file.header.Get("Content-Type")
+		if contentType != "" {
+			hdr.Set("Content-Type", contentType)
+
+		}
+		if len(file.data) > 0 {
+			hdr.Set("Content-Length", strconv.Itoa(len(file.data)))
+
+		}
+		part, err := mw.CreatePart(hdr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = io.Copy(part, bytes.NewBuffer(file.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// finally close the tar writer
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	return &buf, mw.Boundary()
+}
+
 // struct for dir files for test cases
 type f struct {
-	data      []byte
-	name      string
-	dir       string
-	filePath  string
-	reference swarm.Address
-	header    http.Header
+	data     []byte
+	name     string
+	dir      string
+	filePath string
+	header   http.Header
 }

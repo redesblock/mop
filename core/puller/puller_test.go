@@ -28,16 +28,40 @@ var (
 	reply = mockps.NewReply // alias to make code more readable
 )
 
-// test that adding one peer start syncing
-// then that adding another peer at the same po
-// does not start another syncing session
+// test that adding one peer starts syncing
 func TestOneSync(t *testing.T) {
 	var (
-		addr            = test.RandomAddress()
-		addr2           = test.RandomAddress()
-		cursors         = []uint64{1000, 1000, 1000}
-		liveReplies     = []uint64{1}
-		shallowBinPeers = 1
+		addr        = test.RandomAddress()
+		cursors     = []uint64{1000, 1000, 1000}
+		liveReplies = []uint64{1}
+	)
+
+	puller, _, kad, pullsync := newPuller(opts{
+		kad: []mockk.Option{
+			mockk.WithEachPeerRevCalls(
+				mockk.AddrTuple{Addr: addr, PO: 1},
+			), mockk.WithDepth(1),
+		},
+		pullSync: []mockps.Option{mockps.WithCursors(cursors), mockps.WithLiveSyncReplies(liveReplies...)},
+		bins:     3,
+	})
+	defer puller.Close()
+	defer pullsync.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	kad.Trigger()
+
+	waitCursorsCalled(t, pullsync, addr, false)
+
+	waitSyncCalled(t, pullsync, addr, false)
+}
+
+func TestNoSyncOutsideDepth(t *testing.T) {
+	var (
+		addr        = test.RandomAddress()
+		addr2       = test.RandomAddress()
+		cursors     = []uint64{1000, 1000, 1000}
+		liveReplies = []uint64{1}
 	)
 
 	puller, _, kad, pullsync := newPuller(opts{
@@ -47,9 +71,8 @@ func TestOneSync(t *testing.T) {
 				mockk.AddrTuple{Addr: addr2, PO: 1},
 			), mockk.WithDepth(2),
 		},
-		pullSync:        []mockps.Option{mockps.WithCursors(cursors), mockps.WithLiveSyncReplies(liveReplies...)},
-		bins:            3,
-		shallowBinPeers: &shallowBinPeers,
+		pullSync: []mockps.Option{mockps.WithCursors(cursors), mockps.WithLiveSyncReplies(liveReplies...)},
+		bins:     3,
 	})
 	defer puller.Close()
 	defer pullsync.Close()
@@ -57,14 +80,14 @@ func TestOneSync(t *testing.T) {
 
 	kad.Trigger()
 
-	waitCursorsCalled(t, pullsync, addr, false)
+	waitCursorsCalled(t, pullsync, addr, true)
 	waitCursorsCalled(t, pullsync, addr2, true)
 
-	waitSyncCalled(t, pullsync, addr, false)
+	waitSyncCalled(t, pullsync, addr, true)
 	waitSyncCalled(t, pullsync, addr2, true)
 }
 
-func TestSyncFlow_PeerOutsideDepth_Live(t *testing.T) {
+func TestSyncFlow_PeerWithinDepth_Live(t *testing.T) {
 	addr := test.RandomAddress()
 
 	for _, tc := range []struct {
@@ -76,13 +99,13 @@ func TestSyncFlow_PeerOutsideDepth_Live(t *testing.T) {
 		expLiveCalls []c    // expected live sync calls
 	}{
 		{
-			name: "cursor 0, 1 chunk on live", cursors: []uint64{0, 0, 0},
+			name: "cursor 0, 1 chunk on live", cursors: []uint64{0, 0},
 			intervals:    "[[1 1]]",
 			liveReplies:  []uint64{1},
 			expLiveCalls: []c{call(1, 1, max), call(1, 2, max)},
 		},
 		{
-			name: "cursor 0 - calls 1-1, 2-5, 6-10", cursors: []uint64{0, 0, 0},
+			name: "cursor 0 - calls 1-1, 2-5, 6-10", cursors: []uint64{0, 0},
 			intervals:    "[[1 10]]",
 			liveReplies:  []uint64{1, 5, 10},
 			expLiveCalls: []c{call(1, 1, max), call(1, 2, max), call(1, 6, max), call(1, 11, max)},
@@ -93,7 +116,7 @@ func TestSyncFlow_PeerOutsideDepth_Live(t *testing.T) {
 				kad: []mockk.Option{
 					mockk.WithEachPeerRevCalls(
 						mockk.AddrTuple{Addr: addr, PO: 1},
-					), mockk.WithDepth(2),
+					), mockk.WithDepth(1),
 				},
 				pullSync: []mockps.Option{mockps.WithCursors(tc.cursors), mockps.WithLiveSyncReplies(tc.liveReplies...)},
 				bins:     5,
@@ -117,7 +140,7 @@ func TestSyncFlow_PeerOutsideDepth_Live(t *testing.T) {
 	}
 }
 
-func TestSyncFlow_PeerOutsideDepth_Historical(t *testing.T) {
+func TestSyncFlow_PeerWithinDepth_Historical(t *testing.T) {
 	addr := test.RandomAddress()
 
 	for _, tc := range []struct {
@@ -128,7 +151,7 @@ func TestSyncFlow_PeerOutsideDepth_Historical(t *testing.T) {
 		expLiveCalls []c      // expected live sync calls
 	}{
 		{
-			name: "1,1 - 1 call", cursors: []uint64{0, 1, 3}, //the third cursor is to make sure we dont get a request for a bin we dont need
+			name: "1,1 - 1 call", cursors: []uint64{0, 1}, //the third cursor is to make sure we dont get a request for a bin we dont need
 			intervals:    "[[1 1]]",
 			expCalls:     []c{call(1, 1, 1)},
 			expLiveCalls: []c{call(1, 2, math.MaxUint64)},
@@ -169,7 +192,7 @@ func TestSyncFlow_PeerOutsideDepth_Historical(t *testing.T) {
 				kad: []mockk.Option{
 					mockk.WithEachPeerRevCalls(
 						mockk.AddrTuple{Addr: addr, PO: 1},
-					), mockk.WithDepth(2),
+					), mockk.WithDepth(1),
 				},
 				pullSync: []mockps.Option{mockps.WithCursors(tc.cursors), mockps.WithAutoReply(), mockps.WithLiveSyncBlock()},
 				bins:     5,
@@ -193,7 +216,7 @@ func TestSyncFlow_PeerOutsideDepth_Historical(t *testing.T) {
 	}
 }
 
-func TestSyncFlow_PeerWithinDepth_Live(t *testing.T) {
+func TestSyncFlow_PeerWithinDepth_Live2(t *testing.T) {
 	addr := test.RandomAddress()
 
 	for _, tc := range []struct {
@@ -261,8 +284,8 @@ func TestPeerDisconnected(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	kad.Trigger()
-	waitCursorsCalled(t, pullsync, addr, false)
-	waitLiveSyncCalled(t, pullsync, addr, false)
+	waitCursorsCalled(t, pullsync, addr, true)
+	waitLiveSyncCalled(t, pullsync, addr, true)
 	kad.ResetPeers()
 	kad.Trigger()
 	time.Sleep(50 * time.Millisecond)
@@ -272,6 +295,20 @@ func TestPeerDisconnected(t *testing.T) {
 	}
 }
 
+// TestDepthChange tests that puller reacts correctly to
+// depth changes signalled from kademlia.
+// Due to the fact that the component does goroutine termination
+// and new syncing sessions autonomously, the testing strategy is a bit
+// more tricky than usual. The idea is that syncReplies basically allow us
+// to somehow see through the inner workings of the syncing strategies.
+// When a sync reply is specified with block=true, the protocol mock basically
+// returns an interval back to the caller, as if we have successfully synced the
+// requested interval. This in turn means that the interval would be persisted
+// in the state store, allowing us to inspect for which bins intervals exist when
+// we check which bins were synced or not (presence of the key in the db indicates
+// the bin was synced). This also means that tweaking these tests needs to
+// be done carefully and with the understanding of what each change does to
+// the tested unit.
 func TestDepthChange(t *testing.T) {
 	var (
 		addr     = test.RandomAddress()
@@ -314,11 +351,12 @@ func TestDepthChange(t *testing.T) {
 		{
 			name:           "peer moves out of depth",
 			cursors:        []uint64{0, 0, 0, 0, 0},
-			binsNotSyncing: []uint8{1, 2, 4}, // only bins 3,4 are expected to sync
-			binsSyncing:    []uint8{3},
+			binsNotSyncing: []uint8{1, 2, 3, 4}, // no bins should be syncing
 			syncReplies: []mockps.SyncReply{
-				reply(3, 1, 1, false),
-				reply(3, 2, 1, true),
+				reply(1, 1, 1, true),
+				reply(2, 1, 1, true),
+				reply(3, 1, 1, true),
+				reply(4, 1, 1, true),
 			},
 			depths: []uint8{0, 1, 2, 3, 4},
 		},
@@ -341,7 +379,7 @@ func TestDepthChange(t *testing.T) {
 				kad: []mockk.Option{
 					mockk.WithEachPeerRevCalls(
 						mockk.AddrTuple{Addr: addr, PO: 3},
-					), mockk.WithDepthCalls(tc.depths...), // peer moved from out of depth to depth
+					), mockk.WithDepthCalls(tc.depths...),
 				},
 				pullSync: []mockps.Option{mockps.WithCursors(tc.cursors), mockps.WithLateSyncReply(tc.syncReplies...)},
 				bins:     5,
@@ -360,7 +398,7 @@ func TestDepthChange(t *testing.T) {
 
 			// check the intervals
 			for _, b := range tc.binsSyncing {
-				checkIntervals(t, st, addr, interval, b) // getting errors here
+				checkIntervals(t, st, addr, interval, b)
 			}
 
 			for _, b := range tc.binsNotSyncing {
@@ -541,10 +579,9 @@ func waitLiveSyncCalledTimes(t *testing.T, ps *mockps.PullSyncMock, addr swarm.A
 }
 
 type opts struct {
-	pullSync        []mockps.Option
-	kad             []mockk.Option
-	bins            uint8
-	shallowBinPeers *int
+	pullSync []mockps.Option
+	kad      []mockk.Option
+	bins     uint8
 }
 
 func newPuller(ops opts) (*puller.Puller, storage.StateStorer, *mockk.Mock, *mockps.PullSyncMock) {
@@ -555,9 +592,6 @@ func newPuller(ops opts) (*puller.Puller, storage.StateStorer, *mockk.Mock, *moc
 
 	o := puller.Options{
 		Bins: ops.bins,
-	}
-	if ops.shallowBinPeers != nil {
-		o.ShallowBinPeers = *ops.shallowBinPeers
 	}
 	return puller.New(s, kad, ps, logger, o), s, kad, ps
 }

@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 
@@ -152,7 +153,7 @@ func (p *PullSyncMock) SyncInterval(ctx context.Context, peer swarm.Address, bin
 			}
 			return sr.topmost, 0, nil
 		}
-		panic("not found")
+		panic(fmt.Sprintf("bin %d from %d to %d", bin, from, to))
 	}
 
 	if isLive && p.blockLiveSync {
@@ -160,7 +161,6 @@ func (p *PullSyncMock) SyncInterval(ctx context.Context, peer swarm.Address, bin
 		<-p.quit
 		return 0, 1, context.Canceled
 	}
-
 	if isLive && len(p.liveSyncReplies) > 0 {
 		if p.liveSyncCalls >= len(p.liveSyncReplies) {
 			<-p.quit

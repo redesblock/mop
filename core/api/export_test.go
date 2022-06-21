@@ -9,7 +9,7 @@ type (
 	ChunkAddressResponse     = chunkAddressResponse
 	SocPostResponse          = socPostResponse
 	FeedReferenceResponse    = feedReferenceResponse
-	FileUploadResponse       = fileUploadResponse
+	HopUploadResponse        = hopUploadResponse
 	TagResponse              = tagResponse
 	TagRequest               = tagRequest
 	ListTagsResponse         = listTagsResponse
@@ -19,13 +19,13 @@ type (
 )
 
 var (
-	ContentTypeTar = contentTypeTar
+	InvalidContentType  = invalidContentType
+	InvalidRequest      = invalidRequest
+	DirectoryStoreError = directoryStoreError
 )
 
 var (
-	ManifestRootPath                      = manifestRootPath
-	ManifestWebsiteIndexDocumentSuffixKey = manifestWebsiteIndexDocumentSuffixKey
-	ManifestWebsiteErrorDocumentPathKey   = manifestWebsiteErrorDocumentPathKey
+	ContentTypeTar = contentTypeTar
 )
 
 var (

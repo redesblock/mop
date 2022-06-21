@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethersphere/sw3-bindings/v3/simpleswapfactory"
+	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"golang.org/x/net/context"
 )
@@ -18,7 +18,7 @@ var (
 	ErrNotDeployedByFactory = errors.New("chequebook not deployed by factory")
 	errDecodeABI            = errors.New("could not decode abi data")
 
-	factoryABI                  = transaction.ParseABIUnchecked(simpleswapfactory.SimpleSwapFactoryABI)
+	factoryABI                  = transaction.ParseABIUnchecked(sw3abi.SimpleSwapFactoryABIv0_3_1)
 	simpleSwapDeployedEventType = factoryABI.Events["SimpleSwapDeployed"]
 )
 
@@ -101,7 +101,7 @@ func (c *factory) VerifyBytecode(ctx context.Context) (err error) {
 		return err
 	}
 
-	referenceCode := common.FromHex(simpleswapfactory.SimpleSwapFactoryDeployedCode)
+	referenceCode := common.FromHex(sw3abi.SimpleSwapFactoryDeployedBinv0_3_1)
 	if !bytes.Equal(code, referenceCode) {
 		return ErrInvalidFactory
 	}
