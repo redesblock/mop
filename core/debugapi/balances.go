@@ -2,11 +2,11 @@ package debugapi
 
 import (
 	"errors"
-	"math/big"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/hop/core/accounting"
+	"github.com/redesblock/hop/core/bigint"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -19,8 +19,8 @@ var (
 )
 
 type balanceResponse struct {
-	Peer    string   `json:"peer"`
-	Balance *big.Int `json:"balance"`
+	Peer    string         `json:"peer"`
+	Balance *bigint.BigInt `json:"balance"`
 }
 
 type balancesResponse struct {
@@ -41,7 +41,7 @@ func (s *Service) balancesHandler(w http.ResponseWriter, r *http.Request) {
 	for k := range balances {
 		balResponses[i] = balanceResponse{
 			Peer:    k,
-			Balance: balances[k],
+			Balance: bigint.Wrap(balances[k]),
 		}
 		i++
 	}
@@ -73,7 +73,7 @@ func (s *Service) peerBalanceHandler(w http.ResponseWriter, r *http.Request) {
 
 	jsonhttp.OK(w, balanceResponse{
 		Peer:    peer.String(),
-		Balance: balance,
+		Balance: bigint.Wrap(balance),
 	})
 }
 
@@ -91,7 +91,7 @@ func (s *Service) compensatedBalancesHandler(w http.ResponseWriter, r *http.Requ
 	for k := range balances {
 		balResponses[i] = balanceResponse{
 			Peer:    k,
-			Balance: balances[k],
+			Balance: bigint.Wrap(balances[k]),
 		}
 		i++
 	}
@@ -123,6 +123,6 @@ func (s *Service) compensatedPeerBalanceHandler(w http.ResponseWriter, r *http.R
 
 	jsonhttp.OK(w, balanceResponse{
 		Peer:    peer.String(),
-		Balance: balance,
+		Balance: bigint.Wrap(balance),
 	})
 }

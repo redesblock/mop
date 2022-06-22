@@ -18,6 +18,7 @@ type metrics struct {
 	DisconnectCount            prometheus.Counter
 	ConnectBreakerCount        prometheus.Counter
 	UnexpectedProtocolReqCount prometheus.Counter
+	KickedOutPeersCount        prometheus.Counter
 }
 
 func newMetrics() metrics {
@@ -77,6 +78,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "unexpected_protocol_request_count",
 			Help:      "Number of requests the peer is not expecting.",
+		}),
+		KickedOutPeersCount: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "kickedout_peers_count",
+			Help:      "Number of total kicked-out peers.",
 		}),
 	}
 }

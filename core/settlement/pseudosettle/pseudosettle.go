@@ -159,6 +159,7 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 	defer func() {
 		if err != nil {
 			_ = stream.Reset()
+			s.metrics.ReceivedPseudoSettlementsErrors.Inc()
 		} else {
 			go stream.FullClose()
 		}
@@ -226,6 +227,7 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 
 	receivedPaymentF64, _ := big.NewFloat(0).SetInt(paymentAmount).Float64()
 	s.metrics.TotalReceivedPseudoSettlements.Add(receivedPaymentF64)
+	s.metrics.ReceivedPseudoSettlements.Inc()
 	return s.accounting.NotifyRefreshmentReceived(p.Address, paymentAmount)
 }
 
@@ -235,6 +237,12 @@ func (s *Service) Pay(ctx context.Context, peer swarm.Address, amount *big.Int, 
 	defer cancel()
 
 	var err error
+
+	defer func() {
+		if err != nil {
+			s.metrics.ReceivedPseudoSettlementsErrors.Inc()
+		}
+	}()
 
 	var lastTime lastPayment
 	err = s.store.Get(totalKey(peer, SettlementSentPrefix), &lastTime)
@@ -335,6 +343,7 @@ func (s *Service) Pay(ctx context.Context, peer swarm.Address, amount *big.Int, 
 
 	amountFloat, _ := new(big.Float).SetInt(acceptedAmount).Float64()
 	s.metrics.TotalSentPseudoSettlements.Add(amountFloat)
+	s.metrics.SentPseudoSettlements.Inc()
 
 	return acceptedAmount, lastTime.CheckTimestamp, nil
 }

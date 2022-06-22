@@ -19,6 +19,7 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/manifest"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -82,7 +83,12 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 	if err != nil {
 		logger.Debugf("hop upload dir: store dir err: %v", err)
 		logger.Errorf("hop upload dir: store dir")
-		jsonhttp.InternalServerError(w, errDirectoryStore)
+		switch {
+		case errors.Is(err, postage.ErrBucketFull):
+			jsonhttp.PaymentRequired(w, "batch is overissued")
+		default:
+			jsonhttp.InternalServerError(w, errDirectoryStore)
+		}
 		return
 	}
 	if created {

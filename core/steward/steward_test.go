@@ -14,6 +14,7 @@ import (
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/traversal"
 )
 
@@ -62,6 +63,40 @@ func TestSteward(t *testing.T) {
 		if _, ok := traversedAddrs[a.String()]; !ok {
 			t.Fatalf("expected address %s to be traversed", a.String())
 		}
+	}
+}
+
+func TestSteward_ErrWantSelf(t *testing.T) {
+	var (
+		ctx       = context.Background()
+		chunks    = 10
+		data      = make([]byte, chunks*4096)
+		store     = mock.NewStorer()
+		traverser = traversal.New(store)
+		fn        = func(_ context.Context, ch swarm.Chunk) (*pushsync.Receipt, error) {
+			return nil, topology.ErrWantSelf
+		}
+		ps = psmock.New(fn)
+		s  = steward.New(store, traverser, ps)
+	)
+	n, err := rand.Read(data)
+	if n != cap(data) {
+		t.Fatal("short read")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l := &loggingStore{Storer: store}
+	pipe := builder.NewPipelineBuilder(ctx, l, storage.ModePutUpload, false)
+	addr, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.Reupload(ctx, addr)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

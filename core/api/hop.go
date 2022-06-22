@@ -21,6 +21,7 @@ import (
 	"github.com/redesblock/hop/core/file/loadsave"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/manifest"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -115,7 +116,12 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 	if err != nil {
 		logger.Debugf("hop upload file: file store, file %q: %v", fileName, err)
 		logger.Errorf("hop upload file: file store, file %q", fileName)
-		jsonhttp.InternalServerError(w, errFileStore)
+		switch {
+		case errors.Is(err, postage.ErrBucketFull):
+			jsonhttp.PaymentRequired(w, "batch is overissued")
+		default:
+			jsonhttp.InternalServerError(w, errFileStore)
+		}
 		return
 	}
 
@@ -182,7 +188,12 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 	if err != nil {
 		logger.Debugf("hop upload file: manifest store, file %q: %v", fileName, err)
 		logger.Errorf("hop upload file: manifest store, file %q", fileName)
-		jsonhttp.InternalServerError(w, nil)
+		switch {
+		case errors.Is(err, postage.ErrBucketFull):
+			jsonhttp.PaymentRequired(w, "batch is overissued")
+		default:
+			jsonhttp.InternalServerError(w, nil)
+		}
 		return
 	}
 	logger.Debugf("Manifest Reference: %s", manifestReference.String())

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/redesblock/hop/core/bigint"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
@@ -36,28 +37,28 @@ func TestSettlements(t *testing.T) {
 	})
 
 	expected := &debugapi.SettlementsResponse{
-		TotalSettlementReceived: big.NewInt(15000),
-		TotalSettlementSent:     big.NewInt(80000),
+		TotalSettlementReceived: bigint.Wrap(big.NewInt(15000)),
+		TotalSettlementSent:     bigint.Wrap(big.NewInt(80000)),
 		Settlements: []debugapi.SettlementResponse{
 			{
 				Peer:               "DEAD",
-				SettlementReceived: big.NewInt(0),
-				SettlementSent:     big.NewInt(10000),
+				SettlementReceived: bigint.Wrap(big.NewInt(0)),
+				SettlementSent:     bigint.Wrap(big.NewInt(10000)),
 			},
 			{
 				Peer:               "BEEF",
-				SettlementReceived: big.NewInt(10000),
-				SettlementSent:     big.NewInt(20000),
+				SettlementReceived: bigint.Wrap(big.NewInt(10000)),
+				SettlementSent:     bigint.Wrap(big.NewInt(20000)),
 			},
 			{
 				Peer:               "FFFF",
-				SettlementReceived: big.NewInt(0),
-				SettlementSent:     big.NewInt(50000),
+				SettlementReceived: bigint.Wrap(big.NewInt(0)),
+				SettlementSent:     bigint.Wrap(big.NewInt(50000)),
 			},
 			{
 				Peer:               "EEEE",
-				SettlementReceived: big.NewInt(5000),
-				SettlementSent:     big.NewInt(0),
+				SettlementReceived: bigint.Wrap(big.NewInt(5000)),
+				SettlementSent:     bigint.Wrap(big.NewInt(0)),
 			},
 		},
 	}
@@ -103,8 +104,8 @@ func TestSettlementsPeers(t *testing.T) {
 	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/settlements/"+peer, http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.SettlementResponse{
 			Peer:               peer,
-			SettlementSent:     big.NewInt(1000000000000000000),
-			SettlementReceived: big.NewInt(0),
+			SettlementSent:     bigint.Wrap(big.NewInt(1000000000000000000)),
+			SettlementReceived: bigint.Wrap(big.NewInt(0)),
 		}),
 	)
 }
@@ -129,8 +130,8 @@ func TestSettlementsPeersNoSettlements(t *testing.T) {
 		jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/settlements/"+peer, http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(debugapi.SettlementResponse{
 				Peer:               peer,
-				SettlementSent:     big.NewInt(0),
-				SettlementReceived: big.NewInt(1000000000000000000),
+				SettlementSent:     bigint.Wrap(big.NewInt(0)),
+				SettlementReceived: bigint.Wrap(big.NewInt(1000000000000000000)),
 			}),
 		)
 	})
@@ -146,8 +147,8 @@ func TestSettlementsPeersNoSettlements(t *testing.T) {
 		jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/settlements/"+peer, http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(debugapi.SettlementResponse{
 				Peer:               peer,
-				SettlementSent:     big.NewInt(1000000000000000000),
-				SettlementReceived: big.NewInt(0),
+				SettlementSent:     bigint.Wrap(big.NewInt(1000000000000000000)),
+				SettlementReceived: bigint.Wrap(big.NewInt(0)),
 			}),
 		)
 	})
@@ -213,11 +214,11 @@ func equalSettlements(a, b *debugapi.SettlementsResponse) bool {
 		}
 	}
 
-	if a.TotalSettlementReceived.Cmp(b.TotalSettlementReceived) != 0 {
+	if a.TotalSettlementReceived.Cmp(b.TotalSettlementReceived.Int) != 0 {
 		return false
 	}
 
-	if a.TotalSettlementSent.Cmp(b.TotalSettlementSent) != 0 {
+	if a.TotalSettlementSent.Cmp(b.TotalSettlementSent.Int) != 0 {
 		return false
 	}
 

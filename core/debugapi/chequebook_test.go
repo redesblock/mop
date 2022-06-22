@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/redesblock/hop/core/bigint"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
@@ -40,8 +41,8 @@ func TestChequebookBalance(t *testing.T) {
 	})
 
 	expected := &debugapi.ChequebookBalanceResponse{
-		TotalBalance:     returnedBalance,
-		AvailableBalance: returnedAvailableBalance,
+		TotalBalance:     bigint.Wrap(returnedBalance),
+		AvailableBalance: bigint.Wrap(returnedAvailableBalance),
 	}
 
 	var got *debugapi.ChequebookBalanceResponse
@@ -335,12 +336,12 @@ func TestChequebookLastCheques(t *testing.T) {
 			LastReceived: &debugapi.ChequebookLastChequePeerResponse{
 				Beneficiary: beneficiary.String(),
 				Chequebook:  chequebookAddress1.String(),
-				Payout:      cumulativePayout4,
+				Payout:      bigint.Wrap(cumulativePayout4),
 			},
 			LastSent: &debugapi.ChequebookLastChequePeerResponse{
 				Beneficiary: beneficiary1.String(),
 				Chequebook:  chequebookAddress1.String(),
-				Payout:      cumulativePayout1,
+				Payout:      bigint.Wrap(cumulativePayout1),
 			},
 		},
 		{
@@ -349,7 +350,7 @@ func TestChequebookLastCheques(t *testing.T) {
 			LastSent: &debugapi.ChequebookLastChequePeerResponse{
 				Beneficiary: beneficiary2.String(),
 				Chequebook:  chequebookAddress2.String(),
-				Payout:      cumulativePayout2,
+				Payout:      bigint.Wrap(cumulativePayout2),
 			},
 		},
 		{
@@ -358,7 +359,7 @@ func TestChequebookLastCheques(t *testing.T) {
 			LastSent: &debugapi.ChequebookLastChequePeerResponse{
 				Beneficiary: beneficiary3.String(),
 				Chequebook:  chequebookAddress3.String(),
-				Payout:      cumulativePayout3,
+				Payout:      bigint.Wrap(cumulativePayout3),
 			},
 		},
 		{
@@ -366,7 +367,7 @@ func TestChequebookLastCheques(t *testing.T) {
 			LastReceived: &debugapi.ChequebookLastChequePeerResponse{
 				Beneficiary: beneficiary.String(),
 				Chequebook:  chequebookAddress4.String(),
-				Payout:      cumulativePayout5,
+				Payout:      bigint.Wrap(cumulativePayout5),
 			},
 			LastSent: nil,
 		},
@@ -375,7 +376,7 @@ func TestChequebookLastCheques(t *testing.T) {
 			LastReceived: &debugapi.ChequebookLastChequePeerResponse{
 				Beneficiary: beneficiary.String(),
 				Chequebook:  chequebookAddress5.String(),
-				Payout:      cumulativePayout6,
+				Payout:      bigint.Wrap(cumulativePayout6),
 			},
 			LastSent: nil,
 		},
@@ -446,12 +447,12 @@ func TestChequebookLastChequesPeer(t *testing.T) {
 		LastReceived: &debugapi.ChequebookLastChequePeerResponse{
 			Beneficiary: beneficiary0.String(),
 			Chequebook:  chequebookAddress.String(),
-			Payout:      cumulativePayout2,
+			Payout:      bigint.Wrap(cumulativePayout2),
 		},
 		LastSent: &debugapi.ChequebookLastChequePeerResponse{
 			Beneficiary: beneficiary1.String(),
 			Chequebook:  chequebookAddress.String(),
-			Payout:      cumulativePayout1,
+			Payout:      bigint.Wrap(cumulativePayout1),
 		},
 	}
 
@@ -585,15 +586,15 @@ func TestChequebookCashoutStatus(t *testing.T) {
 			TransactionHash: &actionTxHash,
 			Cheque: &debugapi.ChequebookLastChequePeerResponse{
 				Chequebook:  chequebookAddress.String(),
-				Payout:      cumulativePayout,
+				Payout:      bigint.Wrap(cumulativePayout),
 				Beneficiary: cheque.Beneficiary.String(),
 			},
 			Result: &debugapi.SwapCashoutStatusResult{
 				Recipient:  recipientAddress,
-				LastPayout: totalPayout,
+				LastPayout: bigint.Wrap(totalPayout),
 				Bounced:    false,
 			},
-			UncashedAmount: uncashedAmount,
+			UncashedAmount: bigint.Wrap(uncashedAmount),
 		}
 
 		var got *debugapi.SwapCashoutStatusResponse
@@ -629,11 +630,11 @@ func TestChequebookCashoutStatus(t *testing.T) {
 			TransactionHash: &actionTxHash,
 			Cheque: &debugapi.ChequebookLastChequePeerResponse{
 				Chequebook:  chequebookAddress.String(),
-				Payout:      cumulativePayout,
+				Payout:      bigint.Wrap(cumulativePayout),
 				Beneficiary: cheque.Beneficiary.String(),
 			},
 			Result:         nil,
-			UncashedAmount: uncashedAmount,
+			UncashedAmount: bigint.Wrap(uncashedAmount),
 		}
 
 		var got *debugapi.SwapCashoutStatusResponse
@@ -664,7 +665,7 @@ func TestChequebookCashoutStatus(t *testing.T) {
 			TransactionHash: nil,
 			Cheque:          nil,
 			Result:          nil,
-			UncashedAmount:  uncashedAmount,
+			UncashedAmount:  bigint.Wrap(uncashedAmount),
 		}
 
 		var got *debugapi.SwapCashoutStatusResponse

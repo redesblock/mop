@@ -4,11 +4,13 @@ package steward
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/traversal"
 	"golang.org/x/sync/errgroup"
 )
@@ -51,7 +53,10 @@ func (s *steward) Reupload(ctx context.Context, root swarm.Address) error {
 			defer func() { <-sem }()
 			_, err := s.push.PushChunkToClosest(ctx, c)
 			if err != nil {
-				return err
+				if !errors.Is(err, topology.ErrWantSelf) {
+					return err
+				}
+				// swallow the error in case we are the closest node
 			}
 			return nil
 		})
