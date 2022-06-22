@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	factoryABI              = transaction.ParseABIUnchecked(sw3abi.SimpleSwapFactoryABIv0_4_0)
+	factoryABI              = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABIv0_4_0)
 	simpleSwapDeployedEvent = factoryABI.Events["SimpleSwapDeployed"]
 )
 
@@ -71,9 +71,9 @@ func TestFactoryVerifySelf(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		factory := chequebook.NewFactory(
 			backendWithCodeAt(map[common.Address]string{
-				factoryAddress: sw3abi.SimpleSwapFactoryDeployedBinv0_4_0,
-				legacyFactory1: sw3abi.SimpleSwapFactoryDeployedBinv0_3_1,
-				legacyFactory2: sw3abi.SimpleSwapFactoryDeployedBinv0_3_1,
+				factoryAddress: hopabi.SimpleSwapFactoryDeployedBinv0_4_0,
+				legacyFactory1: hopabi.SimpleSwapFactoryDeployedBinv0_3_1,
+				legacyFactory2: hopabi.SimpleSwapFactoryDeployedBinv0_3_1,
 			}),
 			transactionmock.New(),
 			factoryAddress,
@@ -108,8 +108,8 @@ func TestFactoryVerifySelf(t *testing.T) {
 	t.Run("invalid legacy factories", func(t *testing.T) {
 		factory := chequebook.NewFactory(
 			backendWithCodeAt(map[common.Address]string{
-				factoryAddress: sw3abi.SimpleSwapFactoryDeployedBinv0_4_0,
-				legacyFactory1: sw3abi.SimpleSwapFactoryDeployedBinv0_3_1,
+				factoryAddress: hopabi.SimpleSwapFactoryDeployedBinv0_4_0,
+				legacyFactory1: hopabi.SimpleSwapFactoryDeployedBinv0_3_1,
 				legacyFactory2: "abcd",
 			}),
 			transactionmock.New(),

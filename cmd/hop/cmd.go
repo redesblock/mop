@@ -17,7 +17,7 @@ import (
 
 const (
 	optionNameDataDir                    = "data-dir"
-	optionNameDBCapacity                 = "db-capacity"
+	optionNameCacheCapacity              = "cache-capacity"
 	optionNameDBOpenFilesLimit           = "db-open-files-limit"
 	optionNameDBBlockCacheCapacity       = "db-block-cache-capacity"
 	optionNameDBWriteBufferSize          = "db-write-buffer-size"
@@ -58,7 +58,6 @@ const (
 	optionNameTransactionHash            = "transaction"
 	optionNameFullNode                   = "full-node"
 	optionNamePostageContractAddress     = "postage-stamp-address"
-	optionNamePriceOracleAddress         = "price-oracle-address"
 	optionNameBlockTime                  = "block-time"
 )
 
@@ -189,7 +188,7 @@ func (c *command) setHomeDir() (err error) {
 
 func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".hop"), "data directory")
-	cmd.Flags().Uint64(optionNameDBCapacity, 1000000, fmt.Sprintf("db capacity in chunks, multiply by %d to get approximate capacity in bytes", swarm.ChunkSize))
+	cmd.Flags().Uint64(optionNameCacheCapacity, 1000000, fmt.Sprintf("cache capacity in chunks, multiply by %d to get approximate capacity in bytes", swarm.ChunkSize))
 	cmd.Flags().Uint64(optionNameDBOpenFilesLimit, 200, "number of open files allowed by database")
 	cmd.Flags().Uint64(optionNameDBBlockCacheCapacity, 32*1024*1024, "size of block cache of the database in bytes")
 	cmd.Flags().Uint64(optionNameDBWriteBufferSize, 32*1024*1024, "size of the database write buffer in bytes")
@@ -229,7 +228,6 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameSwapEnable, true, "enable swap")
 	cmd.Flags().Bool(optionNameFullNode, false, "cause the node to start in full mode")
 	cmd.Flags().String(optionNamePostageContractAddress, "", "postage stamp contract address")
-	cmd.Flags().String(optionNamePriceOracleAddress, "", "price oracle address")
 	cmd.Flags().String(optionNameTransactionHash, "", "proof-of-identity transaction hash")
 	cmd.Flags().Uint64(optionNameBlockTime, 15, "chain block time")
 }

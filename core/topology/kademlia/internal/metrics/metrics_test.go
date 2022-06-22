@@ -1,7 +1,6 @@
 package metrics_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -134,7 +133,7 @@ func TestPeerMetricsCollector(t *testing.T) {
 		t.Fatalf("Finalize(%s): unexpected error: %v", t3, err)
 	}
 	sss, err := mc.Snapshot(t2, addr)
-	if !errors.Is(err, metrics.ErrPeerNotFound) {
+	if err != nil {
 		t.Fatalf("Snapshot(%q, ...): unexpected error: %v", addr, err)
 	}
 	if have, want := len(sss), 0; have != want {

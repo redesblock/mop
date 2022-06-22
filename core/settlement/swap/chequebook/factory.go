@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"golang.org/x/net/context"
 )
@@ -16,9 +16,9 @@ import (
 var (
 	ErrInvalidFactory       = errors.New("not a valid factory contract")
 	ErrNotDeployedByFactory = errors.New("chequebook not deployed by factory")
-	errDecodeABI            = errors.New("could not decode abi data")
+	errDecodeABI            = errors.New("could not decode hopabi data")
 
-	factoryABI                  = transaction.ParseABIUnchecked(sw3abi.SimpleSwapFactoryABIv0_4_0)
+	factoryABI                  = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABIv0_4_0)
 	simpleSwapDeployedEventType = factoryABI.Events["SimpleSwapDeployed"]
 )
 
@@ -48,12 +48,12 @@ type simpleSwapDeployedEvent struct {
 }
 
 // the bytecode of factories which can be used for deployment
-var currentDeployVersion []byte = common.FromHex(sw3abi.SimpleSwapFactoryDeployedBinv0_4_0)
+var currentDeployVersion []byte = common.FromHex(hopabi.SimpleSwapFactoryDeployedBinv0_4_0)
 
 // the bytecode of factories from which we accept chequebooks
 var supportedVersions = [][]byte{
 	currentDeployVersion,
-	common.FromHex(sw3abi.SimpleSwapFactoryDeployedBinv0_3_1),
+	common.FromHex(hopabi.SimpleSwapFactoryDeployedBinv0_3_1),
 }
 
 // NewFactory creates a new factory service for the provided factory contract.

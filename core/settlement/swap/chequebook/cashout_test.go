@@ -2,12 +2,12 @@ package chequebook_test
 
 import (
 	"context"
+	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	chequestoremock "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	chequebookABI          = transaction.ParseABIUnchecked(sw3abi.ERC20SimpleSwapABIv0_3_1)
+	chequebookABI          = transaction.ParseABIUnchecked(hopabi.ERC20SimpleSwapABIv0_3_1)
 	chequeCashedEventType  = chequebookABI.Events["ChequeCashed"]
 	chequeBouncedEventType = chequebookABI.Events["ChequeBounced"]
 )

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 	"strings"
 
@@ -12,14 +13,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 )
 
 var (
 	BucketDepth = uint8(16)
 
-	postageStampABI   = parseABI(PostageStampABIv0_1_0)
-	erc20ABI          = parseABI(ERC20ABIv0_3_1)
+	postageStampABI   = parseABI(hopabi.PostageStampABIv0_1_0)
+	erc20ABI          = parseABI(hopabi.ERC20ABIv0_3_1)
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 
 	ErrBatchCreate       = errors.New("batch creation failed")
@@ -64,7 +66,7 @@ func (c *postageContract) sendApproveTransaction(ctx context.Context, amount *bi
 	txHash, err := c.transactionService.Send(ctx, &transaction.TxRequest{
 		To:       &c.hopTokenAddress,
 		Data:     callData,
-		GasPrice: nil,
+		GasPrice: sctx.GetGasPrice(ctx),
 		GasLimit: 0,
 		Value:    big.NewInt(0),
 	})
@@ -93,7 +95,7 @@ func (c *postageContract) sendCreateBatchTransaction(ctx context.Context, owner 
 	request := &transaction.TxRequest{
 		To:       &c.postageContractAddress,
 		Data:     callData,
-		GasPrice: nil,
+		GasPrice: sctx.GetGasPrice(ctx),
 		GasLimit: 0,
 		Value:    big.NewInt(0),
 	}

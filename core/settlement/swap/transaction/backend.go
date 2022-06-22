@@ -66,7 +66,7 @@ func WaitSynced(ctx context.Context, backend Backend, maxDelay time.Duration) er
 	}
 }
 
-// ParseABIUnchecked will parse a valid json abi. Only use this with string constants known to be correct.
+// ParseABIUnchecked will parse a valid json hopabi. Only use this with string constants known to be correct.
 func ParseABIUnchecked(json string) abi.ABI {
 	cabi, err := abi.JSON(strings.NewReader(json))
 	if err != nil {

@@ -3,17 +3,17 @@ package erc20
 import (
 	"context"
 	"errors"
+	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethersphere/go-sw3-abi/sw3abi"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 )
 
 var (
-	erc20ABI     = transaction.ParseABIUnchecked(sw3abi.ERC20ABIv0_3_1)
-	errDecodeABI = errors.New("could not decode abi data")
+	erc20ABI     = transaction.ParseABIUnchecked(hopabi.ERC20ABIv0_3_1)
+	errDecodeABI = errors.New("could not decode hopabi data")
 )
 
 type Service interface {

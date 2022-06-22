@@ -16,6 +16,7 @@ import (
 	mockpost "github.com/redesblock/hop/core/postage/mock"
 	"github.com/redesblock/hop/core/postage/postagecontract"
 	contractMock "github.com/redesblock/hop/core/postage/postagecontract/mock"
+	"github.com/redesblock/hop/core/sctx"
 )
 
 func TestPostageCreateStamp(t *testing.T) {
@@ -47,6 +48,36 @@ func TestPostageCreateStamp(t *testing.T) {
 		})
 
 		jsonhttptest.Request(t, client, http.MethodPost, createBatch(initialBalance, depth, label), http.StatusCreated,
+			jsonhttptest.WithExpectedJSONResponse(&api.PostageCreateResponse{
+				BatchID: batchID,
+			}),
+		)
+	})
+
+	t.Run("with-custom-gas", func(t *testing.T) {
+		contract := contractMock.New(
+			contractMock.WithCreateBatchFunc(func(ctx context.Context, ib *big.Int, d uint8, l string) ([]byte, error) {
+				if ib.Cmp(big.NewInt(initialBalance)) != 0 {
+					return nil, fmt.Errorf("called with wrong initial balance. wanted %d, got %d", initialBalance, ib)
+				}
+				if d != depth {
+					return nil, fmt.Errorf("called with wrong depth. wanted %d, got %d", depth, d)
+				}
+				if l != label {
+					return nil, fmt.Errorf("called with wrong label. wanted %s, got %s", label, l)
+				}
+				if sctx.GetGasPrice(ctx).Cmp(big.NewInt(10000)) != 0 {
+					return nil, fmt.Errorf("called with wrong gas price. wanted %d, got %d", 10000, sctx.GetGasPrice(ctx))
+				}
+				return batchID, nil
+			}),
+		)
+		client, _, _ := newTestServer(t, testServerOptions{
+			PostageContract: contract,
+		})
+
+		jsonhttptest.Request(t, client, http.MethodPost, createBatch(initialBalance, depth, label), http.StatusCreated,
+			jsonhttptest.WithRequestHeader("Gas-Price", "10000"),
 			jsonhttptest.WithExpectedJSONResponse(&api.PostageCreateResponse{
 				BatchID: batchID,
 			}),

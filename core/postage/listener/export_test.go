@@ -2,7 +2,6 @@ package listener
 
 var (
 	PostageStampABI = postageStampABI
-	PriceOracleABI  = priceOracleABI
 
 	BatchCreatedTopic       = batchCreatedTopic
 	BatchTopupTopic         = batchTopupTopic

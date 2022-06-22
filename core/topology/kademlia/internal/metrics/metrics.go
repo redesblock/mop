@@ -3,7 +3,6 @@
 package metrics
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,8 +11,6 @@ import (
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/swarm"
 )
-
-var ErrPeerNotFound = errors.New("peer no found")
 
 const (
 	peerLastSeenTimestamp       string = "peer-last-seen-timestamp"
@@ -207,16 +204,42 @@ func (c *Collector) Record(addr swarm.Address, rop ...RecordOp) error {
 // error, it rather continues and all the execution errors are returned together
 // with the successful metrics snapshots.
 func (c *Collector) Snapshot(t time.Time, addresses ...swarm.Address) (map[string]*Snapshot, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	var mErr error
 	snapshot := make(map[string]*Snapshot)
 
 	take := func(addr string) {
-		peerSnapshot, err := c.peer(t, addr)
+		cs := c.counters[addr]
+		if cs == nil {
+			return
+		}
+
+		ls, err := cs.lastSeenTimestamp.Get()
 		if err != nil {
-			mErr = multierror.Append(err)
-		} else {
-			snapshot[addr] = peerSnapshot
+			mErr = multierror.Append(mErr, fmt.Errorf("unable to take last seen snapshot for %q: %w", addr, err))
+		}
+		lastSeenTimestamp := int64(ls)
+
+		cn, err := cs.connTotalDuration.Get()
+		if err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("unable to take connection duration snapshot for %q: %w", addr, err))
+		}
+		connTotalDuration := time.Duration(cn)
+
+		sessionConnDuration := cs.sessionConnDuration
+		if cs.loggedIn {
+			sessionConnDuration = t.Sub(time.Unix(0, lastSeenTimestamp))
+			connTotalDuration += sessionConnDuration
+		}
+
+		snapshot[addr] = &Snapshot{
+			LastSeenTimestamp:          lastSeenTimestamp,
+			SessionConnectionRetry:     cs.sessionConnRetry,
+			ConnectionTotalDuration:    connTotalDuration,
+			SessionConnectionDuration:  sessionConnDuration,
+			SessionConnectionDirection: cs.sessionConnDirection,
 		}
 	}
 
@@ -224,56 +247,12 @@ func (c *Collector) Snapshot(t time.Time, addresses ...swarm.Address) (map[strin
 		take(addr.String())
 	}
 	if len(addresses) == 0 {
-		c.mu.RLock()
 		for addr := range c.counters {
 			take(addr)
 		}
-		c.mu.RUnlock()
 	}
 
 	return snapshot, mErr
-}
-
-func (c *Collector) Peer(t time.Time, addr swarm.Address) (*Snapshot, error) {
-	return c.peer(t, addr.String())
-}
-
-func (c *Collector) peer(t time.Time, addr string) (*Snapshot, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var mErr error
-
-	cs := c.counters[addr]
-	if cs == nil {
-		return nil, ErrPeerNotFound
-	}
-
-	ls, err := cs.lastSeenTimestamp.Get()
-	if err != nil {
-		mErr = multierror.Append(mErr, fmt.Errorf("unable to take last seen snapshot for %q: %w", addr, err))
-	}
-	lastSeenTimestamp := int64(ls)
-
-	cn, err := cs.connTotalDuration.Get()
-	if err != nil {
-		mErr = multierror.Append(mErr, fmt.Errorf("unable to take connection duration snapshot for %q: %w", addr, err))
-	}
-	connTotalDuration := time.Duration(cn)
-
-	sessionConnDuration := cs.sessionConnDuration
-	if cs.loggedIn {
-		sessionConnDuration = t.Sub(time.Unix(0, lastSeenTimestamp))
-		connTotalDuration += sessionConnDuration
-	}
-
-	return &Snapshot{
-		LastSeenTimestamp:          lastSeenTimestamp,
-		ConnectionTotalDuration:    connTotalDuration,
-		SessionConnectionRetry:     cs.sessionConnRetry,
-		SessionConnectionDuration:  sessionConnDuration,
-		SessionConnectionDirection: cs.sessionConnDirection,
-	}, mErr
 }
 
 // Finalize logs out all ongoing peer sessions

@@ -13,7 +13,7 @@ var (
 	ErrNoTopic       = errors.New("no topic")
 )
 
-// ParseEvent will parse the specified abi event from the given log
+// ParseEvent will parse the specified hopabi event from the given log
 func ParseEvent(a *abi.ABI, eventName string, c interface{}, e types.Log) error {
 	if len(e.Topics) == 0 {
 		return ErrNoTopic

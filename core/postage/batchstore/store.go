@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/storage"
@@ -40,9 +41,9 @@ func New(st storage.StateStorer, unreserveFunc unreserveFn) (postage.Storer, err
 			return nil, err
 		}
 		cs = &postage.ChainState{
-			Block: 0,
-			Total: big.NewInt(0),
-			Price: big.NewInt(0),
+			Block:        0,
+			TotalAmount:  big.NewInt(0),
+			CurrentPrice: big.NewInt(0),
 		}
 	}
 	rs := &reserveState{}
@@ -69,8 +70,8 @@ func New(st storage.StateStorer, unreserveFunc unreserveFn) (postage.Storer, err
 	return s, nil
 }
 
-func (s *store) GetReserveState() *postage.Reservestate {
-	return &postage.Reservestate{
+func (s *store) GetReserveState() *postage.ReserveState {
+	return &postage.ReserveState{
 		Radius:    s.rs.Radius,
 		Available: s.rs.Available,
 		Outer:     new(big.Int).Set(s.rs.Outer),
@@ -159,6 +160,32 @@ func (s *store) GetChainState() *postage.ChainState {
 
 func (s *store) SetRadiusSetter(r postage.RadiusSetter) {
 	s.radiusSetter = r
+}
+
+func (s *store) Reset() error {
+	prefix := "batchstore_"
+	if err := s.store.Iterate(prefix, func(k, _ []byte) (bool, error) {
+		if strings.HasPrefix(string(k), prefix) {
+			if err := s.store.Delete(string(k)); err != nil {
+				return false, err
+			}
+		}
+		return false, nil
+	}); err != nil {
+		return err
+	}
+	s.cs = &postage.ChainState{
+		Block:        0,
+		TotalAmount:  big.NewInt(0),
+		CurrentPrice: big.NewInt(0),
+	}
+	s.rs = &reserveState{
+		Radius:    DefaultDepth,
+		Inner:     big.NewInt(0),
+		Outer:     big.NewInt(0),
+		Available: Capacity,
+	}
+	return nil
 }
 
 // batchKey returns the index key for the batch ID used in the by-ID batch index.

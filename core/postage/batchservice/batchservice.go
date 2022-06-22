@@ -2,17 +2,22 @@ package batchservice
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/hop/core/storage"
 )
 
+const dirtyDBKey = "batchservice_dirty_db"
+
 type batchService struct {
-	storer   postage.Storer
-	logger   logging.Logger
-	listener postage.Listener
+	stateStore storage.StateStorer
+	storer     postage.Storer
+	logger     logging.Logger
+	listener   postage.Listener
 }
 
 type Interface interface {
@@ -20,8 +25,8 @@ type Interface interface {
 }
 
 // New will create a new BatchService.
-func New(storer postage.Storer, logger logging.Logger, listener postage.Listener) Interface {
-	return &batchService{storer, logger, listener}
+func New(stateStore storage.StateStorer, storer postage.Storer, logger logging.Logger, listener postage.Listener) Interface {
+	return &batchService{stateStore, storer, logger, listener}
 }
 
 // Create will create a new batch with the given ID, owner value and depth and
@@ -81,7 +86,7 @@ func (svc *batchService) UpdateDepth(id []byte, depth uint8, normalisedBalance *
 // price from the chain in the service chain state.
 func (svc *batchService) UpdatePrice(price *big.Int) error {
 	cs := svc.storer.GetChainState()
-	cs.Price = price
+	cs.CurrentPrice = price
 	if err := svc.storer.PutChainState(cs); err != nil {
 		return fmt.Errorf("put chain state: %w", err)
 	}
@@ -92,9 +97,12 @@ func (svc *batchService) UpdatePrice(price *big.Int) error {
 
 func (svc *batchService) UpdateBlockNumber(blockNumber uint64) error {
 	cs := svc.storer.GetChainState()
+	if blockNumber == cs.Block {
+		return nil
+	}
 	diff := big.NewInt(0).SetUint64(blockNumber - cs.Block)
 
-	cs.Total.Add(cs.Total, diff.Mul(diff, cs.Price))
+	cs.TotalAmount.Add(cs.TotalAmount, diff.Mul(diff, cs.CurrentPrice))
 	cs.Block = blockNumber
 	if err := svc.storer.PutChainState(cs); err != nil {
 		return fmt.Errorf("put chain state: %w", err)
@@ -103,11 +111,33 @@ func (svc *batchService) UpdateBlockNumber(blockNumber uint64) error {
 	svc.logger.Debugf("batch service: updated block height to %d", blockNumber)
 	return nil
 }
+func (svc *batchService) TransactionStart() error {
+	return svc.stateStore.Put(dirtyDBKey, true)
+}
+func (svc *batchService) TransactionEnd() error {
+	return svc.stateStore.Delete(dirtyDBKey)
+}
 
-func (svc *batchService) Start(startBlock uint64) <-chan struct{} {
+func (svc *batchService) Start(startBlock uint64) (<-chan struct{}, error) {
+	dirty := false
+	err := svc.stateStore.Get(dirtyDBKey, &dirty)
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return nil, err
+	}
+	if dirty {
+		svc.logger.Warning("batch service: dirty shutdown detected, resetting batch store")
+		if err := svc.storer.Reset(); err != nil {
+			return nil, err
+		}
+		if err := svc.stateStore.Delete(dirtyDBKey); err != nil {
+			return nil, err
+		}
+		svc.logger.Warning("batch service: batch store reset. your node will now resync chain data")
+	}
+
 	cs := svc.storer.GetChainState()
 	if cs.Block > startBlock {
 		startBlock = cs.Block
 	}
-	return svc.listener.Listen(startBlock+1, svc)
+	return svc.listener.Listen(startBlock+1, svc), nil
 }

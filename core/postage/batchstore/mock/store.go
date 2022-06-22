@@ -12,7 +12,7 @@ var _ postage.Storer = (*BatchStore)(nil)
 
 // BatchStore is a mock BatchStorer
 type BatchStore struct {
-	rs             *postage.Reservestate
+	rs             *postage.ReserveState
 	cs             *postage.ChainState
 	id             []byte
 	batch          *postage.Batch
@@ -20,6 +20,7 @@ type BatchStore struct {
 	getErrDelayCnt int
 	putErr         error
 	putErrDelayCnt int
+	resetCallCount int
 }
 
 // Option is a an option passed to New
@@ -37,7 +38,7 @@ func New(opts ...Option) *BatchStore {
 }
 
 // WithChainState will set the initial chainstate in the ChainStore mock.
-func WithReserveState(rs *postage.Reservestate) Option {
+func WithReserveState(rs *postage.ReserveState) Option {
 	return func(bs *BatchStore) {
 		bs.rs = rs
 	}
@@ -116,10 +117,26 @@ func (bs *BatchStore) PutChainState(cs *postage.ChainState) error {
 	return nil
 }
 
-func (bs *BatchStore) GetReserveState() *postage.Reservestate {
-	return bs.rs
+func (bs *BatchStore) GetReserveState() *postage.ReserveState {
+	rs := new(postage.ReserveState)
+	if bs.rs != nil {
+		rs.Radius = bs.rs.Radius
+		rs.Available = bs.rs.Available
+		rs.Outer = bs.rs.Outer
+		rs.Inner = bs.rs.Inner
+	}
+	return rs
 }
 
 func (bs *BatchStore) SetRadiusSetter(r postage.RadiusSetter) {
 	panic("not implemented")
+}
+
+func (bs *BatchStore) Reset() error {
+	bs.resetCallCount++
+	return nil
+}
+
+func (bs *BatchStore) ResetCalls() int {
+	return bs.resetCallCount
 }
