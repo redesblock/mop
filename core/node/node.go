@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -59,15 +60,16 @@ import (
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/steward"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/kademlia"
 	"github.com/redesblock/hop/core/topology/lightnode"
 	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/hop/core/transaction"
 	"github.com/redesblock/hop/core/traversal"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -75,6 +77,7 @@ import (
 
 type Node struct {
 	p2pService               io.Closer
+	p2pHalter                p2p.Halter
 	p2pCancel                context.CancelFunc
 	apiCloser                io.Closer
 	apiServer                *http.Server
@@ -86,6 +89,7 @@ type Node struct {
 	stateStoreCloser         io.Closer
 	localstoreCloser         io.Closer
 	topologyCloser           io.Closer
+	topologyHalter           topology.Halter
 	pusherCloser             io.Closer
 	pullerCloser             io.Closer
 	pullSyncCloser           io.Closer
@@ -286,7 +290,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		)
 	}
 
-	lightNodes := lightnode.NewContainer()
+	lightNodes := lightnode.NewContainer(swarmAddress)
 
 	txHash, err := getTxHash(stateStore, logger, o)
 	if err != nil {
@@ -309,6 +313,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("p2p service: %w", err)
 	}
 	b.p2pService = p2ps
+	b.p2pHalter = p2ps
 
 	// localstore depends on batchstore
 	var path string
@@ -435,6 +440,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, metricsDB, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
 	b.topologyCloser = kad
+	b.topologyHalter = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
 	p2ps.SetPickyNotifier(kad)
 	batchStore.SetRadiusSetter(kad)
@@ -650,6 +656,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		debugAPIService.MustRegisterMetrics(pushSyncProtocol.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pusherService.Metrics()...)
 		debugAPIService.MustRegisterMetrics(pullSyncProtocol.Metrics()...)
+		debugAPIService.MustRegisterMetrics(pullStorage.Metrics()...)
 		debugAPIService.MustRegisterMetrics(retrieve.Metrics()...)
 
 		if bs, ok := batchStore.(metrics.Collector); ok {
@@ -694,6 +701,14 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 func (b *Node) Shutdown(ctx context.Context) error {
 	var mErr error
 
+	// halt kademlia while shutting down other
+	// components.
+	b.topologyHalter.Halt()
+
+	// halt p2p layer from accepting new connections
+	// while shutting down other components
+	b.p2pHalter.Halt()
+
 	// tryClose is a convenient closure which decrease
 	// repetitive io.Closer tryClose procedure.
 	tryClose := func(c io.Closer, errMsg string) {
@@ -732,15 +747,46 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	if b.recoveryHandleCleanup != nil {
 		b.recoveryHandleCleanup()
 	}
-
-	tryClose(b.pusherCloser, "pusher")
-	tryClose(b.pullerCloser, "puller")
-	tryClose(b.pullSyncCloser, "pull sync")
-	tryClose(b.pssCloser, "pss")
+	var wg sync.WaitGroup
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		tryClose(b.pssCloser, "pss")
+	}()
+	go func() {
+		defer wg.Done()
+		tryClose(b.pusherCloser, "pusher")
+	}()
+	go func() {
+		defer wg.Done()
+		tryClose(b.pullerCloser, "puller")
+	}()
 
 	b.p2pCancel()
+	go func() {
+		defer wg.Done()
+		tryClose(b.pullSyncCloser, "pull sync")
+	}()
+
+	wg.Wait()
+
 	tryClose(b.p2pService, "p2p server")
-	tryClose(b.transactionMonitorCloser, "transaction monitor")
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		tryClose(b.transactionMonitorCloser, "transaction monitor")
+	}()
+	go func() {
+		defer wg.Done()
+		tryClose(b.listenerCloser, "listener")
+	}()
+	go func() {
+		defer wg.Done()
+		tryClose(b.postageServiceCloser, "postage service")
+	}()
+
+	wg.Wait()
 
 	if c := b.ethClientCloser; c != nil {
 		c()
@@ -748,11 +794,9 @@ func (b *Node) Shutdown(ctx context.Context) error {
 
 	tryClose(b.tracerCloser, "tracer")
 	tryClose(b.tagsCloser, "tag persistence")
-	tryClose(b.listenerCloser, "listener")
-	tryClose(b.postageServiceCloser, "postage service")
+	tryClose(b.topologyCloser, "topology driver")
 	tryClose(b.stateStoreCloser, "statestore")
 	tryClose(b.localstoreCloser, "localstore")
-	tryClose(b.topologyCloser, "topology driver")
 	tryClose(b.errorLogWriter, "error log writer")
 	tryClose(b.resolverCloser, "resolver service")
 

@@ -17,8 +17,8 @@ import (
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/hop/core/transaction"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 )
 
 // InitChain will initialize the Ethereum backend at the given endpoint and
-// set up the Transacton Service to interact with it using the provided signer.
+// set up the Transaction Service to interact with it using the provided signer.
 func InitChain(
 	ctx context.Context,
 	logger logging.Logger,

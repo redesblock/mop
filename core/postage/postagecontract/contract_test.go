@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	postageMock "github.com/redesblock/hop/core/postage/mock"
 	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
-	transactionMock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
+	"github.com/redesblock/hop/core/transaction"
+	transactionMock "github.com/redesblock/hop/core/transaction/mock"
 )
 
 func TestCreateBatch(t *testing.T) {

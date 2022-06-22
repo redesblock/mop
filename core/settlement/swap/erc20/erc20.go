@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
+	"github.com/redesblock/hop/core/transaction"
 )
 
 var (

@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	erc20mock "github.com/redesblock/hop/core/settlement/swap/erc20/mock"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
-	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/hop/core/transaction"
+	transactionmock "github.com/redesblock/hop/core/transaction/mock"
 )
 
 func TestChequebookAddress(t *testing.T) {

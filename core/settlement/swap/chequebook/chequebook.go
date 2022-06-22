@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/hop/core/transaction"
 )
 
 // SendChequeFunc is a function to send cheques.

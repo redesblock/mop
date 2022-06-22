@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
+	"github.com/redesblock/hop/core/transaction"
 )
 
 var (

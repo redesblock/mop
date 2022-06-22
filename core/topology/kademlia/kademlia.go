@@ -87,6 +87,7 @@ type Kad struct {
 	bootnode          bool           // indicates whether the node is working in bootnode mode
 	collector         *metrics.Collector
 	quit              chan struct{} // quit channel
+	halt              chan struct{} // halt channel
 	done              chan struct{} // signal that `manage` has quit
 	wg                sync.WaitGroup
 	waitNext          *waitnext.WaitNext
@@ -121,8 +122,8 @@ func New(
 		saturationFunc:    o.SaturationFunc,
 		bitSuffixLength:   o.BitSuffixLength,
 		commonBinPrefixes: make([][]swarm.Address, int(swarm.MaxBins)),
-		connectedPeers:    pslice.New(int(swarm.MaxBins)),
-		knownPeers:        pslice.New(int(swarm.MaxBins)),
+		connectedPeers:    pslice.New(int(swarm.MaxBins), base),
+		knownPeers:        pslice.New(int(swarm.MaxBins), base),
 		bootnodes:         o.Bootnodes,
 		manageC:           make(chan struct{}, 1),
 		waitNext:          waitnext.New(),
@@ -131,6 +132,7 @@ func New(
 		bootnode:          o.BootnodeMode,
 		collector:         metrics.NewCollector(metricsDB),
 		quit:              make(chan struct{}),
+		halt:              make(chan struct{}),
 		done:              make(chan struct{}),
 		wg:                sync.WaitGroup{},
 	}
@@ -290,9 +292,9 @@ func (k *Kad) connectNeighbours(wg *sync.WaitGroup, peerConnChan chan<- *peerCon
 	// The topology.EachPeerFunc doesn't return an error
 	// so we ignore the error returned from EachBinRev.
 
-	depth := k.NeighborhoodDepth()
-
 	_ = k.knownPeers.EachBinRev(func(addr swarm.Address, po uint8) (bool, bool, error) {
+
+		depth := k.NeighborhoodDepth()
 
 		if po < depth {
 			return false, true, nil
@@ -331,7 +333,7 @@ func (k *Kad) connectionAttemptsHandler(ctx context.Context, wg *sync.WaitGroup,
 		switch {
 		case errors.Is(err, addressbook.ErrNotFound):
 			k.logger.Debugf("kademlia: empty address book entry for peer %q", peer.addr)
-			k.knownPeers.Remove(peer.addr, swarm.Proximity(k.base.Bytes(), peer.addr.Bytes()))
+			k.knownPeers.Remove(peer.addr)
 			return
 		case err != nil:
 			k.logger.Debugf("kademlia: failed to get address book entry for peer %q: %v", peer.addr, err)
@@ -340,7 +342,7 @@ func (k *Kad) connectionAttemptsHandler(ctx context.Context, wg *sync.WaitGroup,
 
 		remove := func(peer *peerConnInfo) {
 			k.waitNext.Remove(peer.addr)
-			k.knownPeers.Remove(peer.addr, peer.po)
+			k.knownPeers.Remove(peer.addr)
 			if err := k.addressBook.Remove(peer.addr); err != nil {
 				k.logger.Debugf("kademlia: could not remove peer %q from addressbook", peer.addr)
 			}
@@ -363,7 +365,7 @@ func (k *Kad) connectionAttemptsHandler(ctx context.Context, wg *sync.WaitGroup,
 
 		k.waitNext.Set(peer.addr, time.Now().Add(shortRetry), 0)
 
-		k.connectedPeers.Add(peer.addr, peer.po)
+		k.connectedPeers.Add(peer.addr)
 
 		k.collector.Record(peer.addr, metrics.PeerLogIn(time.Now(), metrics.PeerConnectionDirectionOutbound))
 
@@ -425,6 +427,7 @@ func (k *Kad) notifyManageLoop() {
 func (k *Kad) manage() {
 	defer k.wg.Done()
 	defer close(k.done)
+	defer k.logger.Debugf("kademlia manage loop exited")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -451,6 +454,9 @@ func (k *Kad) manage() {
 			start := time.Now()
 
 			select {
+			case <-k.halt:
+				// halt stops dial-outs while shutting down
+				return
 			case <-k.quit:
 				return
 			default:
@@ -472,6 +478,11 @@ func (k *Kad) manage() {
 			)
 
 			if k.connectedPeers.Length() == 0 {
+				select {
+				case <-k.halt:
+					continue
+				default:
+				}
 				k.logger.Debug("kademlia: no connected peers, trying bootnodes")
 				k.connectBootnodes(ctx)
 			}
@@ -488,7 +499,8 @@ func (k *Kad) Start(ctx context.Context) error {
 		return fmt.Errorf("addressbook overlays: %w", err)
 	}
 
-	return k.AddPeers(ctx, addresses...)
+	k.AddPeers(addresses...)
+	return nil
 }
 
 func (k *Kad) connectBootnodes(ctx context.Context) {
@@ -533,7 +545,7 @@ func (k *Kad) connectBootnodes(ctx context.Context) {
 			connected++
 			// connect to max 3 bootnodes
 			return connected >= 3, nil
-		}); err != nil {
+		}); err != nil && !errors.Is(err, context.Canceled) {
 			k.logger.Debugf("discover fail %s: %v", addr, err)
 			k.logger.Warningf("discover to bootnode %s", addr)
 			return
@@ -668,7 +680,7 @@ func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr) 
 
 			if (k.connectedPeers.Length() > 0 && quickPrune) || failedAttempts > maxConnAttempts {
 				k.waitNext.Remove(peer)
-				k.knownPeers.Remove(peer, swarm.Proximity(k.base.Bytes(), peer.Bytes()))
+				k.knownPeers.Remove(peer)
 				if err := k.addressBook.Remove(peer); err != nil {
 					k.logger.Debugf("could not remove peer from addressbook: %q", peer)
 				}
@@ -685,12 +697,12 @@ func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr) 
 		return errOverlayMismatch
 	}
 
-	return k.Announce(ctx, peer)
+	return k.Announce(ctx, peer, true)
 }
 
 // Announce a newly connected peer to our connected peers, but also
 // notify the peer about our already connected peers
-func (k *Kad) Announce(ctx context.Context, peer swarm.Address) error {
+func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) error {
 	addrs := []swarm.Address{}
 
 	for bin := uint8(0); bin < swarm.MaxBins; bin++ {
@@ -707,10 +719,13 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address) error {
 
 			addrs = append(addrs, connectedPeer)
 
-			k.wg.Add(1)
+			if !fullnode {
+				// we continue here so we dont gossip
+				// about lightnodes to others.
+				continue
+			}
 			go func(connectedPeer swarm.Address) {
-				defer k.wg.Done()
-				if err := k.discovery.BroadcastPeers(context.Background(), connectedPeer, peer); err != nil {
+				if err := k.discovery.BroadcastPeers(ctx, connectedPeer, peer); err != nil {
 					k.logger.Debugf("could not gossip peer %s to peer %s: %v", peer, connectedPeer, err)
 				}
 			}(connectedPeer)
@@ -733,17 +748,9 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address) error {
 // AddPeers adds peers to the knownPeers list.
 // This does not guarantee that a connection will immediately
 // be made to the peer.
-func (k *Kad) AddPeers(ctx context.Context, addrs ...swarm.Address) error {
-	for _, addr := range addrs {
-		if k.knownPeers.Exists(addr) {
-			continue
-		}
-
-		po := swarm.Proximity(k.base.Bytes(), addr.Bytes())
-		k.knownPeers.Add(addr, po)
-	}
+func (k *Kad) AddPeers(addrs ...swarm.Address) {
+	k.knownPeers.Add(addrs...)
 	k.notifyManageLoop()
-	return nil
 }
 
 func (k *Kad) Pick(peer p2p.Peer) bool {
@@ -787,14 +794,12 @@ connected:
 }
 
 func (k *Kad) connected(ctx context.Context, addr swarm.Address) error {
-	if err := k.Announce(ctx, addr); err != nil {
+	if err := k.Announce(ctx, addr, true); err != nil {
 		return err
 	}
 
-	po := swarm.Proximity(k.base.Bytes(), addr.Bytes())
-
-	k.knownPeers.Add(addr, po)
-	k.connectedPeers.Add(addr, po)
+	k.knownPeers.Add(addr)
+	k.connectedPeers.Add(addr)
 
 	k.collector.Record(addr, metrics.PeerLogIn(time.Now(), metrics.PeerConnectionDirectionInbound))
 
@@ -814,8 +819,7 @@ func (k *Kad) Disconnected(peer p2p.Peer) {
 
 	k.logger.Debugf("kademlia: disconnected peer %s", peer.Address)
 
-	po := swarm.Proximity(k.base.Bytes(), peer.Address.Bytes())
-	k.connectedPeers.Remove(peer.Address, po)
+	k.connectedPeers.Remove(peer.Address)
 
 	k.waitNext.SetTryAfter(peer.Address, time.Now().Add(timeToRetry))
 
@@ -1171,6 +1175,13 @@ func (k *Kad) String() string {
 	return string(b)
 }
 
+// Halt stops outgoing connections from happening.
+// This is needed while we shut down, so that further topology
+// changes do not happen while we shut down.
+func (k *Kad) Halt() {
+	close(k.halt)
+}
+
 // Close shuts down kademlia.
 func (k *Kad) Close() error {
 	k.logger.Info("kademlia shutting down")
@@ -1194,6 +1205,7 @@ func (k *Kad) Close() error {
 		k.logger.Warning("kademlia manage loop did not shut down properly")
 	}
 
+	k.logger.Info("kademlia persisting peer metrics")
 	if err := k.collector.Finalize(time.Now()); err != nil {
 		k.logger.Debugf("kademlia: unable to finalize open sessions: %v", err)
 	}

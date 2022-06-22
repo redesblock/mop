@@ -41,7 +41,7 @@ var (
 type Service struct {
 	streamer        p2p.Streamer
 	addressBook     addressbook.GetPutter
-	addPeersHandler func(context.Context, ...swarm.Address) error
+	addPeersHandler func(...swarm.Address)
 	networkID       uint64
 	logger          logging.Logger
 	metrics         metrics
@@ -94,7 +94,7 @@ func (s *Service) BroadcastPeers(ctx context.Context, addressee swarm.Address, p
 	return nil
 }
 
-func (s *Service) SetAddPeersHandler(h func(ctx context.Context, addr ...swarm.Address) error) {
+func (s *Service) SetAddPeersHandler(h func(addr ...swarm.Address)) {
 	s.addPeersHandler = h
 }
 
@@ -178,9 +178,7 @@ func (s *Service) peersHandler(ctx context.Context, peer p2p.Peer, stream p2p.St
 	}
 
 	if s.addPeersHandler != nil {
-		if err := s.addPeersHandler(ctx, peers...); err != nil {
-			return err
-		}
+		s.addPeersHandler(peers...)
 	}
 
 	return nil

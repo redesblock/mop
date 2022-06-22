@@ -10,8 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/hop/core/transaction"
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 
 // ChequeStore handles the verification and storage of received cheques
 type ChequeStore interface {
-	// ReceiveCheque verifies and stores a cheque. It returns the totam amount earned.
+	// ReceiveCheque verifies and stores a cheque. It returns the total amount earned.
 	ReceiveCheque(ctx context.Context, cheque *SignedCheque) (*big.Int, error)
 	// LastCheque returns the last cheque we received from a specific chequebook.
 	LastCheque(chequebook common.Address) (*SignedCheque, error)

@@ -8,9 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
-	backendmock "github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
-	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
+	"github.com/redesblock/hop/core/transaction"
+	backendmock "github.com/redesblock/hop/core/transaction/backendmock"
+	transactionmock "github.com/redesblock/hop/core/transaction/mock"
 )
 
 var (

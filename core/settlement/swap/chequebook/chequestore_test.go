@@ -8,8 +8,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
+	transactionmock "github.com/redesblock/hop/core/transaction/mock"
 )
 
 func TestReceiveCheque(t *testing.T) {

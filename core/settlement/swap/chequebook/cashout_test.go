@@ -10,10 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	chequestoremock "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
-	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
-	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/hop/core/transaction/backendmock"
+	transactionmock "github.com/redesblock/hop/core/transaction/mock"
 )
 
 var (

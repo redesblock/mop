@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/settlement/swap/transaction"
-	"github.com/redesblock/hop/core/settlement/swap/transaction/backendmock"
-	transactionmock "github.com/redesblock/hop/core/settlement/swap/transaction/mock"
+	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/hop/core/transaction/backendmock"
+	transactionmock "github.com/redesblock/hop/core/transaction/mock"
 )
 
 var (
