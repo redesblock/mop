@@ -17,10 +17,12 @@ const (
 	dbSchemaGrace         = "grace"
 	dbSchemaDrain         = "drain"
 	dbSchemaCleanInterval = "clean-interval"
+	dbSchemaNoStamp       = "no-stamp"
+	dbSchemaFlushBlock    = "flushblock"
 )
 
 var (
-	dbSchemaCurrent = dbSchemaCleanInterval
+	dbSchemaCurrent = dbSchemaFlushBlock
 )
 
 type migration struct {
@@ -34,6 +36,30 @@ var schemaMigrations = []migration{
 	{name: dbSchemaGrace, fn: func(s *store) error { return nil }},
 	{name: dbSchemaDrain, fn: migrateGrace},
 	{name: dbSchemaCleanInterval, fn: migrateGrace},
+	{name: dbSchemaNoStamp, fn: migrateStamp},
+	{name: dbSchemaFlushBlock, fn: migrateFB},
+}
+
+func migrateFB(s *store) error {
+	collectedKeys, err := collectKeys(s, "blocklist-")
+	if err != nil {
+		return err
+	}
+	return deleteKeys(s, collectedKeys)
+}
+
+func migrateStamp(s *store) error {
+	for _, pfx := range []string{"postage", "batchstore", "addressbook_entry_"} {
+		collectedKeys, err := collectKeys(s, pfx)
+		if err != nil {
+			return err
+		}
+		if err := deleteKeys(s, collectedKeys); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func migrateGrace(s *store) error {
@@ -128,4 +154,29 @@ func getMigrations(currentSchema, targetSchema string, allSchemeMigrations []mig
 		return nil, errMissingTargetSchema
 	}
 	return migrations, nil
+}
+
+func collectKeys(s *store, prefix string) (keys []string, err error) {
+	if err := s.Iterate(prefix, func(k, v []byte) (bool, error) {
+		stk := string(k)
+		if strings.HasPrefix(stk, prefix) {
+			keys = append(keys, stk)
+		}
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func deleteKeys(s *store, keys []string) error {
+	for _, v := range keys {
+		err := s.Delete(v)
+		if err != nil {
+			return fmt.Errorf("error deleting key %s: %w", v, err)
+		}
+		s.logger.Debugf("deleted key %s", v)
+	}
+	s.logger.Debugf("deleted keys: %d", len(keys))
+	return nil
 }

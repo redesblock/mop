@@ -12,4 +12,5 @@ message HopAddress {
     bytes Underlay = 1;
     bytes Signature = 2;
     bytes Overlay = 3;
+    bytes Transaction = 4;
 }

@@ -74,6 +74,12 @@ func NewService(store storage.StateStorer, postageStore Storer, chainID int64) (
 func (ps *service) Add(st *StampIssuer) {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
+
+	for _, v := range ps.issuers {
+		if bytes.Equal(st.data.BatchID, v.data.BatchID) {
+			return
+		}
+	}
 	ps.issuers = append(ps.issuers, st)
 }
 
@@ -81,19 +87,16 @@ func (ps *service) Add(st *StampIssuer) {
 // a batch creation event from the blockchain listener to ensure that if a stamp
 // issuer was not created initially, we will create it here.
 func (ps *service) Handle(b *Batch) {
-	_, err := ps.GetStampIssuer(b.ID)
-	if errors.Is(err, ErrNotFound) {
-		ps.Add(NewStampIssuer(
-			"recovered",
-			string(b.Owner),
-			b.ID,
-			b.Value,
-			b.Depth,
-			b.BucketDepth,
-			b.Start,
-			b.Immutable,
-		))
-	}
+	ps.Add(NewStampIssuer(
+		"recovered",
+		string(b.Owner),
+		b.ID,
+		b.Value,
+		b.Depth,
+		b.BucketDepth,
+		b.Start,
+		b.Immutable,
+	))
 }
 
 // StampIssuers returns the currently active stamp issuers.

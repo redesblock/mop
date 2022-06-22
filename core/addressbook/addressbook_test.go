@@ -3,6 +3,7 @@ package addressbook_test
 import (
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/hop"
@@ -26,6 +27,7 @@ func run(t *testing.T, f bookFunc) {
 	store := f(t)
 	addr1 := swarm.NewAddress([]byte{0, 1, 2, 3})
 	addr2 := swarm.NewAddress([]byte{0, 1, 2, 4})
+	trxHash := common.HexToHash("0x1").Bytes()
 	multiaddr, err := ma.NewMultiaddr("/ip4/1.1.1.1")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +38,7 @@ func run(t *testing.T, f bookFunc) {
 		t.Fatal(err)
 	}
 
-	hopAddr, err := hop.NewAddress(crypto.NewDefaultSigner(pk), multiaddr, addr1, 1)
+	hopAddr, err := hop.NewAddress(crypto.NewDefaultSigner(pk), multiaddr, addr1, 1, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}

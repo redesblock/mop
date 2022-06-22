@@ -87,11 +87,13 @@ func TestLightPeerLimit(t *testing.T) {
 	var (
 		limit     = 3
 		container = lightnode.NewContainer(test.RandomAddress())
-		sf, _     = newService(t, 1, libp2pServiceOpts{lightNodes: container,
+		sf, _     = newService(t, 1, libp2pServiceOpts{
+			lightNodes: container,
 			libp2pOpts: libp2p.Options{
 				LightNodeLimit: limit,
 				FullNode:       true,
-			}})
+			},
+		})
 
 		notifier = mockNotifier(noopCf, noopDf, true)
 	)
@@ -103,7 +105,8 @@ func TestLightPeerLimit(t *testing.T) {
 		sl, _ := newService(t, 1, libp2pServiceOpts{
 			libp2pOpts: libp2p.Options{
 				FullNode: false,
-			}})
+			},
+		})
 		_, err := sl.Connect(ctx, addr)
 		if err != nil {
 			t.Fatal(err)
@@ -433,7 +436,7 @@ func TestTopologyNotifier(t *testing.T) {
 		n2connectedPeer    p2p.Peer
 		n2disconnectedPeer p2p.Peer
 
-		n1c = func(_ context.Context, p p2p.Peer) error {
+		n1c = func(_ context.Context, p p2p.Peer, _ bool) error {
 			mtx.Lock()
 			defer mtx.Unlock()
 			expectZeroAddress(t, n1connectedPeer.Address) // fail if set more than once
@@ -447,7 +450,7 @@ func TestTopologyNotifier(t *testing.T) {
 			n1disconnectedPeer = p
 		}
 
-		n2c = func(_ context.Context, p p2p.Peer) error {
+		n2c = func(_ context.Context, p p2p.Peer, _ bool) error {
 			mtx.Lock()
 			defer mtx.Unlock()
 			expectZeroAddress(t, n2connectedPeer.Address) // fail if set more than once
@@ -549,7 +552,7 @@ func TestTopologyOverSaturated(t *testing.T) {
 		n2connectedPeer    p2p.Peer
 		n2disconnectedPeer p2p.Peer
 
-		n1c = func(_ context.Context, p p2p.Peer) error {
+		n1c = func(_ context.Context, p p2p.Peer, _ bool) error {
 			mtx.Lock()
 			defer mtx.Unlock()
 			expectZeroAddress(t, n1connectedPeer.Address) // fail if set more than once
@@ -558,7 +561,7 @@ func TestTopologyOverSaturated(t *testing.T) {
 		}
 		n1d = func(p p2p.Peer) {}
 
-		n2c = func(_ context.Context, p p2p.Peer) error {
+		n2c = func(_ context.Context, p p2p.Peer, _ bool) error {
 			mtx.Lock()
 			defer mtx.Unlock()
 			expectZeroAddress(t, n2connectedPeer.Address) // fail if set more than once
@@ -571,7 +574,7 @@ func TestTopologyOverSaturated(t *testing.T) {
 			n2disconnectedPeer = p
 		}
 	)
-	//this notifier will not pick the peer
+	// this notifier will not pick the peer
 	notifier1 := mockNotifier(n1c, n1d, false)
 	s1, overlay1 := newService(t, 1, libp2pServiceOpts{Addressbook: ab1, libp2pOpts: libp2p.Options{
 		FullNode: true,
@@ -719,6 +722,7 @@ func expectStreamReset(t *testing.T, s io.ReadCloser, err error) {
 		}
 	}
 }
+
 func expectFullNode(t *testing.T, p p2p.Peer) {
 	t.Helper()
 	if !p.FullNode {
@@ -765,13 +769,13 @@ func checkAddressbook(t *testing.T, ab addressbook.Getter, overlay swarm.Address
 }
 
 type notifiee struct {
-	connected    func(context.Context, p2p.Peer) error
+	connected    func(context.Context, p2p.Peer, bool) error
 	disconnected func(p2p.Peer)
 	pick         bool
 }
 
-func (n *notifiee) Connected(c context.Context, p p2p.Peer) error {
-	return n.connected(c, p)
+func (n *notifiee) Connected(c context.Context, p p2p.Peer, f bool) error {
+	return n.connected(c, p, f)
 }
 
 func (n *notifiee) Disconnected(p p2p.Peer) {
@@ -790,10 +794,12 @@ func mockNotifier(c cFunc, d dFunc, pick bool) p2p.PickyNotifier {
 	return &notifiee{connected: c, disconnected: d, pick: pick}
 }
 
-type cFunc func(context.Context, p2p.Peer) error
-type dFunc func(p2p.Peer)
+type (
+	cFunc func(context.Context, p2p.Peer, bool) error
+	dFunc func(p2p.Peer)
+)
 
-var noopCf = func(_ context.Context, _ p2p.Peer) error {
+var noopCf = func(_ context.Context, _ p2p.Peer, _ bool) error {
 	return nil
 }
 

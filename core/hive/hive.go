@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/hive/pb"
 	"github.com/redesblock/hop/core/hop"
@@ -108,7 +109,9 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 		if err != nil {
 			_ = stream.Reset()
 		} else {
-			_ = stream.FullClose()
+			// added this because Recorder (unit test) emits an unnecessary EOF when Close is called
+			time.Sleep(time.Millisecond * 50)
+			_ = stream.Close()
 		}
 	}()
 	w, _ := protobuf.NewWriterAndReader(stream)
@@ -124,9 +127,10 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 		}
 
 		peersRequest.Peers = append(peersRequest.Peers, &pb.HopAddress{
-			Overlay:   addr.Overlay.Bytes(),
-			Underlay:  addr.Underlay.Bytes(),
-			Signature: addr.Signature,
+			Overlay:     addr.Overlay.Bytes(),
+			Underlay:    addr.Underlay.Bytes(),
+			Signature:   addr.Signature,
+			Transaction: addr.Transaction,
 		})
 	}
 
@@ -162,13 +166,21 @@ func (s *Service) peersHandler(ctx context.Context, peer p2p.Peer, stream p2p.St
 
 	var peers []swarm.Address
 	for _, newPeer := range peersReq.Peers {
-		hopAddress, err := hop.ParseAddress(newPeer.Underlay, newPeer.Overlay, newPeer.Signature, s.networkID)
+
+		multiUnderlay, err := ma.NewMultiaddrBytes(newPeer.Underlay)
 		if err != nil {
-			s.logger.Warningf("skipping peer in response %s: %v", newPeer.String(), err)
+			s.logger.Errorf("hive: multi address underlay err: %v", err)
 			continue
 		}
 
-		err = s.addressBook.Put(hopAddress.Overlay, *hopAddress)
+		hopAddress := hop.Address{
+			Overlay:     swarm.NewAddress(newPeer.Overlay),
+			Underlay:    multiUnderlay,
+			Signature:   newPeer.Signature,
+			Transaction: newPeer.Transaction,
+		}
+
+		err = s.addressBook.Put(hopAddress.Overlay, hopAddress)
 		if err != nil {
 			s.logger.Warningf("skipping peer in response %s: %v", newPeer.String(), err)
 			continue
@@ -189,7 +201,7 @@ func (s *Service) rateLimitPeer(peer swarm.Address, count int) error {
 	s.limiterLock.Lock()
 	defer s.limiterLock.Unlock()
 
-	addr := peer.String()
+	addr := peer.ByteString()
 
 	limiter, ok := s.limiter[addr]
 	if !ok {

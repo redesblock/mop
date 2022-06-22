@@ -6,7 +6,6 @@ package node
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +15,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -142,6 +140,7 @@ type Options struct {
 	SwapEnable                 bool
 	FullNodeMode               bool
 	Transaction                string
+	BlockHash                  string
 	PostageContractAddress     string
 	PriceOracleAddress         string
 	BlockTime                  uint64
@@ -150,11 +149,11 @@ type Options struct {
 }
 
 const (
-	refreshRate = int64(6000000)
+	refreshRate = int64(4500000)
 	basePrice   = 10000
 )
 
-func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (b *Node, err error) {
+func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o *Options) (b *Node, err error) {
 	tracer, tracerCloser, err := tracing.NewTracer(&tracing.Options{
 		Enabled:     o.TracingEnabled,
 		Endpoint:    o.TracingEndpoint,
@@ -186,6 +185,14 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		tracerCloser:   tracerCloser,
 	}
 
+	stateStore, err := InitStateStore(logger, o.DataDir)
+	if err != nil {
+		return nil, err
+	}
+	b.stateStoreCloser = stateStore
+
+	addressbook := addressbook.New(stateStore)
+
 	var debugAPIService *debugapi.Service
 	if o.DebugAPIAddr != "" {
 		overlayEthAddress, err := signer.EthereumAddress()
@@ -193,7 +200,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			return nil, fmt.Errorf("eth address: %w", err)
 		}
 		// set up basic debug api endpoints for debugging and /health endpoint
-		debugAPIService = debugapi.New(swarmAddress, publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins)
+		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins)
 
 		debugAPIListener, err := net.Listen("tcp", o.DebugAPIAddr)
 		if err != nil {
@@ -219,19 +226,6 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		b.debugAPIServer = debugAPIServer
 	}
 
-	stateStore, err := InitStateStore(logger, o.DataDir)
-	if err != nil {
-		return nil, err
-	}
-	b.stateStoreCloser = stateStore
-
-	err = CheckOverlayWithStore(swarmAddress, stateStore)
-	if err != nil {
-		return nil, err
-	}
-
-	addressbook := addressbook.New(stateStore)
-
 	var (
 		swapBackend        *ethclient.Client
 		overlayEthAddress  common.Address
@@ -242,6 +236,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		chequebookService  chequebook.Service
 		chequeStore        chequebook.ChequeStore
 		cashoutService     chequebook.CashoutService
+		pollingInterval    = time.Duration(o.BlockTime) * time.Second
 	)
 	if !o.Standalone {
 		swapBackend, overlayEthAddress, chainID, transactionMonitor, transactionService, err = InitChain(
@@ -250,7 +245,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			stateStore,
 			o.SwapEndpoint,
 			signer,
-			o.BlockTime,
+			pollingInterval,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("init chain: %w", err)
@@ -304,14 +299,36 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		)
 	}
 
-	lightNodes := lightnode.NewContainer(swarmAddress)
+	pubKey, _ := signer.PublicKey()
+	if err != nil {
+		return nil, err
+	}
 
-	txHash, err := getTxHash(stateStore, logger, o)
+	var (
+		blockHash []byte
+		txHash    []byte
+	)
+
+	txHash, err = GetTxHash(stateStore, logger, o.Transaction)
 	if err != nil {
 		return nil, fmt.Errorf("invalid transaction hash: %w", err)
 	}
 
-	senderMatcher := transaction.NewMatcher(swapBackend, types.NewEIP155Signer(big.NewInt(chainID)))
+	blockHash, err = GetTxNextBlock(p2pCtx, logger, swapBackend, transactionMonitor, pollingInterval, txHash, o.BlockHash)
+	if err != nil {
+		return nil, fmt.Errorf("invalid block hash: %w", err)
+	}
+
+	swarmAddress, err := crypto.NewOverlayAddress(*pubKey, networkID, blockHash)
+
+	err = CheckOverlayWithStore(swarmAddress, stateStore)
+	if err != nil {
+		return nil, err
+	}
+
+	lightNodes := lightnode.NewContainer(swarmAddress)
+
+	senderMatcher := transaction.NewMatcher(swapBackend, types.NewEIP155Signer(big.NewInt(chainID)), stateStore)
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
@@ -329,6 +346,17 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	b.p2pService = p2ps
 	b.p2pHalter = p2ps
 
+	var unreserveFn func([]byte, uint8) (uint64, error)
+	var evictFn = func(b []byte) error {
+		_, err := unreserveFn(b, swarm.MaxPO+1)
+		return err
+	}
+
+	batchStore, err := batchstore.New(stateStore, evictFn, logger)
+	if err != nil {
+		return nil, fmt.Errorf("batchstore: %w", err)
+	}
+
 	// localstore depends on batchstore
 	var path string
 
@@ -338,6 +366,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	}
 	lo := &localstore.Options{
 		Capacity:               o.CacheCapacity,
+		ReserveCapacity:        uint64(batchstore.Capacity),
+		UnreserveFunc:          batchStore.Unreserve,
 		OpenFilesLimit:         o.DBOpenFilesLimit,
 		BlockCacheCapacity:     o.DBBlockCacheCapacity,
 		WriteBufferSize:        o.DBWriteBufferSize,
@@ -349,11 +379,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("localstore: %w", err)
 	}
 	b.localstoreCloser = storer
+	unreserveFn = storer.UnreserveBatch
 
-	batchStore, err := batchstore.New(stateStore, storer.UnreserveBatch)
-	if err != nil {
-		return nil, fmt.Errorf("batchstore: %w", err)
-	}
 	validStamp := postage.ValidStamp(batchStore)
 	post, err := postage.NewService(stateStore, batchStore, chainID)
 	if err != nil {
@@ -476,6 +503,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	}
 
 	minThreshold := big.NewInt(2 * refreshRate)
+	maxThreshold := big.NewInt(24 * refreshRate)
 
 	paymentThreshold, ok := new(big.Int).SetString(o.PaymentThreshold, 10)
 	if !ok {
@@ -486,6 +514,10 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	if paymentThreshold.Cmp(minThreshold) < 0 {
 		return nil, fmt.Errorf("payment threshold below minimum generally accepted value, need at least %s", minThreshold)
+	}
+
+	if paymentThreshold.Cmp(maxThreshold) > 0 {
+		return nil, fmt.Errorf("payment threshold above maximum generally accepted value, needs to be reduced to at most %s", maxThreshold)
 	}
 
 	pricing := pricing.New(p2ps, logger, paymentThreshold, minThreshold)
@@ -579,7 +611,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	pinningService := pinning.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(swarmAddress, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime)
+	pushSyncProtocol := pushsync.New(swarmAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -715,7 +747,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		}
 
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, transactionService)
+		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, transactionService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {
@@ -843,37 +875,6 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	tryClose(b.resolverCloser, "resolver service")
 
 	return mErr
-}
-
-func getTxHash(stateStore storage.StateStorer, logger logging.Logger, o Options) ([]byte, error) {
-	if o.Standalone {
-		return nil, nil // in standalone mode tx hash is not used
-	}
-
-	if o.Transaction != "" {
-		txHashTrimmed := strings.TrimPrefix(o.Transaction, "0x")
-		if len(txHashTrimmed) != 64 {
-			return nil, errors.New("invalid length")
-		}
-		txHash, err := hex.DecodeString(txHashTrimmed)
-		if err != nil {
-			return nil, err
-		}
-		logger.Infof("using the provided transaction hash %x", txHash)
-		return txHash, nil
-	}
-
-	var txHash common.Hash
-	key := chequebook.ChequebookDeploymentKey
-	if err := stateStore.Get(key, &txHash); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return nil, errors.New("chequebook deployment transaction hash not found. Please specify the transaction hash manually.")
-		}
-		return nil, err
-	}
-
-	logger.Infof("using the chequebook transaction hash %x", txHash)
-	return txHash.Bytes(), nil
 }
 
 // pidKiller is used to issue a forced shut down of the node from sub modules. The issue with using the

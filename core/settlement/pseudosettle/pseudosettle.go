@@ -98,7 +98,7 @@ func (s *Service) init(ctx context.Context, p p2p.Peer) error {
 		s.peers[p.Address.String()] = peerData
 	}
 
-	s.accounting.Connect(p.Address)
+	go s.accounting.Connect(p.Address)
 	return nil
 }
 
@@ -108,7 +108,7 @@ func (s *Service) terminate(p p2p.Peer) error {
 
 	delete(s.peers, p.Address.String())
 
-	s.accounting.Disconnect(p.Address)
+	go s.accounting.Disconnect(p.Address)
 	return nil
 }
 

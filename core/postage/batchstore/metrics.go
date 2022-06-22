@@ -10,6 +10,7 @@ type metrics struct {
 	Inner             prometheus.Gauge
 	Outer             prometheus.Gauge
 	Radius            prometheus.Gauge
+	StorageRadius     prometheus.Gauge
 }
 
 func newMetrics() metrics {
@@ -39,6 +40,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "radius",
 			Help:      "Radius of responsibility observed by the batchstore.",
+		}),
+		StorageRadius: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "storage_radius",
+			Help:      "Radius of responsibility communicated to the localstore",
 		}),
 	}
 }

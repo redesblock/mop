@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 )
@@ -77,13 +78,25 @@ func (d *mock) AddPeers(addrs ...swarm.Address) {
 	d.peers = append(d.peers, addrs...)
 }
 
-func (d *mock) Connected(ctx context.Context, addr swarm.Address) error {
-	d.AddPeers(addr)
+func (d *mock) Connected(ctx context.Context, peer p2p.Peer, _ bool) error {
+	d.AddPeers(peer.Address)
 	return nil
 }
 
-func (d *mock) Disconnected(swarm.Address) {
-	panic("todo")
+func (d *mock) Disconnected(peer p2p.Peer) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	for i, addr := range d.peers {
+		if addr.Equal(peer.Address) {
+			d.peers = append(d.peers[:i], d.peers[i+1:]...)
+			break
+		}
+	}
+}
+
+func (d *mock) Announce(_ context.Context, _ swarm.Address, _ bool) error {
+	return nil
 }
 
 func (d *mock) Peers() []swarm.Address {

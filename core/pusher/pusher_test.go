@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/crypto"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
 
@@ -26,6 +27,7 @@ import (
 
 // no of times to retry to see if we have received response from pushsync
 var noOfRetries = 20
+var block = common.HexToHash("0x1").Bytes()
 
 // Wrap the actual storer to intercept the modeSet that the pusher will call when a valid receipt is received
 type Store struct {
@@ -80,6 +82,7 @@ func TestSendChunkToSyncWithTag(t *testing.T) {
 		receipt := &pushsync.Receipt{
 			Address:   swarm.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
+			BlockHash: block,
 		}
 		return receipt, nil
 	})
@@ -136,6 +139,7 @@ func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 		receipt := &pushsync.Receipt{
 			Address:   swarm.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
+			BlockHash: block,
 		}
 		return receipt, nil
 	})
@@ -221,6 +225,7 @@ func TestSendChunkAndTimeoutinReceivingReceipt(t *testing.T) {
 		receipt := &pushsync.Receipt{
 			Address:   swarm.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
+			BlockHash: block,
 		}
 		return receipt, nil
 	})
@@ -276,6 +281,7 @@ func TestPusherClose(t *testing.T) {
 		receipt := &pushsync.Receipt{
 			Address:   swarm.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
+			BlockHash: block,
 		}
 		return receipt, nil
 	})
@@ -379,6 +385,7 @@ func TestPusherRetryShallow(t *testing.T) {
 		receipt := &pushsync.Receipt{
 			Address:   swarm.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
+			BlockHash: block,
 		}
 		return receipt, nil
 	})
@@ -453,7 +460,3 @@ func checkIfModeSet(addr swarm.Address, mode storage.ModeSet, storer *Store) err
 	}
 	return nil
 }
-
-// To avoid timeout during race testing
-// cd pkg/pusher
-// go test -race -count 1000 -timeout 60m .

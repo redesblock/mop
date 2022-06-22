@@ -28,7 +28,6 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/node"
 	"github.com/redesblock/hop/core/resolver/multiresolver"
-	"github.com/redesblock/hop/core/swarm"
 	"github.com/spf13/cobra"
 )
 
@@ -51,6 +50,8 @@ func (c *command) initStartCmd() (err error) {
 			if err != nil {
 				return fmt.Errorf("new logger: %v", err)
 			}
+
+			go startTimeBomb(logger)
 
 			isWindowsService, err := isWindowsService()
 			if err != nil {
@@ -77,23 +78,31 @@ func (c *command) initStartCmd() (err error) {
 			}
 
 			hopASCII := `
-Welcome to the Swarm....
+Welcome to Swarm....
+                \     /
+            \    o ^ o    /
+              \ (     ) /
+   ____________(%%%%%%%)____________
+  (     /   /  )%%%%%%%(  \   \     )
+  (___/___/__/           \__\___\___)
+     (     /  /(%%%%%%%)\  \     )
+      (__/___/ (%%%%%%%) \___\__)
+              /(       )\
+            /   (%%%%%)   \
+                 (%%%)
+                   !                   `
 
-               .-.         .--''-.
-             .'   '.     /'       '
-             '.     '. ,'          |
-   _        o    '.o   ,'        _.-'
- .\ /.       \.--./'. /.:. :._:.'
-< ~O~ >    .'    '._-': ': ': ': ':
- '/_\'     :(.) (.) :  ': ': ': ': ':>-
- \ | /      ' ____ .'_.:' :' :' :' :'
-  \|/        '\<>/'/ | | :' :' :'
-   |               \  \ \
-   |                '  ' '
-	
-		   `
 			fmt.Println(hopASCII)
-			logger.Infof("version: %v", Version)
+			fmt.Print(`
+DISCLAIMER:
+This software is provided to you "as is", use at your own risk and without warranties of any kind.
+It is your responsibility to read and understand how Swarm works and the implications of running this software.
+The usage of Hop involves various risks, including, but not limited to:
+damage to hardware or loss of funds associated with the Ethereum account connected to your node.
+No developers or entity involved will be liable for any claims and damages associated with your use,
+inability to use, or your interaction with other nodes or the software.`)
+
+			fmt.Printf("\n\nversion: %v - planned to be supported until %v, please follow http://ethswarm.org/\n\n", Version, endSupportDate())
 
 			debugAPIAddr := c.config.GetString(optionNameDebugAPIAddr)
 			if !c.config.GetBool(optionNameDebugAPIEnable) {
@@ -105,6 +114,8 @@ Welcome to the Swarm....
 				return err
 			}
 
+			logger.Infof("version: %v", Version)
+
 			bootNode := c.config.GetBool(optionNameBootnodeMode)
 			fullNode := c.config.GetBool(optionNameFullNode)
 
@@ -112,7 +123,7 @@ Welcome to the Swarm....
 				return errors.New("boot node must be started as a full node")
 			}
 
-			b, err := node.New(c.config.GetString(optionNameP2PAddr), signerConfig.address, *signerConfig.publicKey, signerConfig.signer, c.config.GetUint64(optionNameNetworkID), logger, signerConfig.libp2pPrivateKey, signerConfig.pssPrivateKey, node.Options{
+			b, err := node.New(c.config.GetString(optionNameP2PAddr), signerConfig.publicKey, signerConfig.signer, c.config.GetUint64(optionNameNetworkID), logger, signerConfig.libp2pPrivateKey, signerConfig.pssPrivateKey, &node.Options{
 				DataDir:                    c.config.GetString(optionNameDataDir),
 				CacheCapacity:              c.config.GetUint64(optionNameCacheCapacity),
 				DBOpenFilesLimit:           c.config.GetUint64(optionNameDBOpenFilesLimit),
@@ -147,6 +158,7 @@ Welcome to the Swarm....
 				SwapEnable:                 c.config.GetBool(optionNameSwapEnable),
 				FullNodeMode:               fullNode,
 				Transaction:                c.config.GetString(optionNameTransactionHash),
+				BlockHash:                  c.config.GetString(optionNameBlockHash),
 				PostageContractAddress:     c.config.GetString(optionNamePostageContractAddress),
 				PriceOracleAddress:         c.config.GetString(optionNamePriceOracleAddress),
 				BlockTime:                  c.config.GetUint64(optionNameBlockTime),
@@ -243,7 +255,6 @@ func (p *program) Stop(s service.Service) error {
 
 type signerConfig struct {
 	signer           crypto.Signer
-	address          swarm.Address
 	publicKey        *ecdsa.PublicKey
 	libp2pPrivateKey *ecdsa.PrivateKey
 	pssPrivateKey    *ecdsa.PrivateKey
@@ -275,7 +286,6 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 	}
 
 	var signer crypto.Signer
-	var address swarm.Address
 	var password string
 	var publicKey *ecdsa.PublicKey
 	if p := c.config.GetString(optionNamePassword); p != "" {
@@ -343,32 +353,14 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 		if err != nil {
 			return nil, err
 		}
-
-		address, err = crypto.NewOverlayAddress(*publicKey, c.config.GetUint64(optionNameNetworkID))
-		if err != nil {
-			return nil, err
-		}
-
-		logger.Infof("using swarm network address through clef: %s", address)
 	} else {
 		logger.Warning("clef is not enabled; portability and security of your keys is sub optimal")
-		swarmPrivateKey, created, err := keystore.Key("swarm", password)
+		swarmPrivateKey, _, err := keystore.Key("swarm", password)
 		if err != nil {
 			return nil, fmt.Errorf("swarm key: %w", err)
 		}
 		signer = crypto.NewDefaultSigner(swarmPrivateKey)
 		publicKey = &swarmPrivateKey.PublicKey
-
-		address, err = crypto.NewOverlayAddress(*publicKey, c.config.GetUint64(optionNameNetworkID))
-		if err != nil {
-			return nil, err
-		}
-
-		if created {
-			logger.Infof("new swarm network address created: %s", address)
-		} else {
-			logger.Infof("using existing swarm network address: %s", address)
-		}
 	}
 
 	logger.Infof("swarm public key %x", crypto.EncodeSecp256k1PublicKey(publicKey))
@@ -404,7 +396,6 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 
 	return &signerConfig{
 		signer:           signer,
-		address:          address,
 		publicKey:        publicKey,
 		libp2pPrivateKey: libp2pPrivateKey,
 		pssPrivateKey:    pssPrivateKey,

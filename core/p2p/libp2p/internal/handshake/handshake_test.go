@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/hop"
 	"github.com/redesblock/hop/core/logging"
@@ -59,21 +60,24 @@ func TestHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	trxHash := common.HexToHash("0x1").Bytes()
+	blockhash := common.HexToHash("0x2").Bytes()
+
 	signer1 := crypto.NewDefaultSigner(privateKey1)
 	signer2 := crypto.NewDefaultSigner(privateKey2)
-	addr, err := crypto.NewOverlayAddress(privateKey1.PublicKey, networkID)
+	addr, err := crypto.NewOverlayAddress(privateKey1.PublicKey, networkID, blockhash)
 	if err != nil {
 		t.Fatal(err)
 	}
-	node1HopAddress, err := hop.NewAddress(signer1, node1ma, addr, networkID)
+	node1HopAddress, err := hop.NewAddress(signer1, node1ma, addr, networkID, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr2, err := crypto.NewOverlayAddress(privateKey2.PublicKey, networkID)
+	addr2, err := crypto.NewOverlayAddress(privateKey2.PublicKey, networkID, blockhash)
 	if err != nil {
 		t.Fatal(err)
 	}
-	node2HopAddress, err := hop.NewAddress(signer2, node2ma, addr2, networkID)
+	node2HopAddress, err := hop.NewAddress(signer2, node2ma, addr2, networkID, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,9 +92,10 @@ func TestHandshake(t *testing.T) {
 	}
 
 	aaddresser := &AdvertisableAddresserMock{}
-	senderMatcher := &MockSenderMatcher{v: true}
 
-	handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, testWelcomeMessage, logger)
+	senderMatcher := &MockSenderMatcher{v: true, blockHash: blockhash}
+
+	handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, testWelcomeMessage, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,6 +119,7 @@ func TestHandshake(t *testing.T) {
 				},
 				NetworkID:      networkID,
 				FullNode:       true,
+				Transaction:    trxHash,
 				WelcomeMessage: testWelcomeMessage,
 			},
 		}); err != nil {
@@ -366,7 +372,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - OK", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -388,8 +394,9 @@ func TestHandshake(t *testing.T) {
 				Overlay:   node2HopAddress.Overlay.Bytes(),
 				Signature: node2HopAddress.Signature,
 			},
-			NetworkID: networkID,
-			FullNode:  true,
+			NetworkID:   networkID,
+			Transaction: trxHash,
+			FullNode:    true,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -411,7 +418,7 @@ func TestHandshake(t *testing.T) {
 			t.Fatalf("got bad syn")
 		}
 
-		hopAddress, err := hop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.NetworkID)
+		hopAddress, err := hop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.Transaction, blockhash, got.Ack.NetworkID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -537,7 +544,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - duplicate handshake", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -559,8 +566,9 @@ func TestHandshake(t *testing.T) {
 				Overlay:   node2HopAddress.Overlay.Bytes(),
 				Signature: node2HopAddress.Signature,
 			},
-			NetworkID: networkID,
-			FullNode:  true,
+			NetworkID:   networkID,
+			Transaction: trxHash,
+			FullNode:    true,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -581,8 +589,7 @@ func TestHandshake(t *testing.T) {
 		if !bytes.Equal(got.Syn.ObservedUnderlay, node2maBinary) {
 			t.Fatalf("got bad syn")
 		}
-
-		hopAddress, err := hop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.NetworkID)
+		hopAddress, err := hop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.Transaction, blockhash, got.Ack.NetworkID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -634,9 +641,9 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - transaction is not on the blockchain", func(t *testing.T) {
-		sbMock := &MockSenderMatcher{v: false}
+		sbMock := &MockSenderMatcher{v: false, blockHash: blockhash}
 
-		handshakeService, err := handshake.New(signer1, aaddresser, sbMock, node1Info.HopAddress.Overlay, networkID, true, []byte("0xff"), "", logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, sbMock, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -658,15 +665,16 @@ func TestHandshake(t *testing.T) {
 				Overlay:   node2HopAddress.Overlay.Bytes(),
 				Signature: node2HopAddress.Signature,
 			},
-			NetworkID: networkID,
-			FullNode:  true,
+			NetworkID:   networkID,
+			FullNode:    true,
+			Transaction: trxHash,
 		}); err != nil {
 			t.Fatal(err)
 		}
 
 		_, err = handshakeService.Handle(context.Background(), stream1, node2AddrInfo.Addrs[0], node2AddrInfo.ID)
-		if !errors.Is(err, handshake.ErrAddressNotFound) {
-			t.Fatalf("expected error %v, got %v", handshake.ErrAddressNotFound, err)
+		if err == nil {
+			t.Fatalf("expected error, got nil")
 		}
 	})
 
@@ -730,9 +738,15 @@ func (a *AdvertisableAddresserMock) Resolve(observedAdddress ma.Multiaddr) (ma.M
 }
 
 type MockSenderMatcher struct {
-	v bool
+	v         bool
+	blockHash []byte
 }
 
-func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, swarm.Address) (bool, error) {
-	return m.v, nil
+func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, swarm.Address) ([]byte, error) {
+
+	if m.v {
+		return m.blockHash, nil
+	}
+
+	return nil, errors.New("")
 }

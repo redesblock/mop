@@ -37,14 +37,14 @@ type Halter interface {
 	Halt()
 }
 
-// PickyNotifer can decide whether a peer should be picked
+// PickyNotifier can decide whether a peer should be picked
 type PickyNotifier interface {
 	Pick(Peer) bool
 	Notifier
 }
 
 type Notifier interface {
-	Connected(context.Context, Peer) error
+	Connected(context.Context, Peer, bool) error
 	Disconnected(Peer)
 	Announce(context.Context, swarm.Address, bool) error
 }
@@ -96,8 +96,9 @@ type StreamSpec struct {
 
 // Peer holds information about a Peer.
 type Peer struct {
-	Address  swarm.Address `json:"address"`
-	FullNode bool          `json:"fullNode"`
+	Address         swarm.Address
+	FullNode        bool
+	EthereumAddress []byte
 }
 
 // HandlerFunc handles a received Stream from a Peer.

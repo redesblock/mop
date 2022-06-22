@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -17,6 +18,7 @@ var (
 )
 
 type Driver interface {
+	p2p.Notifier
 	PeerAdder
 	ClosestPeerer
 	EachPeerer

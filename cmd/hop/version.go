@@ -4,6 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var CommitTime string
+
 var (
 	version = "0.4.0" // manually set semantic version number
 	commit  string    // automatically set git commit hash

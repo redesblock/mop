@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ab "github.com/redesblock/hop/core/addressbook"
@@ -25,6 +26,11 @@ import (
 	"github.com/redesblock/hop/core/statestore/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/swarm/test"
+)
+
+var (
+	tx    = common.HexToHash("0x2").Bytes()
+	block = common.HexToHash("0x1").Bytes()
 )
 
 func TestHandlerRateLimit(t *testing.T) {
@@ -59,11 +65,11 @@ func TestHandlerRateLimit(t *testing.T) {
 			t.Fatal(err)
 		}
 		signer := crypto.NewDefaultSigner(pk)
-		overlay, err := crypto.NewOverlayAddress(pk.PublicKey, networkID)
+		overlay, err := crypto.NewOverlayAddress(pk.PublicKey, networkID, block)
 		if err != nil {
 			t.Fatal(err)
 		}
-		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID)
+		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +88,6 @@ func TestHandlerRateLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// // get a record for this stream
 	rec, err := serverRecorder.Records(serverAddress, "hive", "1.0.0", "peers")
 	if err != nil {
 		t.Fatal(err)
@@ -121,11 +126,11 @@ func TestBroadcastPeers(t *testing.T) {
 			t.Fatal(err)
 		}
 		signer := crypto.NewDefaultSigner(pk)
-		overlay, err := crypto.NewOverlayAddress(pk.PublicKey, networkID)
+		overlay, err := crypto.NewOverlayAddress(pk.PublicKey, networkID, block)
 		if err != nil {
 			t.Fatal(err)
 		}
-		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID)
+		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -138,9 +143,10 @@ func TestBroadcastPeers(t *testing.T) {
 		}
 
 		wantMsgs[i/hive.MaxBatchSize].Peers = append(wantMsgs[i/hive.MaxBatchSize].Peers, &pb.HopAddress{
-			Overlay:   hopAddresses[i].Overlay.Bytes(),
-			Underlay:  hopAddresses[i].Underlay.Bytes(),
-			Signature: hopAddresses[i].Signature,
+			Overlay:     hopAddresses[i].Overlay.Bytes(),
+			Underlay:    hopAddresses[i].Underlay.Bytes(),
+			Signature:   hopAddresses[i].Signature,
+			Transaction: tx,
 		})
 	}
 

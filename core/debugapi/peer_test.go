@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
@@ -27,7 +28,9 @@ func TestConnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	overlay, err := crypto.NewOverlayAddress(privateKey.PublicKey, 0)
+	block := common.HexToHash("0x1").Bytes()
+
+	overlay, err := crypto.NewOverlayAddress(privateKey.PublicKey, 0, block)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +39,7 @@ func TestConnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hopAddress, err := hop.NewAddress(crypto.NewDefaultSigner(privateKey), underlama, overlay, 0)
+	hopAddress, err := hop.NewAddress(crypto.NewDefaultSigner(privateKey), underlama, overlay, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +166,7 @@ func TestPeer(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/peers", http.StatusOK,
 			jsonhttptest.WithExpectedJSONResponse(debugapi.PeersResponse{
-				Peers: []p2p.Peer{{Address: overlay}},
+				Peers: []debugapi.Peer{{Address: overlay}},
 			}),
 		)
 	})
@@ -188,7 +191,7 @@ func TestBlocklistedPeers(t *testing.T) {
 
 	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/blocklist", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.PeersResponse{
-			Peers: []p2p.Peer{{Address: overlay}},
+			Peers: []debugapi.Peer{{Address: overlay}},
 		}),
 	)
 }
