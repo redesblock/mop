@@ -1,4 +1,4 @@
-// Package api provides the functionality of the hop
+// Package api provides the functionality of the Bee
 // client-facing HTTP API.
 package api
 
