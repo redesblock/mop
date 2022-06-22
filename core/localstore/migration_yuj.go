@@ -10,7 +10,7 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-// DBSchemaYuj is the bee schema identifier for storage incentives initial iteration.
+// DBSchemaYuj is the hop schema identifier for storage incentives initial iteration.
 const DBSchemaYuj = "yuj"
 
 // migrateYuj removes all existing database content, unless

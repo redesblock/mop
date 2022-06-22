@@ -15,6 +15,7 @@ import (
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/hop/core/postage/postagecontract"
 	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
@@ -37,7 +38,6 @@ type Service struct {
 	pingpong           pingpong.Interface
 	topologyDriver     topology.Driver
 	storer             storage.Storer
-	logger             logging.Logger
 	tracer             *tracing.Tracer
 	tags               *tags.Tags
 	accounting         accounting.Interface
@@ -47,6 +47,9 @@ type Service struct {
 	swap               swap.Interface
 	batchStore         postage.Storer
 	transaction        transaction.Service
+	post               postage.Service
+	postageContract    postagecontract.Interface
+	logger             logging.Logger
 	corsAllowedOrigins []string
 	metricsRegistry    *prometheus.Registry
 	lightNodes         *lightnode.Container
@@ -59,7 +62,7 @@ type Service struct {
 // to expose /addresses, /health endpoints, Go metrics and pprof. It is useful to expose
 // these endpoints before all dependencies are configured and injected to have
 // access to basic debugging tools and /health endpoint.
-func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address, logger logging.Logger, tracer *tracing.Tracer, corsAllowedOrigins []string) *Service {
+func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address, logger logging.Logger, tracer *tracing.Tracer, corsAllowedOrigins []string, transaction transaction.Service) *Service {
 	s := new(Service)
 	s.publicKey = publicKey
 	s.pssPublicKey = pssPublicKey
@@ -68,6 +71,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 	s.tracer = tracer
 	s.corsAllowedOrigins = corsAllowedOrigins
 	s.metricsRegistry = newMetricsRegistry()
+	s.transaction = transaction
 
 	s.setRouter(s.newBasicRouter())
 
@@ -77,7 +81,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 // Configure injects required dependencies and configuration parameters and
 // constructs HTTP routes that depend on them. It is intended and safe to call
 // this method only once.
-func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, transaction transaction.Service) {
+func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface) {
 	s.p2p = p2p
 	s.pingpong = pingpong
 	s.topologyDriver = topologyDriver
@@ -90,8 +94,9 @@ func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpon
 	s.lightNodes = lightNodes
 	s.batchStore = batchStore
 	s.pseudosettle = pseudosettle
-	s.transaction = transaction
 	s.overlay = &overlay
+	s.post = post
+	s.postageContract = postageContract
 
 	s.setRouter(s.newRouter())
 }

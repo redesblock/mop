@@ -2,6 +2,7 @@ package debugapi_test
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/hex"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +22,8 @@ import (
 	p2pmock "github.com/redesblock/hop/core/p2p/mock"
 	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/postage"
+	mockpost "github.com/redesblock/hop/core/postage/mock"
+	"github.com/redesblock/hop/core/postage/postagecontract"
 	"github.com/redesblock/hop/core/resolver"
 	chequebookmock "github.com/redesblock/hop/core/settlement/swap/chequebook/mock"
 	swapmock "github.com/redesblock/hop/core/settlement/swap/mock"
@@ -32,6 +35,17 @@ import (
 	transactionmock "github.com/redesblock/hop/core/transaction/mock"
 	"resenje.org/web"
 )
+
+var (
+	batchOk    = make([]byte, 32)
+	batchOkStr string
+)
+
+func init() {
+	_, _ = rand.Read(batchOk)
+
+	batchOkStr = hex.EncodeToString(batchOk)
+}
 
 type testServerOptions struct {
 	Overlay            swarm.Address
@@ -51,6 +65,8 @@ type testServerOptions struct {
 	SwapOpts           []swapmock.Option
 	BatchStore         postage.Storer
 	TransactionOpts    []transactionmock.Option
+	PostageContract    postagecontract.Interface
+	Post               postage.Service
 }
 
 type testServer struct {
@@ -66,8 +82,8 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	swapserv := swapmock.New(o.SwapOpts...)
 	transaction := transactionmock.New(o.TransactionOpts...)
 	ln := lightnode.NewContainer(o.Overlay)
-	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(ioutil.Discard, 0), nil, o.CORSAllowedOrigins)
-	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, o.BatchStore, transaction)
+	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(ioutil.Discard, 0), nil, o.CORSAllowedOrigins, transaction)
+	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, o.BatchStore, o.Post, o.PostageContract)
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
@@ -134,7 +150,7 @@ func TestServer_Configure(t *testing.T) {
 	swapserv := swapmock.New(o.SwapOpts...)
 	ln := lightnode.NewContainer(o.Overlay)
 	transaction := transactionmock.New(o.TransactionOpts...)
-	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(ioutil.Discard, 0), nil, nil)
+	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(ioutil.Discard, 0), nil, nil, transaction)
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
@@ -165,7 +181,7 @@ func TestServer_Configure(t *testing.T) {
 		}),
 	)
 
-	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, nil, transaction)
+	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, nil, mockpost.New(), nil)
 
 	testBasicRouter(t, client)
 	jsonhttptest.Request(t, client, http.MethodGet, "/readiness", http.StatusOK,

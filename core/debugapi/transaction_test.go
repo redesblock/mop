@@ -1,6 +1,7 @@
 package debugapi_test
 
 import (
+	"context"
 	"errors"
 	"math/big"
 	"net/http"
@@ -212,7 +213,7 @@ func TestTransactionResend(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		testServer := newTestServer(t, testServerOptions{
 			TransactionOpts: []mock.Option{
-				mock.WithResendTransactionFunc(func(txHash common.Hash) error {
+				mock.WithResendTransactionFunc(func(ctx context.Context, txHash common.Hash) error {
 					return nil
 				}),
 			},
@@ -228,7 +229,7 @@ func TestTransactionResend(t *testing.T) {
 	t.Run("unknown transaction", func(t *testing.T) {
 		testServer := newTestServer(t, testServerOptions{
 			TransactionOpts: []mock.Option{
-				mock.WithResendTransactionFunc(func(txHash common.Hash) error {
+				mock.WithResendTransactionFunc(func(ctx context.Context, txHash common.Hash) error {
 					return transaction.ErrUnknownTransaction
 				}),
 			},
@@ -245,7 +246,7 @@ func TestTransactionResend(t *testing.T) {
 	t.Run("already imported", func(t *testing.T) {
 		testServer := newTestServer(t, testServerOptions{
 			TransactionOpts: []mock.Option{
-				mock.WithResendTransactionFunc(func(txHash common.Hash) error {
+				mock.WithResendTransactionFunc(func(ctx context.Context, txHash common.Hash) error {
 					return transaction.ErrAlreadyImported
 				}),
 			},
@@ -262,7 +263,7 @@ func TestTransactionResend(t *testing.T) {
 	t.Run("other error", func(t *testing.T) {
 		testServer := newTestServer(t, testServerOptions{
 			TransactionOpts: []mock.Option{
-				mock.WithResendTransactionFunc(func(txHash common.Hash) error {
+				mock.WithResendTransactionFunc(func(ctx context.Context, txHash common.Hash) error {
 					return errors.New("err")
 				}),
 			},

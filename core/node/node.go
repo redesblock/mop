@@ -27,6 +27,7 @@ import (
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/config"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/feeds/factory"
@@ -71,6 +72,7 @@ import (
 	"github.com/redesblock/hop/core/transaction"
 	"github.com/redesblock/hop/core/traversal"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -146,6 +148,7 @@ type Options struct {
 	BlockTime                  uint64
 	DeployGasPrice             string
 	WarmupTime                 time.Duration
+	ChainID                    int64
 }
 
 const (
@@ -193,39 +196,6 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	addressbook := addressbook.New(stateStore)
 
-	var debugAPIService *debugapi.Service
-	if o.DebugAPIAddr != "" {
-		overlayEthAddress, err := signer.EthereumAddress()
-		if err != nil {
-			return nil, fmt.Errorf("eth address: %w", err)
-		}
-		// set up basic debug api endpoints for debugging and /health endpoint
-		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins)
-
-		debugAPIListener, err := net.Listen("tcp", o.DebugAPIAddr)
-		if err != nil {
-			return nil, fmt.Errorf("debug api listener: %w", err)
-		}
-
-		debugAPIServer := &http.Server{
-			IdleTimeout:       30 * time.Second,
-			ReadHeaderTimeout: 3 * time.Second,
-			Handler:           debugAPIService,
-			ErrorLog:          log.New(b.errorLogWriter, "", 0),
-		}
-
-		go func() {
-			logger.Infof("debug api address: %s", debugAPIListener.Addr())
-
-			if err := debugAPIServer.Serve(debugAPIListener); err != nil && err != http.ErrServerClosed {
-				logger.Debugf("debug api server: %v", err)
-				logger.Error("unable to serve debug api")
-			}
-		}()
-
-		b.debugAPIServer = debugAPIServer
-	}
-
 	var (
 		swapBackend        *ethclient.Client
 		overlayEthAddress  common.Address
@@ -253,6 +223,59 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		b.ethClientCloser = swapBackend.Close
 		b.transactionCloser = tracerCloser
 		b.transactionMonitorCloser = transactionMonitor
+
+		if o.ChainID != -1 && o.ChainID != chainID {
+			return nil, fmt.Errorf("connected to wrong ethereum network: got chainID %d, want %d", chainID, o.ChainID)
+		}
+	}
+
+	var debugAPIService *debugapi.Service
+	if o.DebugAPIAddr != "" {
+		overlayEthAddress, err := signer.EthereumAddress()
+		if err != nil {
+			return nil, fmt.Errorf("eth address: %w", err)
+		}
+		// set up basic debug api endpoints for debugging and /health endpoint
+		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, transactionService)
+
+		debugAPIListener, err := net.Listen("tcp", o.DebugAPIAddr)
+		if err != nil {
+			return nil, fmt.Errorf("debug api listener: %w", err)
+		}
+
+		debugAPIServer := &http.Server{
+			IdleTimeout:       30 * time.Second,
+			ReadHeaderTimeout: 3 * time.Second,
+			Handler:           debugAPIService,
+			ErrorLog:          log.New(b.errorLogWriter, "", 0),
+		}
+
+		go func() {
+			logger.Infof("debug api address: %s", debugAPIListener.Addr())
+
+			if err := debugAPIServer.Serve(debugAPIListener); err != nil && err != http.ErrServerClosed {
+				logger.Debugf("debug api server: %v", err)
+				logger.Error("unable to serve debug api")
+			}
+		}()
+
+		b.debugAPIServer = debugAPIServer
+	}
+
+	if !o.Standalone {
+		// Sync the with the given Ethereum backend:
+		isSynced, _, err := transaction.IsSynced(p2pCtx, swapBackend, maxDelay)
+		if err != nil {
+			return nil, fmt.Errorf("is synced: %w", err)
+		}
+		if !isSynced {
+			logger.Infof("waiting to sync with the Ethereum backend")
+
+			err := transaction.WaitSynced(p2pCtx, logger, swapBackend, maxDelay)
+			if err != nil {
+				return nil, fmt.Errorf("waiting backend sync: %w", err)
+			}
+		}
 	}
 
 	if o.SwapEnable {
@@ -396,7 +419,8 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	var postageSyncStart uint64 = 0
 	if !o.Standalone {
-		postageContractAddress, startBlock, found := listener.DiscoverAddresses(chainID)
+		chainCfg, found := config.GetChainConfig(chainID)
+		postageContractAddress, startBlock := chainCfg.PostageStamp, chainCfg.StartBlock
 		if o.PostageContractAddress != "" {
 			if !common.IsHexAddress(o.PostageContractAddress) {
 				return nil, errors.New("malformed postage stamp address")
@@ -412,7 +436,10 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b})
 		b.listenerCloser = eventListener
 
-		batchSvc = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post)
+		batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256)
+		if err != nil {
+			return nil, err
+		}
 
 		erc20Address, err := postagecontract.LookupERC20Address(p2pCtx, transactionService, postageContractAddress)
 		if err != nil {
@@ -747,7 +774,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		}
 
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, transactionService)
+		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {

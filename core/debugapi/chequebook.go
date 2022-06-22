@@ -16,7 +16,7 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-var (
+const (
 	errChequebookBalance           = "cannot get chequebook balance"
 	errChequebookNoAmount          = "did not specify amount"
 	errChequebookNoWithdraw        = "cannot withdraw"
@@ -31,8 +31,9 @@ var (
 	errBadGasPrice                 = "bad gas price"
 	errBadGasLimit                 = "bad gas limit"
 
-	gasPriceHeader = "Gas-Price"
-	gasLimitHeader = "Gas-Limit"
+	gasPriceHeader  = "Gas-Price"
+	gasLimitHeader  = "Gas-Limit"
+	immutableHeader = "Immutable"
 )
 
 type chequebookBalanceResponse struct {

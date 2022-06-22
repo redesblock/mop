@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/redesblock/hop/core/config"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p/libp2p"
@@ -62,18 +63,6 @@ func InitChain(
 		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("new transaction service: %w", err)
 	}
 
-	// Sync the with the given Ethereum backend:
-	isSynced, err := transaction.IsSynced(ctx, backend, maxDelay)
-	if err != nil {
-		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("is synced: %w", err)
-	}
-	if !isSynced {
-		logger.Infof("waiting to sync with the Ethereum backend")
-		err := transaction.WaitSynced(ctx, backend, maxDelay)
-		if err != nil {
-			return nil, common.Address{}, 0, nil, nil, fmt.Errorf("waiting backend sync: %w", err)
-		}
-	}
 	return backend, overlayEthAddress, chainID.Int64(), transactionMonitor, transactionService, nil
 }
 
@@ -90,10 +79,12 @@ func InitChequebookFactory(
 	var currentFactory common.Address
 	var legacyFactories []common.Address
 
-	foundFactory, foundLegacyFactories, found := chequebook.DiscoverFactoryAddress(chainID)
+	chainCfg, found := config.GetChainConfig(chainID)
+
+	foundFactory, foundLegacyFactories := chainCfg.CurrentFactory, chainCfg.LegacyFactories
 	if factoryAddress == "" {
 		if !found {
-			return nil, errors.New("no known factory address for this network")
+			return nil, fmt.Errorf("no known factory address for this network (chain id: %d)", chainID)
 		}
 		currentFactory = foundFactory
 		logger.Infof("using default factory address for chain id %d: %x", chainID, currentFactory)
@@ -219,8 +210,8 @@ func InitSwap(
 
 	var currentPriceOracleAddress common.Address
 	if priceOracleAddress == "" {
-		var found bool
-		currentPriceOracleAddress, found = priceoracle.DiscoverPriceOracleAddress(chainID)
+		chainCfg, found := config.GetChainConfig(chainID)
+		currentPriceOracleAddress = chainCfg.PriceOracleAddress
 		if !found {
 			return nil, nil, errors.New("no known price oracle address for this network")
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/redesblock/hop/core/swarm"
 )
 
-// DBSchemaBatchIndex is the bee schema identifier for batch index.
+// DBSchemaBatchIndex is the hop schema identifier for batch index.
 const DBSchemaBatchIndex = "batch-index"
 
 // migrateBatchIndex removes all existing database content, unless pinned

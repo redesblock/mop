@@ -14,8 +14,8 @@ const (
 )
 
 var (
-	commitTime, _   = strconv.ParseInt(CommitTime, 10, 64)
-	versionReleased = time.Unix(commitTime, 0)
+	commitTime2, _  = strconv.ParseInt(CommitTime(), 10, 64)
+	versionReleased = time.Unix(commitTime2, 0)
 )
 
 func startTimeBomb(logger logging.Logger) {
