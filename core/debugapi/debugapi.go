@@ -24,6 +24,7 @@ import (
 	"github.com/redesblock/hop/core/topology"
 	"github.com/redesblock/hop/core/topology/lightnode"
 	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/hop/core/transaction"
 )
 
 // Service implements http.Handler interface to be used in HTTP server.
@@ -45,6 +46,7 @@ type Service struct {
 	chequebook         chequebook.Service
 	swap               swap.Interface
 	batchStore         postage.Storer
+	transaction        transaction.Service
 	corsAllowedOrigins []string
 	metricsRegistry    *prometheus.Registry
 	lightNodes         *lightnode.Container
@@ -76,7 +78,7 @@ func New(overlay swarm.Address, publicKey, pssPublicKey ecdsa.PublicKey, ethereu
 // Configure injects required dependencies and configuration parameters and
 // constructs HTTP routes that depend on them. It is intended and safe to call
 // this method only once.
-func (s *Service) Configure(p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer) {
+func (s *Service) Configure(p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, transaction transaction.Service) {
 	s.p2p = p2p
 	s.pingpong = pingpong
 	s.topologyDriver = topologyDriver
@@ -89,6 +91,7 @@ func (s *Service) Configure(p2p p2p.DebugService, pingpong pingpong.Interface, t
 	s.lightNodes = lightNodes
 	s.batchStore = batchStore
 	s.pseudosettle = pseudosettle
+	s.transaction = transaction
 
 	s.setRouter(s.newRouter())
 }

@@ -241,7 +241,6 @@ func InitSwap(
 		swapAddressBook,
 		networkID,
 		cashoutService,
-		p2ps,
 		accounting,
 	)
 

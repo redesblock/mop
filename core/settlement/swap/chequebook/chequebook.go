@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
 	"github.com/redesblock/hop/core/storage"
@@ -320,11 +319,12 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 	}
 
 	request := &transaction.TxRequest{
-		To:       &s.address,
-		Data:     callData,
-		GasPrice: sctx.GetGasPrice(ctx),
-		GasLimit: 0,
-		Value:    big.NewInt(0),
+		To:          &s.address,
+		Data:        callData,
+		GasPrice:    sctx.GetGasPrice(ctx),
+		GasLimit:    95000,
+		Value:       big.NewInt(0),
+		Description: fmt.Sprintf("chequebook withdrawal of %d HOP", amount),
 	}
 
 	txHash, err := s.transactionService.Send(ctx, request)

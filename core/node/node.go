@@ -98,6 +98,7 @@ type Node struct {
 	pssCloser                io.Closer
 	ethClientCloser          func()
 	transactionMonitorCloser io.Closer
+	transactionCloser        io.Closer
 	recoveryHandleCleanup    func()
 	listenerCloser           io.Closer
 	postageServiceCloser     io.Closer
@@ -255,6 +256,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			return nil, fmt.Errorf("init chain: %w", err)
 		}
 		b.ethClientCloser = swapBackend.Close
+		b.transactionCloser = tracerCloser
 		b.transactionMonitorCloser = transactionMonitor
 	}
 
@@ -342,7 +344,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		DisableSeeksCompaction: o.DBDisableSeeksCompaction,
 	}
 
-	storer, err := localstore.New(path, swarmAddress.Bytes(), lo, logger)
+	storer, err := localstore.New(path, swarmAddress.Bytes(), stateStore, lo, logger)
 	if err != nil {
 		return nil, fmt.Errorf("localstore: %w", err)
 	}
@@ -383,7 +385,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b})
 		b.listenerCloser = eventListener
 
-		batchSvc = batchservice.New(stateStore, batchStore, logger, eventListener)
+		batchSvc = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post)
 
 		erc20Address, err := postagecontract.LookupERC20Address(p2pCtx, transactionService, postageContractAddress)
 		if err != nil {
@@ -472,6 +474,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		<-syncedChan
 
 	}
+
+	minThreshold := big.NewInt(2 * refreshRate)
+
 	paymentThreshold, ok := new(big.Int).SetString(o.PaymentThreshold, 10)
 	if !ok {
 		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
@@ -479,7 +484,9 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	pricer := pricer.NewFixedPricer(swarmAddress, basePrice)
 
-	minThreshold := pricer.MostExpensive()
+	if paymentThreshold.Cmp(minThreshold) < 0 {
+		return nil, fmt.Errorf("payment threshold below minimum generally accepted value, need at least %s", minThreshold)
+	}
 
 	pricing := pricing.New(p2ps, logger, paymentThreshold, minThreshold)
 
@@ -513,6 +520,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		stateStore,
 		pricing,
 		big.NewInt(refreshRate),
+		p2ps,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
@@ -707,7 +715,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		}
 
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore)
+		debugAPIService.Configure(p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, transactionService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {
@@ -809,6 +817,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	go func() {
 		defer wg.Done()
 		tryClose(b.transactionMonitorCloser, "transaction monitor")
+		tryClose(b.transactionCloser, "transaction")
 	}()
 	go func() {
 		defer wg.Done()

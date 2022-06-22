@@ -41,3 +41,7 @@ type Listener interface {
 	io.Closer
 	Listen(from uint64, updater EventUpdater) <-chan struct{}
 }
+
+type BatchCreationListener interface {
+	Handle(*Batch)
+}

@@ -803,6 +803,8 @@ func TestAddressBookQuickPrune(t *testing.T) {
 	}
 	defer kad.Close()
 
+	time.Sleep(100 * time.Millisecond)
+
 	nonConnPeer, err := hop.NewAddress(signer, nonConnectableAddress, test.RandomAddressAt(base, 1), 0)
 	if err != nil {
 		t.Fatal(err)

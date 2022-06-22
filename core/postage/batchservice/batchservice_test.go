@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/redesblock/hop/core/logging"
@@ -31,12 +32,23 @@ func newMockListener() *mockListener {
 	return &mockListener{}
 }
 
+type mockBatchCreationHandler struct {
+	count int
+}
+
+func (m *mockBatchCreationHandler) Handle(b *postage.Batch) {
+	m.count++
+}
+
 func TestBatchServiceCreate(t *testing.T) {
-	testBatch := postagetesting.MustNewBatch()
 	testChainState := postagetesting.NewChainState()
 
 	t.Run("expect put create put error", func(t *testing.T) {
-		svc, _, _ := newTestStoreAndService(
+		testBatch := postagetesting.MustNewBatch()
+		testBatchListener := &mockBatchCreationHandler{}
+		svc, _, _ := newTestStoreAndServiceWithListener(
+			testBatch.Owner,
+			testBatchListener,
 			mock.WithChainState(testChainState),
 			mock.WithPutErr(errTest, 0),
 		)
@@ -51,25 +63,13 @@ func TestBatchServiceCreate(t *testing.T) {
 		); err == nil {
 			t.Fatalf("expected error")
 		}
+		if testBatchListener.count != 0 {
+			t.Fatalf("unexpected batch listener count, exp %d found %d", 0, testBatchListener.count)
+		}
 	})
 
-	t.Run("passes", func(t *testing.T) {
-		svc, batchStore, _ := newTestStoreAndService(
-			mock.WithChainState(testChainState),
-		)
-
-		if err := svc.Create(
-			testBatch.ID,
-			testBatch.Owner,
-			testBatch.Value,
-			testBatch.Depth,
-			testBatch.BucketDepth,
-			testBatch.Immutable,
-		); err != nil {
-			t.Fatalf("got error %v", err)
-		}
-
-		got, err := batchStore.Get(testBatch.ID)
+	validateBatch := func(t *testing.T, testBatch *postage.Batch, st *mock.BatchStore) {
+		got, err := st.Get(testBatch.ID)
 		if err != nil {
 			t.Fatalf("batch store get: %v", err)
 		}
@@ -95,8 +95,63 @@ func TestBatchServiceCreate(t *testing.T) {
 		if got.Start != testChainState.Block {
 			t.Fatalf("batch start block different form chain state: want %v, got %v", got.Start, testChainState.Block)
 		}
+	}
+
+	t.Run("passes", func(t *testing.T) {
+		testBatch := postagetesting.MustNewBatch()
+		testBatchListener := &mockBatchCreationHandler{}
+		svc, batchStore, _ := newTestStoreAndServiceWithListener(
+			testBatch.Owner,
+			testBatchListener,
+			mock.WithChainState(testChainState),
+		)
+
+		if err := svc.Create(
+			testBatch.ID,
+			testBatch.Owner,
+			testBatch.Value,
+			testBatch.Depth,
+			testBatch.BucketDepth,
+			testBatch.Immutable,
+		); err != nil {
+			t.Fatalf("got error %v", err)
+		}
+		if testBatchListener.count != 1 {
+			t.Fatalf("unexpected batch listener count, exp %d found %d", 1, testBatchListener.count)
+		}
+
+		validateBatch(t, testBatch, batchStore)
 	})
 
+	t.Run("passes without recovery", func(t *testing.T) {
+		testBatch := postagetesting.MustNewBatch()
+		testBatchListener := &mockBatchCreationHandler{}
+		// create a owner different from the batch owner
+		owner := make([]byte, 32)
+		rand.Read(owner)
+
+		svc, batchStore, _ := newTestStoreAndServiceWithListener(
+			owner,
+			testBatchListener,
+			mock.WithChainState(testChainState),
+		)
+
+		if err := svc.Create(
+			testBatch.ID,
+			testBatch.Owner,
+			testBatch.Value,
+			testBatch.Depth,
+			testBatch.BucketDepth,
+			testBatch.Immutable,
+		); err != nil {
+			t.Fatalf("got error %v", err)
+		}
+		if testBatchListener.count != 0 {
+			t.Fatalf("unexpected batch listener count, exp %d found %d", 1, testBatchListener.count)
+		}
+
+		validateBatch(t, testBatch, batchStore)
+	})
 }
 
 func TestBatchServiceTopUp(t *testing.T) {
@@ -259,7 +314,7 @@ func TestTransactionOk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc2 := batchservice.New(s, store, testLog, newMockListener())
+	svc2 := batchservice.New(s, store, testLog, newMockListener(), nil, nil)
 	if _, err := svc2.Start(10); err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +334,7 @@ func TestTransactionFail(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc2 := batchservice.New(s, store, testLog, newMockListener())
+	svc2 := batchservice.New(s, store, testLog, newMockListener(), nil, nil)
 	if _, err := svc2.Start(10); err != nil {
 		t.Fatal(err)
 	}
@@ -288,11 +343,19 @@ func TestTransactionFail(t *testing.T) {
 		t.Fatalf("expect %d reset calls got %d", 1, c)
 	}
 }
-func newTestStoreAndService(opts ...mock.Option) (postage.EventUpdater, *mock.BatchStore, storage.StateStorer) {
+func newTestStoreAndServiceWithListener(
+	owner []byte,
+	batchListener postage.BatchCreationListener,
+	opts ...mock.Option,
+) (postage.EventUpdater, *mock.BatchStore, storage.StateStorer) {
 	s := mocks.NewStateStore()
 	store := mock.New(opts...)
-	svc := batchservice.New(s, store, testLog, newMockListener())
+	svc := batchservice.New(s, store, testLog, newMockListener(), owner, batchListener)
 	return svc, store, s
+}
+
+func newTestStoreAndService(opts ...mock.Option) (postage.EventUpdater, *mock.BatchStore, storage.StateStorer) {
+	return newTestStoreAndServiceWithListener(nil, nil, opts...)
 }
 
 func putBatch(t *testing.T, store postage.Storer, b *postage.Batch) {

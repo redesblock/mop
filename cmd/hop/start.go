@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
+
 	"github.com/kardianos/service"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/crypto/clef"

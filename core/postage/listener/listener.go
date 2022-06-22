@@ -15,10 +15,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/transaction"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
