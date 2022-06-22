@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"golang.org/x/net/context"
 )
@@ -16,7 +17,7 @@ import (
 var (
 	ErrInvalidFactory       = errors.New("not a valid factory contract")
 	ErrNotDeployedByFactory = errors.New("chequebook not deployed by factory")
-	errDecodeABI            = errors.New("could not decode hopabi data")
+	errDecodeABI            = errors.New("could not decode abi data")
 
 	factoryABI                  = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABIv0_4_0)
 	simpleSwapDeployedEventType = factoryABI.Events["SimpleSwapDeployed"]
@@ -76,7 +77,7 @@ func (c *factory) Deploy(ctx context.Context, issuer common.Address, defaultHard
 	request := &transaction.TxRequest{
 		To:       &c.address,
 		Data:     callData,
-		GasPrice: nil,
+		GasPrice: sctx.GetGasPrice(ctx),
 		GasLimit: 0,
 		Value:    big.NewInt(0),
 	}

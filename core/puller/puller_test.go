@@ -33,7 +33,7 @@ func TestOneSync(t *testing.T) {
 	var (
 		addr        = test.RandomAddress()
 		cursors     = []uint64{1000, 1000, 1000}
-		liveReplies = []uint64{1}
+		liveReplies = []uint64{1001}
 	)
 
 	puller, _, kad, pullsync := newPuller(opts{
@@ -119,7 +119,7 @@ func TestSyncFlow_PeerWithinDepth_Live(t *testing.T) {
 					), mockk.WithDepth(1),
 				},
 				pullSync: []mockps.Option{mockps.WithCursors(tc.cursors), mockps.WithLiveSyncReplies(tc.liveReplies...)},
-				bins:     5,
+				bins:     2,
 			})
 			t.Cleanup(func() {
 				pullsync.Close()
@@ -195,7 +195,7 @@ func TestSyncFlow_PeerWithinDepth_Historical(t *testing.T) {
 					), mockk.WithDepth(1),
 				},
 				pullSync: []mockps.Option{mockps.WithCursors(tc.cursors), mockps.WithAutoReply(), mockps.WithLiveSyncBlock()},
-				bins:     5,
+				bins:     2,
 			})
 			defer puller.Close()
 			defer pullsync.Close()
@@ -588,7 +588,7 @@ func newPuller(ops opts) (*puller.Puller, storage.StateStorer, *mockk.Mock, *moc
 	s := mock.NewStateStore()
 	ps := mockps.NewPullSync(ops.pullSync...)
 	kad := mockk.NewMockKademlia(ops.kad...)
-	logger := logging.New(ioutil.Discard, 6)
+	logger := logging.New(ioutil.Discard, 0)
 
 	o := puller.Options{
 		Bins: ops.bins,

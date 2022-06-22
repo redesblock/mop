@@ -8,12 +8,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 )
 
 var (
 	erc20ABI     = transaction.ParseABIUnchecked(hopabi.ERC20ABIv0_3_1)
-	errDecodeABI = errors.New("could not decode hopabi data")
+	errDecodeABI = errors.New("could not decode abi data")
 )
 
 type Service interface {
@@ -74,7 +75,7 @@ func (c *erc20Service) Transfer(ctx context.Context, address common.Address, val
 	request := &transaction.TxRequest{
 		To:       &c.address,
 		Data:     callData,
-		GasPrice: nil,
+		GasPrice: sctx.GetGasPrice(ctx),
 		GasLimit: 0,
 		Value:    big.NewInt(0),
 	}

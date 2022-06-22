@@ -3,8 +3,10 @@ package listener_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/ioutil"
 	"math/big"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +43,7 @@ func TestListener(t *testing.T) {
 				c.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil)
 		l.Listen(0, ev)
 
 		select {
@@ -72,7 +74,7 @@ func TestListener(t *testing.T) {
 				topup.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil)
 		l.Listen(0, ev)
 
 		select {
@@ -103,7 +105,7 @@ func TestListener(t *testing.T) {
 				depthIncrease.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil)
 		l.Listen(0, ev)
 
 		select {
@@ -132,7 +134,7 @@ func TestListener(t *testing.T) {
 				priceUpdate.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil)
 		l.Listen(0, ev)
 		select {
 		case e := <-evC:
@@ -184,7 +186,7 @@ func TestListener(t *testing.T) {
 			),
 			WithBlockNumber(blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil)
 		l.Listen(0, ev)
 
 		select {
@@ -246,6 +248,47 @@ func TestListener(t *testing.T) {
 			t.Fatal("timed out waiting for block number update")
 		}
 	})
+
+	t.Run("shutdown on error event", func(t *testing.T) {
+		shutdowner := &countShutdowner{}
+		ev, _ := newEventUpdaterMock()
+		mf := newMockFilterer(
+			WithBlockNumberError(errors.New("dummy error")),
+		)
+		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner)
+		l.Listen(0, ev)
+
+		start := time.Now()
+		for {
+			time.Sleep(time.Millisecond * 100)
+			if shutdowner.NoOfCalls() == 1 {
+				break
+			}
+			if time.Since(start) > time.Second*5 {
+				t.Fatal("expected shutdown call by now")
+			}
+		}
+	})
+}
+
+type countShutdowner struct {
+	mtx           sync.Mutex
+	shutdownCalls int
+}
+
+func (c *countShutdowner) NoOfCalls() int {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	return c.shutdownCalls
+}
+
+func (c *countShutdowner) Shutdown(_ context.Context) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	c.shutdownCalls++
+	return nil
 }
 
 func newEventUpdaterMock() (*updater, chan interface{}) {
@@ -305,6 +348,7 @@ type mockFilterer struct {
 	subscriptionEvents []types.Log
 	sub                *sub
 	blockNumber        uint64
+	blockNumberError   error
 }
 
 func newMockFilterer(opts ...Option) *mockFilterer {
@@ -329,6 +373,12 @@ func WithBlockNumber(blockNumber uint64) Option {
 	})
 }
 
+func WithBlockNumberError(err error) Option {
+	return optionFunc(func(s *mockFilterer) {
+		s.blockNumberError = err
+	})
+}
+
 func (m *mockFilterer) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
 	return m.filterLogEvents, nil
 }
@@ -348,6 +398,9 @@ func (m *mockFilterer) Close() {
 }
 
 func (m *mockFilterer) BlockNumber(context.Context) (uint64, error) {
+	if m.blockNumberError != nil {
+		return 0, m.blockNumberError
+	}
 	return m.blockNumber, nil
 }
 

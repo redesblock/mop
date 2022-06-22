@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
 	"github.com/redesblock/hop/core/settlement/swap/transaction"
 	"github.com/redesblock/hop/core/storage"
@@ -320,7 +321,7 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 	request := &transaction.TxRequest{
 		To:       &s.address,
 		Data:     callData,
-		GasPrice: nil,
+		GasPrice: sctx.GetGasPrice(ctx),
 		GasLimit: 0,
 		Value:    big.NewInt(0),
 	}

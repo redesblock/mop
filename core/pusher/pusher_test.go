@@ -85,6 +85,7 @@ func TestSendChunkToSyncWithTag(t *testing.T) {
 
 	mtags, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
 	defer storer.Close()
+	defer p.Close()
 
 	ta, err := mtags.Create(1)
 	if err != nil {
@@ -115,8 +116,6 @@ func TestSendChunkToSyncWithTag(t *testing.T) {
 	if ta.Get(tags.StateSynced) != 1 {
 		t.Fatalf("tags error")
 	}
-
-	p.Close()
 }
 
 // TestSendChunkToPushSyncWithoutTag is similar to TestSendChunkToPushSync, excep that the tags are not
@@ -142,6 +141,7 @@ func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 
 	_, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
 	defer storer.Close()
+	defer p.Close()
 
 	_, err := storer.Put(context.Background(), storage.ModePutUpload, chunk)
 	if err != nil {
@@ -151,7 +151,7 @@ func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 	// Check is the chunk is set as synced in the DB.
 	for i := 0; i < noOfRetries; i++ {
 		// Give some time for chunk to be pushed and receipt to be received
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 
 		err = checkIfModeSet(chunk.Address(), storage.ModeSetSync, storer)
 		if err == nil {
@@ -161,7 +161,6 @@ func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Close()
 }
 
 // TestSendChunkAndReceiveInvalidReceipt sends a chunk to pushsync to be sent ot its closest peer and
@@ -180,6 +179,7 @@ func TestSendChunkAndReceiveInvalidReceipt(t *testing.T) {
 
 	_, p, storer := createPusher(t, triggerPeer, pushSyncService, mock.WithClosestPeer(closestPeer))
 	defer storer.Close()
+	defer p.Close()
 
 	_, err := storer.Put(context.Background(), storage.ModePutUpload, chunk)
 	if err != nil {
@@ -199,7 +199,6 @@ func TestSendChunkAndReceiveInvalidReceipt(t *testing.T) {
 	if err == nil {
 		t.Fatalf("chunk not syned error expected")
 	}
-	p.Close()
 }
 
 // TestSendChunkAndTimeoutinReceivingReceipt sends a chunk to pushsync to be sent ot its closest peer and

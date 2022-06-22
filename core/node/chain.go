@@ -12,6 +12,7 @@ import (
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p/libp2p"
+	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/settlement"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
@@ -135,12 +136,21 @@ func InitChequebookService(
 	transactionService transaction.Service,
 	chequebookFactory chequebook.Factory,
 	initialDeposit string,
+	deployGasPrice string,
 ) (chequebook.Service, error) {
 	chequeSigner := chequebook.NewChequeSigner(signer, chainID)
 
 	deposit, ok := new(big.Int).SetString(initialDeposit, 10)
 	if !ok {
 		return nil, fmt.Errorf("initial swap deposit \"%s\" cannot be parsed", initialDeposit)
+	}
+
+	if deployGasPrice != "" {
+		gasPrice, ok := new(big.Int).SetString(deployGasPrice, 10)
+		if !ok {
+			return nil, fmt.Errorf("deploy gas price \"%s\" cannot be parsed", deployGasPrice)
+		}
+		ctx = sctx.SetGasPrice(ctx, gasPrice)
 	}
 
 	chequebookService, err := chequebook.Init(
