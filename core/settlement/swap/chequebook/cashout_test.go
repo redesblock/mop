@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
 	chequestoremock "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
 	storemock "github.com/redesblock/hop/core/statestore/mock"

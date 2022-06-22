@@ -8,6 +8,7 @@ import (
 
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
 	"github.com/redesblock/hop/core/swarm"
 )
 
@@ -21,7 +22,10 @@ type Service struct {
 	settlementsSentFunc func() (map[string]*big.Int, error)
 	settlementsRecvFunc func() (map[string]*big.Int, error)
 
-	receiveChequeFunc   func(context.Context, swarm.Address, *chequebook.SignedCheque) error
+	deductionByPeers  map[string]struct{}
+	deductionForPeers map[string]struct{}
+
+	receiveChequeFunc   func(context.Context, swarm.Address, *chequebook.SignedCheque, *big.Int, *big.Int) error
 	payFunc             func(context.Context, swarm.Address, *big.Int)
 	handshakeFunc       func(swarm.Address, common.Address) error
 	lastSentChequeFunc  func(swarm.Address) (*chequebook.SignedCheque, error)
@@ -60,7 +64,7 @@ func WithSettlementsRecvFunc(f func() (map[string]*big.Int, error)) Option {
 	})
 }
 
-func WithReceiveChequeFunc(f func(context.Context, swarm.Address, *chequebook.SignedCheque) error) Option {
+func WithReceiveChequeFunc(f func(context.Context, swarm.Address, *chequebook.SignedCheque, *big.Int, *big.Int) error) Option {
 	return optionFunc(func(s *Service) {
 		s.receiveChequeFunc = f
 	})
@@ -125,12 +129,17 @@ func New(opts ...Option) swap.Interface {
 	return mock
 }
 
-// ReceiveCheque is the mock ReceiveCheque function of swap.
-func (s *Service) ReceiveCheque(ctx context.Context, peer swarm.Address, cheque *chequebook.SignedCheque) (err error) {
-	if s.receiveChequeFunc != nil {
-		return s.receiveChequeFunc(ctx, peer, cheque)
+func NewSwap(opts ...Option) swapprotocol.Swap {
+	mock := new(Service)
+	mock.settlementsSent = make(map[string]*big.Int)
+	mock.settlementsRecv = make(map[string]*big.Int)
+	mock.deductionByPeers = make(map[string]struct{})
+	mock.deductionForPeers = make(map[string]struct{})
+
+	for _, o := range opts {
+		o.apply(mock)
 	}
-	return nil
+	return mock
 }
 
 // Pay is the mock Pay function of swap.
@@ -232,6 +241,38 @@ func (s *Service) CashoutStatus(ctx context.Context, peer swarm.Address) (*chequ
 		return s.cashoutStatusFunc(ctx, peer)
 	}
 	return nil, nil
+}
+
+func (s *Service) ReceiveCheque(ctx context.Context, peer swarm.Address, cheque *chequebook.SignedCheque, exchangeRate *big.Int, deduction *big.Int) (err error) {
+	defer func() {
+		if err == nil {
+			s.deductionForPeers[peer.String()] = struct{}{}
+		}
+	}()
+	if s.receiveChequeFunc != nil {
+		return s.receiveChequeFunc(ctx, peer, cheque, exchangeRate, deduction)
+	}
+
+	return nil
+}
+
+func (s *Service) GetDeductionForPeer(peer swarm.Address) (bool, error) {
+	if _, ok := s.deductionForPeers[peer.String()]; ok {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *Service) GetDeductionByPeer(peer swarm.Address) (bool, error) {
+	if _, ok := s.deductionByPeers[peer.String()]; ok {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *Service) AddDeductionByPeer(peer swarm.Address) error {
+	s.deductionByPeers[peer.String()] = struct{}{}
+	return nil
 }
 
 // Option is the option passed to the mock settlement service

@@ -60,6 +60,7 @@ import (
 	"github.com/redesblock/hop/core/settlement/pseudosettle"
 	"github.com/redesblock/hop/core/settlement/swap"
 	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/hop/core/settlement/swap/priceoracle"
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/steward"
 	"github.com/redesblock/hop/core/storage"
@@ -92,6 +93,7 @@ type Node struct {
 	topologyHalter           topology.Halter
 	pusherCloser             io.Closer
 	pullerCloser             io.Closer
+	accountingCloser         io.Closer
 	pullSyncCloser           io.Closer
 	pssCloser                io.Closer
 	ethClientCloser          func()
@@ -99,6 +101,7 @@ type Node struct {
 	recoveryHandleCleanup    func()
 	listenerCloser           io.Closer
 	postageServiceCloser     io.Closer
+	priceOracleCloser        io.Closer
 	shutdownInProgress       bool
 	shutdownMutex            sync.Mutex
 }
@@ -142,11 +145,12 @@ type Options struct {
 	PriceOracleAddress         string
 	BlockTime                  uint64
 	DeployGasPrice             string
+	WarmupTime                 time.Duration
 }
 
 const (
-	refreshRate = int64(1000000000000)
-	basePrice   = 1000000000
+	refreshRate = int64(6000000)
+	basePrice   = 10000
 )
 
 func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o Options) (b *Node, err error) {
@@ -168,6 +172,12 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			p2pCancel()
 		}
 	}()
+
+	// light nodes have zero warmup time for pull/pushsync protocols
+	warmupTime := o.WarmupTime
+	if !o.FullNodeMode {
+		warmupTime = 0
+	}
 
 	b = &Node{
 		p2pCancel:      p2pCancel,
@@ -343,7 +353,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		return nil, fmt.Errorf("batchstore: %w", err)
 	}
 	validStamp := postage.ValidStamp(batchStore)
-	post, err := postage.NewService(stateStore, chainID)
+	post, err := postage.NewService(stateStore, batchStore, chainID)
 	if err != nil {
 		return nil, fmt.Errorf("postage service load: %w", err)
 	}
@@ -507,6 +517,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	if err != nil {
 		return nil, fmt.Errorf("accounting: %w", err)
 	}
+	b.accountingCloser = acc
 
 	pseudosettleService := pseudosettle.New(p2ps, logger, stateStore, acc, big.NewInt(refreshRate), p2ps)
 	if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
@@ -516,7 +527,8 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 	acc.SetRefreshFunc(pseudosettleService.Pay)
 
 	if o.SwapEnable {
-		swapService, err = InitSwap(
+		var priceOracle priceoracle.Service
+		swapService, priceOracle, err = InitSwap(
 			p2ps,
 			logger,
 			stateStore,
@@ -526,10 +538,14 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 			chequeStore,
 			cashoutService,
 			acc,
+			o.PriceOracleAddress,
+			chainID,
+			transactionService,
 		)
 		if err != nil {
 			return nil, err
 		}
+		b.priceOracleCloser = priceOracle
 		acc.SetPayFunc(swapService.Pay)
 	}
 
@@ -555,7 +571,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	pinningService := pinning.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(swarmAddress, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer)
+	pushSyncProtocol := pushsync.New(swarmAddress, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -566,7 +582,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 		b.recoveryHandleCleanup = pssService.Register(recovery.Topic, chunkRepairHandler)
 	}
 
-	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, tagService, logger, tracer)
+	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, tagService, logger, tracer, warmupTime)
 	b.pusherCloser = pusherService
 
 	pullStorage := pullstorage.New(storer)
@@ -576,7 +592,7 @@ func New(addr string, swarmAddress swarm.Address, publicKey ecdsa.PublicKey, sig
 
 	var pullerService *puller.Puller
 	if o.FullNodeMode {
-		pullerService := puller.New(stateStore, kad, pullSyncProtocol, logger, puller.Options{})
+		pullerService := puller.New(stateStore, kad, pullSyncProtocol, logger, puller.Options{}, warmupTime)
 		b.pullerCloser = pullerService
 	}
 
@@ -760,7 +776,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 		b.recoveryHandleCleanup()
 	}
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 	go func() {
 		defer wg.Done()
 		tryClose(b.pssCloser, "pss")
@@ -773,6 +789,10 @@ func (b *Node) Shutdown(ctx context.Context) error {
 		defer wg.Done()
 		tryClose(b.pullerCloser, "puller")
 	}()
+	go func() {
+		defer wg.Done()
+		tryClose(b.accountingCloser, "accounting")
+	}()
 
 	b.p2pCancel()
 	go func() {
@@ -783,6 +803,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	wg.Wait()
 
 	tryClose(b.p2pService, "p2p server")
+	tryClose(b.priceOracleCloser, "price oracle service")
 
 	wg.Add(3)
 	go func() {

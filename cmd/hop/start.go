@@ -147,8 +147,10 @@ Welcome to the Swarm....
 				FullNodeMode:               fullNode,
 				Transaction:                c.config.GetString(optionNameTransactionHash),
 				PostageContractAddress:     c.config.GetString(optionNamePostageContractAddress),
+				PriceOracleAddress:         c.config.GetString(optionNamePriceOracleAddress),
 				BlockTime:                  c.config.GetUint64(optionNameBlockTime),
 				DeployGasPrice:             c.config.GetString(optionNameSwapDeploymentGasPrice),
+				WarmupTime:                 c.config.GetDuration(optionWarmUpTime),
 			})
 			if err != nil {
 				return err

@@ -7,8 +7,9 @@ import (
 )
 
 type skipPeers struct {
-	addresses []swarm.Address
-	mu        sync.Mutex
+	overdraftAddresses []swarm.Address
+	addresses          []swarm.Address
+	mu                 sync.Mutex
 }
 
 func newSkipPeers() *skipPeers {
@@ -19,7 +20,13 @@ func (s *skipPeers) All() []swarm.Address {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return append(s.addresses[:0:0], s.addresses...)
+	return append(append(s.addresses[:0:0], s.addresses...), s.overdraftAddresses...)
+}
+
+func (s *skipPeers) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.overdraftAddresses = []swarm.Address{}
 }
 
 func (s *skipPeers) Add(address swarm.Address) {
@@ -33,4 +40,17 @@ func (s *skipPeers) Add(address swarm.Address) {
 	}
 
 	s.addresses = append(s.addresses, address)
+}
+
+func (s *skipPeers) AddOverdraft(address swarm.Address) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, a := range s.overdraftAddresses {
+		if a.Equal(address) {
+			return
+		}
+	}
+
+	s.overdraftAddresses = append(s.overdraftAddresses, address)
 }

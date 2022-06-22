@@ -3,10 +3,13 @@ package postage_test
 import (
 	crand "crypto/rand"
 	"io"
+	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/redesblock/hop/core/postage"
+	pstoremock "github.com/redesblock/hop/core/postage/batchstore/mock"
+	postagetesting "github.com/redesblock/hop/core/postage/testing"
 	storemock "github.com/redesblock/hop/core/statestore/mock"
 )
 
@@ -14,13 +17,14 @@ import (
 // with all the active stamp issuers.
 func TestSaveLoad(t *testing.T) {
 	store := storemock.NewStateStore()
+	pstore := pstoremock.New()
 	saved := func(id int64) postage.Service {
-		ps, err := postage.NewService(store, id)
+		ps, err := postage.NewService(store, pstore, id)
 		if err != nil {
 			t.Fatal(err)
 		}
 		for i := 0; i < 16; i++ {
-			ps.Add(newTestStampIssuer(t))
+			ps.Add(newTestStampIssuer(t, 1000))
 		}
 		if err := ps.Close(); err != nil {
 			t.Fatal(err)
@@ -28,7 +32,7 @@ func TestSaveLoad(t *testing.T) {
 		return ps
 	}
 	loaded := func(id int64) postage.Service {
-		ps, err := postage.NewService(store, id)
+		ps, err := postage.NewService(store, pstore, id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +51,13 @@ func TestSaveLoad(t *testing.T) {
 
 func TestGetStampIssuer(t *testing.T) {
 	store := storemock.NewStateStore()
-	ps, err := postage.NewService(store, int64(0))
+	testChainState := postagetesting.NewChainState()
+	if testChainState.Block < uint64(postage.BlockThreshold) {
+		testChainState.Block += uint64(postage.BlockThreshold + 1)
+	}
+	validBlockNumber := testChainState.Block - uint64(postage.BlockThreshold+1)
+	pstore := pstoremock.New(pstoremock.WithChainState(testChainState))
+	ps, err := postage.NewService(store, pstore, int64(0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,10 +72,15 @@ func TestGetStampIssuer(t *testing.T) {
 		if i == 0 {
 			continue
 		}
-		ps.Add(postage.NewStampIssuer(string(id), "", id, 16, 8))
+
+		var shift uint64 = 0
+		if i > 3 {
+			shift = uint64(i)
+		}
+		ps.Add(postage.NewStampIssuer(string(id), "", id, big.NewInt(3), 16, 8, validBlockNumber+shift, true))
 	}
 	t.Run("found", func(t *testing.T) {
-		for _, id := range ids[1:] {
+		for _, id := range ids[1:4] {
 			st, err := ps.GetStampIssuer(id)
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
@@ -79,6 +94,14 @@ func TestGetStampIssuer(t *testing.T) {
 		_, err := ps.GetStampIssuer(ids[0])
 		if err != postage.ErrNotFound {
 			t.Fatalf("expected ErrNotFound, got %v", err)
+		}
+	})
+	t.Run("not usable", func(t *testing.T) {
+		for _, id := range ids[4:] {
+			_, err := ps.GetStampIssuer(id)
+			if err != postage.ErrNotUsable {
+				t.Fatalf("expected ErrNotUsable, got %v", err)
+			}
 		}
 	})
 }

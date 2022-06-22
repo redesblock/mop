@@ -1,9 +1,7 @@
 package postage
 
-import (
-	"github.com/redesblock/hop/core/swarm"
+var (
+	IndexToBytes   = indexToBytes
+	BytesToIndex   = bytesToIndex
+	BlockThreshold = blockThreshold
 )
-
-func (st *StampIssuer) Inc(a swarm.Address) error {
-	return st.inc(a)
-}

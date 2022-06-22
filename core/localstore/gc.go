@@ -165,6 +165,11 @@ func (db *DB) collectGarbage() (collectedCount uint64, done bool, err error) {
 		if err != nil {
 			return 0, false, err
 		}
+		err = db.postageIndexIndex.DeleteInBatch(batch, item)
+		if err != nil {
+			return 0, false, err
+		}
+
 	}
 	if gcSize-collectedCount > target {
 		done = false

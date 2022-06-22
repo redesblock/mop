@@ -77,7 +77,7 @@ func TestDelivery(t *testing.T) {
 	client := retrieval.New(clientAddr, clientMockStorer, recorder, ps, logger, clientMockAccounting, pricerMock, nil)
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
-	v, err := client.RetrieveChunk(ctx, chunk.Address())
+	v, err := client.RetrieveChunk(ctx, chunk.Address(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestRetrieveChunk(t *testing.T) {
 		}}
 		client := retrieval.New(clientAddress, nil, recorder, clientSuggester, logger, accountingmock.NewAccounting(), pricer, nil)
 
-		got, err := client.RetrieveChunk(context.Background(), chunk.Address())
+		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -233,7 +233,7 @@ func TestRetrieveChunk(t *testing.T) {
 			nil,
 		)
 
-		got, err := client.RetrieveChunk(context.Background(), chunk.Address())
+		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -328,7 +328,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 
 		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, accountingmock.NewAccounting(), pricerMock, nil)
 
-		got, err := client.RetrieveChunk(context.Background(), chunk.Address())
+		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -364,7 +364,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 
 		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, accountingmock.NewAccounting(), pricerMock, nil)
 
-		got, err := client.RetrieveChunk(context.Background(), chunk.Address())
+		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -428,7 +428,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 
 		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, clientMockAccounting, pricerMock, nil)
 
-		got, err := client.RetrieveChunk(context.Background(), chunk.Address())
+		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -480,7 +480,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 		// client only knows about server 1
 		client := retrieval.New(clientAddress, nil, clientRecorder, peerSuggesterFn(serverAddress1), logger, accountingmock.NewAccounting(), pricerMock, nil)
 
-		got, err := client.RetrieveChunk(context.Background(), chunk.Address())
+		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
 			t.Fatal(err)
 		}

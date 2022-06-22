@@ -9,13 +9,15 @@ type metrics struct {
 	// all metrics fields must be exported
 	// to be able to return them by Metrics()
 	// using reflection
-	TotalDebitedAmount         prometheus.Counter
-	TotalCreditedAmount        prometheus.Counter
-	DebitEventsCount           prometheus.Counter
-	CreditEventsCount          prometheus.Counter
-	AccountingDisconnectsCount prometheus.Counter
-	AccountingBlocksCount      prometheus.Counter
-	AccountingReserveCount     prometheus.Counter
+	TotalDebitedAmount            prometheus.Counter
+	TotalCreditedAmount           prometheus.Counter
+	DebitEventsCount              prometheus.Counter
+	CreditEventsCount             prometheus.Counter
+	AccountingDisconnectsCount    prometheus.Counter
+	AccountingBlocksCount         prometheus.Counter
+	AccountingReserveCount        prometheus.Counter
+	TotalOriginatedCreditedAmount prometheus.Counter
+	OriginatedCreditEventsCount   prometheus.Counter
 }
 
 func newMetrics() metrics {
@@ -63,6 +65,18 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "accounting_reserve_count",
 			Help:      "Number of reserve calls",
+		}),
+		TotalOriginatedCreditedAmount: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "total_originated_credited_amount",
+			Help:      "Amount of HOP credited to peers (potential cost of the node) for originated traffic",
+		}),
+		OriginatedCreditEventsCount: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "originated_credit_events_count",
+			Help:      "Number of occurrences of HOP credit events as originator towards peers",
 		}),
 	}
 }

@@ -1,5 +1,5 @@
 // Package p2p provides the peer-to-peer abstractions used
-// across different protocols in hop.
+// across different protocols in bee.
 package p2p
 
 import (
