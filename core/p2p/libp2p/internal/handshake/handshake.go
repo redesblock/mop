@@ -73,6 +73,7 @@ type Service struct {
 	receivedHandshakesMu  sync.Mutex
 	logger                logging.Logger
 	libp2pID              libp2ppeer.ID
+	metrics               metrics
 	network.Notifiee      // handshake service can be the receiver for network.Notify
 }
 
@@ -107,6 +108,7 @@ func New(signer crypto.Signer, advertisableAddresser AdvertisableAddressResolver
 		receivedHandshakes:    make(map[libp2ppeer.ID]struct{}),
 		libp2pID:              ownPeerID,
 		logger:                logger,
+		metrics:               newMetrics(),
 		Notifiee:              new(network.NoopNotifiee),
 	}
 	svc.welcomeMessage.Store(welcomeMessage)
@@ -240,8 +242,10 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 
 	var syn pb.Syn
 	if err := r.ReadMsgWithContext(ctx, &syn); err != nil {
+		s.metrics.SynRxFailed.Inc()
 		return nil, fmt.Errorf("read syn message: %w", err)
 	}
+	s.metrics.SynRx.Inc()
 
 	observedUnderlay, err := ma.NewMultiaddrBytes(syn.ObservedUnderlay)
 	if err != nil {
@@ -281,13 +285,17 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 			WelcomeMessage: welcomeMessage,
 		},
 	}); err != nil {
+		s.metrics.SynAckTxFailed.Inc()
 		return nil, fmt.Errorf("write synack message: %w", err)
 	}
+	s.metrics.SynAckTx.Inc()
 
 	var ack pb.Ack
 	if err := r.ReadMsgWithContext(ctx, &ack); err != nil {
+		s.metrics.AckRxFailed.Inc()
 		return nil, fmt.Errorf("read ack message: %w", err)
 	}
+	s.metrics.AckRx.Inc()
 
 	if ack.NetworkID != s.networkID {
 		return nil, ErrNetworkIDIncompatible
