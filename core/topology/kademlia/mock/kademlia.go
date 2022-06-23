@@ -61,7 +61,7 @@ func (m *Mock) AddPeers(addr ...swarm.Address) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (m *Mock) ClosestPeer(addr swarm.Address, _ bool, skipPeers ...swarm.Address) (peerAddr swarm.Address, err error) {
+func (m *Mock) ClosestPeer(addr swarm.Address, _ bool, _ topology.Filter, skipPeers ...swarm.Address) (peerAddr swarm.Address, err error) {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -78,7 +78,7 @@ func (m *Mock) EachNeighborRev(topology.EachPeerFunc) error {
 }
 
 // EachPeer iterates from closest bin to farthest
-func (m *Mock) EachPeer(f topology.EachPeerFunc) error {
+func (m *Mock) EachPeer(f topology.EachPeerFunc, _ topology.Filter) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -95,7 +95,7 @@ func (m *Mock) EachPeer(f topology.EachPeerFunc) error {
 }
 
 // EachPeerRev iterates from farthest bin to closest
-func (m *Mock) EachPeerRev(f topology.EachPeerFunc) error {
+func (m *Mock) EachPeerRev(f topology.EachPeerFunc, _ topology.Filter) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	for _, v := range m.eachPeerRev {

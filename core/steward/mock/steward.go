@@ -20,8 +20,8 @@ func (s *Steward) Reupload(_ context.Context, addr swarm.Address) error {
 
 // IsRetrievable implements steward.Interface IsRetrievable method.
 // The method always returns true.
-func (s *Steward) IsRetrievable(_ context.Context, addr swarm.Address) (bool, error) {
-	return addr.Equal(s.addr), nil
+func (s *Steward) IsRetrievable(_ context.Context, _ swarm.Address) (bool, error) {
+	return true, nil
 }
 
 // LastAddress returns the last address given to the Reupload method call.

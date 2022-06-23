@@ -1,7 +1,6 @@
 package api_test
 
 import (
-	"context"
 	"encoding/hex"
 	"io"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/hop/core/steward/mock"
 	smock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -20,16 +20,16 @@ import (
 func TestStewardship(t *testing.T) {
 	var (
 		logger         = logging.New(io.Discard, 0)
-		mockStatestore = statestore.NewStateStore()
-		m              = &mockSteward{}
+		statestoreMock = statestore.NewStateStore()
+		stewardMock    = &mock.Steward{}
 		storer         = smock.NewStorer()
 		addr           = swarm.NewAddress([]byte{31: 128})
 	)
 	client, _, _ := newTestServer(t, testServerOptions{
 		Storer:  storer,
-		Tags:    tags.NewTags(mockStatestore, logger),
+		Tags:    tags.NewTags(statestoreMock, logger),
 		Logger:  logger,
-		Steward: m,
+		Steward: stewardMock,
 	})
 
 	t.Run("re-upload", func(t *testing.T) {
@@ -39,8 +39,8 @@ func TestStewardship(t *testing.T) {
 				Code:    http.StatusOK,
 			}),
 		)
-		if !m.addr.Equal(addr) {
-			t.Fatalf("\nhave address: %q\nwant address: %q", m.addr.String(), addr.String())
+		if !stewardMock.LastAddress().Equal(addr) {
+			t.Fatalf("\nhave address: %q\nwant address: %q", stewardMock.LastAddress().String(), addr.String())
 		}
 	})
 
@@ -55,17 +55,4 @@ func TestStewardship(t *testing.T) {
 			}),
 		)
 	})
-}
-
-type mockSteward struct {
-	addr swarm.Address
-}
-
-func (m *mockSteward) Reupload(_ context.Context, addr swarm.Address) error {
-	m.addr = addr
-	return nil
-}
-
-func (m *mockSteward) IsRetrievable(_ context.Context, _ swarm.Address) (bool, error) {
-	return true, nil
 }

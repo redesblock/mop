@@ -21,12 +21,12 @@ import (
 )
 
 const (
-	defaultFlagTimeout = 5 * time.Minute
-	defaultPollEvery   = 1 * time.Minute
-	blocksToRemember   = 1000
+	defaultFlagTimeout     = 10 * time.Minute
+	defaultPollEvery       = 1 * time.Minute
+	defaultBlockerPollTime = 10 * time.Second
+	blockDuration          = 24 * time.Hour
 
-	blockDuration = 24 * time.Hour
-	pollTime      = 1 * time.Second
+	blocksToRemember = 1000
 )
 
 type prover interface {
@@ -34,8 +34,9 @@ type prover interface {
 }
 
 type Options struct {
-	FlagTimeout time.Duration
-	PollEvery   time.Duration
+	FlagTimeout     time.Duration
+	PollEvery       time.Duration
+	BlockerPollTime time.Duration
 }
 
 type ChainSyncer struct {
@@ -59,8 +60,9 @@ func New(backend transaction.Backend, p prover, peerIterator topology.EachPeerer
 	}
 	if o == nil {
 		o = &Options{
-			FlagTimeout: defaultFlagTimeout,
-			PollEvery:   defaultPollEvery,
+			FlagTimeout:     defaultFlagTimeout,
+			PollEvery:       defaultPollEvery,
+			BlockerPollTime: defaultBlockerPollTime,
 		}
 	}
 
@@ -80,7 +82,7 @@ func New(backend transaction.Backend, p prover, peerIterator topology.EachPeerer
 		c.logger.Warningf("chainsyncer: peer %s is unsynced and will be temporarily blocklisted", a.String())
 		c.metrics.UnsyncedPeers.Inc()
 	}
-	c.blocker = blocker.New(disconnecter, o.FlagTimeout, blockDuration, pollTime, cb, logger)
+	c.blocker = blocker.New(disconnecter, o.FlagTimeout, blockDuration, o.BlockerPollTime, cb, logger)
 
 	c.wg.Add(1)
 	go c.manage()
@@ -89,29 +91,35 @@ func New(backend transaction.Backend, p prover, peerIterator topology.EachPeerer
 
 func (c *ChainSyncer) manage() {
 	defer c.wg.Done()
-	ctx, cancel := context.WithCancel(context.Background())
+	var (
+		ctx, cancel = context.WithCancel(context.Background())
+		wg          sync.WaitGroup
+		o           sync.Once
+		positives   int32
+		items       int
+		ticker      = time.NewTicker(1 * time.Nanosecond)
+	)
 	go func() {
 		<-c.quit
 		cancel()
+		ticker.Stop()
 	}()
-	var (
-		wg        sync.WaitGroup
-		positives int32
-		items     int
-	)
+
 	for {
 		select {
 		case <-c.quit:
 			return
-		case <-time.After(c.pollEvery):
+		case <-ticker.C:
+			o.Do(func() {
+				ticker.Reset(c.pollEvery)
+			})
 		}
 		// go through every peer we are connected to
 		// try to ask about a recent block height.
 		// if they answer, we unflag them
 		// if not, they get flagged with time.Now() (in case they weren't
 		// flagged before).
-		// once subsequent checks continue failing we eventually
-		// kick them away.
+		// when subsequent checks continue failing we eventually blocklist.
 		blockHeight, blockHash, err := c.getBlockHeight(ctx)
 		if err != nil {
 			c.logger.Warningf("chainsyncer: failed getting block height for challenge: %v", err)
@@ -134,7 +142,7 @@ func (c *ChainSyncer) manage() {
 					return
 				}
 				if !bytes.Equal(blockHash, hash) {
-					c.logger.Infof("chainsync: peer %s failed to prove block %d: want block hash %x got %x", p.String(), blockHash, hash)
+					c.logger.Infof("chainsync: peer %s failed to prove block %d: want block hash %x got %x", p.String(), blockHeight, blockHash, hash)
 					c.metrics.InvalidProofs.Inc()
 					c.blocker.Flag(p)
 					return
@@ -145,7 +153,7 @@ func (c *ChainSyncer) manage() {
 				atomic.AddInt32(&positives, 1)
 			}(p)
 			return false, false, nil
-		})
+		}, topology.Filter{Reachable: true})
 
 		// wait for all operations to finish
 		wg.Wait()
@@ -211,6 +219,7 @@ func (c *ChainSyncer) Close() error {
 	}()
 
 	close(c.quit)
+	_ = c.blocker.Close()
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

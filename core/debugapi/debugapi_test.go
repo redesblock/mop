@@ -16,6 +16,7 @@ import (
 
 	"github.com/multiformats/go-multiaddr"
 	accountingmock "github.com/redesblock/hop/core/accounting/mock"
+	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
 	"github.com/redesblock/hop/core/jsonhttp"
@@ -189,8 +190,10 @@ func TestServer_Configure(t *testing.T) {
 	testBasicRouter(t, client)
 	jsonhttptest.Request(t, client, http.MethodGet, "/readiness", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.StatusResponse{
-			Status:  "ok",
-			Version: version.Version,
+			Status:          "ok",
+			Version:         version.Version,
+			APIVersion:      api.Version,
+			DebugAPIVersion: debugapi.Version,
 		}),
 	)
 	jsonhttptest.Request(t, client, http.MethodGet, "/addresses", http.StatusOK,
@@ -209,8 +212,10 @@ func testBasicRouter(t *testing.T, client *http.Client) {
 
 	jsonhttptest.Request(t, client, http.MethodGet, "/health", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.StatusResponse{
-			Status:  "ok",
-			Version: version.Version,
+			Status:          "ok",
+			Version:         version.Version,
+			APIVersion:      api.Version,
+			DebugAPIVersion: debugapi.Version,
 		}),
 	)
 

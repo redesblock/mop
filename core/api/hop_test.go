@@ -21,6 +21,7 @@ import (
 	pinning "github.com/redesblock/hop/core/pinning/mock"
 	mockpost "github.com/redesblock/hop/core/postage/mock"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/hop/core/steward/mock"
 	"github.com/redesblock/hop/core/storage"
 	smock "github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
@@ -645,16 +646,16 @@ func TestFeedIndirection(t *testing.T) {
 func TestHopReupload(t *testing.T) {
 	var (
 		logger         = logging.New(io.Discard, 0)
-		mockStatestore = statestore.NewStateStore()
-		m              = &mockSteward{}
+		statestoreMock = statestore.NewStateStore()
+		stewardMock    = &mock.Steward{}
 		storer         = smock.NewStorer()
 		addr           = swarm.NewAddress([]byte{31: 128})
 	)
 	client, _, _ := newTestServer(t, testServerOptions{
 		Storer:  storer,
-		Tags:    tags.NewTags(mockStatestore, logger),
+		Tags:    tags.NewTags(statestoreMock, logger),
 		Logger:  logger,
-		Steward: m,
+		Steward: stewardMock,
 	})
 	jsonhttptest.Request(t, client, http.MethodPatch, "/v1/hop/"+addr.String(), http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
@@ -662,7 +663,7 @@ func TestHopReupload(t *testing.T) {
 			Code:    http.StatusOK,
 		}),
 	)
-	if !m.addr.Equal(addr) {
-		t.Fatalf("got address %s want %s", m.addr.String(), addr.String())
+	if !stewardMock.LastAddress().Equal(addr) {
+		t.Fatalf("got address %s want %s", stewardMock.LastAddress().String(), addr.String())
 	}
 }

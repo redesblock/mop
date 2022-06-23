@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/redesblock/hop/core/config"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
@@ -23,6 +24,7 @@ import (
 	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/hop/core/transaction/wrapped"
 )
 
 const (
@@ -40,15 +42,26 @@ func InitChain(
 	endpoint string,
 	signer crypto.Signer,
 	pollingInterval time.Duration,
-) (*ethclient.Client, common.Address, int64, transaction.Monitor, transaction.Service, error) {
-	backend, err := ethclient.Dial(endpoint)
+) (transaction.Backend, common.Address, int64, transaction.Monitor, transaction.Service, error) {
+	var backend transaction.Backend
+	rpcClient, err := rpc.DialContext(ctx, endpoint)
 	if err != nil {
 		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("dial eth client: %w", err)
 	}
 
+	var versionString string
+	err = rpcClient.CallContext(ctx, &versionString, "web3_clientVersion")
+	if err != nil {
+		logger.Infof("could not connect to backend at %v. In a swap-enabled network a working blockchain node (for xdai network in production, goerli in testnet) is required. Check your node or specify another node using --swap-endpoint.", endpoint)
+		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
+	}
+
+	logger.Infof("connected to ethereum backend: %s", versionString)
+
+	backend = wrapped.NewBackend(ethclient.NewClient(rpcClient))
+
 	chainID, err := backend.ChainID(ctx)
 	if err != nil {
-		logger.Infof("could not connect to backend at %v. In a swap-enabled network a working blockchain node (for goerli network in production) is required. Check your node or specify another node using --swap-endpoint.", endpoint)
 		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("get chain id: %w", err)
 	}
 
@@ -71,7 +84,7 @@ func InitChain(
 // chain backend.
 func InitChequebookFactory(
 	logger logging.Logger,
-	backend *ethclient.Client,
+	backend transaction.Backend,
 	chainID int64,
 	transactionService transaction.Service,
 	factoryAddress string,
@@ -125,7 +138,7 @@ func InitChequebookService(
 	stateStore storage.StateStorer,
 	signer crypto.Signer,
 	chainID int64,
-	backend *ethclient.Client,
+	backend transaction.Backend,
 	overlayEthAddress common.Address,
 	transactionService transaction.Service,
 	chequebookFactory chequebook.Factory,

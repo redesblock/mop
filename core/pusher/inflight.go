@@ -24,16 +24,14 @@ func (i *inflight) delete(ch swarm.Chunk) {
 }
 
 func (i *inflight) set(addr []byte) bool {
-
 	i.mtx.Lock()
-	defer i.mtx.Unlock()
-
 	key := string(addr)
 	if _, ok := i.inflight[key]; ok {
+		i.mtx.Unlock()
 		return true
 	}
-
 	i.inflight[key] = struct{}{}
+	i.mtx.Unlock()
 	return false
 }
 
@@ -45,15 +43,13 @@ type attempts struct {
 // try to log a chunk sync attempt. returns false when
 // maximum amount of attempts have been reached.
 func (a *attempts) try(ch swarm.Address) bool {
+	key := ch.ByteString()
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
-	key := ch.ByteString()
 	a.attempts[key]++
-	return a.attempts[key] < retryCount
-}
-
-func (a *attempts) delete(ch swarm.Address) {
-	a.mtx.Lock()
-	delete(a.attempts, ch.ByteString())
-	a.mtx.Unlock()
+	if a.attempts[key] == retryCount {
+		delete(a.attempts, key)
+		return false
+	}
+	return true
 }

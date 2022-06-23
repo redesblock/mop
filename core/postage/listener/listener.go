@@ -12,11 +12,11 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/hop/core/postage/batchservice"
 	"github.com/redesblock/hop/core/transaction"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,10 +37,12 @@ var (
 	batchDepthIncreaseTopic = postageStampABI.Events["BatchDepthIncrease"].ID
 	// priceUpdateTopic is the postage contract's price update event topic
 	priceUpdateTopic = postageStampABI.Events["PriceUpdate"].ID
+
+	ErrPostageSyncingStalled = errors.New("postage syncing stalled")
 )
 
 type BlockHeightContractFilterer interface {
-	bind.ContractFilterer
+	FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error)
 	BlockNumber(context.Context) (uint64, error)
 }
 
@@ -60,6 +62,7 @@ type listener struct {
 	wg                  sync.WaitGroup
 	metrics             metrics
 	shutdowner          Shutdowner
+	stallingTimeout     time.Duration
 }
 
 func New(
@@ -68,6 +71,7 @@ func New(
 	postageStampAddress common.Address,
 	blockTime uint64,
 	shutdowner Shutdowner,
+	stallingTimeout time.Duration,
 ) postage.Listener {
 	return &listener{
 		logger:              logger,
@@ -77,6 +81,7 @@ func New(
 		quit:                make(chan struct{}),
 		metrics:             newMetrics(),
 		shutdowner:          shutdowner,
+		stallingTimeout:     stallingTimeout,
 	}
 }
 
@@ -173,10 +178,19 @@ func (l *listener) Listen(from uint64, updater postage.EventUpdater) <-chan stru
 	paged := make(chan struct{}, 1)
 	paged <- struct{}{}
 
+	lastProgress := time.Now()
+
 	l.wg.Add(1)
 	listenf := func() error {
 		defer l.wg.Done()
 		for {
+			// if for whatever reason we are stuck for too long we terminate
+			// this can happen because of rpc errors but also because of a stalled backend node
+			// this does not catch the case were a backend node is actively syncing but not caught up
+			if time.Since(lastProgress) >= l.stallingTimeout {
+				return ErrPostageSyncingStalled
+			}
+
 			select {
 			case <-paged:
 				// if we paged then it means there's more things to sync on
@@ -190,7 +204,8 @@ func (l *listener) Listen(from uint64, updater postage.EventUpdater) <-chan stru
 			to, err := l.ev.BlockNumber(ctx)
 			if err != nil {
 				l.metrics.BackendErrors.Inc()
-				return err
+				l.logger.Warningf("listener: could not get block number: %v", err)
+				continue
 			}
 
 			if to < tailSize {
@@ -207,9 +222,9 @@ func (l *listener) Listen(from uint64, updater postage.EventUpdater) <-chan stru
 			}
 
 			// do some paging (sub-optimal)
-			if to-from > blockPage {
+			if to-from >= blockPage {
 				paged <- struct{}{}
-				to = from + blockPage
+				to = from + blockPage - 1
 			} else {
 				closeOnce.Do(func() { close(synced) })
 			}
@@ -218,7 +233,8 @@ func (l *listener) Listen(from uint64, updater postage.EventUpdater) <-chan stru
 			events, err := l.ev.FilterLogs(ctx, l.filterQuery(big.NewInt(int64(from)), big.NewInt(int64(to))))
 			if err != nil {
 				l.metrics.BackendErrors.Inc()
-				return err
+				l.logger.Warningf("listener: could not get logs: %v", err)
+				continue
 			}
 
 			if err := updater.TransactionStart(); err != nil {
@@ -232,7 +248,11 @@ func (l *listener) Listen(from uint64, updater postage.EventUpdater) <-chan stru
 					return err
 				}
 				if err = l.processEvent(e, updater); err != nil {
-					return err
+					// if we have a zero value batch - silence & log then move on
+					if !errors.Is(err, batchservice.ErrZeroValueBatch) {
+						return err
+					}
+					l.logger.Debugf("listener: %v", err)
 				}
 				totalTimeMetric(l.metrics.EventProcessDuration, startEv)
 			}
@@ -247,6 +267,7 @@ func (l *listener) Listen(from uint64, updater postage.EventUpdater) <-chan stru
 			}
 
 			from = to + 1
+			lastProgress = time.Now()
 			totalTimeMetric(l.metrics.PageProcessDuration, start)
 			l.metrics.PagesProcessed.Inc()
 		}

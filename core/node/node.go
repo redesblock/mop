@@ -22,7 +22,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hashicorp/go-multierror"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/accounting"
@@ -161,8 +160,9 @@ type Options struct {
 }
 
 const (
-	refreshRate = int64(4500000)
-	basePrice   = 10000
+	refreshRate                   = int64(4500000)
+	basePrice                     = 10000
+	postageSyncingStallingTimeout = 10 * time.Minute
 )
 
 func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o *Options) (b *Node, err error) {
@@ -206,7 +206,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	addressbook := addressbook.New(stateStore)
 
 	var (
-		swapBackend        *ethclient.Client
+		swapBackend        transaction.Backend
 		overlayEthAddress  common.Address
 		chainID            int64
 		transactionService transaction.Service
@@ -449,7 +449,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		postageSyncStart = startBlock
 	}
 
-	eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b})
+	eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b}, postageSyncingStallingTimeout)
 	b.listenerCloser = eventListener
 
 	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256, o.Resync)
@@ -795,6 +795,10 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 		if pssServiceMetrics, ok := pssService.(metrics.Collector); ok {
 			debugAPIService.MustRegisterMetrics(pssServiceMetrics.Metrics()...)
+		}
+
+		if swapBackendMetrics, ok := swapBackend.(metrics.Collector); ok {
+			debugAPIService.MustRegisterMetrics(swapBackendMetrics.Metrics()...)
 		}
 
 		if apiService != nil {
