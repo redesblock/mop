@@ -18,6 +18,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	ma "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/hive/pb"
 	"github.com/redesblock/hop/core/hop"
@@ -49,24 +50,25 @@ var (
 )
 
 type Service struct {
-	streamer        p2p.StreamerPinger
-	addressBook     addressbook.GetPutter
-	addPeersHandler func(...swarm.Address)
-	networkID       uint64
-	logger          logging.Logger
-	metrics         metrics
-	inLimiter       *ratelimit.Limiter
-	outLimiter      *ratelimit.Limiter
-	clearMtx        sync.Mutex
-	quit            chan struct{}
-	wg              sync.WaitGroup
-	peersChan       chan pb.Peers
-	sem             *semaphore.Weighted
-	lru             *lru.Cache // cache for unreachable peers
-	bootnode        bool
+	streamer          p2p.StreamerPinger
+	addressBook       addressbook.GetPutter
+	addPeersHandler   func(...swarm.Address)
+	networkID         uint64
+	logger            logging.Logger
+	metrics           metrics
+	inLimiter         *ratelimit.Limiter
+	outLimiter        *ratelimit.Limiter
+	clearMtx          sync.Mutex
+	quit              chan struct{}
+	wg                sync.WaitGroup
+	peersChan         chan pb.Peers
+	sem               *semaphore.Weighted
+	lru               *lru.Cache // cache for unreachable peers
+	bootnode          bool
+	allowPrivateCIDRs bool
 }
 
-func New(streamer p2p.StreamerPinger, addressbook addressbook.GetPutter, networkID uint64, bootnode bool, logger logging.Logger) (*Service, error) {
+func New(streamer p2p.StreamerPinger, addressbook addressbook.GetPutter, networkID uint64, bootnode bool, allowPrivateCIDRs bool, logger logging.Logger) (*Service, error) {
 
 	lruCache, err := lru.New(cacheSize)
 	if err != nil {
@@ -74,18 +76,19 @@ func New(streamer p2p.StreamerPinger, addressbook addressbook.GetPutter, network
 	}
 
 	svc := &Service{
-		streamer:    streamer,
-		logger:      logger,
-		addressBook: addressbook,
-		networkID:   networkID,
-		metrics:     newMetrics(),
-		inLimiter:   ratelimit.New(limitRate, limitBurst),
-		outLimiter:  ratelimit.New(limitRate, limitBurst),
-		quit:        make(chan struct{}),
-		peersChan:   make(chan pb.Peers),
-		sem:         semaphore.NewWeighted(int64(31)),
-		lru:         lruCache,
-		bootnode:    bootnode,
+		streamer:          streamer,
+		logger:            logger,
+		addressBook:       addressbook,
+		networkID:         networkID,
+		metrics:           newMetrics(),
+		inLimiter:         ratelimit.New(limitRate, limitBurst),
+		outLimiter:        ratelimit.New(limitRate, limitBurst),
+		quit:              make(chan struct{}),
+		peersChan:         make(chan pb.Peers),
+		sem:               semaphore.NewWeighted(int64(31)),
+		lru:               lruCache,
+		bootnode:          bootnode,
+		allowPrivateCIDRs: allowPrivateCIDRs,
 	}
 
 	if !bootnode {
@@ -157,6 +160,12 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swarm.Address) (err error) {
+	addr, err := s.addressBook.Get(peer)
+	if err != nil && !errors.Is(err, addressbook.ErrNotFound) {
+		return err
+	}
+	isPeerPublic := addr != nil && manet.IsPublicAddr(addr.Underlay)
+
 	s.metrics.BroadcastPeersSends.Inc()
 	stream, err := s.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, peersStreamName)
 	if err != nil {
@@ -181,6 +190,10 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 				continue
 			}
 			return err
+		}
+
+		if !s.allowPrivateCIDRs && isPeerPublic && manet.IsPrivateAddr(addr.Underlay) {
+			continue // Don't advertise private CIDRs to the public network.
 		}
 
 		peersRequest.Peers = append(peersRequest.Peers, &pb.HopAddress{

@@ -3,7 +3,7 @@ package api_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -42,7 +42,7 @@ func TestTags(t *testing.T) {
 		tagsResource          = "/tags"
 		chunk                 = testingc.GenerateTestRandomChunk()
 		mockStatestore        = statestore.NewStateStore()
-		logger                = logging.New(ioutil.Discard, 0)
+		logger                = logging.New(io.Discard, 0)
 		tag                   = tags.NewTags(mockStatestore, logger)
 		client, _, listenAddr = newTestServer(t, testServerOptions{
 			Storer: mock.NewStorer(),

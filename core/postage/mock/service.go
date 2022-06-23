@@ -47,11 +47,12 @@ type mockPostage struct {
 	acceptAll  bool
 }
 
-func (m *mockPostage) Add(s *postage.StampIssuer) {
+func (m *mockPostage) Add(s *postage.StampIssuer) error {
 	m.issuerLock.Lock()
 	defer m.issuerLock.Unlock()
 
 	m.issuersMap[string(s.ID())] = s
+	return nil
 }
 
 func (m *mockPostage) StampIssuers() []*postage.StampIssuer {
@@ -84,7 +85,7 @@ func (m *mockPostage) IssuerUsable(_ *postage.StampIssuer) bool {
 	return true
 }
 
-func (m *mockPostage) HandleCreate(_ *postage.Batch) {}
+func (m *mockPostage) HandleCreate(_ *postage.Batch) error { return nil }
 
 func (m *mockPostage) HandleTopUp(_ []byte, _ *big.Int) {}
 

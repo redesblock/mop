@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -34,7 +33,7 @@ func TestDirs(t *testing.T) {
 		ctx                 = context.Background()
 		storer              = mock.NewStorer()
 		mockStatestore      = statestore.NewStateStore()
-		logger              = logging.New(ioutil.Discard, 0)
+		logger              = logging.New(io.Discard, 0)
 		client, _, _        = newTestServer(t, testServerOptions{
 			Storer:          storer,
 			Tags:            tags.NewTags(mockStatestore, logger),

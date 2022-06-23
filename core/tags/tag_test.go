@@ -2,7 +2,7 @@ package tags
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -19,7 +19,7 @@ var (
 // TestTagSingleIncrements tests if Inc increments the tag state value
 func TestTagSingleIncrements(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	tg := &Tag{Total: 10, stateStore: mockStatestore, logger: logger}
 
 	tc := []struct {
@@ -124,7 +124,7 @@ func TestTagETA(t *testing.T) {
 // TestTagConcurrentIncrements tests Inc calls concurrently
 func TestTagConcurrentIncrements(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	tg := &Tag{stateStore: mockStatestore, logger: logger}
 	n := 10
 	wg := sync.WaitGroup{}
@@ -154,7 +154,7 @@ func TestTagConcurrentIncrements(t *testing.T) {
 // TestTagsMultipleConcurrentIncrements tests Inc calls concurrently
 func TestTagsMultipleConcurrentIncrementsSyncMap(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	ts := NewTags(mockStatestore, logger)
 	n := 100
 	wg := sync.WaitGroup{}
@@ -205,7 +205,7 @@ func TestTagsMultipleConcurrentIncrementsSyncMap(t *testing.T) {
 // tag Address (byte slice) contains some arbitrary value
 func TestMarshallingWithAddr(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	tg := NewTag(context.Background(), 111, 10, nil, mockStatestore, logger)
 	tg.Address = swarm.NewAddress([]byte{0, 1, 2, 3, 4, 5, 6})
 
@@ -254,7 +254,7 @@ func TestMarshallingWithAddr(t *testing.T) {
 // TestMarshallingNoAddress tests that marshalling and unmarshalling is done correctly
 func TestMarshallingNoAddr(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	tg := NewTag(context.Background(), 111, 10, nil, mockStatestore, logger)
 	for _, f := range allStates {
 		err := tg.Inc(f)

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mrand "math/rand"
 	"sync"
 	"testing"
@@ -63,7 +62,7 @@ func TestJoinerSingleChunk(t *testing.T) {
 	if l != int64(len(mockData)) {
 		t.Fatalf("expected join data length %d, got %d", len(mockData), l)
 	}
-	joinData, err := ioutil.ReadAll(joinReader)
+	joinData, err := io.ReadAll(joinReader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +100,7 @@ func TestJoinerDecryptingStore_NormalChunk(t *testing.T) {
 	if l != int64(len(mockData)) {
 		t.Fatalf("expected join data length %d, got %d", len(mockData), l)
 	}
-	joinData, err := ioutil.ReadAll(joinReader)
+	joinData, err := io.ReadAll(joinReader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,13 +311,13 @@ func TestSeek(t *testing.T) {
 			store := mock.NewStorer()
 			defer store.Close()
 
-			data, err := ioutil.ReadAll(io.LimitReader(r, tc.size))
+			data, err := io.ReadAll(io.LimitReader(r, tc.size))
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			s := splitter.NewSimpleSplitter(store, storage.ModePutUpload)
-			addr, err := s.Split(ctx, ioutil.NopCloser(bytes.NewReader(data)), tc.size, false)
+			addr, err := s.Split(ctx, io.NopCloser(bytes.NewReader(data)), tc.size, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -590,13 +589,13 @@ func TestPrefetch(t *testing.T) {
 			store := mock.NewStorer()
 			defer store.Close()
 
-			data, err := ioutil.ReadAll(io.LimitReader(r, tc.size))
+			data, err := io.ReadAll(io.LimitReader(r, tc.size))
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			s := splitter.NewSimpleSplitter(store, storage.ModePutUpload)
-			addr, err := s.Split(ctx, ioutil.NopCloser(bytes.NewReader(data)), tc.size, false)
+			addr, err := s.Split(ctx, io.NopCloser(bytes.NewReader(data)), tc.size, false)
 			if err != nil {
 				t.Fatal(err)
 			}

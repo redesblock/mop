@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"testing"
 	"time"
@@ -95,7 +95,7 @@ func (t *testObserver) Release(peer swarm.Address, amount uint64) {
 var testRefreshRate = int64(10000)
 
 func TestPayment(t *testing.T) {
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 
 	storeRecipient := mock.NewStateStore()
 	defer storeRecipient.Close()
@@ -215,7 +215,7 @@ func TestPayment(t *testing.T) {
 }
 
 func TestTimeLimitedPayment(t *testing.T) {
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 
 	storeRecipient := mock.NewStateStore()
 	defer storeRecipient.Close()

@@ -23,6 +23,7 @@ type metrics struct {
 	TotalOutboundConnectionFailedAttempts prometheus.Counter
 	TotalBootNodesConnectionAttempts      prometheus.Counter
 	StartAddAddressBookOverlaysTime       prometheus.Histogram
+	PeerLatencyEWMA                       prometheus.Histogram
 }
 
 // newMetrics is a convenient constructor for creating new metrics.
@@ -125,6 +126,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "start_add_addressbook_overlays_time",
 			Help:      "The time spent adding overlays peers from addressbook on kademlia start.",
+		}),
+		PeerLatencyEWMA: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "peer_latency_ewma",
+			Help:      "Peer latency EWMA value distribution.",
 		}),
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"runtime"
 	"sort"
@@ -141,7 +141,7 @@ func newTestDB(t testing.TB, o *Options) *DB {
 	if _, err := rand.Read(baseKey); err != nil {
 		t.Fatal(err)
 	}
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	db, err := New("", baseKey, nil, o, logger)
 	if err != nil {
 		t.Fatal(err)

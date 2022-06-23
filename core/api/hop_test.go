@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -37,7 +36,7 @@ func TestHopFiles(t *testing.T) {
 		storerMock           = smock.NewStorer()
 		statestoreMock       = statestore.NewStateStore()
 		pinningMock          = pinning.NewServiceMock()
-		logger               = logging.New(ioutil.Discard, 0)
+		logger               = logging.New(io.Discard, 0)
 		client, _, _         = newTestServer(t, testServerOptions{
 			Storer:  storerMock,
 			Pinning: pinningMock,
@@ -440,7 +439,7 @@ func TestHopFilesRangeRequests(t *testing.T) {
 	for _, upload := range uploads {
 		t.Run(upload.name, func(t *testing.T) {
 			mockStatestore := statestore.NewStateStore()
-			logger := logging.New(ioutil.Discard, 0)
+			logger := logging.New(io.Discard, 0)
 			client, _, _ := newTestServer(t, testServerOptions{
 				Storer: smock.NewStorer(),
 				Tags:   tags.NewTags(mockStatestore, logger),
@@ -542,7 +541,7 @@ func parseRangeParts(t *testing.T, contentType string, body []byte) (parts [][]b
 	}
 	mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
 	for part, err := mr.NextPart(); err == nil; part, err = mr.NextPart() {
-		value, err := ioutil.ReadAll(part)
+		value, err := io.ReadAll(part)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -556,7 +555,7 @@ func TestFeedIndirection(t *testing.T) {
 	var (
 		updateData     = []byte("<h1>Swarm Feeds Hello World!</h1>")
 		mockStatestore = statestore.NewStateStore()
-		logger         = logging.New(ioutil.Discard, 0)
+		logger         = logging.New(io.Discard, 0)
 		storer         = smock.NewStorer()
 		client, _, _   = newTestServer(t, testServerOptions{
 			Storer: storer,
@@ -645,7 +644,7 @@ func TestFeedIndirection(t *testing.T) {
 
 func TestHopReupload(t *testing.T) {
 	var (
-		logger         = logging.New(ioutil.Discard, 0)
+		logger         = logging.New(io.Discard, 0)
 		mockStatestore = statestore.NewStateStore()
 		m              = &mockSteward{}
 		storer         = smock.NewStorer()

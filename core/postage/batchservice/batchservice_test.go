@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"hash"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	testLog    = logging.New(ioutil.Discard, 0)
+	testLog    = logging.New(io.Discard, 0)
 	errTest    = errors.New("fails")
 	testTxHash = make([]byte, 32)
 )
@@ -40,8 +40,9 @@ type mockBatchListener struct {
 	diluteCount int
 }
 
-func (m *mockBatchListener) HandleCreate(b *postage.Batch) {
+func (m *mockBatchListener) HandleCreate(b *postage.Batch) error {
 	m.createCount++
+	return nil
 }
 
 func (m *mockBatchListener) HandleTopUp(_ []byte, _ *big.Int) {

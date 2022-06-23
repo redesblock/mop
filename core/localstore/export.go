@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sync"
 
 	"github.com/redesblock/hop/core/postage"
@@ -106,7 +105,7 @@ func (db *DB) Import(ctx context.Context, r io.Reader) (count int64, err error) 
 			if firstFile {
 				firstFile = false
 				if hdr.Name == exportVersionFilename {
-					data, err := ioutil.ReadAll(tr)
+					data, err := io.ReadAll(tr)
 					if err != nil {
 						select {
 						case errC <- err:
@@ -129,7 +128,7 @@ func (db *DB) Import(ctx context.Context, r io.Reader) (count int64, err error) 
 				continue
 			}
 
-			rawdata, err := ioutil.ReadAll(tr)
+			rawdata, err := io.ReadAll(tr)
 			if err != nil {
 				select {
 				case errC <- err:

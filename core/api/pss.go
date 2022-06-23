@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -68,7 +68,7 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	payload, err := ioutil.ReadAll(r.Body)
+	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		s.logger.Debugf("pss read payload: %v", err)
 		s.logger.Error("pss read payload")

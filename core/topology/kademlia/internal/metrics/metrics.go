@@ -20,6 +20,8 @@ type PeerConnectionDirection string
 const (
 	PeerConnectionDirectionInbound  PeerConnectionDirection = "inbound"
 	PeerConnectionDirectionOutbound PeerConnectionDirection = "outbound"
+
+	ewmaSmoothing = 0.1
 )
 
 // RecordOp is a definition of a peer metrics Record
@@ -88,6 +90,21 @@ func IncSessionConnectionRetry() RecordOp {
 	}
 }
 
+// PeerLatency records the average peer latency.
+func PeerLatency(t time.Duration) RecordOp {
+	return func(cs *Counters) {
+		cs.Lock()
+		defer cs.Unlock()
+		// short circuit the first measurement
+		if cs.latencyEWMA == 0 {
+			cs.latencyEWMA = t
+			return
+		}
+		v := (ewmaSmoothing * float64(t)) + (1-ewmaSmoothing)*float64(cs.latencyEWMA)
+		cs.latencyEWMA = time.Duration(v)
+	}
+}
+
 // Snapshot represents a snapshot of peers' metrics counters.
 type Snapshot struct {
 	LastSeenTimestamp          int64
@@ -95,6 +112,7 @@ type Snapshot struct {
 	ConnectionTotalDuration    time.Duration
 	SessionConnectionDuration  time.Duration
 	SessionConnectionDirection PeerConnectionDirection
+	LatencyEWMA                time.Duration
 }
 
 // HasAtMaxOneConnectionAttempt returns true if the snapshot represents a new
@@ -126,6 +144,8 @@ type Counters struct {
 	sessionConnRetry     uint64
 	sessionConnDuration  time.Duration
 	sessionConnDirection PeerConnectionDirection
+
+	latencyEWMA time.Duration
 }
 
 // UnmarshalJSON unmarshal just the persistent counters.
@@ -172,6 +192,7 @@ func (cs *Counters) snapshot(t time.Time) *Snapshot {
 		ConnectionTotalDuration:    connTotalDuration,
 		SessionConnectionDuration:  sessionConnDuration,
 		SessionConnectionDirection: cs.sessionConnDirection,
+		LatencyEWMA:                cs.latencyEWMA,
 	}
 }
 

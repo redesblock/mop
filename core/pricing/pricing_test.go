@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"testing"
 
@@ -31,7 +31,7 @@ func (t *testThresholdObserver) NotifyPaymentThreshold(peerAddr swarm.Address, p
 }
 
 func TestAnnouncePaymentThreshold(t *testing.T) {
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	testThreshold := big.NewInt(100000)
 	observer := &testThresholdObserver{}
 
@@ -96,7 +96,7 @@ func TestAnnouncePaymentThreshold(t *testing.T) {
 }
 
 func TestAnnouncePaymentWithInsufficientThreshold(t *testing.T) {
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	testThreshold := big.NewInt(100_000)
 	observer := &testThresholdObserver{}
 

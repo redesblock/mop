@@ -1,7 +1,7 @@
 package batchstore_test
 
 import (
-	"io/ioutil"
+	"io"
 	"math/big"
 	"testing"
 
@@ -21,7 +21,7 @@ func TestBatchStoreGet(t *testing.T) {
 	key := batchstore.BatchKey(testBatch.ID)
 
 	stateStore := mock.NewStateStore()
-	batchStore, _ := batchstore.New(stateStore, nil, logging.New(ioutil.Discard, 0))
+	batchStore, _ := batchstore.New(stateStore, nil, logging.New(io.Discard, 0))
 
 	stateStorePut(t, stateStore, key, testBatch)
 	got := batchStoreGetBatch(t, batchStore, testBatch.ID)
@@ -33,7 +33,7 @@ func TestBatchStorePut(t *testing.T) {
 	key := batchstore.BatchKey(testBatch.ID)
 
 	stateStore := mock.NewStateStore()
-	batchStore, _ := batchstore.New(stateStore, nil, logging.New(ioutil.Discard, 0))
+	batchStore, _ := batchstore.New(stateStore, nil, logging.New(io.Discard, 0))
 	batchStore.SetRadiusSetter(noopRadiusSetter{})
 	batchStorePutBatch(t, batchStore, testBatch)
 
@@ -46,7 +46,7 @@ func TestBatchStoreGetChainState(t *testing.T) {
 	testChainState := postagetest.NewChainState()
 
 	stateStore := mock.NewStateStore()
-	batchStore, _ := batchstore.New(stateStore, nil, logging.New(ioutil.Discard, 0))
+	batchStore, _ := batchstore.New(stateStore, nil, logging.New(io.Discard, 0))
 	batchStore.SetRadiusSetter(noopRadiusSetter{})
 
 	err := batchStore.PutChainState(testChainState)
@@ -61,7 +61,7 @@ func TestBatchStorePutChainState(t *testing.T) {
 	testChainState := postagetest.NewChainState()
 
 	stateStore := mock.NewStateStore()
-	batchStore, _ := batchstore.New(stateStore, nil, logging.New(ioutil.Discard, 0))
+	batchStore, _ := batchstore.New(stateStore, nil, logging.New(io.Discard, 0))
 	batchStore.SetRadiusSetter(noopRadiusSetter{})
 
 	batchStorePutChainState(t, batchStore, testChainState)
@@ -75,7 +75,7 @@ func TestBatchStoreReset(t *testing.T) {
 	testBatch := postagetest.MustNewBatch()
 
 	path := t.TempDir()
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 
 	// we use the real statestore since the mock uses a mutex,
 	// therefore deleting while iterating (in Reset() implementation)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -111,7 +111,7 @@ func TestCallbackCalls(t *testing.T) {
 
 // TestNewRepairHandler tests the function of repairing a chunk when a request for chunk repair is received.
 func TestNewRepairHandler(t *testing.T) {
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 
 	t.Run("repair-chunk", func(t *testing.T) {
 		// generate test chunk, store and publisher
@@ -212,7 +212,7 @@ func TestNewRepairHandler(t *testing.T) {
 func newTestNetStore(t *testing.T, recoveryFunc recovery.Callback) storage.Storer {
 	t.Helper()
 	storer := mock.NewStorer()
-	logger := logging.New(ioutil.Discard, 5)
+	logger := logging.New(io.Discard, 5)
 
 	mockStorer := storemock.NewStorer()
 	serverMockAccounting := accountingmock.NewAccounting()

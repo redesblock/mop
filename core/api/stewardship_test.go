@@ -3,7 +3,7 @@ package api_test
 import (
 	"context"
 	"encoding/hex"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -19,7 +19,7 @@ import (
 
 func TestStewardship(t *testing.T) {
 	var (
-		logger         = logging.New(ioutil.Discard, 0)
+		logger         = logging.New(io.Discard, 0)
 		mockStatestore = statestore.NewStateStore()
 		m              = &mockSteward{}
 		storer         = smock.NewStorer()

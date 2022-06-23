@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"runtime/debug"
 	"strconv"
@@ -35,7 +35,7 @@ var (
 
 func TestHandlerRateLimit(t *testing.T) {
 
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	statestore := mock.NewStateStore()
 	addressbook := ab.New(statestore)
 	networkID := uint64(1)
@@ -45,7 +45,7 @@ func TestHandlerRateLimit(t *testing.T) {
 	// new recorder for handling Ping
 	streamer := streamtest.New()
 	// create a hive server that handles the incoming stream
-	server, _ := hive.New(streamer, addressbookclean, networkID, false, logger)
+	server, _ := hive.New(streamer, addressbookclean, networkID, false, true, logger)
 
 	serverAddress := test.RandomAddress()
 
@@ -84,7 +84,7 @@ func TestHandlerRateLimit(t *testing.T) {
 	}
 
 	// create a hive client that will do broadcast
-	client, _ := hive.New(serverRecorder, addressbook, networkID, false, logger)
+	client, _ := hive.New(serverRecorder, addressbook, networkID, false, true, logger)
 	err := client.BroadcastPeers(context.Background(), serverAddress, peers...)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestHandlerRateLimit(t *testing.T) {
 
 func TestBroadcastPeers(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	logger := logging.New(ioutil.Discard, 0)
+	logger := logging.New(io.Discard, 0)
 	statestore := mock.NewStateStore()
 	addressbook := ab.New(statestore)
 	networkID := uint64(1)
@@ -120,7 +120,11 @@ func TestBroadcastPeers(t *testing.T) {
 	}
 
 	for i := 0; i < 2*hive.MaxBatchSize; i++ {
-		underlay, err := ma.NewMultiaddr("/ip4/127.0.0.1/udp/" + strconv.Itoa(i))
+		base := "/ip4/127.0.0.1/udp/"
+		if i == 2*hive.MaxBatchSize-1 {
+			base = "/ip4/1.1.1.1/udp/" // The last underlay has public address.
+		}
+		underlay, err := ma.NewMultiaddr(base + strconv.Itoa(i))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -154,54 +158,61 @@ func TestBroadcastPeers(t *testing.T) {
 	}
 
 	testCases := map[string]struct {
-		addresee         swarm.Address
-		peers            []swarm.Address
-		wantMsgs         []pb.Peers
-		wantOverlays     []swarm.Address
-		wantHopAddresses []hop.Address
-		pingErr          func(addr ma.Multiaddr) (time.Duration, error)
+		addresee          swarm.Address
+		peers             []swarm.Address
+		wantMsgs          []pb.Peers
+		wantOverlays      []swarm.Address
+		wantHopAddresses  []hop.Address
+		allowPrivateCIDRs bool
+		pingErr           func(addr ma.Multiaddr) (time.Duration, error)
 	}{
 		"OK - single record": {
-			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:            []swarm.Address{overlays[0]},
-			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:1]}},
-			wantOverlays:     []swarm.Address{overlays[0]},
-			wantHopAddresses: []hop.Address{hopAddresses[0]},
+			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             []swarm.Address{overlays[0]},
+			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:1]}},
+			wantOverlays:      []swarm.Address{overlays[0]},
+			wantHopAddresses:  []hop.Address{hopAddresses[0]},
+			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - multiple records": {
-			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:            overlays[:15],
-			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
-			wantOverlays:     overlays[:15],
-			wantHopAddresses: hopAddresses[:15],
+			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             overlays[:15],
+			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
+			wantOverlays:      overlays[:15],
+			wantHopAddresses:  hopAddresses[:15],
+			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - max number of records": {
-			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:            overlays[:hive.MaxBatchSize],
-			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:hive.MaxBatchSize]}},
-			wantOverlays:     overlays[:hive.MaxBatchSize],
-			wantHopAddresses: hopAddresses[:hive.MaxBatchSize],
+			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             overlays[:hive.MaxBatchSize],
+			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:hive.MaxBatchSize]}},
+			wantOverlays:      overlays[:hive.MaxBatchSize],
+			wantHopAddresses:  hopAddresses[:hive.MaxBatchSize],
+			allowPrivateCIDRs: true,
 		},
 		"OK - multiple batches": {
-			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:            overlays[:hive.MaxBatchSize+10],
-			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers[:10]}},
-			wantOverlays:     overlays[:hive.MaxBatchSize+10],
-			wantHopAddresses: hopAddresses[:hive.MaxBatchSize+10],
+			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             overlays[:hive.MaxBatchSize+10],
+			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers[:10]}},
+			wantOverlays:      overlays[:hive.MaxBatchSize+10],
+			wantHopAddresses:  hopAddresses[:hive.MaxBatchSize+10],
+			allowPrivateCIDRs: true,
 		},
 		"OK - multiple batches - max number of records": {
-			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:            overlays[:2*hive.MaxBatchSize],
-			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers}},
-			wantOverlays:     overlays[:2*hive.MaxBatchSize],
-			wantHopAddresses: hopAddresses[:2*hive.MaxBatchSize],
+			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             overlays[:2*hive.MaxBatchSize],
+			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers}},
+			wantOverlays:      overlays[:2*hive.MaxBatchSize],
+			wantHopAddresses:  hopAddresses[:2*hive.MaxBatchSize],
+			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - skip ping failures": {
-			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:            overlays[:15],
-			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
-			wantOverlays:     overlays[:10],
-			wantHopAddresses: hopAddresses[:10],
+			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             overlays[:15],
+			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
+			wantOverlays:      overlays[:10],
+			wantHopAddresses:  hopAddresses[:10],
+			allowPrivateCIDRs: true,
 			pingErr: func(addr ma.Multiaddr) (rtt time.Duration, err error) {
 				for _, v := range hopAddresses[10:15] {
 					if v.Underlay.Equal(addr) {
@@ -210,6 +221,14 @@ func TestBroadcastPeers(t *testing.T) {
 				}
 				return rtt, nil
 			},
+		},
+		"Ok - don't advertise private CIDRs": {
+			addresee:          overlays[len(overlays)-1],
+			peers:             overlays[:15],
+			wantMsgs:          []pb.Peers{{}},
+			wantOverlays:      nil,
+			wantHopAddresses:  nil,
+			allowPrivateCIDRs: false,
 		},
 	}
 
@@ -225,7 +244,7 @@ func TestBroadcastPeers(t *testing.T) {
 				streamer = streamtest.New()
 			}
 			// create a hive server that handles the incoming stream
-			server, _ := hive.New(streamer, addressbookclean, networkID, false, logger)
+			server, _ := hive.New(streamer, addressbookclean, networkID, false, true, logger)
 
 			// setup the stream recorder to record stream data
 			recorder := streamtest.New(
@@ -233,7 +252,7 @@ func TestBroadcastPeers(t *testing.T) {
 			)
 
 			// create a hive client that will do broadcast
-			client, _ := hive.New(recorder, addressbook, networkID, false, logger)
+			client, _ := hive.New(recorder, addressbook, networkID, false, tc.allowPrivateCIDRs, logger)
 			if err := client.BroadcastPeers(context.Background(), tc.addresee, tc.peers...); err != nil {
 				t.Fatal(err)
 			}

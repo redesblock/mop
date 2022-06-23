@@ -5,35 +5,43 @@ import (
 	random "crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/addressbook"
+	"github.com/redesblock/hop/core/blocker"
 	"github.com/redesblock/hop/core/discovery"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/hop/core/pingpong"
 	"github.com/redesblock/hop/core/shed"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/topology"
 	im "github.com/redesblock/hop/core/topology/kademlia/internal/metrics"
 	"github.com/redesblock/hop/core/topology/kademlia/internal/waitnext"
 	"github.com/redesblock/hop/core/topology/pslice"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	nnLowWatermark         = 2 // the number of peers in consecutive deepest bins that constitute as nearest neighbours
 	maxConnAttempts        = 1 // when there is maxConnAttempts failed connect calls for a given peer it is considered non-connectable
 	maxBootNodeAttempts    = 3 // how many attempts to dial to boot-nodes before giving up
 	defaultBitSuffixLength = 3 // the number of bits used to create pseudo addresses for balancing
 
 	addPeerBatchSize = 500
 
-	peerConnectionAttemptTimeout = 5 * time.Second // Timeout for establishing a new connection with peer.
+	peerConnectionAttemptTimeout = 5 * time.Second // timeout for establishing a new connection with peer.
+
+	flagTimeout      = 5 * time.Minute  // how long before blocking a flagged peer
+	blockDuration    = time.Hour        // how long to blocklist an unresponsive peer for
+	blockWorkerWakup = time.Second * 10 // wake up interval for the blocker worker
 )
 
 var (
+	nnLowWatermark              = 2 // the number of peers in consecutive deepest bins that constitute as nearest neighbours
 	quickSaturationPeers        = 4
 	saturationPeers             = 8
 	overSaturationPeers         = 20
@@ -41,6 +49,7 @@ var (
 	shortRetry                  = 30 * time.Second
 	timeToRetry                 = 2 * shortRetry
 	broadcastBinSize            = 4
+	peerPingPollTime            = 10 * time.Second // how often to ping a peer
 )
 
 var (
@@ -54,6 +63,7 @@ type (
 	binSaturationFunc  func(bin uint8, peers, connected *pslice.PSlice) (saturated bool, oversaturated bool)
 	sanctionedPeerFunc func(peer swarm.Address) bool
 	pruneFunc          func(depth uint8)
+	staticPeerFunc     func(peer swarm.Address) bool
 )
 
 var noopSanctionedPeerFn = func(_ swarm.Address) bool { return false }
@@ -65,6 +75,7 @@ type Options struct {
 	BootnodeMode    bool
 	BitSuffixLength int
 	PruneFunc       pruneFunc
+	StaticNodes     []swarm.Address
 }
 
 // Kad is the Swarm forwarding kademlia implementation.
@@ -95,6 +106,12 @@ type Kad struct {
 	waitNext          *waitnext.WaitNext
 	metrics           metrics
 	pruneFunc         pruneFunc // pluggable prune function
+	pinger            pingpong.Interface
+	staticPeer        staticPeerFunc
+	bgBroadcastCtx    context.Context
+	bgBroadcastCancel context.CancelFunc
+	bgBroadcastWg     sync.WaitGroup
+	blocker           *blocker.Blocker
 }
 
 // New returns a new Kademlia.
@@ -103,6 +120,7 @@ func New(
 	addressbook addressbook.Interface,
 	discovery discovery.Driver,
 	p2p p2p.Service,
+	pinger pingpong.Interface,
 	metricsDB *shed.DB,
 	logger logging.Logger,
 	o Options,
@@ -112,7 +130,7 @@ func New(
 		if o.BootnodeMode {
 			os = bootNodeOverSaturationPeers
 		}
-		o.SaturationFunc = binSaturated(os)
+		o.SaturationFunc = binSaturated(os, isStaticPeer(o.StaticNodes))
 	}
 	if o.BitSuffixLength == 0 {
 		o.BitSuffixLength = defaultBitSuffixLength
@@ -144,9 +162,11 @@ func New(
 		quit:              make(chan struct{}),
 		halt:              make(chan struct{}),
 		done:              make(chan struct{}),
-		wg:                sync.WaitGroup{},
 		metrics:           newMetrics(),
 		pruneFunc:         o.PruneFunc,
+		pinger:            pinger,
+		staticPeer:        isStaticPeer(o.StaticNodes),
+		blocker:           blocker.New(p2p, flagTimeout, blockDuration, blockWorkerWakup, logger),
 	}
 
 	if k.pruneFunc == nil {
@@ -156,6 +176,8 @@ func New(
 	if k.bitSuffixLength > 0 {
 		k.commonBinPrefixes = generateCommonBinPrefixes(k.base, k.bitSuffixLength)
 	}
+
+	k.bgBroadcastCtx, k.bgBroadcastCancel = context.WithCancel(context.Background())
 
 	return k, nil
 }
@@ -397,9 +419,13 @@ func (k *Kad) manage() {
 	defer close(k.done)
 	defer k.logger.Debugf("kademlia manage loop exited")
 
+	timer := time.NewTimer(0)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		<-k.quit
+		if !timer.Stop() {
+			<-timer.C
+		}
 		cancel()
 	}()
 
@@ -433,6 +459,26 @@ func (k *Kad) manage() {
 		}
 	}()
 
+	k.wg.Add(1)
+	go func() {
+		defer k.wg.Done()
+		for {
+			select {
+			case <-k.halt:
+				return
+			case <-k.quit:
+				return
+			case <-timer.C:
+				k.wg.Add(1)
+				go func() {
+					defer k.wg.Done()
+					k.recordPeerLatencies(ctx)
+				}()
+				_ = timer.Reset(peerPingPollTime)
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-k.quit:
@@ -452,6 +498,16 @@ func (k *Kad) manage() {
 			}
 
 			if k.bootnode {
+				k.depthMu.Lock()
+				depth := k.depth
+				radius := k.radius
+				k.depthMu.Unlock()
+
+				k.metrics.CurrentDepth.Set(float64(depth))
+				k.metrics.CurrentRadius.Set(float64(radius))
+				k.metrics.CurrentlyKnownPeers.Set(float64(k.knownPeers.Length()))
+				k.metrics.CurrentlyConnectedPeers.Set(float64(k.connectedPeers.Length()))
+
 				continue
 			}
 
@@ -492,7 +548,34 @@ func (k *Kad) manage() {
 	}
 }
 
-// PruneOversaturatedBins disconnects out of depth peers from oversaturated bins
+// recordPeerLatencies tries to record the average
+// peer latencies from the p2p layer.
+func (k *Kad) recordPeerLatencies(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, peerPingPollTime)
+	defer cancel()
+	var wg sync.WaitGroup
+
+	_ = k.connectedPeers.EachBin(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			l, err := k.pinger.Ping(ctx, addr, "ping")
+			if err != nil {
+				k.logger.Tracef("kademlia: cannot get latency for peer %s: %v", addr.String(), err)
+				k.blocker.Flag(addr)
+				return
+			}
+			k.blocker.Unflag(addr)
+			k.collector.Record(addr, im.PeerLatency(l))
+			v := k.collector.Inspect(addr).LatencyEWMA
+			k.metrics.PeerLatencyEWMA.Observe(v.Seconds())
+		}()
+		return false, false, nil
+	})
+	wg.Wait()
+}
+
+// pruneOversaturatedBins disconnects out of depth peers from oversaturated bins
 // while maintaining the balance of the bin and favoring peers with longers connections
 func (k *Kad) pruneOversaturatedBins(depth uint8) {
 
@@ -642,7 +725,7 @@ func (k *Kad) connectBootNodes(ctx context.Context) {
 // binSaturated indicates whether a certain bin is saturated or not.
 // when a bin is not saturated it means we would like to proactively
 // initiate connections to other peers in the bin.
-func binSaturated(oversaturationAmount int) binSaturationFunc {
+func binSaturated(oversaturationAmount int, staticNode staticPeerFunc) binSaturationFunc {
 	return func(bin uint8, peers, connected *pslice.PSlice) (bool, bool) {
 		potentialDepth := recalcDepth(peers, swarm.MaxPO)
 
@@ -659,8 +742,8 @@ func binSaturated(oversaturationAmount int) binSaturationFunc {
 		// gaps measurement)
 
 		size := 0
-		_ = connected.EachBin(func(_ swarm.Address, po uint8) (bool, bool, error) {
-			if po == bin {
+		_ = connected.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+			if po == bin && !staticNode(addr) {
 				size++
 			}
 			return false, false, nil
@@ -709,7 +792,7 @@ func recalcDepth(peers *pslice.PSlice, radius uint8) uint8 {
 
 	_ = peers.EachBin(func(_ swarm.Address, po uint8) (bool, bool, error) {
 		peersCtr++
-		if peersCtr >= nnLowWatermark {
+		if peersCtr >= uint(nnLowWatermark) {
 			candidate = po
 			return true, false, nil
 		}
@@ -811,8 +894,22 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) e
 				// about lightnodes to others.
 				continue
 			}
+			// if kademlia is closing, dont enqueue anymore broadcast requests
+			select {
+			case <-k.bgBroadcastCtx.Done():
+				// we will not interfere with the announce operation by returning here
+				continue
+			default:
+			}
+			k.bgBroadcastWg.Add(1)
 			go func(connectedPeer swarm.Address) {
-				if err := k.discovery.BroadcastPeers(ctx, connectedPeer, peer); err != nil {
+				defer k.bgBroadcastWg.Done()
+
+				// Create a new deadline ctx to prevent goroutine pile up
+				cCtx, cCancel := context.WithTimeout(k.bgBroadcastCtx, time.Minute)
+				defer cCancel()
+
+				if err := k.discovery.BroadcastPeers(cCtx, connectedPeer, peer); err != nil {
 					k.logger.Debugf("could not gossip peer %s to peer %s: %v", peer, connectedPeer, err)
 				}
 			}(connectedPeer)
@@ -866,6 +963,18 @@ func (k *Kad) Pick(peer p2p.Peer) bool {
 	return false
 }
 
+func isStaticPeer(staticNodes []swarm.Address) func(overlay swarm.Address) bool {
+	return func(overlay swarm.Address) bool {
+		for _, addr := range staticNodes {
+			if addr.Equal(overlay) {
+				return true
+			}
+		}
+		return false
+
+	}
+}
+
 // Connected is called when a peer has dialed in.
 // If forceConnection is true `overSaturated` is ignored for non-bootnodes.
 func (k *Kad) Connected(ctx context.Context, peer p2p.Peer, forceConnection bool) error {
@@ -876,7 +985,7 @@ func (k *Kad) Connected(ctx context.Context, peer p2p.Peer, forceConnection bool
 		if k.bootnode {
 			randPeer, err := k.randomPeer(po)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get random peer to kick-out: %w", err)
 			}
 			_ = k.p2p.Disconnect(randPeer, "kicking out random peer to accommodate node")
 			return k.onConnected(ctx, address)
@@ -989,19 +1098,13 @@ func closestPeerFunc(closest *swarm.Address, addr swarm.Address, spf sanctionedP
 			*closest = peer
 			return false, false, nil
 		}
-		dcmp, err := swarm.DistanceCmp(addr.Bytes(), closest.Bytes(), peer.Bytes())
+
+		closer, err := peer.Closer(addr, *closest)
 		if err != nil {
 			return false, false, err
 		}
-		switch dcmp {
-		case 0:
-			// do nothing
-		case -1:
-			// current peer is closer
+		if closer {
 			*closest = peer
-		case 1:
-			// closest is already closer to chunk
-			// do nothing
 		}
 		return false, false, nil
 	}
@@ -1029,24 +1132,15 @@ func (k *Kad) ClosestPeer(addr swarm.Address, includeSelf bool, skipPeers ...swa
 
 		if closest.IsZero() {
 			closest = peer
+			return false, false, nil
 		}
 
-		dcmp, err := swarm.DistanceCmp(addr.Bytes(), closest.Bytes(), peer.Bytes())
-		if err != nil {
-			return false, false, err
-		}
-		switch dcmp {
-		case 0:
-			// do nothing
-		case -1:
-			// current peer is closer
+		if closer, _ := peer.Closer(addr, closest); closer {
 			closest = peer
-		case 1:
-			// closest is already closer to chunk
-			// do nothing
 		}
 		return false, false, nil
 	})
+
 	if err != nil {
 		return swarm.Address{}, err
 	}
@@ -1285,24 +1379,57 @@ func (k *Kad) Halt() {
 func (k *Kad) Close() error {
 	k.logger.Info("kademlia shutting down")
 	close(k.quit)
+	_ = k.blocker.Close()
 	cc := make(chan struct{})
+
+	k.bgBroadcastCancel()
+	bgBroadcastDone := make(chan struct{})
 
 	go func() {
 		k.wg.Wait()
 		close(cc)
 	}()
 
-	select {
-	case <-cc:
-	case <-time.After(peerConnectionAttemptTimeout):
-		k.logger.Warning("kademlia shutting down with announce goroutines")
-	}
+	go func() {
+		k.bgBroadcastWg.Wait()
+		close(bgBroadcastDone)
+	}()
 
-	select {
-	case <-k.done:
-	case <-time.After(5 * time.Second):
-		k.logger.Warning("kademlia manage loop did not shut down properly")
-	}
+	eg := errgroup.Group{}
+
+	errTimeout := errors.New("timeout")
+
+	eg.Go(func() error {
+		select {
+		case <-cc:
+		case <-time.After(peerConnectionAttemptTimeout):
+			k.logger.Warning("kademlia shutting down with announce goroutines")
+			return errTimeout
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		select {
+		case <-bgBroadcastDone:
+		case <-time.After(time.Second * 5):
+			k.logger.Warning("kademlia shutting down with unfinished broadcasts")
+			return errTimeout
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		select {
+		case <-k.done:
+		case <-time.After(time.Second * 5):
+			k.logger.Warning("kademlia manage loop did not shut down properly")
+			return errTimeout
+		}
+		return nil
+	})
+
+	err := eg.Wait()
 
 	k.logger.Info("kademlia persisting peer metrics")
 	start := time.Now()
@@ -1311,7 +1438,7 @@ func (k *Kad) Close() error {
 	}
 	k.logger.Debugf("kademlia: Finalize(...) took %v", time.Since(start))
 
-	return nil
+	return err
 }
 
 func randomSubset(addrs []swarm.Address, count int) ([]swarm.Address, error) {
@@ -1334,6 +1461,15 @@ func randomSubset(addrs []swarm.Address, count int) ([]swarm.Address, error) {
 func (k *Kad) randomPeer(bin uint8) (swarm.Address, error) {
 	peers := k.connectedPeers.BinPeers(bin)
 
+	for idx := 0; idx < len(peers); {
+		// do not consider protected peers
+		if k.staticPeer(peers[idx]) {
+			peers = append(peers[:idx], peers[idx+1:]...)
+			continue
+		}
+		idx++
+	}
+
 	if len(peers) == 0 {
 		return swarm.ZeroAddress, errEmptyBin
 	}
@@ -1348,7 +1484,7 @@ func (k *Kad) randomPeer(bin uint8) (swarm.Address, error) {
 
 // createMetricsSnapshotView creates new topology.MetricSnapshotView from the
 // given metrics.Snapshot and rounds all the timestamps and durations to its
-// nearest second.
+// nearest second, except for the peer latency, which is given in milliseconds.
 func createMetricsSnapshotView(ss *im.Snapshot) *topology.MetricSnapshotView {
 	if ss == nil {
 		return nil
@@ -1359,5 +1495,6 @@ func createMetricsSnapshotView(ss *im.Snapshot) *topology.MetricSnapshotView {
 		ConnectionTotalDuration:    ss.ConnectionTotalDuration.Truncate(time.Second).Seconds(),
 		SessionConnectionDuration:  ss.SessionConnectionDuration.Truncate(time.Second).Seconds(),
 		SessionConnectionDirection: string(ss.SessionConnectionDirection),
+		LatencyEWMA:                ss.LatencyEWMA.Milliseconds(),
 	}
 }

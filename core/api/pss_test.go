@@ -6,7 +6,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -161,7 +161,7 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 // TestPssSend tests that the pss message sending over http works correctly.
 func TestPssSend(t *testing.T) {
 	var (
-		logger = logging.New(ioutil.Discard, 0)
+		logger = logging.New(io.Discard, 0)
 
 		mtx             sync.Mutex
 		receivedTopic   pss.Topic
@@ -405,7 +405,7 @@ func newPssTest(t *testing.T, o opts) (pss.Interface, *ecdsa.PublicKey, *websock
 		t.Fatal(err)
 	}
 	var (
-		logger = logging.New(ioutil.Discard, 0)
+		logger = logging.New(io.Discard, 0)
 		pss    = pss.New(privkey, logger)
 	)
 	if o.pingPeriod == 0 {
