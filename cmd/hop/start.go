@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	_ "embed"
 	"errors"
 	"fmt"
 	"github.com/redesblock/hop/cmd/version"
 	"io/ioutil"
-
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -35,6 +35,9 @@ import (
 const (
 	serviceName = "SwarmHopSvc"
 )
+
+//go:embed hop-welcome-message.txt
+var hopWelcomeMessage string
 
 func (c *command) initStartCmd() (err error) {
 
@@ -78,30 +81,7 @@ func (c *command) initStartCmd() (err error) {
 				}
 			}
 
-			hopASCII := `
-Welcome to Swarm....
-                \     /
-            \    o ^ o    /
-              \ (     ) /
-   ____________(%%%%%%%)____________
-  (     /   /  )%%%%%%%(  \   \     )
-  (___/___/__/           \__\___\___)
-     (     /  /(%%%%%%%)\  \     )
-      (__/___/ (%%%%%%%) \___\__)
-              /(       )\
-            /   (%%%%%)   \
-                 (%%%)
-                   !                   `
-
-			fmt.Println(hopASCII)
-			fmt.Print(`
-DISCLAIMER:
-This software is provided to you "as is", use at your own risk and without warranties of any kind.
-It is your responsibility to read and understand how Swarm works and the implications of running this software.
-The usage of Hop involves various risks, including, but not limited to:
-damage to hardware or loss of funds associated with the Ethereum account connected to your node.
-No developers or entity involved will be liable for any claims and damages associated with your use,
-inability to use, or your interaction with other nodes or the software.`)
+			fmt.Print(hopWelcomeMessage)
 
 			debugAPIAddr := c.config.GetString(optionNameDebugAPIAddr)
 			if !c.config.GetBool(optionNameDebugAPIEnable) {

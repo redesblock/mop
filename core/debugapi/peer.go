@@ -32,7 +32,7 @@ func (s *Service) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.topologyDriver.Connected(r.Context(), p2p.Peer{Address: hopAddr.Overlay}, true); err != nil {
-		_ = s.p2p.Disconnect(hopAddr.Overlay)
+		_ = s.p2p.Disconnect(hopAddr.Overlay, "failed to notify topology")
 		s.logger.Debugf("debug api: peer connect handler %s: %v", addr, err)
 		s.logger.Errorf("unable to connect to peer %s", addr)
 		jsonhttp.InternalServerError(w, err)
@@ -53,7 +53,7 @@ func (s *Service) peerDisconnectHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := s.p2p.Disconnect(swarmAddr); err != nil {
+	if err := s.p2p.Disconnect(swarmAddr, "user requested disconnect"); err != nil {
 		s.logger.Debugf("debug api: peer disconnect %s: %v", addr, err)
 		if errors.Is(err, p2p.ErrPeerNotFound) {
 			jsonhttp.BadRequest(w, "peer not found")

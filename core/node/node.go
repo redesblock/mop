@@ -28,6 +28,8 @@ import (
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/chainsync"
+	"github.com/redesblock/hop/core/chainsyncer"
 	"github.com/redesblock/hop/core/config"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/debugapi"
@@ -105,6 +107,7 @@ type Node struct {
 	postageServiceCloser     io.Closer
 	priceOracleCloser        io.Closer
 	hiveCloser               io.Closer
+	chainSyncerCloser        io.Closer
 	shutdownInProgress       bool
 	shutdownMutex            sync.Mutex
 }
@@ -515,7 +518,10 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("unable to create metrics storage for kademlia: %w", err)
 	}
 
-	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, metricsDB, logger, kademlia.Options{Bootnodes: bootnodes, BootnodeMode: o.BootnodeMode})
+	kad, err := kademlia.New(swarmAddress, addressbook, hive, p2ps, metricsDB, logger, kademlia.Options{Bootnodes: bootnodes, BootnodeMode: o.BootnodeMode})
+	if err != nil {
+		return nil, fmt.Errorf("unable to create kademlia: %w", err)
+	}
 	b.topologyCloser = kad
 	b.topologyHalter = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
@@ -700,7 +706,24 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		multiresolver.WithLogger(o.Logger),
 	)
 	b.resolverCloser = multiResolver
+	var chainSyncer *chainsyncer.ChainSyncer
 
+	if o.FullNodeMode {
+		cs, err := chainsync.New(p2ps, swapBackend)
+		if err != nil {
+			return nil, fmt.Errorf("new chainsync: %v", err)
+		}
+		if err = p2ps.AddProtocol(cs.Protocol()); err != nil {
+			return nil, fmt.Errorf("chainsync protocol: %w", err)
+		}
+
+		chainSyncer, err = chainsyncer.New(swapBackend, cs, kad, logger, nil)
+		if err != nil {
+			return nil, fmt.Errorf("new chainsyncer: %v", err)
+		}
+
+		b.chainSyncerCloser = chainSyncer
+	}
 	var apiService api.Service
 	if o.APIAddr != "" {
 		// API server
@@ -782,7 +805,9 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		if swapService != nil {
 			debugAPIService.MustRegisterMetrics(swapService.Metrics()...)
 		}
-
+		if chainSyncer != nil {
+			debugAPIService.MustRegisterMetrics(chainSyncer.Metrics()...)
+		}
 		// inject dependencies and configure full debug api http path routes
 		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, traversalService)
 	}
@@ -853,7 +878,11 @@ func (b *Node) Shutdown(ctx context.Context) error {
 		b.recoveryHandleCleanup()
 	}
 	var wg sync.WaitGroup
-	wg.Add(6)
+	wg.Add(7)
+	go func() {
+		defer wg.Done()
+		tryClose(b.chainSyncerCloser, "chain syncer")
+	}()
 	go func() {
 		defer wg.Done()
 		tryClose(b.pssCloser, "pss")

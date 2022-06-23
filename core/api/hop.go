@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -408,10 +409,10 @@ func (s *server) serveManifestEntry(
 	manifestEntry manifest.Entry,
 	etag bool,
 ) {
-
 	additionalHeaders := http.Header{}
 	mtdt := manifestEntry.Metadata()
 	if fname, ok := mtdt[manifest.EntryMetadataFilenameKey]; ok {
+		fname = filepath.Base(fname) // only keep the file name
 		additionalHeaders["Content-Disposition"] =
 			[]string{fmt.Sprintf("inline; filename=\"%s\"", fname)}
 	}

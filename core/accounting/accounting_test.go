@@ -1269,6 +1269,8 @@ func TestAccountingCallPaymentFailureRetries(t *testing.T) {
 	acc.Release(peer1Addr, 1)
 }
 
+var errInvalidReason = errors.New("invalid blocklist reason")
+
 func TestAccountingGhostOverdraft(t *testing.T) {
 	logger := logging.New(ioutil.Discard, 0)
 
@@ -1279,7 +1281,10 @@ func TestAccountingGhostOverdraft(t *testing.T) {
 
 	paymentThresholdInRefreshmentSeconds := new(big.Int).Div(testPaymentThreshold, big.NewInt(testRefreshRate)).Uint64()
 
-	f := func(s swarm.Address, t time.Duration) error {
+	f := func(s swarm.Address, t time.Duration, reason string) error {
+		if reason != "ghost overdraw" {
+			return errInvalidReason
+		}
 		blocklistTime = int64(t.Seconds())
 		return nil
 	}
@@ -1350,7 +1355,10 @@ func TestAccountingReconnectBeforeAllowed(t *testing.T) {
 
 	paymentThresholdInRefreshmentSeconds := new(big.Int).Div(testPaymentThreshold, big.NewInt(testRefreshRate)).Uint64()
 
-	f := func(s swarm.Address, t time.Duration) error {
+	f := func(s swarm.Address, t time.Duration, reason string) error {
+		if reason != "disconnected" {
+			return errInvalidReason
+		}
 		blocklistTime = int64(t.Seconds())
 		return nil
 	}
@@ -1417,7 +1425,10 @@ func TestAccountingResetBalanceAfterReconnect(t *testing.T) {
 
 	paymentThresholdInRefreshmentSeconds := new(big.Int).Div(testPaymentThreshold, big.NewInt(testRefreshRate)).Uint64()
 
-	f := func(s swarm.Address, t time.Duration) error {
+	f := func(s swarm.Address, t time.Duration, reason string) error {
+		if reason != "disconnected" {
+			return errInvalidReason
+		}
 		blocklistTime = int64(t.Seconds())
 		return nil
 	}

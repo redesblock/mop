@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -16,16 +17,17 @@ var (
 const (
 	dbSchemaKey = "statestore_schema"
 
-	dbSchemaGrace         = "grace"
-	dbSchemaDrain         = "drain"
-	dbSchemaCleanInterval = "clean-interval"
-	dbSchemaNoStamp       = "no-stamp"
-	dbSchemaFlushBlock    = "flushblock"
-	dbSchemaSwapAddr      = "swapaddr"
+	dbSchemaGrace           = "grace"
+	dbSchemaDrain           = "drain"
+	dbSchemaCleanInterval   = "clean-interval"
+	dbSchemaNoStamp         = "no-stamp"
+	dbSchemaFlushBlock      = "flushblock"
+	dbSchemaSwapAddr        = "swapaddr"
+	dBSchemaKademliaMetrics = "kademlia-metrics"
 )
 
 var (
-	dbSchemaCurrent = dbSchemaFlushBlock
+	dbSchemaCurrent = dBSchemaKademliaMetrics
 )
 
 type migration struct {
@@ -42,6 +44,7 @@ var schemaMigrations = []migration{
 	{name: dbSchemaNoStamp, fn: migrateStamp},
 	{name: dbSchemaFlushBlock, fn: migrateFB},
 	{name: dbSchemaSwapAddr, fn: migrateSwap},
+	{name: dBSchemaKademliaMetrics, fn: migrateKademliaMetrics},
 }
 
 func migrateFB(s *store) error {
@@ -112,12 +115,12 @@ func migrateSwap(s *store) error {
 			addr := common.BytesToAddress([]byte(split[1]))
 			fixed := fmt.Sprintf("%s%x", prefix, addr)
 
-			var chequebookAddress common.Address
-			if err = s.Get(key, &chequebookAddress); err != nil {
+			var val string
+			if err = s.Get(key, &val); err != nil {
 				return err
 			}
 
-			if err = s.Put(fixed, chequebookAddress); err != nil {
+			if err = s.Put(fixed, common.HexToAddress(val)); err != nil {
 				return err
 			}
 
@@ -133,6 +136,27 @@ func migrateSwap(s *store) error {
 	}
 
 	return migratePrefix("swap_beneficiary_peer_")
+}
+
+// migrateKademliaMetrics removes all old existing
+// kademlia metrics database content.
+func migrateKademliaMetrics(s *store) error {
+	for _, prefix := range []string{"peer-last-seen-timestamp", "peer-total-connection-duration"} {
+		start := time.Now()
+		s.logger.Debugf("removing kademlia %q metrics", prefix)
+
+		keys, err := collectKeys(s, prefix)
+		if err != nil {
+			return err
+		}
+
+		if err := deleteKeys(s, keys); err != nil {
+			return err
+		}
+
+		s.logger.Debugf("removing kademlia %q metrics took %s", prefix, time.Since(start))
+	}
+	return nil
 }
 
 func (s *store) migrate(schemaName string) error {
