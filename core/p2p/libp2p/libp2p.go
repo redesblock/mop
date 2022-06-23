@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/cmd/version"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 
@@ -145,6 +147,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		security,
 		// Use dedicated peerstore instead the global DefaultPeerstore
 		libp2p.Peerstore(libp2pPeerstore),
+		libp2p.UserAgent(userAgent()),
 	}
 
 	if o.NATAddr == "" {
@@ -218,7 +221,7 @@ func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay
 		advertisableAddresser = natAddrResolver
 	}
 
-	handshakeService, err := handshake.New(signer, advertisableAddresser, swapBackend, overlay, networkID, o.FullNode, o.Transaction, o.WelcomeMessage, logger)
+	handshakeService, err := handshake.New(signer, advertisableAddresser, swapBackend, overlay, networkID, o.FullNode, o.Transaction, o.WelcomeMessage, h.ID(), logger)
 	if err != nil {
 		return nil, fmt.Errorf("handshake service: %w", err)
 	}
@@ -430,8 +433,10 @@ func (s *Service) handleIncoming(stream network.Stream) {
 		return
 	}
 
-	s.logger.Debugf("stream handler: successfully connected to peer %s%s (inbound)", i.HopAddress.ShortString(), i.LightString())
-	s.logger.Infof("stream handler: successfully connected to peer %s%s (inbound)", i.HopAddress.Overlay, i.LightString())
+	peerUserAgent := appendSpace(s.peerUserAgent(peerID))
+
+	s.logger.Debugf("stream handler: successfully connected to peer %s%s%s (inbound)", i.HopAddress.ShortString(), i.LightString(), peerUserAgent)
+	s.logger.Infof("stream handler: successfully connected to peer %s%s%s (inbound)", i.HopAddress.Overlay, i.LightString(), peerUserAgent)
 }
 
 func (s *Service) SetPickyNotifier(n p2p.PickyNotifier) {
@@ -683,8 +688,10 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 
 	s.metrics.CreatedConnectionCount.Inc()
 
-	s.logger.Debugf("successfully connected to peer %s%s (outbound)", i.HopAddress.ShortString(), i.LightString())
-	s.logger.Infof("successfully connected to peer %s%s (outbound)", overlay, i.LightString())
+	peerUserAgent := appendSpace(s.peerUserAgent(info.ID))
+
+	s.logger.Debugf("successfully connected to peer %s%s%s (outbound)", i.HopAddress.ShortString(), i.LightString(), peerUserAgent)
+	s.logger.Infof("successfully connected to peer %s%s%s (outbound)", overlay, i.LightString(), peerUserAgent)
 	return i.HopAddress, nil
 }
 
@@ -867,4 +874,38 @@ func (s *Service) Ping(ctx context.Context, addr ma.Multiaddr) (rtt time.Duratio
 	case res := <-libp2pping.Ping(ctx, s.pingDialer, info.ID):
 		return res.RTT, res.Error
 	}
+}
+
+// peerUserAgent returns User Agent string of the connected peer if the peer
+// provides it. It ignores the default libp2p user agent string
+// "github.com/libp2p/go-libp2p" and returns empty string in that case.
+func (s *Service) peerUserAgent(peerID libp2ppeer.ID) string {
+	v, err := s.host.Peerstore().Get(peerID, "AgentVersion")
+	if err != nil {
+		// error is ignored as user agent is informative only
+		return ""
+	}
+	ua, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	// Ignore the default user agent.
+	if ua == "github.com/libp2p/go-libp2p" {
+		return ""
+	}
+	return ua
+}
+
+// appendSpace adds a leading space character if the string is not empty.
+// It is useful for constructing log messages with conditional substrings.
+func appendSpace(s string) string {
+	if s == "" {
+		return ""
+	}
+	return " " + s
+}
+
+// userAgent returns a User Agent string passed to the libp2p host to identify peer node.
+func userAgent() string {
+	return fmt.Sprintf("hop/%s %s %s/%s", version.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }

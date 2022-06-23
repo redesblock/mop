@@ -18,6 +18,7 @@ import (
 
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/feeds"
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/logging"
 	m "github.com/redesblock/hop/core/metrics"
@@ -367,6 +368,13 @@ func requestPipelineFn(s storage.Putter, r *http.Request) pipelineFunc {
 	return func(ctx context.Context, r io.Reader) (swarm.Address, error) {
 		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
 		return builder.FeedPipeline(ctx, pipe, r)
+	}
+}
+
+func requestPipelineFactory(ctx context.Context, s storage.Putter, r *http.Request) func() pipeline.Interface {
+	mode, encrypt := requestModePut(r), requestEncrypt(r)
+	return func() pipeline.Interface {
+		return builder.NewPipelineBuilder(ctx, s, mode, encrypt)
 	}
 }
 

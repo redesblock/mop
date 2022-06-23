@@ -22,7 +22,6 @@ import (
 	"github.com/redesblock/hop/core/manifest"
 	mockpost "github.com/redesblock/hop/core/postage/mock"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -284,7 +283,7 @@ func TestDirs(t *testing.T) {
 			// verify manifest content
 			verifyManifest, err := manifest.NewDefaultManifestReference(
 				resp.Reference,
-				loadsave.New(storer, storage.ModePutRequest, false),
+				loadsave.NewReadonly(storer),
 			)
 			if err != nil {
 				t.Fatal(err)

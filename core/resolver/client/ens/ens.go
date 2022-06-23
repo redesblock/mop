@@ -16,7 +16,7 @@ import (
 
 const (
 	defaultENSContractAddress = "00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
-	swarmContentHashPrefix    = "/swarm/"
+	swarmContentHashPrefix    = "hop://"
 )
 
 // Address is the swarm hop address.
@@ -116,7 +116,7 @@ func (c *Client) Resolve(name string) (Address, error) {
 	}
 
 	// Ensure that the content hash string is in a valid format, eg.
-	// "/swarm/<address>".
+	// "hop://<address>".
 	if !strings.HasPrefix(hash, swarmContentHashPrefix) {
 		return swarm.ZeroAddress, fmt.Errorf("contenthash %s: %w", hash, ErrInvalidContentHash)
 	}
@@ -159,7 +159,7 @@ func wrapDial(endpoint, contractAddr string) (*ethclient.Client, *goens.Registry
 	return ethCl, registry, nil
 }
 
-func wrapResolve(registry *goens.Registry, addr common.Address, name string) (string, error) {
+func wrapResolve(registry *goens.Registry, _ common.Address, name string) (string, error) {
 	// Ensure the name is registered.
 	ownerAddress, err := registry.Owner(name)
 	if err != nil {

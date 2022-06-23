@@ -1,15 +1,21 @@
+// Package loadsave provides lightweight persistence abstraction
+// for manifest operations.
 package loadsave
 
 import (
 	"bytes"
 	"context"
+	"errors"
 
 	"github.com/redesblock/hop/core/file"
 	"github.com/redesblock/hop/core/file/joiner"
+	"github.com/redesblock/hop/core/file/pipeline"
 	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
 )
+
+var readonlyLoadsaveError = errors.New("readonly manifest loadsaver")
 
 type PutGetter interface {
 	storage.Putter
@@ -21,16 +27,23 @@ type PutGetter interface {
 // package abstractions. use with caution since Loader will
 // load all of the subtrie of a given hash in memory.
 type loadSave struct {
-	storer    PutGetter
-	mode      storage.ModePut
-	encrypted bool
+	storer     PutGetter
+	pipelineFn func() pipeline.Interface
 }
 
-func New(storer PutGetter, mode storage.ModePut, enc bool) file.LoadSaver {
+// New returns a new read-write load-saver.
+func New(storer PutGetter, pipelineFn func() pipeline.Interface) file.LoadSaver {
 	return &loadSave{
-		storer:    storer,
-		mode:      mode,
-		encrypted: enc,
+		storer:     storer,
+		pipelineFn: pipelineFn,
+	}
+}
+
+// NewReadonly returns a new read-only load-saver
+// which will error on write.
+func NewReadonly(storer PutGetter) file.LoadSaver {
+	return &loadSave{
+		storer: storer,
 	}
 }
 
@@ -50,12 +63,15 @@ func (ls *loadSave) Load(ctx context.Context, ref []byte) ([]byte, error) {
 }
 
 func (ls *loadSave) Save(ctx context.Context, data []byte) ([]byte, error) {
-	pipe := builder.NewPipelineBuilder(ctx, ls.storer, ls.mode, ls.encrypted)
+	if ls.pipelineFn == nil {
+		return nil, readonlyLoadsaveError
+	}
+
+	pipe := ls.pipelineFn()
 	address, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data))
 	if err != nil {
 		return swarm.ZeroAddress.Bytes(), err
 	}
 
 	return address.Bytes(), nil
-
 }

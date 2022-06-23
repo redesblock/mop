@@ -229,7 +229,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	b.transactionMonitorCloser = transactionMonitor
 
 	if o.ChainID != -1 && o.ChainID != chainID {
-		return nil, fmt.Errorf("connected to wrong ethereum network: got chainID %d, want %d", chainID, o.ChainID)
+		return nil, fmt.Errorf("connected to wrong ethereum network; network chainID %d; configured chainID %d", chainID, o.ChainID)
 	}
 
 	var debugAPIService *debugapi.Service
@@ -362,6 +362,11 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	lightNodes := lightnode.NewContainer(swarmAddress)
 
 	senderMatcher := transaction.NewMatcher(swapBackend, types.NewLondonSigner(big.NewInt(chainID)), stateStore)
+
+	_, err = senderMatcher.Matches(p2pCtx, txHash, networkID, swarmAddress)
+	if err != nil {
+		return nil, fmt.Errorf("identity transaction verification failed: %w", err)
+	}
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,

@@ -74,7 +74,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 		dReader,
 		s.logger,
 		requestPipelineFn(storer, r),
-		loadsave.New(storer, requestModePut(r), requestEncrypt(r)),
+		loadsave.New(storer, requestPipelineFactory(ctx, storer, r)),
 		r.Header.Get(SwarmIndexDocumentHeader),
 		r.Header.Get(SwarmErrorDocumentHeader),
 		tag,
@@ -110,6 +110,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 		}
 	}
 
+	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
 	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
 	jsonhttp.Created(w, hopUploadResponse{
 		Reference: reference,

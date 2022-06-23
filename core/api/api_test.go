@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,8 @@ import (
 	"github.com/redesblock/hop/core/api"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/feeds"
+	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/hop/core/file/pipeline/builder"
 	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/pinning"
@@ -142,6 +145,12 @@ func request(t *testing.T, client *http.Client, method, resource string, body io
 		t.Fatalf("got response status %s, want %v %s", resp.Status, responseCode, http.StatusText(responseCode))
 	}
 	return resp
+}
+
+func pipelineFactory(s storage.Putter, mode storage.ModePut, encrypt bool) func() pipeline.Interface {
+	return func() pipeline.Interface {
+		return builder.NewPipelineBuilder(context.Background(), s, mode, encrypt)
+	}
 }
 
 func TestParseName(t *testing.T) {

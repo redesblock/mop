@@ -1,6 +1,7 @@
 package debugapi_test
 
 import (
+	"github.com/redesblock/hop/cmd/version"
 	"net/http"
 	"testing"
 
@@ -13,7 +14,8 @@ func TestHealth(t *testing.T) {
 
 	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/health", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.StatusResponse{
-			Status: "ok",
+			Status:  "ok",
+			Version: version.Version,
 		}),
 	)
 }
@@ -23,7 +25,8 @@ func TestReadiness(t *testing.T) {
 
 	jsonhttptest.Request(t, testServer.Client, http.MethodGet, "/readiness", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.StatusResponse{
-			Status: "ok",
+			Status:  "ok",
+			Version: version.Version,
 		}),
 	)
 }

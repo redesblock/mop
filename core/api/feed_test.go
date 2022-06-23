@@ -23,7 +23,6 @@ import (
 	mockpost "github.com/redesblock/hop/core/postage/mock"
 	testingsoc "github.com/redesblock/hop/core/soc/testing"
 	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/storage/mock"
 	"github.com/redesblock/hop/core/swarm"
 	"github.com/redesblock/hop/core/tags"
@@ -170,7 +169,7 @@ func TestFeed_Post(t *testing.T) {
 			}),
 		)
 
-		ls := loadsave.New(mockStorer, storage.ModePutUpload, false)
+		ls := loadsave.NewReadonly(mockStorer)
 		i, err := manifest.NewMantarayManifestReference(expReference, ls)
 		if err != nil {
 			t.Fatal(err)

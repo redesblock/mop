@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/cmd/version"
 	"io/ioutil"
 
 	"os"
@@ -112,7 +113,7 @@ inability to use, or your interaction with other nodes or the software.`)
 				return err
 			}
 
-			logger.Infof("version: %v", Version)
+			logger.Infof("version: %v", version.Version)
 
 			bootNode := c.config.GetBool(optionNameBootnodeMode)
 			fullNode := c.config.GetBool(optionNameFullNode)

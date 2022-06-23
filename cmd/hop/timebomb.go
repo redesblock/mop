@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/redesblock/hop/cmd/version"
 	"strconv"
 	"time"
 
@@ -14,8 +15,8 @@ const (
 )
 
 var (
-	commitTime2, _  = strconv.ParseInt(CommitTime(), 10, 64)
-	versionReleased = time.Unix(commitTime2, 0)
+	commitTime, _   = strconv.ParseInt(version.CommitTime(), 10, 64)
+	versionReleased = time.Unix(commitTime, 0)
 )
 
 func startTimeBomb(logger logging.Logger) {

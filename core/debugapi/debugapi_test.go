@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
+	"github.com/redesblock/hop/cmd/version"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -189,7 +190,8 @@ func TestServer_Configure(t *testing.T) {
 	testBasicRouter(t, client)
 	jsonhttptest.Request(t, client, http.MethodGet, "/readiness", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.StatusResponse{
-			Status: "ok",
+			Status:  "ok",
+			Version: version.Version,
 		}),
 	)
 	jsonhttptest.Request(t, client, http.MethodGet, "/addresses", http.StatusOK,
@@ -208,7 +210,8 @@ func testBasicRouter(t *testing.T, client *http.Client) {
 
 	jsonhttptest.Request(t, client, http.MethodGet, "/health", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(debugapi.StatusResponse{
-			Status: "ok",
+			Status:  "ok",
+			Version: version.Version,
 		}),
 	)
 
