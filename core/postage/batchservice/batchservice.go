@@ -25,9 +25,10 @@ type batchService struct {
 	logger        logging.Logger
 	listener      postage.Listener
 	owner         []byte
-	batchListener postage.BatchCreationListener
+	batchListener postage.BatchEventListener
 
 	checksum hash.Hash // checksum hasher
+	resync   bool
 }
 
 type Interface interface {
@@ -41,8 +42,9 @@ func New(
 	logger logging.Logger,
 	listener postage.Listener,
 	owner []byte,
-	batchListener postage.BatchCreationListener,
+	batchListener postage.BatchEventListener,
 	checksumFunc func() hash.Hash,
+	resync bool,
 ) (Interface, error) {
 	if checksumFunc == nil {
 		checksumFunc = sha3.New256
@@ -52,25 +54,37 @@ func New(
 		sum = checksumFunc()
 	)
 
-	if err := stateStore.Get(checksumDBKey, &b); err != nil {
-		if !errors.Is(err, storage.ErrNotFound) {
+	dirty := false
+	err := stateStore.Get(dirtyDBKey, &dirty)
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return nil, err
+	}
+
+	if resync {
+		if err := stateStore.Delete(checksumDBKey); err != nil {
 			return nil, err
 		}
-	} else {
-		s, err := hex.DecodeString(b)
-		if err != nil {
-			return nil, err
-		}
-		n, err := sum.Write(s)
-		if err != nil {
-			return nil, err
-		}
-		if n != len(s) {
-			return nil, errors.New("batchstore checksum init")
+	} else if !dirty {
+		if err := stateStore.Get(checksumDBKey, &b); err != nil {
+			if !errors.Is(err, storage.ErrNotFound) {
+				return nil, err
+			}
+		} else {
+			s, err := hex.DecodeString(b)
+			if err != nil {
+				return nil, err
+			}
+			n, err := sum.Write(s)
+			if err != nil {
+				return nil, err
+			}
+			if n != len(s) {
+				return nil, errors.New("batchstore checksum init")
+			}
 		}
 	}
 
-	return &batchService{stateStore, storer, logger, listener, owner, batchListener, sum}, nil
+	return &batchService{stateStore, storer, logger, listener, owner, batchListener, sum, resync}, nil
 }
 
 // Create will create a new batch with the given ID, owner value and depth and
@@ -92,8 +106,9 @@ func (svc *batchService) Create(id, owner []byte, normalisedBalance *big.Int, de
 	}
 
 	if bytes.Equal(svc.owner, owner) && svc.batchListener != nil {
-		svc.batchListener.Handle(b)
+		svc.batchListener.HandleCreate(b)
 	}
+
 	cs, err := svc.updateChecksum(txHash)
 	if err != nil {
 		return fmt.Errorf("update checksum: %w", err)
@@ -115,6 +130,11 @@ func (svc *batchService) TopUp(id []byte, normalisedBalance *big.Int, txHash []b
 	if err != nil {
 		return fmt.Errorf("put: %w", err)
 	}
+
+	if bytes.Equal(svc.owner, b.Owner) && svc.batchListener != nil {
+		svc.batchListener.HandleTopUp(id, normalisedBalance)
+	}
+
 	cs, err := svc.updateChecksum(txHash)
 	if err != nil {
 		return fmt.Errorf("update checksum: %w", err)
@@ -135,6 +155,11 @@ func (svc *batchService) UpdateDepth(id []byte, depth uint8, normalisedBalance *
 	if err != nil {
 		return fmt.Errorf("put: %w", err)
 	}
+
+	if bytes.Equal(svc.owner, b.Owner) && svc.batchListener != nil {
+		svc.batchListener.HandleDepthIncrease(id, depth, normalisedBalance)
+	}
+
 	cs, err := svc.updateChecksum(txHash)
 	if err != nil {
 		return fmt.Errorf("update checksum: %w", err)
@@ -191,15 +216,21 @@ func (svc *batchService) Start(startBlock uint64) (<-chan struct{}, error) {
 	if err != nil && !errors.Is(err, storage.ErrNotFound) {
 		return nil, err
 	}
-	if dirty {
-		svc.logger.Warning("batch service: dirty shutdown detected, resetting batch store")
+
+	if dirty || svc.resync {
+		if svc.resync {
+			svc.logger.Warning("batch service: resync requested, resetting batch store")
+		} else {
+			svc.logger.Warning("batch service: dirty shutdown detected, resetting batch store")
+		}
+
 		if err := svc.storer.Reset(); err != nil {
 			return nil, err
 		}
 		if err := svc.stateStore.Delete(dirtyDBKey); err != nil {
 			return nil, err
 		}
-		svc.logger.Warning("batch service: batch store reset. your node will now resync chain data")
+		svc.logger.Warning("batch service: batch store has been reset. your node will now resync chain data. this might take a while...")
 	}
 
 	cs := svc.storer.GetChainState()

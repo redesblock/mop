@@ -502,18 +502,33 @@ func (k *Kad) manage() {
 	peerConnChan2 := make(chan *peerConnInfo)
 	go k.connectionAttemptsHandler(ctx, &wg, peerConnChan, peerConnChan2)
 
+	k.wg.Add(1)
+	go func() {
+		defer k.wg.Done()
+		for {
+			select {
+			case <-k.halt:
+				return
+			case <-k.quit:
+				return
+			case <-time.After(5 * time.Minute):
+				start := time.Now()
+				if err := k.collector.Flush(); err != nil {
+					k.metrics.InternalMetricsFlushTotalErrors.Inc()
+					k.logger.Debugf("kademlia: took %s unable to flush metrics counters to the persistent store: %v", time.Since(start), err)
+				} else {
+					k.metrics.InternalMetricsFlushTime.Observe(float64(time.Since(start).Nanoseconds()))
+					k.logger.Tracef("kademlia took %s to flush", time.Since(start))
+				}
+			}
+		}
+	}()
+
 	for {
 		select {
 		case <-k.quit:
 			return
 		case <-time.After(15 * time.Second):
-			start := time.Now()
-			if err := k.collector.Flush(); err != nil {
-				k.metrics.InternalMetricsFlushTotalErrors.Inc()
-				k.logger.Debugf("kademlia: unable to flush metrics counters to the persistent store: %v", err)
-			} else {
-				k.metrics.InternalMetricsFlushTime.Observe(float64(time.Since(start).Nanoseconds()))
-			}
 			k.notifyManageLoop()
 		case <-k.manageC:
 			start := time.Now()
@@ -1317,9 +1332,11 @@ func (k *Kad) Close() error {
 	case <-time.After(5 * time.Second):
 		k.logger.Warning("kademlia manage loop did not shut down properly")
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	k.logger.Info("kademlia persisting peer metrics")
-	if err := k.collector.Finalize(time.Now()); err != nil {
+	if err := k.collector.Finalize(ctx, time.Now()); err != nil {
 		k.logger.Debugf("kademlia: unable to finalize open sessions: %v", err)
 	}
 

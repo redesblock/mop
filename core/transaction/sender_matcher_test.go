@@ -24,7 +24,14 @@ func TestMatchesSender(t *testing.T) {
 	nonce := uint64(2)
 	trx := common.HexToAddress("0x1").Bytes()
 
-	signedTx := types.NewTransaction(nonce, recipient, value, estimatedGasLimit, suggestedGasPrice, txData)
+	signedTx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		To:       &recipient,
+		Value:    value,
+		Gas:      estimatedGasLimit,
+		GasPrice: suggestedGasPrice,
+		Data:     txData,
+	})
 
 	t.Run("fail to retrieve tx from backend", func(t *testing.T) {
 		txByHash := backendmock.WithTransactionByHashFunc(func(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
@@ -102,7 +109,7 @@ func TestMatchesSender(t *testing.T) {
 		}
 	})
 
-	t.Run("sender matches", func(t *testing.T) {
+	t.Run("sender matches signer type", func(t *testing.T) {
 
 		trxBlock := common.HexToHash("0x2")
 		nextBlockHeader := &types.Header{
@@ -135,6 +142,52 @@ func TestMatchesSender(t *testing.T) {
 		_, err := matcher.Matches(context.Background(), trx, 0, senderOverlay)
 		if err != nil {
 			t.Fatalf("expected match")
+		}
+	})
+
+	t.Run("sender matches data type", func(t *testing.T) {
+		trxBlock := common.HexToHash("0x2")
+		nextBlockHeader := &types.Header{
+			ParentHash: trxBlock,
+		}
+
+		overlayEth := common.HexToAddress("0xff")
+
+		signedTx := types.NewTransaction(nonce, recipient, value, estimatedGasLimit, suggestedGasPrice, overlayEth.Hash().Bytes())
+
+		trxReceipt := backendmock.WithTransactionReceiptFunc(func(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+			return &types.Receipt{
+				BlockNumber: big.NewInt(0),
+				BlockHash:   trxBlock,
+			}, nil
+		})
+
+		headerByNum := backendmock.WithHeaderbyNumberFunc(func(ctx context.Context, number *big.Int) (*types.Header, error) {
+			return nextBlockHeader, nil
+		})
+
+		txByHash := backendmock.WithTransactionByHashFunc(func(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+			return signedTx, false, nil
+		})
+
+		signer := &mockSigner{
+			addr: common.HexToAddress("0xee"),
+		}
+
+		matcher := transaction.NewMatcher(backendmock.New(trxReceipt, headerByNum, txByHash), signer, statestore.NewStateStore())
+
+		senderOverlay := crypto.NewOverlayFromEthereumAddress(overlayEth.Bytes(), 0, nextBlockHeader.Hash().Bytes())
+
+		_, err := matcher.Matches(context.Background(), trx, 0, senderOverlay)
+		if err != nil {
+			t.Fatalf("expected match. got %v", err)
+		}
+
+		senderOverlay = crypto.NewOverlayFromEthereumAddress(signer.addr.Bytes(), 0, nextBlockHeader.Hash().Bytes())
+
+		_, err = matcher.Matches(context.Background(), trx, 0, senderOverlay)
+		if err == nil {
+			t.Fatalf("matched signer for data tx")
 		}
 	})
 

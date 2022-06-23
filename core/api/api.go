@@ -88,7 +88,7 @@ type server struct {
 	pss             pss.Interface
 	traversal       traversal.Traverser
 	pinning         pinning.Interface
-	steward         steward.Reuploader
+	steward         steward.Interface
 	logger          logging.Logger
 	tracer          *tracing.Tracer
 	feedFactory     feeds.Factory
@@ -115,7 +115,7 @@ const (
 )
 
 // New will create a and initialize a new API service.
-func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Traverser, pinning pinning.Interface, feedFactory feeds.Factory, post postage.Service, postageContract postagecontract.Interface, steward steward.Reuploader, signer crypto.Signer, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
+func New(tags *tags.Tags, storer storage.Storer, resolver resolver.Interface, pss pss.Interface, traversalService traversal.Traverser, pinning pinning.Interface, feedFactory feeds.Factory, post postage.Service, postageContract postagecontract.Interface, steward steward.Interface, signer crypto.Signer, logger logging.Logger, tracer *tracing.Tracer, o Options) Service {
 	s := &server{
 		tags:            tags,
 		storer:          storer,

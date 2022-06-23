@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -150,6 +151,9 @@ type Options struct {
 	DeployGasPrice             string
 	WarmupTime                 time.Duration
 	ChainID                    int64
+	Resync                     bool
+	BlockProfile               bool
+	MutexProfile               bool
 }
 
 const (
@@ -234,6 +238,15 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		if err != nil {
 			return nil, fmt.Errorf("eth address: %w", err)
 		}
+
+		if o.MutexProfile {
+			_ = runtime.SetMutexProfileFraction(1)
+		}
+
+		if o.BlockProfile {
+			runtime.SetBlockProfileRate(1)
+		}
+
 		// set up basic debug api endpoints for debugging and /health endpoint
 		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, big.NewInt(int64(o.BlockTime)), transactionService)
 
@@ -348,7 +361,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	lightNodes := lightnode.NewContainer(swarmAddress)
 
-	senderMatcher := transaction.NewMatcher(swapBackend, types.NewEIP2930Signer(big.NewInt(chainID)), stateStore)
+	senderMatcher := transaction.NewMatcher(swapBackend, types.NewLondonSigner(big.NewInt(chainID)), stateStore)
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
@@ -431,7 +444,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b})
 	b.listenerCloser = eventListener
 
-	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256)
+	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256, o.Resync)
 	if err != nil {
 		return nil, err
 	}
@@ -447,6 +460,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		erc20Address,
 		transactionService,
 		post,
+		batchStore,
 	)
 
 	if natManager := p2ps.NATManager(); natManager != nil {
@@ -639,7 +653,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		b.recoveryHandleCleanup = pssService.Register(recovery.Topic, chunkRepairHandler)
 	}
 
-	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, tagService, logger, tracer, warmupTime)
+	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, validStamp, tagService, logger, tracer, warmupTime)
 	b.pusherCloser = pusherService
 
 	pullStorage := pullstorage.New(storer)
@@ -686,7 +700,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	if o.APIAddr != "" {
 		// API server
 		feedFactory := factory.New(ns)
-		steward := steward.New(storer, traversalService, pushSyncProtocol)
+		steward := steward.New(storer, traversalService, retrieve, pushSyncProtocol)
 		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, pinningService, feedFactory, post, postageContractService, steward, signer, logger, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			GatewayMode:        o.GatewayMode,
@@ -765,7 +779,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		}
 
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService)
+		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, traversalService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {

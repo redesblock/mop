@@ -16,6 +16,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/pushsync"
 	"github.com/redesblock/hop/core/storage"
 	"github.com/redesblock/hop/core/swarm"
@@ -30,6 +31,7 @@ type Service struct {
 	networkID         uint64
 	storer            storage.Storer
 	pushSyncer        pushsync.PushSyncer
+	validStamp        postage.ValidStampFn
 	depther           topology.NeighborhoodDepther
 	logger            logging.Logger
 	tag               *tags.Tags
@@ -50,11 +52,12 @@ var (
 	ErrShallowReceipt = errors.New("shallow recipt")
 )
 
-func New(networkID uint64, storer storage.Storer, depther topology.NeighborhoodDepther, pushSyncer pushsync.PushSyncer, tagger *tags.Tags, logger logging.Logger, tracer *tracing.Tracer, warmupTime time.Duration) *Service {
+func New(networkID uint64, storer storage.Storer, depther topology.NeighborhoodDepther, pushSyncer pushsync.PushSyncer, validStamp postage.ValidStampFn, tagger *tags.Tags, logger logging.Logger, tracer *tracing.Tracer, warmupTime time.Duration) *Service {
 	service := &Service{
 		networkID:         networkID,
 		storer:            storer,
 		pushSyncer:        pushSyncer,
+		validStamp:        validStamp,
 		depther:           depther,
 		tag:               tagger,
 		logger:            logger,
@@ -117,6 +120,27 @@ LOOP:
 				break
 			}
 
+			// If the stamp is invalid, the chunk is not synced with the network
+			// since other nodes would reject the chunk, so the chunk is marked as
+			// synced which makes it available to the node but not to the network
+			stampBytes, err := ch.Stamp().MarshalBinary()
+			if err != nil {
+				s.logger.Errorf("pusher: stamp marshal: %w", err)
+				if err = s.storer.Set(ctx, storage.ModeSetSync, ch.Address()); err != nil {
+					s.logger.Errorf("pusher: set sync: %w", err)
+				}
+				continue
+			}
+
+			_, err = s.validStamp(ch, stampBytes)
+			if err != nil {
+				s.logger.Warningf("pusher: stamp with batch ID %x is no longer valid, skipping syncing for chunk %s: %v", ch.Stamp().BatchID(), ch.Address().String(), err)
+				if err = s.storer.Set(ctx, storage.ModeSetSync, ch.Address()); err != nil {
+					s.logger.Errorf("pusher: set sync: %w", err)
+				}
+				continue
+			}
+
 			if span == nil {
 				mtx.Lock()
 				span, logger, ctx = s.tracer.StartSpanFromContext(cctx, "pusher-sync-batch", s.logger)
@@ -163,10 +187,13 @@ LOOP:
 					if err == nil {
 						s.metrics.TotalSynced.Inc()
 						s.metrics.SyncTime.Observe(time.Since(startTime).Seconds())
-						// only print this if there was no error while sending the chunk
-						po := swarm.Proximity(ch.Address().Bytes(), storerPeer.Bytes())
-						logger.Tracef("pusher: pushed chunk %s to node %s, receipt depth %d", ch.Address().String(), storerPeer.String(), po)
-						s.metrics.ReceiptDepth.WithLabelValues(strconv.Itoa(int(po))).Inc()
+						if wantSelf {
+							logger.Tracef("pusher: chunk %s stays here, i'm the closest node", ch.Address().String())
+						} else {
+							po := swarm.Proximity(ch.Address().Bytes(), storerPeer.Bytes())
+							logger.Tracef("pusher: pushed chunk %s to node %s, receipt depth %d", ch.Address().String(), storerPeer.String(), po)
+							s.metrics.ReceiptDepth.WithLabelValues(strconv.Itoa(int(po))).Inc()
+						}
 						delete(retryCounter, ch.Address().ByteString())
 					} else {
 						s.metrics.TotalErrors.Inc()

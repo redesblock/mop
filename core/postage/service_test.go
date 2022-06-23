@@ -79,9 +79,6 @@ func TestGetStampIssuer(t *testing.T) {
 		}
 		ps.Add(postage.NewStampIssuer(string(id), "", id, big.NewInt(3), 16, 8, validBlockNumber+shift, true))
 	}
-	b := postagetesting.MustNewBatch()
-	b.Start = validBlockNumber
-	ps.Handle(b)
 	t.Run("found", func(t *testing.T) {
 		for _, id := range ids[1:4] {
 			st, err := ps.GetStampIssuer(id)
@@ -108,12 +105,38 @@ func TestGetStampIssuer(t *testing.T) {
 		}
 	})
 	t.Run("recovered", func(t *testing.T) {
+		b := postagetesting.MustNewBatch()
+		b.Start = validBlockNumber
+		ps.HandleCreate(b)
 		st, err := ps.GetStampIssuer(b.ID)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 		if st.Label() != "recovered" {
 			t.Fatal("wrong issuer returned")
+		}
+	})
+	t.Run("topup", func(t *testing.T) {
+		ps.HandleTopUp(ids[1], big.NewInt(10))
+		_, err := ps.GetStampIssuer(ids[1])
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if ps.StampIssuers()[0].Amount().Cmp(big.NewInt(10)) != 0 {
+			t.Fatalf("expected amount %d got %d", 10, ps.StampIssuers()[0].Amount().Int64())
+		}
+	})
+	t.Run("dilute", func(t *testing.T) {
+		ps.HandleDepthIncrease(ids[2], 17, big.NewInt(1))
+		_, err := ps.GetStampIssuer(ids[2])
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if ps.StampIssuers()[1].Amount().Cmp(big.NewInt(1)) != 0 {
+			t.Fatalf("expected amount %d got %d", 1, ps.StampIssuers()[1].Amount().Int64())
+		}
+		if ps.StampIssuers()[1].Depth() != 17 {
+			t.Fatalf("expected depth %d got %d", 17, ps.StampIssuers()[1].Depth())
 		}
 	})
 }

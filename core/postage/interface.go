@@ -46,6 +46,8 @@ type Listener interface {
 	Listen(from uint64, updater EventUpdater) <-chan struct{}
 }
 
-type BatchCreationListener interface {
-	Handle(*Batch)
+type BatchEventListener interface {
+	HandleCreate(*Batch)
+	HandleTopUp(id []byte, newBalance *big.Int)
+	HandleDepthIncrease(id []byte, newDepth uint8, normalisedBalance *big.Int)
 }

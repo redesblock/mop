@@ -17,6 +17,20 @@ import (
 	"github.com/redesblock/hop/core/storage"
 )
 
+func (s *Service) postageAccessHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.postageSem.TryAcquire(1) {
+			s.logger.Debug("postage access: simultaneous on-chain operations not supported")
+			s.logger.Error("postage access: simultaneous on-chain operations not supported")
+			jsonhttp.TooManyRequests(w, "simultaneous on-chain operations not supported")
+			return
+		}
+		defer s.postageSem.Release(1)
+
+		h.ServeHTTP(w, r)
+	})
+}
+
 type batchID []byte
 
 func (b batchID) MarshalJSON() ([]byte, error) {
@@ -63,14 +77,6 @@ func (s *Service) postageCreateHandler(w http.ResponseWriter, r *http.Request) {
 	if val, ok := r.Header[immutableHeader]; ok {
 		immutable, _ = strconv.ParseBool(val[0])
 	}
-
-	if !s.postageCreateSem.TryAcquire(1) {
-		s.logger.Debug("create batch: simultaneous on-chain operations not supported")
-		s.logger.Error("create batch: simultaneous on-chain operations not supported")
-		jsonhttp.TooManyRequests(w, "simultaneous on-chain operations not supported")
-		return
-	}
-	defer s.postageCreateSem.Release(1)
 
 	batchID, err := s.postageContract.CreateBatch(ctx, amount, uint8(depth), immutable, label)
 	if err != nil {
@@ -147,7 +153,7 @@ func (s *Service) postageGetStampsHandler(w http.ResponseWriter, _ *http.Request
 		resp.Stamps = append(resp.Stamps, postageStampResponse{
 			BatchID:       v.ID(),
 			Utilization:   v.Utilization(),
-			Usable:        s.post.IssuerUsable(v),
+			Usable:        exists && s.post.IssuerUsable(v),
 			Label:         v.Label(),
 			Depth:         v.Depth(),
 			Amount:        bigint.Wrap(v.Amount()),
@@ -245,7 +251,7 @@ func (s *Service) postageGetStampHandler(w http.ResponseWriter, r *http.Request)
 
 	if issuer != nil {
 		resp.Utilization = issuer.Utilization()
-		resp.Usable = s.post.IssuerUsable(issuer)
+		resp.Usable = exists && s.post.IssuerUsable(issuer)
 		resp.Label = issuer.Label()
 		resp.Depth = issuer.Depth()
 		resp.Amount = bigint.Wrap(issuer.Amount())
@@ -316,4 +322,110 @@ func (s *Service) estimateBatchTTL(id []byte) (int64, error) {
 	ttl = ttl.Div(ttl, pricePerBlock)
 
 	return ttl.Int64(), nil
+}
+
+func (s *Service) postageTopUpHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	if len(idStr) != 64 {
+		s.logger.Error("topup batch: invalid batchID")
+		jsonhttp.BadRequest(w, "invalid batchID")
+		return
+	}
+	id, err := hex.DecodeString(idStr)
+	if err != nil {
+		s.logger.Debugf("topup batch: invalid batchID: %v", err)
+		s.logger.Error("topup batch: invalid batchID")
+		jsonhttp.BadRequest(w, "invalid batchID")
+		return
+	}
+
+	amount, ok := big.NewInt(0).SetString(mux.Vars(r)["amount"], 10)
+	if !ok {
+		s.logger.Error("topup batch: invalid amount")
+		jsonhttp.BadRequest(w, "invalid postage amount")
+		return
+	}
+
+	ctx := r.Context()
+	if price, ok := r.Header[gasPriceHeader]; ok {
+		p, ok := big.NewInt(0).SetString(price[0], 10)
+		if !ok {
+			s.logger.Error("topup batch: bad gas price")
+			jsonhttp.BadRequest(w, errBadGasPrice)
+			return
+		}
+		ctx = sctx.SetGasPrice(ctx, p)
+	}
+
+	err = s.postageContract.TopUpBatch(ctx, id, amount)
+	if err != nil {
+		if errors.Is(err, postagecontract.ErrInsufficientFunds) {
+			s.logger.Debugf("topup batch: out of funds: %v", err)
+			s.logger.Error("topup batch: out of funds")
+			jsonhttp.PaymentRequired(w, "out of funds")
+			return
+		}
+		s.logger.Debugf("topup batch: failed to create: %v", err)
+		s.logger.Error("topup batch: failed to create")
+		jsonhttp.InternalServerError(w, "cannot topup batch")
+		return
+	}
+
+	jsonhttp.Accepted(w, &postageCreateResponse{
+		BatchID: id,
+	})
+}
+
+func (s *Service) postageDiluteHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	if len(idStr) != 64 {
+		s.logger.Error("dilute batch: invalid batchID")
+		jsonhttp.BadRequest(w, "invalid batchID")
+		return
+	}
+	id, err := hex.DecodeString(idStr)
+	if err != nil {
+		s.logger.Debugf("dilute batch: invalid batchID: %v", err)
+		s.logger.Error("dilute batch: invalid batchID")
+		jsonhttp.BadRequest(w, "invalid batchID")
+		return
+	}
+
+	depthStr := mux.Vars(r)["depth"]
+	depth, err := strconv.ParseUint(depthStr, 10, 8)
+	if err != nil {
+		s.logger.Debugf("dilute batch: invalid depth: %v", err)
+		s.logger.Error("dilute batch: invalid depth")
+		jsonhttp.BadRequest(w, "invalid depth")
+		return
+	}
+
+	ctx := r.Context()
+	if price, ok := r.Header[gasPriceHeader]; ok {
+		p, ok := big.NewInt(0).SetString(price[0], 10)
+		if !ok {
+			s.logger.Error("dilute batch: bad gas price")
+			jsonhttp.BadRequest(w, errBadGasPrice)
+			return
+		}
+		ctx = sctx.SetGasPrice(ctx, p)
+	}
+
+	err = s.postageContract.DiluteBatch(ctx, id, uint8(depth))
+	if err != nil {
+		if errors.Is(err, postagecontract.ErrInvalidDepth) {
+			s.logger.Debugf("dilute batch: invalid depth: %v", err)
+			s.logger.Error("dilte batch: invalid depth")
+			jsonhttp.BadRequest(w, "invalid depth")
+			return
+		}
+		s.logger.Debugf("dilute batch: failed to dilute: %v", err)
+		s.logger.Error("dilute batch: failed to dilute")
+		jsonhttp.InternalServerError(w, "cannot dilute batch")
+		return
+	}
+
+	jsonhttp.Accepted(w, &postageCreateResponse{
+		BatchID: id,
+	})
 }

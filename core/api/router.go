@@ -59,6 +59,11 @@ func (s *server) setupRouting() {
 		),
 	})
 
+	handle("/chunks/stream", web.ChainHandlers(
+		s.newTracingHandler("chunks-stream-upload"),
+		web.FinalHandlerFunc(s.chunkUploadStreamHandler),
+	))
+
 	handle("/chunks/{addr}", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.chunkGetHandler),
 	})
@@ -174,6 +179,10 @@ func (s *server) setupRouting() {
 	)
 
 	handle("/stewardship/{address}", jsonhttp.MethodHandler{
+		"GET": web.ChainHandlers(
+			s.gatewayModeForbidEndpointHandler,
+			web.FinalHandlerFunc(s.stewardshipGetHandler),
+		),
 		"PUT": web.ChainHandlers(
 			s.gatewayModeForbidEndpointHandler,
 			web.FinalHandlerFunc(s.stewardshipPutHandler),

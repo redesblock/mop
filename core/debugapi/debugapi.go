@@ -28,6 +28,7 @@ import (
 	"github.com/redesblock/hop/core/topology/lightnode"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/hop/core/traversal"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -57,13 +58,14 @@ type Service struct {
 	metricsRegistry    *prometheus.Registry
 	lightNodes         *lightnode.Container
 	blockTime          *big.Int
+	traverser          traversal.Traverser
 	// handler is changed in the Configure method
 	handler   http.Handler
 	handlerMu sync.RWMutex
 
 	// The following are semaphores which exists to limit concurrent access
 	// to some parts of the resources in order to avoid undefined behaviour.
-	postageCreateSem *semaphore.Weighted
+	postageSem       *semaphore.Weighted
 	cashOutChequeSem *semaphore.Weighted
 }
 
@@ -82,7 +84,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 	s.blockTime = blockTime
 	s.metricsRegistry = newMetricsRegistry()
 	s.transaction = transaction
-	s.postageCreateSem = semaphore.NewWeighted(1)
+	s.postageSem = semaphore.NewWeighted(1)
 	s.cashOutChequeSem = semaphore.NewWeighted(1)
 
 	s.setRouter(s.newBasicRouter())
@@ -93,7 +95,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 // Configure injects required dependencies and configuration parameters and
 // constructs HTTP routes that depend on them. It is intended and safe to call
 // this method only once.
-func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface) {
+func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface, traverser traversal.Traverser) {
 	s.p2p = p2p
 	s.pingpong = pingpong
 	s.topologyDriver = topologyDriver
@@ -109,6 +111,7 @@ func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpon
 	s.overlay = &overlay
 	s.post = post
 	s.postageContract = postageContract
+	s.traverser = traverser
 
 	s.setRouter(s.newRouter())
 }

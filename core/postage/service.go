@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"sync"
 
 	"github.com/redesblock/hop/core/storage"
@@ -30,7 +31,7 @@ type Service interface {
 	StampIssuers() []*StampIssuer
 	GetStampIssuer([]byte) (*StampIssuer, error)
 	IssuerUsable(*StampIssuer) bool
-	BatchCreationListener
+	BatchEventListener
 	io.Closer
 }
 
@@ -83,10 +84,10 @@ func (ps *service) Add(st *StampIssuer) {
 	ps.issuers = append(ps.issuers, st)
 }
 
-// Handle implements the BatchCreationListener interface. This is fired on receiving
+// HandleCreate implements the BatchEventListener interface. This is fired on receiving
 // a batch creation event from the blockchain listener to ensure that if a stamp
 // issuer was not created initially, we will create it here.
-func (ps *service) Handle(b *Batch) {
+func (ps *service) HandleCreate(b *Batch) {
 	ps.Add(NewStampIssuer(
 		"recovered",
 		string(b.Owner),
@@ -97,6 +98,37 @@ func (ps *service) Handle(b *Batch) {
 		b.Start,
 		b.Immutable,
 	))
+}
+
+// HandleTopUp implements the BatchEventListener interface. This is fired on receiving
+// a batch topup event from the blockchain to update stampissuer details
+func (ps *service) HandleTopUp(batchID []byte, newValue *big.Int) {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	for _, v := range ps.issuers {
+		if bytes.Equal(batchID, v.data.BatchID) {
+			if newValue.Cmp(v.data.BatchAmount) > 0 {
+				v.data.BatchAmount = newValue
+			}
+			return
+		}
+	}
+}
+
+func (ps *service) HandleDepthIncrease(batchID []byte, newDepth uint8, normalisedBalance *big.Int) {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	for _, v := range ps.issuers {
+		if bytes.Equal(batchID, v.data.BatchID) {
+			if newDepth > v.data.BatchDepth {
+				v.data.BatchDepth = newDepth
+				v.data.BatchAmount = normalisedBalance
+			}
+			return
+		}
+	}
 }
 
 // StampIssuers returns the currently active stamp issuers.
