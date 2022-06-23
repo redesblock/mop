@@ -17,6 +17,7 @@ import (
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/p2p/protobuf"
+	"github.com/redesblock/hop/core/postage"
 	"github.com/redesblock/hop/core/pullsync/pb"
 	"github.com/redesblock/hop/core/pullsync/pullstorage"
 	"github.com/redesblock/hop/core/soc"
@@ -63,7 +64,7 @@ type Syncer struct {
 	quit       chan struct{}
 	wg         sync.WaitGroup
 	unwrap     func(swarm.Chunk)
-	validStamp func(swarm.Chunk, []byte) (swarm.Chunk, error)
+	validStamp postage.ValidStampFn
 
 	ruidMtx sync.Mutex
 	ruidCtx map[uint32]func()
@@ -72,7 +73,7 @@ type Syncer struct {
 	io.Closer
 }
 
-func New(streamer p2p.Streamer, storage pullstorage.Storer, unwrap func(swarm.Chunk), validStamp func(swarm.Chunk, []byte) (swarm.Chunk, error), logger logging.Logger) *Syncer {
+func New(streamer p2p.Streamer, storage pullstorage.Storer, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger) *Syncer {
 	return &Syncer{
 		streamer:   streamer,
 		storage:    storage,

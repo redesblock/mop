@@ -38,7 +38,7 @@ type Service struct {
 	cashoutStatusFunc func(ctx context.Context, peer swarm.Address) (*chequebook.CashoutStatus, error)
 }
 
-// WithsettlementFunc sets the mock settlement function
+// WithSettlementSentFunc sets the mock settlement function
 func WithSettlementSentFunc(f func(swarm.Address) (*big.Int, error)) Option {
 	return optionFunc(func(s *Service) {
 		s.settlementSentFunc = f
@@ -51,7 +51,7 @@ func WithSettlementRecvFunc(f func(swarm.Address) (*big.Int, error)) Option {
 	})
 }
 
-// WithsettlementsFunc sets the mock settlements function
+// WithSettlementsSentFunc sets the mock settlements function
 func WithSettlementsSentFunc(f func() (map[string]*big.Int, error)) Option {
 	return optionFunc(func(s *Service) {
 		s.settlementsSentFunc = f

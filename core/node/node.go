@@ -103,6 +103,7 @@ type Node struct {
 	listenerCloser           io.Closer
 	postageServiceCloser     io.Closer
 	priceOracleCloser        io.Closer
+	hiveCloser               io.Closer
 	shutdownInProgress       bool
 	shutdownMutex            sync.Mutex
 }
@@ -124,7 +125,6 @@ type Options struct {
 	Bootnodes                  []string
 	CORSAllowedOrigins         []string
 	Logger                     logging.Logger
-	Standalone                 bool
 	TracingEnabled             bool
 	TracingEndpoint            string
 	TracingServiceName         string
@@ -133,6 +133,7 @@ type Options struct {
 	PaymentTolerance           string
 	PaymentEarly               string
 	ResolverConnectionCfgs     []multiresolver.ConnectionConfig
+	RetrievalCaching           bool
 	GatewayMode                bool
 	BootnodeMode               bool
 	SwapEndpoint               string
@@ -208,25 +209,23 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		cashoutService     chequebook.CashoutService
 		pollingInterval    = time.Duration(o.BlockTime) * time.Second
 	)
-	if !o.Standalone {
-		swapBackend, overlayEthAddress, chainID, transactionMonitor, transactionService, err = InitChain(
-			p2pCtx,
-			logger,
-			stateStore,
-			o.SwapEndpoint,
-			signer,
-			pollingInterval,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("init chain: %w", err)
-		}
-		b.ethClientCloser = swapBackend.Close
-		b.transactionCloser = tracerCloser
-		b.transactionMonitorCloser = transactionMonitor
+	swapBackend, overlayEthAddress, chainID, transactionMonitor, transactionService, err = InitChain(
+		p2pCtx,
+		logger,
+		stateStore,
+		o.SwapEndpoint,
+		signer,
+		pollingInterval,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("init chain: %w", err)
+	}
+	b.ethClientCloser = swapBackend.Close
+	b.transactionCloser = tracerCloser
+	b.transactionMonitorCloser = transactionMonitor
 
-		if o.ChainID != -1 && o.ChainID != chainID {
-			return nil, fmt.Errorf("connected to wrong ethereum network: got chainID %d, want %d", chainID, o.ChainID)
-		}
+	if o.ChainID != -1 && o.ChainID != chainID {
+		return nil, fmt.Errorf("connected to wrong ethereum network: got chainID %d, want %d", chainID, o.ChainID)
 	}
 
 	var debugAPIService *debugapi.Service
@@ -262,19 +261,17 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		b.debugAPIServer = debugAPIServer
 	}
 
-	if !o.Standalone {
-		// Sync the with the given Ethereum backend:
-		isSynced, _, err := transaction.IsSynced(p2pCtx, swapBackend, maxDelay)
-		if err != nil {
-			return nil, fmt.Errorf("is synced: %w", err)
-		}
-		if !isSynced {
-			logger.Infof("waiting to sync with the Ethereum backend")
+	// Sync the with the given Ethereum backend:
+	isSynced, _, err := transaction.IsSynced(p2pCtx, swapBackend, maxDelay)
+	if err != nil {
+		return nil, fmt.Errorf("is synced: %w", err)
+	}
+	if !isSynced {
+		logger.Infof("waiting to sync with the Ethereum backend")
 
-			err := transaction.WaitSynced(p2pCtx, logger, swapBackend, maxDelay)
-			if err != nil {
-				return nil, fmt.Errorf("waiting backend sync: %w", err)
-			}
+		err := transaction.WaitSynced(p2pCtx, logger, swapBackend, maxDelay)
+		if err != nil {
+			return nil, fmt.Errorf("waiting backend sync: %w", err)
 		}
 	}
 
@@ -358,7 +355,6 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
 		EnableQUIC:     o.EnableQUIC,
-		Standalone:     o.Standalone,
 		WelcomeMessage: o.WelcomeMessage,
 		FullNode:       o.FullNodeMode,
 		Transaction:    txHash,
@@ -418,56 +414,52 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	)
 
 	var postageSyncStart uint64 = 0
-	if !o.Standalone {
-		chainCfg, found := config.GetChainConfig(chainID)
-		postageContractAddress, startBlock := chainCfg.PostageStamp, chainCfg.StartBlock
-		if o.PostageContractAddress != "" {
-			if !common.IsHexAddress(o.PostageContractAddress) {
-				return nil, errors.New("malformed postage stamp address")
-			}
-			postageContractAddress = common.HexToAddress(o.PostageContractAddress)
-		} else if !found {
-			return nil, errors.New("no known postage stamp addresses for this network")
+	chainCfg, found := config.GetChainConfig(chainID)
+	postageContractAddress, startBlock := chainCfg.PostageStamp, chainCfg.StartBlock
+	if o.PostageContractAddress != "" {
+		if !common.IsHexAddress(o.PostageContractAddress) {
+			return nil, errors.New("malformed postage stamp address")
 		}
-		if found {
-			postageSyncStart = startBlock
-		}
-
-		eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b})
-		b.listenerCloser = eventListener
-
-		batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256)
-		if err != nil {
-			return nil, err
-		}
-
-		erc20Address, err := postagecontract.LookupERC20Address(p2pCtx, transactionService, postageContractAddress)
-		if err != nil {
-			return nil, err
-		}
-
-		postageContractService = postagecontract.New(
-			overlayEthAddress,
-			postageContractAddress,
-			erc20Address,
-			transactionService,
-			post,
-		)
+		postageContractAddress = common.HexToAddress(o.PostageContractAddress)
+	} else if !found {
+		return nil, errors.New("no known postage stamp addresses for this network")
+	}
+	if found {
+		postageSyncStart = startBlock
 	}
 
-	if !o.Standalone {
-		if natManager := p2ps.NATManager(); natManager != nil {
-			// wait for nat manager to init
-			logger.Debug("initializing NAT manager")
-			select {
-			case <-natManager.Ready():
-				// this is magic sleep to give NAT time to sync the mappings
-				// this is a hack, kind of alchemy and should be improved
-				time.Sleep(3 * time.Second)
-				logger.Debug("NAT manager initialized")
-			case <-time.After(10 * time.Second):
-				logger.Warning("NAT manager init timeout")
-			}
+	eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b})
+	b.listenerCloser = eventListener
+
+	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256)
+	if err != nil {
+		return nil, err
+	}
+
+	erc20Address, err := postagecontract.LookupERC20Address(p2pCtx, transactionService, postageContractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	postageContractService = postagecontract.New(
+		overlayEthAddress,
+		postageContractAddress,
+		erc20Address,
+		transactionService,
+		post,
+	)
+
+	if natManager := p2ps.NATManager(); natManager != nil {
+		// wait for nat manager to init
+		logger.Debug("initializing NAT manager")
+		select {
+		case <-natManager.Ready():
+			// this is magic sleep to give NAT time to sync the mappings
+			// this is a hack, kind of alchemy and should be improved
+			time.Sleep(3 * time.Second)
+			logger.Debug("NAT manager initialized")
+		case <-time.After(10 * time.Second):
+			logger.Warning("NAT manager init timeout")
 		}
 	}
 
@@ -482,21 +474,19 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	if err = p2ps.AddProtocol(hive.Protocol()); err != nil {
 		return nil, fmt.Errorf("hive service: %w", err)
 	}
+	b.hiveCloser = hive
 
 	var bootnodes []ma.Multiaddr
-	if o.Standalone {
-		logger.Info("Starting node in standalone mode, no p2p connections will be made or accepted")
-	} else {
-		for _, a := range o.Bootnodes {
-			addr, err := ma.NewMultiaddr(a)
-			if err != nil {
-				logger.Debugf("multiaddress fail %s: %v", a, err)
-				logger.Warningf("invalid bootnode address %s", a)
-				continue
-			}
 
-			bootnodes = append(bootnodes, addr)
+	for _, a := range o.Bootnodes {
+		addr, err := ma.NewMultiaddr(a)
+		if err != nil {
+			logger.Debugf("multiaddress fail %s: %v", a, err)
+			logger.Warningf("invalid bootnode address %s", a)
+			continue
 		}
+
+		bootnodes = append(bootnodes, addr)
 	}
 
 	var swapService *swap.Service
@@ -506,7 +496,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("unable to create metrics storage for kademlia: %w", err)
 	}
 
-	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, metricsDB, logger, kademlia.Options{Bootnodes: bootnodes, StandaloneMode: o.Standalone, BootnodeMode: o.BootnodeMode})
+	kad := kademlia.New(swarmAddress, addressbook, hive, p2ps, metricsDB, logger, kademlia.Options{Bootnodes: bootnodes, BootnodeMode: o.BootnodeMode})
 	b.topologyCloser = kad
 	b.topologyHalter = kad
 	hive.SetAddPeersHandler(kad.AddPeers)
@@ -618,7 +608,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	pricing.SetPaymentThresholdObserver(acc)
 
-	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer)
+	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer, o.RetrievalCaching, validStamp)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
 
@@ -745,6 +735,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		debugAPIService.MustRegisterMetrics(pullStorage.Metrics()...)
 		debugAPIService.MustRegisterMetrics(retrieve.Metrics()...)
 		debugAPIService.MustRegisterMetrics(lightNodes.Metrics()...)
+		debugAPIService.MustRegisterMetrics(hive.Metrics()...)
 
 		if bs, ok := batchStore.(metrics.Collector); ok {
 			debugAPIService.MustRegisterMetrics(bs.Metrics()...)
@@ -843,7 +834,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 		b.recoveryHandleCleanup()
 	}
 	var wg sync.WaitGroup
-	wg.Add(5)
+	wg.Add(6)
 	go func() {
 		defer wg.Done()
 		tryClose(b.pssCloser, "pss")
@@ -865,6 +856,10 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	go func() {
 		defer wg.Done()
 		tryClose(b.pullSyncCloser, "pull sync")
+	}()
+	go func() {
+		defer wg.Done()
+		tryClose(b.hiveCloser, "pull sync")
 	}()
 
 	wg.Wait()
@@ -906,7 +901,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 
 // pidKiller is used to issue a forced shut down of the node from sub modules. The issue with using the
 // node's Shutdown method is that it only shuts down the node and does not exit the start process
-// which is waiting on the os.Signals. This is not desirable, but currently bee node cannot handle
+// which is waiting on the os.Signals. This is not desirable, but currently hop node cannot handle
 // rate-limiting blockchain API calls properly. We will shut down the node in this case to allow the
 // user to rectify the API issues (by adjusting limits or using a different one). There is no platform
 // agnostic way to trigger os.Signals in go unfortunately. Which is why we will use the process.Kill

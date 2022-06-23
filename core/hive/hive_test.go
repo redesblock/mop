@@ -3,6 +3,7 @@ package hive_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -41,8 +42,10 @@ func TestHandlerRateLimit(t *testing.T) {
 
 	addressbookclean := ab.New(mock.NewStateStore())
 
+	// new recorder for handling Ping
+	streamer := streamtest.New()
 	// create a hive server that handles the incoming stream
-	server := hive.New(nil, addressbookclean, networkID, logger)
+	server := hive.New(streamer, addressbookclean, networkID, logger)
 
 	serverAddress := test.RandomAddress()
 
@@ -156,6 +159,7 @@ func TestBroadcastPeers(t *testing.T) {
 		wantMsgs         []pb.Peers
 		wantOverlays     []swarm.Address
 		wantHopAddresses []hop.Address
+		pingErr          func(addr ma.Multiaddr) (time.Duration, error)
 	}{
 		"OK - single record": {
 			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
@@ -192,14 +196,36 @@ func TestBroadcastPeers(t *testing.T) {
 			wantOverlays:     overlays[:2*hive.MaxBatchSize],
 			wantHopAddresses: hopAddresses[:2*hive.MaxBatchSize],
 		},
+		"OK - single batch - skip ping failures": {
+			addresee:         swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:            overlays[:15],
+			wantMsgs:         []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
+			wantOverlays:     overlays[:10],
+			wantHopAddresses: hopAddresses[:10],
+			pingErr: func(addr ma.Multiaddr) (rtt time.Duration, err error) {
+				for _, v := range hopAddresses[10:15] {
+					if v.Underlay.Equal(addr) {
+						return rtt, errors.New("ping failure")
+					}
+				}
+				return rtt, nil
+			},
+		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			addressbookclean := ab.New(mock.NewStateStore())
 
+			// new recorder for handling Ping
+			var streamer *streamtest.Recorder
+			if tc.pingErr != nil {
+				streamer = streamtest.New(streamtest.WithPingErr(tc.pingErr))
+			} else {
+				streamer = streamtest.New()
+			}
 			// create a hive server that handles the incoming stream
-			server := hive.New(nil, addressbookclean, networkID, logger)
+			server := hive.New(streamer, addressbookclean, networkID, logger)
 
 			// setup the stream recorder to record stream data
 			recorder := streamtest.New(

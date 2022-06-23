@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/hop/core/p2p"
 	"github.com/redesblock/hop/core/swarm"
 )
@@ -33,6 +34,7 @@ type Recorder struct {
 	protocols          []p2p.ProtocolSpec
 	middlewares        []p2p.HandlerMiddleware
 	streamErr          func(swarm.Address, string, string, string) error
+	pingErr            func(ma.Multiaddr) (time.Duration, error)
 	protocolsWithPeers map[string]p2p.ProtocolSpec
 }
 
@@ -69,6 +71,12 @@ func WithLightNode() Option {
 func WithStreamError(streamErr func(swarm.Address, string, string, string) error) Option {
 	return optionFunc(func(r *Recorder) {
 		r.streamErr = streamErr
+	})
+}
+
+func WithPingErr(pingErr func(ma.Multiaddr) (time.Duration, error)) Option {
+	return optionFunc(func(r *Recorder) {
+		r.pingErr = pingErr
 	})
 }
 
@@ -147,6 +155,13 @@ func (r *Recorder) NewStream(ctx context.Context, addr swarm.Address, h p2p.Head
 
 	r.records[id] = append(r.records[id], record)
 	return streamOut, nil
+}
+
+func (r *Recorder) Ping(ctx context.Context, addr ma.Multiaddr) (rtt time.Duration, err error) {
+	if r.pingErr != nil {
+		return r.pingErr(addr)
+	}
+	return rtt, err
 }
 
 func (r *Recorder) Records(addr swarm.Address, protocolName, protocolVersio, streamName string) ([]*Record, error) {

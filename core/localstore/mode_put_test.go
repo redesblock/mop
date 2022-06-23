@@ -244,6 +244,7 @@ func TestModePutUpload(t *testing.T) {
 				newPinIndexTest(db, ch, leveldb.ErrNotFound)(t)
 			}
 			newItemsCountTest(db.postageIndexIndex, tc.count)(t)
+			newIndexGCSizeTest(db)(t)
 		})
 	}
 }
@@ -282,6 +283,7 @@ func TestModePutUploadPin(t *testing.T) {
 				newPinIndexTest(db, ch, nil)(t)
 			}
 			newItemsCountTest(db.postageIndexIndex, tc.count)(t)
+			newIndexGCSizeTest(db)(t)
 		})
 	}
 }
@@ -468,6 +470,7 @@ func TestModePut_sameChunk(t *testing.T) {
 						newItemsCountTest(db.retrievalDataIndex, tc.count)(t)
 						newItemsCountTest(db.pullIndex, count(tcn.pullIndex))(t)
 						newItemsCountTest(db.pushIndex, count(tcn.pushIndex))(t)
+						newIndexGCSizeTest(db)(t)
 					}
 				})
 			}

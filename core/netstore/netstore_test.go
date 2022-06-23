@@ -12,6 +12,7 @@ import (
 
 	"github.com/redesblock/hop/core/logging"
 	"github.com/redesblock/hop/core/netstore"
+	"github.com/redesblock/hop/core/postage"
 	postagetesting "github.com/redesblock/hop/core/postage/testing"
 	"github.com/redesblock/hop/core/pss"
 	"github.com/redesblock/hop/core/recovery"
@@ -182,7 +183,7 @@ func TestInvalidPostageStamp(t *testing.T) {
 }
 
 // returns a mock retrieval protocol, a mock local storage and a netstore
-func newRetrievingNetstore(rec recovery.Callback, validStamp func(swarm.Chunk, []byte) (swarm.Chunk, error)) (ret *retrievalMock, mockStore *mock.MockStorer, ns storage.Storer) {
+func newRetrievingNetstore(rec recovery.Callback, validStamp postage.ValidStampFn) (ret *retrievalMock, mockStore *mock.MockStorer, ns storage.Storer) {
 	retrieve := &retrievalMock{}
 	store := mock.NewStorer()
 	logger := logging.New(ioutil.Discard, 0)

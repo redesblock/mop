@@ -2,6 +2,7 @@ package debugapi
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/redesblock/hop/core/metrics"
 )
 
@@ -10,10 +11,10 @@ func newMetricsRegistry() (r *prometheus.Registry) {
 
 	// register standard metrics
 	r.MustRegister(
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{
 			Namespace: metrics.Namespace,
 		}),
-		prometheus.NewGoCollector(),
+		collectors.NewGoCollector(),
 		prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   metrics.Namespace,
 			Name:        "info",
