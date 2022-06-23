@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/logging"
@@ -27,6 +28,7 @@ import (
 	"github.com/redesblock/hop/core/topology/lightnode"
 	"github.com/redesblock/hop/core/tracing"
 	"github.com/redesblock/hop/core/transaction"
+	"golang.org/x/sync/semaphore"
 )
 
 // Service implements http.Handler interface to be used in HTTP server.
@@ -58,6 +60,11 @@ type Service struct {
 	// handler is changed in the Configure method
 	handler   http.Handler
 	handlerMu sync.RWMutex
+
+	// The following are semaphores which exists to limit concurrent access
+	// to some parts of the resources in order to avoid undefined behaviour.
+	postageCreateSem *semaphore.Weighted
+	cashOutChequeSem *semaphore.Weighted
 }
 
 // New creates a new Debug API Service with only basic routers enabled in order
@@ -75,6 +82,8 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 	s.blockTime = blockTime
 	s.metricsRegistry = newMetricsRegistry()
 	s.transaction = transaction
+	s.postageCreateSem = semaphore.NewWeighted(1)
+	s.cashOutChequeSem = semaphore.NewWeighted(1)
 
 	s.setRouter(s.newBasicRouter())
 
