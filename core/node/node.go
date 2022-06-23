@@ -124,7 +124,6 @@ type Options struct {
 	Addr                       string
 	NATAddr                    string
 	EnableWS                   bool
-	EnableQUIC                 bool
 	WelcomeMessage             string
 	Bootnodes                  []string
 	CORSAllowedOrigins         []string
@@ -377,7 +376,6 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		PrivateKey:     libp2pPrivateKey,
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
-		EnableQUIC:     o.EnableQUIC,
 		WelcomeMessage: o.WelcomeMessage,
 		FullNode:       o.FullNodeMode,
 		Transaction:    txHash,
@@ -718,15 +716,14 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	if o.FullNodeMode {
 		cs, err := chainsync.New(p2ps, swapBackend)
 		if err != nil {
-			return nil, fmt.Errorf("new chainsync: %v", err)
+			return nil, fmt.Errorf("new chainsync: %w", err)
 		}
 		if err = p2ps.AddProtocol(cs.Protocol()); err != nil {
 			return nil, fmt.Errorf("chainsync protocol: %w", err)
 		}
-
-		chainSyncer, err = chainsyncer.New(swapBackend, cs, kad, logger, nil)
+		chainSyncer, err = chainsyncer.New(swapBackend, cs, kad, p2ps, logger, nil)
 		if err != nil {
-			return nil, fmt.Errorf("new chainsyncer: %v", err)
+			return nil, fmt.Errorf("new chainsyncer: %w", err)
 		}
 
 		b.chainSyncerCloser = chainSyncer
@@ -914,7 +911,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	}()
 	go func() {
 		defer wg.Done()
-		tryClose(b.hiveCloser, "pull sync")
+		tryClose(b.hiveCloser, "hive")
 	}()
 
 	wg.Wait()

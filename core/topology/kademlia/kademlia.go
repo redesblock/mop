@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -110,7 +112,6 @@ type Kad struct {
 	staticPeer        staticPeerFunc
 	bgBroadcastCtx    context.Context
 	bgBroadcastCancel context.CancelFunc
-	bgBroadcastWg     sync.WaitGroup
 	blocker           *blocker.Blocker
 }
 
@@ -166,8 +167,14 @@ func New(
 		pruneFunc:         o.PruneFunc,
 		pinger:            pinger,
 		staticPeer:        isStaticPeer(o.StaticNodes),
-		blocker:           blocker.New(p2p, flagTimeout, blockDuration, blockWorkerWakup, logger),
 	}
+
+	blocklistCallback := func(a swarm.Address) {
+		k.logger.Debugf("kademlia: disconnecting peer %s for ping failure", a.String())
+		k.metrics.Blocklist.Inc()
+	}
+
+	k.blocker = blocker.New(p2p, flagTimeout, blockDuration, blockWorkerWakup, blocklistCallback, logger)
 
 	if k.pruneFunc == nil {
 		k.pruneFunc = k.pruneOversaturatedBins
@@ -563,9 +570,11 @@ func (k *Kad) recordPeerLatencies(ctx context.Context) {
 			if err != nil {
 				k.logger.Tracef("kademlia: cannot get latency for peer %s: %v", addr.String(), err)
 				k.blocker.Flag(addr)
+				k.metrics.Flag.Inc()
 				return
 			}
 			k.blocker.Unflag(addr)
+			k.metrics.Unflag.Inc()
 			k.collector.Record(addr, im.PeerLatency(l))
 			v := k.collector.Inspect(addr).LatencyEWMA
 			k.metrics.PeerLatencyEWMA.Observe(v.Seconds())
@@ -661,7 +670,7 @@ func (k *Kad) Start(_ context.Context) error {
 			return false, nil
 		})
 		if err != nil {
-			k.logger.Errorf("addressbook overlays: %w", err)
+			k.logger.Errorf("addressbook overlays: %v", err)
 			return
 		}
 		k.AddPeers(addresses...)
@@ -710,8 +719,12 @@ func (k *Kad) connectBootNodes(ctx context.Context) {
 			if err := k.onConnected(ctx, hopAddress.Overlay); err != nil {
 				return false, err
 			}
+
+			k.metrics.TotalOutboundConnections.Inc()
+			k.collector.Record(hopAddress.Overlay, im.PeerLogIn(time.Now(), im.PeerConnectionDirectionOutbound))
 			k.logger.Tracef("connected to bootnode %s", addr)
 			connected++
+
 			// connect to max 3 bootnodes
 			return connected >= 3, nil
 		}); err != nil && !errors.Is(err, context.Canceled) {
@@ -848,7 +861,7 @@ func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr) 
 		k.collector.Record(peer, im.IncSessionConnectionRetry())
 
 		ss := k.collector.Inspect(peer)
-		quickPrune := ss == nil || ss.HasAtMaxOneConnectionAttempt()
+		quickPrune := (ss == nil || ss.HasAtMaxOneConnectionAttempt()) && isNetworkError(err)
 		if (k.connectedPeers.Length() > 0 && quickPrune) || failedAttempts >= maxConnAttempts {
 			k.waitNext.Remove(peer)
 			k.knownPeers.Remove(peer)
@@ -901,9 +914,7 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) e
 				continue
 			default:
 			}
-			k.bgBroadcastWg.Add(1)
 			go func(connectedPeer swarm.Address) {
-				defer k.bgBroadcastWg.Done()
 
 				// Create a new deadline ctx to prevent goroutine pile up
 				cCtx, cCancel := context.WithTimeout(k.bgBroadcastCtx, time.Minute)
@@ -977,7 +988,14 @@ func isStaticPeer(staticNodes []swarm.Address) func(overlay swarm.Address) bool 
 
 // Connected is called when a peer has dialed in.
 // If forceConnection is true `overSaturated` is ignored for non-bootnodes.
-func (k *Kad) Connected(ctx context.Context, peer p2p.Peer, forceConnection bool) error {
+func (k *Kad) Connected(ctx context.Context, peer p2p.Peer, forceConnection bool) (err error) {
+	defer func() {
+		if err == nil {
+			k.metrics.TotalInboundConnections.Inc()
+			k.collector.Record(peer.Address, im.PeerLogIn(time.Now(), im.PeerConnectionDirectionInbound))
+		}
+	}()
+
 	address := peer.Address
 	po := swarm.Proximity(k.base.Bytes(), address.Bytes())
 
@@ -1005,9 +1023,6 @@ func (k *Kad) onConnected(ctx context.Context, addr swarm.Address) error {
 
 	k.knownPeers.Add(addr)
 	k.connectedPeers.Add(addr)
-
-	k.metrics.TotalInboundConnections.Inc()
-	k.collector.Record(addr, im.PeerLogIn(time.Now(), im.PeerConnectionDirectionInbound))
 
 	k.waitNext.Remove(addr)
 
@@ -1383,16 +1398,10 @@ func (k *Kad) Close() error {
 	cc := make(chan struct{})
 
 	k.bgBroadcastCancel()
-	bgBroadcastDone := make(chan struct{})
 
 	go func() {
 		k.wg.Wait()
 		close(cc)
-	}()
-
-	go func() {
-		k.bgBroadcastWg.Wait()
-		close(bgBroadcastDone)
 	}()
 
 	eg := errgroup.Group{}
@@ -1404,16 +1413,6 @@ func (k *Kad) Close() error {
 		case <-cc:
 		case <-time.After(peerConnectionAttemptTimeout):
 			k.logger.Warning("kademlia shutting down with announce goroutines")
-			return errTimeout
-		}
-		return nil
-	})
-
-	eg.Go(func() error {
-		select {
-		case <-bgBroadcastDone:
-		case <-time.After(time.Second * 5):
-			k.logger.Warning("kademlia shutting down with unfinished broadcasts")
 			return errTimeout
 		}
 		return nil
@@ -1497,4 +1496,27 @@ func createMetricsSnapshotView(ss *im.Snapshot) *topology.MetricSnapshotView {
 		SessionConnectionDirection: string(ss.SessionConnectionDirection),
 		LatencyEWMA:                ss.LatencyEWMA.Milliseconds(),
 	}
+}
+
+// isNetworkError is checking various conditions that relate to network problems.
+func isNetworkError(err error) bool {
+	var netOpErr *net.OpError
+	if errors.As(err, &netOpErr) {
+		if netOpErr.Op == "dial" {
+			return true
+		}
+		if netOpErr.Op == "read" {
+			return true
+		}
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return true
+	}
+	if errors.Is(err, syscall.EPIPE) {
+		return true
+	}
+	if errors.Is(err, syscall.ETIMEDOUT) {
+		return true
+	}
+	return false
 }

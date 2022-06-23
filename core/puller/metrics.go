@@ -11,6 +11,7 @@ type metrics struct {
 	HistWorkerErrCounter  prometheus.Counter // count number of errors
 	LiveWorkerIterCounter prometheus.Counter // counts the number of live syncing iterations
 	LiveWorkerErrCounter  prometheus.Counter // count number of errors
+	MaxUintErrCounter     prometheus.Counter // how many times we got maxuint as topmost
 }
 
 func newMetrics() metrics {
@@ -46,6 +47,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "live_worker_errors",
 			Help:      "Total live worker errors.",
+		}),
+		MaxUintErrCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "max_uint_errors",
+			Help:      "Total max uint errors.",
 		}),
 	}
 }

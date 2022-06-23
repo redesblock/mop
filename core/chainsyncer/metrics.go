@@ -11,6 +11,7 @@ type metrics struct {
 	PeerErrors       prometheus.Counter
 	InvalidProofs    prometheus.Counter
 	TotalTimeWaiting prometheus.Counter
+	PositiveProofs   prometheus.Gauge
 }
 
 func newMetrics() metrics {
@@ -46,6 +47,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "total_time_waiting",
 			Help:      "total time spent waiting for proofs (not per peer but rather per cycle)",
+		}),
+		PositiveProofs: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "positive_proofs",
+			Help:      "percentage of positive proofs logged in every round of chain-sync challenge-response iterations",
 		}),
 	}
 }

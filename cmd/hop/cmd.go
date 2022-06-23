@@ -29,7 +29,6 @@ const (
 	optionNameP2PAddr                    = "p2p-addr"
 	optionNameNATAddr                    = "nat-addr"
 	optionNameP2PWSEnable                = "p2p-ws-enable"
-	optionNameP2PQUICEnable              = "p2p-quic-enable"
 	optionNameDebugAPIEnable             = "debug-api-enable"
 	optionNameDebugAPIAddr               = "debug-api-addr"
 	optionNameBootnodes                  = "bootnode"
@@ -73,6 +72,7 @@ const (
 	optionNamePProfMutex                 = "pprof-mutex"
 	optionNameStaticNodes                = "static-nodes"
 	optionNameAllowPrivateCIDRs          = "allow-private-cidrs"
+	optionNameSleepAfter                 = "sleep-after"
 )
 
 func init() {
@@ -213,7 +213,6 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameP2PAddr, ":1634", "P2P listen address")
 	cmd.Flags().String(optionNameNATAddr, "", "NAT exposed address")
 	cmd.Flags().Bool(optionNameP2PWSEnable, false, "enable P2P WebSocket transport")
-	cmd.Flags().Bool(optionNameP2PQUICEnable, false, "enable P2P QUIC transport")
 	cmd.Flags().StringSlice(optionNameBootnodes, []string{"/dnsaddr/testnet.ethswarm.org"}, "initial nodes to connect to")
 	cmd.Flags().Bool(optionNameDebugAPIEnable, false, "enable debug HTTP API")
 	cmd.Flags().String(optionNameDebugAPIAddr, ":1635", "debug HTTP API listen address")

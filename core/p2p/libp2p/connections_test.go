@@ -323,23 +323,21 @@ func TestDifferentNetworkIDs(t *testing.T) {
 	expectPeers(t, s2)
 }
 
-func TestConnectWithEnabledQUICAndWSTransports(t *testing.T) {
+func TestConnectWithEnabledWSTransports(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	s1, overlay1 := newService(t, 1, libp2pServiceOpts{
 		libp2pOpts: libp2p.Options{
-			EnableQUIC: true,
-			EnableWS:   true,
-			FullNode:   true,
+			EnableWS: true,
+			FullNode: true,
 		},
 	})
 
 	s2, overlay2 := newService(t, 1, libp2pServiceOpts{
 		libp2pOpts: libp2p.Options{
-			EnableQUIC: true,
-			EnableWS:   true,
-			FullNode:   true,
+			EnableWS: true,
+			FullNode: true,
 		},
 	})
 

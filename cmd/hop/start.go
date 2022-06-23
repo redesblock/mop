@@ -52,7 +52,7 @@ func (c *command) initStartCmd() (err error) {
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
 			logger, err := newLogger(cmd, v)
 			if err != nil {
-				return fmt.Errorf("new logger: %v", err)
+				return fmt.Errorf("new logger: %w", err)
 			}
 
 			go startTimeBomb(logger)
@@ -158,7 +158,6 @@ func (c *command) initStartCmd() (err error) {
 				Addr:                       c.config.GetString(optionNameP2PAddr),
 				NATAddr:                    c.config.GetString(optionNameNATAddr),
 				EnableWS:                   c.config.GetBool(optionNameP2PWSEnable),
-				EnableQUIC:                 c.config.GetBool(optionNameP2PQUICEnable),
 				WelcomeMessage:             c.config.GetString(optionWelcomeMessage),
 				Bootnodes:                  networkConfig.bootNodes,
 				CORSAllowedOrigins:         c.config.GetStringSlice(optionCORSAllowedOrigins),

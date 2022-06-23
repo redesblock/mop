@@ -186,7 +186,7 @@ func (bb *bitsForBytes) set(b byte) {
 }
 
 //nolint,unused
-func (bb *bitsForBytes) get(b byte) bool { // skipcq: SCC-U1000
+func (bb *bitsForBytes) get(b byte) bool {
 	return bb.getUint8(b)
 }
 
