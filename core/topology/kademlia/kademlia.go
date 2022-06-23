@@ -46,9 +46,10 @@ var (
 )
 
 var (
-	errOverlayMismatch = errors.New("overlay mismatch")
-	errPruneEntry      = errors.New("prune entry")
-	errEmptyBin        = errors.New("empty bin")
+	errOverlayMismatch   = errors.New("overlay mismatch")
+	errPruneEntry        = errors.New("prune entry")
+	errEmptyBin          = errors.New("empty bin")
+	errAnnounceLightNode = errors.New("announcing light node")
 )
 
 type (
@@ -522,6 +523,10 @@ func (k *Kad) manage() {
 			default:
 			}
 
+			if k.bootnode {
+				continue
+			}
+
 			oldDepth := k.NeighborhoodDepth()
 			k.connectNeighbours(&wg, peerConnChan, peerConnChan2)
 			k.connectBalanced(&wg, peerConnChan2)
@@ -836,6 +841,15 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) e
 	}
 
 	return err
+}
+
+// AnnounceTo announces a selected peer to another.
+func (k *Kad) AnnounceTo(ctx context.Context, addressee, peer swarm.Address, fullnode bool) error {
+	if !fullnode {
+		return errAnnounceLightNode
+	}
+
+	return k.discovery.BroadcastPeers(ctx, addressee, peer)
 }
 
 // AddPeers adds peers to the knownPeers list.

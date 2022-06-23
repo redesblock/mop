@@ -173,7 +173,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 		return
 	}
 
-	logger.Debugf("Uploading file Encrypt: %v Filename: %s Filehash: %s FileMtdt: %v",
+	logger.Debugf("hop upload file: encrypt %v filename: %s hash: %s metadata: %v",
 		encrypt, fileName, fr.String(), fileMtdt)
 
 	storeSizeFn := []manifest.StoreSizeFunc{}
@@ -203,7 +203,7 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 		}
 		return
 	}
-	logger.Debugf("Manifest Reference: %s", manifestReference.String())
+	logger.Debugf("hop upload file: manifest reference: %s", manifestReference.String())
 
 	if created {
 		_, err = tag.DoneSplit(manifestReference)
@@ -518,6 +518,7 @@ func (s *server) manifestFeed(
 	return s.feedFactory.NewLookup(*t, f)
 }
 
+// hopPatchHandler endpoint has been deprecated; use stewardship endpoint instead.
 func (s *server) hopPatchHandler(w http.ResponseWriter, r *http.Request) {
 	nameOrHex := mux.Vars(r)["address"]
 	address, err := s.resolveNameOrAddress(nameOrHex)

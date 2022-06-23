@@ -29,8 +29,6 @@ func (m ModeGet) String() string {
 		return "Sync"
 	case ModeGetLookup:
 		return "Lookup"
-	case ModeGetPin:
-		return "PinLookup"
 	case ModeGetRequestPin:
 		return "RequestPin"
 	default:
@@ -46,8 +44,6 @@ const (
 	ModeGetSync
 	// ModeGetLookup: when accessed to lookup a a chunk in feeds or other places
 	ModeGetLookup
-	// ModeGetPin: used when a pinned chunk is accessed
-	ModeGetPin
 	// ModeGetRequestPin represents request for retrieval of pinned chunk.
 	ModeGetRequestPin
 )

@@ -235,7 +235,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 			return nil, fmt.Errorf("eth address: %w", err)
 		}
 		// set up basic debug api endpoints for debugging and /health endpoint
-		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, transactionService)
+		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, big.NewInt(int64(o.BlockTime)), transactionService)
 
 		debugAPIListener, err := net.Listen("tcp", o.DebugAPIAddr)
 		if err != nil {
@@ -348,7 +348,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	lightNodes := lightnode.NewContainer(swarmAddress)
 
-	senderMatcher := transaction.NewMatcher(swapBackend, types.NewEIP155Signer(big.NewInt(chainID)), stateStore)
+	senderMatcher := transaction.NewMatcher(swapBackend, types.NewEIP2930Signer(big.NewInt(chainID)), stateStore)
 
 	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,

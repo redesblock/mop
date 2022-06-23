@@ -5,6 +5,7 @@ package debugapi
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"net/http"
 	"sync"
 
@@ -53,6 +54,7 @@ type Service struct {
 	corsAllowedOrigins []string
 	metricsRegistry    *prometheus.Registry
 	lightNodes         *lightnode.Container
+	blockTime          *big.Int
 	// handler is changed in the Configure method
 	handler   http.Handler
 	handlerMu sync.RWMutex
@@ -62,7 +64,7 @@ type Service struct {
 // to expose /addresses, /health endpoints, Go metrics and pprof. It is useful to expose
 // these endpoints before all dependencies are configured and injected to have
 // access to basic debugging tools and /health endpoint.
-func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address, logger logging.Logger, tracer *tracing.Tracer, corsAllowedOrigins []string, transaction transaction.Service) *Service {
+func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address, logger logging.Logger, tracer *tracing.Tracer, corsAllowedOrigins []string, blockTime *big.Int, transaction transaction.Service) *Service {
 	s := new(Service)
 	s.publicKey = publicKey
 	s.pssPublicKey = pssPublicKey
@@ -70,6 +72,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 	s.logger = logger
 	s.tracer = tracer
 	s.corsAllowedOrigins = corsAllowedOrigins
+	s.blockTime = blockTime
 	s.metricsRegistry = newMetricsRegistry()
 	s.transaction = transaction
 
