@@ -1,4 +1,4 @@
-// Package api provides the functionality of the Hop
+// Package api provides the functionality of the hop
 // client-facing HTTP API.
 package api
 

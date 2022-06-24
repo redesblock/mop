@@ -25,7 +25,7 @@ const (
 	// ProtocolName is the text of the name of the handshake protocol.
 	ProtocolName = "handshake"
 	// ProtocolVersion is the current handshake protocol version.
-	ProtocolVersion = "4.0.0"
+	ProtocolVersion = "5.0.0"
 	// StreamName is the name of the stream used for handshake purposes.
 	StreamName = "handshake"
 	// MaxWelcomeMessageLength is maximum number of characters allowed in the welcome message.
@@ -59,7 +59,7 @@ type AdvertisableAddressResolver interface {
 }
 
 type SenderMatcher interface {
-	Matches(ctx context.Context, tx []byte, networkID uint64, senderOverlay swarm.Address) ([]byte, error)
+	Matches(ctx context.Context, tx []byte, networkID uint64, senderOverlay swarm.Address, ignoreGreylist bool) ([]byte, error)
 }
 
 // Service can perform initiate or handle a handshake between peers.
@@ -187,7 +187,7 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, ErrNetworkIDIncompatible
 	}
 
-	blockHash, err := s.senderMatcher.Matches(ctx, resp.Ack.Transaction, s.networkID, overlay)
+	blockHash, err := s.senderMatcher.Matches(ctx, resp.Ack.Transaction, s.networkID, overlay, false)
 	if err != nil {
 		return nil, fmt.Errorf("overlay %v verification failed: %w", overlay, err)
 	}
@@ -317,7 +317,7 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 		}
 	}
 
-	blockHash, err := s.senderMatcher.Matches(ctx, ack.Transaction, s.networkID, overlay)
+	blockHash, err := s.senderMatcher.Matches(ctx, ack.Transaction, s.networkID, overlay, false)
 	if err != nil {
 		return nil, fmt.Errorf("overlay %v verification failed: %w", overlay, err)
 	}

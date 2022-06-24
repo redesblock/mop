@@ -22,7 +22,14 @@ var addr common.Address = common.HexToAddress("abcdef")
 
 var postageStampAddress common.Address = common.HexToAddress("eeee")
 
-const stallingTimeout = 5 * time.Second
+const (
+	stallingTimeout = 5 * time.Second
+	backoffTime     = 5 * time.Second
+)
+
+func toBatchBlock(block uint64) uint64 {
+	return (block / listener.BatchFactor) * listener.BatchFactor
+}
 
 func TestListener(t *testing.T) {
 	logger := logging.New(io.Discard, 0)
@@ -46,7 +53,7 @@ func TestListener(t *testing.T) {
 			),
 		)
 
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -77,7 +84,7 @@ func TestListener(t *testing.T) {
 				topup.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -108,7 +115,7 @@ func TestListener(t *testing.T) {
 				depthIncrease.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -137,7 +144,7 @@ func TestListener(t *testing.T) {
 				priceUpdate.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 		select {
 		case e := <-evC:
@@ -189,7 +196,7 @@ func TestListener(t *testing.T) {
 			),
 			WithBlockNumber(blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -246,7 +253,7 @@ func TestListener(t *testing.T) {
 
 		select {
 		case e := <-evC:
-			e.(blockNumberCall).compare(t, blockNumber-uint64(listener.TailSize)) // event args should be equal
+			e.(blockNumberCall).compare(t, toBatchBlock(blockNumber-uint64(listener.TailSize))) // event args should be equal
 		case <-time.After(timeout):
 			t.Fatal("timed out waiting for block number update")
 		}
@@ -259,12 +266,12 @@ func TestListener(t *testing.T) {
 		mf := newMockFilterer(
 			WithBlockNumberErrorOnce(errors.New("dummy error"), blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, stallingTimeout, 0*time.Second)
 		l.Listen(0, ev)
 
 		select {
 		case e := <-evC:
-			e.(blockNumberCall).compare(t, blockNumber-uint64(listener.TailSize)) // event args should be equal
+			e.(blockNumberCall).compare(t, toBatchBlock(blockNumber-uint64(listener.TailSize))) // event args should be equal
 		case <-time.After(timeout):
 			t.Fatal("timed out waiting for block number update")
 		}
@@ -276,7 +283,7 @@ func TestListener(t *testing.T) {
 		mf := newMockFilterer(
 			WithBlockNumberError(errors.New("dummy error")),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, 50*time.Millisecond)
+		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, 50*time.Millisecond, 0*time.Second)
 		l.Listen(0, ev)
 
 		start := time.Now()
@@ -298,12 +305,12 @@ func TestListener(t *testing.T) {
 		mf := newMockFilterer(
 			WithBlockNumber(blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, stallingTimeout)
+		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
 		case e := <-evC:
-			e.(blockNumberCall).compare(t, blockNumber-uint64(listener.TailSize)) // event args should be equal
+			e.(blockNumberCall).compare(t, toBatchBlock(blockNumber-uint64(listener.TailSize))) // event args should be equal
 		case <-time.After(timeout):
 			t.Fatal("timed out waiting for block number update")
 		}

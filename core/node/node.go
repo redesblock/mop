@@ -92,6 +92,7 @@ type Node struct {
 	tagsCloser               io.Closer
 	stateStoreCloser         io.Closer
 	localstoreCloser         io.Closer
+	nsCloser                 io.Closer
 	topologyCloser           io.Closer
 	topologyHalter           topology.Halter
 	pusherCloser             io.Closer
@@ -168,6 +169,7 @@ const (
 	lightRefreshRate              = int64(450000)
 	basePrice                     = 10000
 	postageSyncingStallingTimeout = 10 * time.Minute
+	postageSyncingBackoffTimeout  = 5 * time.Second
 )
 
 func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger logging.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o *Options) (b *Node, err error) {
@@ -382,7 +384,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	senderMatcher := transaction.NewMatcher(swapBackend, types.NewLondonSigner(big.NewInt(chainID)), stateStore)
 
-	_, err = senderMatcher.Matches(p2pCtx, txHash, networkID, swarmAddress)
+	_, err = senderMatcher.Matches(p2pCtx, txHash, networkID, swarmAddress, true)
 	if err != nil {
 		return nil, fmt.Errorf("identity transaction verification failed: %w", err)
 	}
@@ -464,7 +466,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		postageSyncStart = startBlock
 	}
 
-	eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b}, postageSyncingStallingTimeout)
+	eventListener = listener.New(logger, swapBackend, postageContractAddress, o.BlockTime, &pidKiller{node: b}, postageSyncingStallingTimeout, postageSyncingBackoffTimeout)
 	b.listenerCloser = eventListener
 
 	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256, o.Resync)
@@ -675,6 +677,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	} else {
 		ns = netstore.New(storer, validStamp, nil, retrieve, logger)
 	}
+	b.nsCloser = ns
 
 	traversalService := traversal.New(ns)
 
@@ -970,6 +973,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 	tryClose(b.tracerCloser, "tracer")
 	tryClose(b.tagsCloser, "tag persistence")
 	tryClose(b.topologyCloser, "topology driver")
+	tryClose(b.nsCloser, "netstore")
 	tryClose(b.stateStoreCloser, "statestore")
 	tryClose(b.localstoreCloser, "localstore")
 	tryClose(b.errorLogWriter, "error log writer")
