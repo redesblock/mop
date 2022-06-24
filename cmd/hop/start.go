@@ -167,8 +167,8 @@ func (c *command) initStartCmd() (err error) {
 				Logger:                     logger,
 				GlobalPinningEnabled:       c.config.GetBool(optionNameGlobalPinningEnabled),
 				PaymentThreshold:           c.config.GetString(optionNamePaymentThreshold),
-				PaymentTolerance:           c.config.GetString(optionNamePaymentTolerance),
-				PaymentEarly:               c.config.GetString(optionNamePaymentEarly),
+				PaymentTolerance:           c.config.GetInt64(optionNamePaymentTolerance),
+				PaymentEarly:               c.config.GetInt64(optionNamePaymentEarly),
 				ResolverConnectionCfgs:     resolverCfgs,
 				GatewayMode:                c.config.GetBool(optionNameGatewayMode),
 				BootnodeMode:               bootNode,
@@ -192,6 +192,9 @@ func (c *command) initStartCmd() (err error) {
 				MutexProfile:               c.config.GetBool(optionNamePProfMutex),
 				StaticNodes:                staticNodes,
 				AllowPrivateCIDRs:          c.config.GetBool(optionNameAllowPrivateCIDRs),
+				Restricted:                 c.config.GetBool(optionNameRestrictedAPI),
+				TokenEncryptionKey:         c.config.GetString(optionNameTokenEncryptionKey),
+				AdminPasswordHash:          c.config.GetString(optionNameAdminPasswordHash),
 			})
 			if err != nil {
 				return err

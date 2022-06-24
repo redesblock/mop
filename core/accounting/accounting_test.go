@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	testPaymentTolerance = big.NewInt(1000)
-	testPaymentEarly     = big.NewInt(1000)
+	testPaymentTolerance = int64(10)
+	testPaymentEarly     = int64(10)
 	testPaymentThreshold = big.NewInt(10000)
 )
 
@@ -346,7 +346,7 @@ func TestAccountingDisconnect(t *testing.T) {
 	acc.Connect(peer1Addr)
 
 	// put the peer 1 unit away from disconnect
-	debitAction, err := acc.PrepareDebit(peer1Addr, testPaymentThreshold.Uint64()+testPaymentTolerance.Uint64()-1)
+	debitAction, err := acc.PrepareDebit(peer1Addr, (testPaymentThreshold.Uint64()*(100+uint64(testPaymentTolerance))/100)-1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,7 +763,7 @@ func TestAccountingCallSettlementEarly(t *testing.T) {
 	defer store.Close()
 
 	debt := uint64(500)
-	earlyPayment := big.NewInt(1000)
+	earlyPayment := int64(10)
 
 	acc, err := accounting.NewAccounting(testPaymentThreshold, testPaymentTolerance, earlyPayment, logger, store, nil, big.NewInt(testRefreshRate), p2pmock.New())
 	if err != nil {
@@ -795,7 +795,7 @@ func TestAccountingCallSettlementEarly(t *testing.T) {
 	}
 	creditAction.Cleanup()
 
-	payment := testPaymentThreshold.Uint64() - earlyPayment.Uint64()
+	payment := testPaymentThreshold.Uint64() * (100 - uint64(earlyPayment)) / 100
 	creditAction, err = acc.PrepareCredit(peer1Addr, payment, true)
 	if err != nil {
 		t.Fatal(err)
@@ -830,7 +830,7 @@ func TestAccountingSurplusBalance(t *testing.T) {
 	store := mock.NewStateStore()
 	defer store.Close()
 
-	acc, err := accounting.NewAccounting(testPaymentThreshold, big.NewInt(0), big.NewInt(0), logger, store, nil, big.NewInt(testRefreshRate), p2pmock.New())
+	acc, err := accounting.NewAccounting(testPaymentThreshold, 0, 0, logger, store, nil, big.NewInt(testRefreshRate), p2pmock.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -946,7 +946,7 @@ func TestAccountingSurplusBalance(t *testing.T) {
 	}
 }
 
-// TestAccountingNotifyPayment tests that payments adjust the balance and payment which put us into debt are rejected
+// TestAccountingNotifyPayment tests that payments adjust the balance
 func TestAccountingNotifyPaymentReceived(t *testing.T) {
 	logger := logging.New(io.Discard, 0)
 
@@ -966,7 +966,7 @@ func TestAccountingNotifyPaymentReceived(t *testing.T) {
 	acc.Connect(peer1Addr)
 
 	debtAmount := uint64(100)
-	debitAction, err := acc.PrepareDebit(peer1Addr, debtAmount+testPaymentTolerance.Uint64())
+	debitAction, err := acc.PrepareDebit(peer1Addr, debtAmount)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -976,7 +976,7 @@ func TestAccountingNotifyPaymentReceived(t *testing.T) {
 	}
 	debitAction.Cleanup()
 
-	err = acc.NotifyPaymentReceived(peer1Addr, new(big.Int).SetUint64(debtAmount+testPaymentTolerance.Uint64()))
+	err = acc.NotifyPaymentReceived(peer1Addr, new(big.Int).SetUint64(debtAmount))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -991,7 +991,7 @@ func TestAccountingNotifyPaymentReceived(t *testing.T) {
 	}
 	debitAction.Cleanup()
 
-	err = acc.NotifyPaymentReceived(peer1Addr, new(big.Int).SetUint64(debtAmount+testPaymentTolerance.Uint64()+1))
+	err = acc.NotifyPaymentReceived(peer1Addr, new(big.Int).SetUint64(debtAmount))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1054,7 +1054,7 @@ func TestAccountingNotifyPaymentThreshold(t *testing.T) {
 
 	pricing := &pricingMock{}
 
-	acc, err := accounting.NewAccounting(testPaymentThreshold, testPaymentTolerance, big.NewInt(0), logger, store, pricing, big.NewInt(testRefreshRate), p2pmock.New())
+	acc, err := accounting.NewAccounting(testPaymentThreshold, testPaymentTolerance, 0, logger, store, pricing, big.NewInt(testRefreshRate), p2pmock.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1118,7 +1118,7 @@ func TestAccountingPeerDebt(t *testing.T) {
 
 	pricing := &pricingMock{}
 
-	acc, err := accounting.NewAccounting(testPaymentThreshold, testPaymentTolerance, big.NewInt(0), logger, store, pricing, big.NewInt(testRefreshRate), p2pmock.New())
+	acc, err := accounting.NewAccounting(testPaymentThreshold, testPaymentTolerance, 0, logger, store, pricing, big.NewInt(testRefreshRate), p2pmock.New())
 	if err != nil {
 		t.Fatal(err)
 	}

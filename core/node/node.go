@@ -27,6 +27,7 @@ import (
 	"github.com/redesblock/hop/core/accounting"
 	"github.com/redesblock/hop/core/addressbook"
 	"github.com/redesblock/hop/core/api"
+	"github.com/redesblock/hop/core/auth"
 	"github.com/redesblock/hop/core/chainsync"
 	"github.com/redesblock/hop/core/chainsyncer"
 	"github.com/redesblock/hop/core/config"
@@ -132,8 +133,8 @@ type Options struct {
 	TracingServiceName         string
 	GlobalPinningEnabled       bool
 	PaymentThreshold           string
-	PaymentTolerance           string
-	PaymentEarly               string
+	PaymentTolerance           int64
+	PaymentEarly               int64
 	ResolverConnectionCfgs     []multiresolver.ConnectionConfig
 	RetrievalCaching           bool
 	GatewayMode                bool
@@ -157,10 +158,14 @@ type Options struct {
 	MutexProfile               bool
 	StaticNodes                []swarm.Address
 	AllowPrivateCIDRs          bool
+	Restricted                 bool
+	TokenEncryptionKey         string
+	AdminPasswordHash          string
 }
 
 const (
 	refreshRate                   = int64(4500000)
+	lightRefreshRate              = int64(450000)
 	basePrice                     = 10000
 	postageSyncingStallingTimeout = 10 * time.Minute
 )
@@ -236,7 +241,17 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("connected to wrong ethereum network; network chainID %d; configured chainID %d", chainID, o.ChainID)
 	}
 
+	var authenticator *auth.Authenticator
+
+	if o.Restricted {
+		if authenticator, err = auth.New(o.TokenEncryptionKey, o.AdminPasswordHash, logger); err != nil {
+			return nil, fmt.Errorf("authenticator: %w", err)
+		}
+		logger.Info("starting with restricted APIs")
+	}
+
 	var debugAPIService *debugapi.Service
+
 	if o.DebugAPIAddr != "" {
 		overlayEthAddress, err := signer.EthereumAddress()
 		if err != nil {
@@ -252,7 +267,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		}
 
 		// set up basic debug api endpoints for debugging and /health endpoint
-		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, big.NewInt(int64(o.BlockTime)), transactionService)
+		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, big.NewInt(int64(o.BlockTime)), transactionService, o.Restricted, authenticator)
 
 		debugAPIListener, err := net.Listen("tcp", o.DebugAPIAddr)
 		if err != nil {
@@ -582,19 +597,18 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		logger.Debugf("p2p address: %s", addr)
 	}
 
-	paymentTolerance, ok := new(big.Int).SetString(o.PaymentTolerance, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid payment tolerance: %s", paymentTolerance)
+	if o.PaymentTolerance < 0 {
+		return nil, fmt.Errorf("invalid payment tolerance: %d", o.PaymentTolerance)
 	}
-	paymentEarly, ok := new(big.Int).SetString(o.PaymentEarly, 10)
-	if !ok {
-		return nil, fmt.Errorf("invalid payment early: %s", paymentEarly)
+
+	if o.PaymentEarly > 100 || o.PaymentEarly < 0 {
+		return nil, fmt.Errorf("invalid payment early: %d", o.PaymentEarly)
 	}
 
 	acc, err := accounting.NewAccounting(
 		paymentThreshold,
-		paymentTolerance,
-		paymentEarly,
+		o.PaymentTolerance,
+		o.PaymentEarly,
 		logger,
 		stateStore,
 		pricing,
@@ -606,7 +620,15 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	}
 	b.accountingCloser = acc
 
-	pseudosettleService := pseudosettle.New(p2ps, logger, stateStore, acc, big.NewInt(refreshRate), p2ps)
+	var enforcedRefreshRate *big.Int
+
+	if o.FullNodeMode {
+		enforcedRefreshRate = big.NewInt(refreshRate)
+	} else {
+		enforcedRefreshRate = big.NewInt(lightRefreshRate)
+	}
+
+	pseudosettleService := pseudosettle.New(p2ps, logger, stateStore, acc, enforcedRefreshRate, big.NewInt(lightRefreshRate), p2ps)
 	if err = p2ps.AddProtocol(pseudosettleService.Protocol()); err != nil {
 		return nil, fmt.Errorf("pseudosettle service: %w", err)
 	}
@@ -733,10 +755,11 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		// API server
 		feedFactory := factory.New(ns)
 		steward := steward.New(storer, traversalService, retrieve, pushSyncProtocol)
-		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, pinningService, feedFactory, post, postageContractService, steward, signer, logger, tracer, api.Options{
+		apiService = api.New(tagService, ns, multiResolver, pssService, traversalService, pinningService, feedFactory, post, postageContractService, steward, signer, authenticator, logger, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,
+			Restricted:         o.Restricted,
 		})
 		apiListener, err := net.Listen("tcp", o.APIAddr)
 		if err != nil {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/hop/core/api"
+	mockauth "github.com/redesblock/hop/core/auth/mock"
 	"github.com/redesblock/hop/core/crypto"
 	"github.com/redesblock/hop/core/feeds"
 	"github.com/redesblock/hop/core/file/pipeline"
@@ -70,6 +71,8 @@ type testServerOptions struct {
 	Post               postage.Service
 	Steward            steward.Interface
 	WsHeaders          http.Header
+	Authenticator      *mockauth.Auth
+	Restricted         bool
 }
 
 func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
@@ -89,10 +92,14 @@ func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.
 	if o.Post == nil {
 		o.Post = mockpost.New()
 	}
-	s := api.New(o.Tags, o.Storer, o.Resolver, o.Pss, o.Traversal, o.Pinning, o.Feeds, o.Post, o.PostageContract, o.Steward, signer, o.Logger, nil, api.Options{
+	if o.Authenticator == nil {
+		o.Authenticator = &mockauth.Auth{}
+	}
+	s := api.New(o.Tags, o.Storer, o.Resolver, o.Pss, o.Traversal, o.Pinning, o.Feeds, o.Post, o.PostageContract, o.Steward, signer, o.Authenticator, o.Logger, nil, api.Options{
 		CORSAllowedOrigins: o.CORSAllowedOrigins,
 		GatewayMode:        o.GatewayMode,
 		WsPingPeriod:       o.WsPingPeriod,
+		Restricted:         o.Restricted,
 	})
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
@@ -214,7 +221,7 @@ func TestParseName(t *testing.T) {
 		signer := crypto.NewDefaultSigner(pk)
 		mockPostage := mockpost.New()
 
-		s := api.New(nil, nil, tC.res, nil, nil, nil, nil, mockPostage, nil, nil, signer, log, nil, api.Options{}).(*api.Server)
+		s := api.New(nil, nil, tC.res, nil, nil, nil, nil, mockPostage, nil, nil, signer, nil, log, nil, api.Options{}).(*api.Server)
 
 		t.Run(tC.desc, func(t *testing.T) {
 			got, err := s.ResolveNameOrAddress(tC.name)

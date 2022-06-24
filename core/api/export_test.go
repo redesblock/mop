@@ -14,6 +14,8 @@ type (
 	TagRequest            = tagRequest
 	ListTagsResponse      = listTagsResponse
 	IsRetrievableResponse = isRetrievableResponse
+	SecurityTokenResponse = securityTokenRsp
+	SecurityTokenRequest  = securityTokenReq
 )
 
 var (
@@ -38,6 +40,11 @@ var (
 	FeedMetadataEntryType  = feedMetadataEntryType
 
 	SuccessWsMsg = successWsMsg
+)
+
+var (
+	FileSizeBucketsKBytes = fileSizeBucketsKBytes
+	ToFileSizeBucket      = toFileSizeBucket
 )
 
 func (s *Server) ResolveNameOrAddress(str string) (swarm.Address, error) {

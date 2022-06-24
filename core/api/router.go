@@ -7,12 +7,12 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
-	"resenje.org/web"
-
+	"github.com/redesblock/hop/core/auth"
 	"github.com/redesblock/hop/core/jsonhttp"
 	"github.com/redesblock/hop/core/logging/httpaccess"
 	"github.com/redesblock/hop/core/swarm"
+	"github.com/sirupsen/logrus"
+	"resenje.org/web"
 )
 
 func (s *server) setupRouting() {
@@ -25,6 +25,9 @@ func (s *server) setupRouting() {
 
 	// handle is a helper closure which simplifies the router setup.
 	handle := func(path string, handler http.Handler) {
+		if s.Restricted {
+			handler = web.ChainHandlers(auth.PermissionCheckHandler(s.auth), web.FinalHandler(handler))
+		}
 		router.Handle(path, handler)
 		router.Handle(rootPath+path, handler)
 	}
@@ -39,14 +42,33 @@ func (s *server) setupRouting() {
 		fmt.Fprintln(w, "User-agent: *\nDisallow: /")
 	})
 
+	if s.Restricted {
+		router.Handle("/auth", jsonhttp.MethodHandler{
+			"POST": web.ChainHandlers(
+				s.newTracingHandler("auth"),
+				jsonhttp.NewMaxBodyBytesHandler(512),
+				web.FinalHandlerFunc(s.authHandler),
+			),
+		})
+		router.Handle("/refresh", jsonhttp.MethodHandler{
+			"POST": web.ChainHandlers(
+				s.newTracingHandler("auth"),
+				jsonhttp.NewMaxBodyBytesHandler(512),
+				web.FinalHandlerFunc(s.refreshHandler),
+			),
+		})
+	}
+
 	handle("/bytes", jsonhttp.MethodHandler{
 		"POST": web.ChainHandlers(
+			s.contentLengthMetricMiddleware(),
 			s.newTracingHandler("bytes-upload"),
 			web.FinalHandlerFunc(s.bytesUploadHandler),
 		),
 	})
 	handle("/bytes/{address}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
+			s.contentLengthMetricMiddleware(),
 			s.newTracingHandler("bytes-download"),
 			web.FinalHandlerFunc(s.bytesGetHandler),
 		),
@@ -85,6 +107,7 @@ func (s *server) setupRouting() {
 
 	handle("/hop", jsonhttp.MethodHandler{
 		"POST": web.ChainHandlers(
+			s.contentLengthMetricMiddleware(),
 			s.newTracingHandler("hop-upload"),
 			web.FinalHandlerFunc(s.hopUploadHandler),
 		),
@@ -96,6 +119,7 @@ func (s *server) setupRouting() {
 	}))
 	handle("/hop/{address}/{path:.*}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
+			s.contentLengthMetricMiddleware(),
 			s.newTracingHandler("hop-download"),
 			web.FinalHandlerFunc(s.hopDownloadHandler),
 		),

@@ -43,8 +43,8 @@ const (
 	optionNameVerbosity                  = "verbosity"
 	optionNameGlobalPinningEnabled       = "global-pinning-enable"
 	optionNamePaymentThreshold           = "payment-threshold"
-	optionNamePaymentTolerance           = "payment-tolerance"
-	optionNamePaymentEarly               = "payment-early"
+	optionNamePaymentTolerance           = "payment-tolerance-percent"
+	optionNamePaymentEarly               = "payment-early-percent"
 	optionNameResolverEndpoints          = "resolver-options"
 	optionNameBootnodeMode               = "bootnode-mode"
 	optionNameGatewayMode                = "gateway-mode"
@@ -66,13 +66,15 @@ const (
 	optionWarmUpTime                     = "warmup-time"
 	optionNameMainNet                    = "mainnet"
 	optionNameRetrievalCaching           = "cache-retrieval"
-	optionNameDevReserveCapacity         = "dev-reserve-capacity"
 	optionNameResync                     = "resync"
 	optionNamePProfBlock                 = "pprof-profile"
 	optionNamePProfMutex                 = "pprof-mutex"
 	optionNameStaticNodes                = "static-nodes"
 	optionNameAllowPrivateCIDRs          = "allow-private-cidrs"
 	optionNameSleepAfter                 = "sleep-after"
+	optionNameRestrictedAPI              = "restricted"
+	optionNameTokenEncryptionKey         = "token-encryption-key"
+	optionNameAdminPasswordHash          = "admin-password"
 )
 
 func init() {
@@ -227,8 +229,8 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionWelcomeMessage, "", "send a welcome message string during handshakes")
 	cmd.Flags().Bool(optionNameGlobalPinningEnabled, false, "enable global pinning")
 	cmd.Flags().String(optionNamePaymentThreshold, "100000000", "threshold in HOP where you expect to get paid from your peers")
-	cmd.Flags().String(optionNamePaymentTolerance, "100000000", "excess debt above payment threshold in HOP where you disconnect from your peer")
-	cmd.Flags().String(optionNamePaymentEarly, "10000000", "amount in HOP below the peers payment threshold when we initiate settlement")
+	cmd.Flags().Int64(optionNamePaymentTolerance, 25, "excess debt above payment threshold in percentages where you disconnect from your peer")
+	cmd.Flags().Int64(optionNamePaymentEarly, 50, "percentage below the peers payment threshold when we initiate settlement")
 	cmd.Flags().StringSlice(optionNameResolverEndpoints, []string{}, "ENS compatible API endpoint for a TLD and with contract address, can be repeated, format [tld:][contract-addr@]url")
 	cmd.Flags().Bool(optionNameGatewayMode, false, "disable a set of sensitive features in the api")
 	cmd.Flags().Bool(optionNameBootnodeMode, false, "cause the node to always accept incoming connections")
@@ -255,6 +257,9 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNamePProfMutex, false, "enable pprof mutex profile")
 	cmd.Flags().StringSlice(optionNameStaticNodes, []string{}, "protect nodes from getting kicked out on bootnode")
 	cmd.Flags().Bool(optionNameAllowPrivateCIDRs, false, "allow to advertise private CIDRs to the public network")
+	cmd.Flags().Bool(optionNameRestrictedAPI, false, "enable permission check on the http APIs")
+	cmd.Flags().String(optionNameTokenEncryptionKey, "", "admin username to get the security token")
+	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (logging.Logger, error) {
