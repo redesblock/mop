@@ -5,12 +5,13 @@ import "./AccessControl.sol";
 import "./Pausable.sol";
 import "./SafeMath.sol";
 import "./ERC20.sol";
+import "./Ownable.sol";
 
 /**
  * @title PostageStamp contract
  * @dev The postage stamp contracts allows users to create and manage postage stamp batches.
  */
-contract PostageStamp is AccessControl, Pausable {
+contract PostageStamp is AccessControl, Pausable, Ownable {
     using SafeMath for uint256;
     /**
      * @dev Emitted when a new batch is created.
@@ -68,6 +69,11 @@ contract PostageStamp is AccessControl, Pausable {
     uint256 public lastPrice;
     // the block at which the last update occured
     uint256 public lastUpdatedBlock;
+
+    // storage incentives
+    mapping(address => uint256) private incentives;
+    uint256 totalIncentives;
+    event Incentive(address indexed from, uint256 amount);
 
     /**
      * @param _token The ERC20 token address to reference in this contract.
@@ -215,5 +221,16 @@ contract PostageStamp is AccessControl, Pausable {
     function unPause() public {
         require(hasRole(PAUSER_ROLE, msg.sender), "only pauser can unpause the contract");
         _unpause();
+    }
+
+    function incentive(address _recipient, uint256 _amount) external onlyOwner {
+        require(token.transfer(_recipient, _amount), "incentive transfer failed");
+        incentives[_recipient] += _amount;
+        totalIncentives += _amount;
+        emit Incentive(_recipient, _amount);
+    }
+
+    function getIncentive() external view returns(uint256) {
+        return incentives[msg.sender];
     }
 }
