@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 	"testing"
+
+	hopabi "github.com/redesblock/hop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -17,7 +18,7 @@ import (
 )
 
 var (
-	factoryABI              = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABIv0_4_0)
+	factoryABI              = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABI)
 	simpleSwapDeployedEvent = factoryABI.Events["SimpleSwapDeployed"]
 )
 

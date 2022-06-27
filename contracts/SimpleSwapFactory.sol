@@ -368,7 +368,7 @@ contract SimpleSwapFactory {
   @param issuer the issuer of cheques for the new chequebook
   @param defaultHardDepositTimeoutDuration duration in seconds which by default will be used to reduce hardDeposit allocations
   */
-  function deploySimpleSwap(address issuer, uint defaultHardDepositTimeoutDuration)
+  function deploySimpleSwap(address issuer, uint defaultHardDepositTimeoutDuration, bytes32)
   public returns (address) {
     address contractAddress = address(new ERC20SimpleSwap(issuer, ERC20Address, defaultHardDepositTimeoutDuration));
     deployedContracts[contractAddress] = true;

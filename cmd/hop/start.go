@@ -423,7 +423,7 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 	if err != nil {
 		return nil, err
 	}
-	logger.Infof("using ethereum address %x", overlayEthAddress)
+	logger.Infof("using bsc address %x", overlayEthAddress)
 
 	return &signerConfig{
 		signer:           signer,

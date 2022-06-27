@@ -471,12 +471,12 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256, o.Resync)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("batch service load: %w", err)
 	}
 
 	erc20Address, err := postagecontract.LookupERC20Address(p2pCtx, transactionService, postageContractAddress)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("postage contract lookup erc20 address: %w", err)
 	}
 
 	postageContractService = postagecontract.New(

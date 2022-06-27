@@ -2,9 +2,10 @@ package transaction_test
 
 import (
 	"errors"
-	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
 	"testing"
+
+	hopabi "github.com/redesblock/hop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	erc20ABI = transaction.ParseABIUnchecked(hopabi.ERC20ABIv0_3_1)
+	erc20ABI = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
 )
 
 type transferEvent struct {

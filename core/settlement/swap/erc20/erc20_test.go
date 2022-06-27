@@ -2,7 +2,7 @@ package erc20_test
 
 import (
 	"context"
-	"github.com/redesblock/hop/core/hopabi"
+	hopabi "github.com/redesblock/hop/contracts/abi"
 	"math/big"
 	"testing"
 
@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	erc20ABI = transaction.ParseABIUnchecked(hopabi.ERC20ABIv0_3_1)
+	erc20ABI = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
 )
 
 func TestBalanceOf(t *testing.T) {

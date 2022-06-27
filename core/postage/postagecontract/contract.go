@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/hopabi"
+	hopabi "github.com/redesblock/hop/contracts/abi"
 	"math/big"
 	"strings"
 
@@ -20,8 +20,8 @@ import (
 var (
 	BucketDepth = uint8(16)
 
-	postageStampABI   = parseABI(hopabi.PostageStampABIv0_3_0)
-	erc20ABI          = parseABI(hopabi.ERC20ABIv0_3_1)
+	postageStampABI   = parseABI(hopabi.PostageStampABI)
+	erc20ABI          = parseABI(hopabi.ERC20ABI)
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 	batchTopUpTopic   = postageStampABI.Events["BatchTopUp"].ID
 	batchDiluteTopic  = postageStampABI.Events["BatchDepthIncrease"].ID
@@ -338,7 +338,7 @@ func parseABI(json string) abi.ABI {
 }
 
 func LookupERC20Address(ctx context.Context, transactionService transaction.Service, postageContractAddress common.Address) (common.Address, error) {
-	callData, err := postageStampABI.Pack("hopToken")
+	callData, err := postageStampABI.Pack("token")
 	if err != nil {
 		return common.Address{}, err
 	}

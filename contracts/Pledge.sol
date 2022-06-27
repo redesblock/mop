@@ -37,15 +37,15 @@ contract Pledge is Ownable {
         emit Unstake(msg.sender, _amount);
     }
 
-    function getShare()
+    function getShare(address _addr)
         external
         view
         returns(uint256)
     {
-        return shares[msg.sender];
+        return shares[_addr];
     }
 
-    function unSlash(uint256 _amount) external onlyOwner
+    function slash(uint256 _amount) external onlyOwner
     {
         require(_amount <= shares[msg.sender], "UNSLASH_AMOUNT_MUST_LESS_SHARES");
         shares[msg.sender] -= _amount;
@@ -53,12 +53,12 @@ contract Pledge is Ownable {
         emit Slash(msg.sender, _amount);
     }
 
-    function getSlash()
+    function getSlash(address _addr)
         external
         view
         returns(uint256)
     {
-        return slashes[msg.sender];
+        return slashes[_addr];
     }
 
 }

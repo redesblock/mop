@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/hopabi"
 	"math/big"
+
+	hopabi "github.com/redesblock/hop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,7 +21,7 @@ var (
 	ErrNotDeployedByFactory = errors.New("chequebook not deployed by factory")
 	errDecodeABI            = errors.New("could not decode abi data")
 
-	factoryABI                  = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABIv0_4_0)
+	factoryABI                  = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABI)
 	simpleSwapDeployedEventType = factoryABI.Events["SimpleSwapDeployed"]
 )
 
@@ -50,12 +51,11 @@ type simpleSwapDeployedEvent struct {
 }
 
 // the bytecode of factories which can be used for deployment
-var currentDeployVersion []byte = common.FromHex(hopabi.SimpleSwapFactoryDeployedBinv0_4_0)
+var currentDeployVersion []byte = common.FromHex(hopabi.SimpleSwapFactoryDeployedBin)
 
 // the bytecode of factories from which we accept chequebooks
 var supportedVersions = [][]byte{
 	currentDeployVersion,
-	common.FromHex(hopabi.SimpleSwapFactoryDeployedBinv0_3_1),
 }
 
 // NewFactory creates a new factory service for the provided factory contract.

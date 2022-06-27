@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/hopabi"
+	hopabi "github.com/redesblock/hop/contracts/abi"
 	"math/big"
 	"strings"
 	"sync"
@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	postageStampABI = parseABI(hopabi.PostageStampABIv0_3_0)
+	postageStampABI = parseABI(hopabi.PostageStampABI)
 	// batchCreatedTopic is the postage contract's batch created event topic
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 	// batchTopupTopic is the postage contract's batch topup event topic

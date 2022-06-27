@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/hopabi"
+	hopabi "github.com/redesblock/hop/contracts/abi"
 	"math/big"
 	"strings"
 	"sync"
@@ -30,7 +30,7 @@ var (
 	// ErrInsufficientFunds is the error when the chequebook has not enough free funds for a user action
 	ErrInsufficientFunds = errors.New("insufficient token balance")
 
-	chequebookABI          = transaction.ParseABIUnchecked(hopabi.ERC20SimpleSwapABIv0_3_1)
+	chequebookABI          = transaction.ParseABIUnchecked(hopabi.ERC20SimpleSwapABI)
 	chequeCashedEventType  = chequebookABI.Events["ChequeCashed"]
 	chequeBouncedEventType = chequebookABI.Events["ChequeBounced"]
 )
