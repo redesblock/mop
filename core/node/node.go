@@ -8,6 +8,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/redesblock/hop/core/settlement/swap/pledge"
 	"io"
 	"log"
 	"math/big"
@@ -150,6 +151,7 @@ type Options struct {
 	BlockHash                  string
 	PostageContractAddress     string
 	PriceOracleAddress         string
+	PledgeAddress              string
 	BlockTime                  uint64
 	DeployGasPrice             string
 	WarmupTime                 time.Duration
@@ -269,7 +271,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		}
 
 		// set up basic debug api endpoints for debugging and /health endpoint
-		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, big.NewInt(int64(o.BlockTime)), transactionService, o.Restricted, authenticator)
+		debugAPIService = debugapi.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, tracer, o.CORSAllowedOrigins, big.NewInt(int64(o.BlockTime)), swapBackend, transactionService, o.Restricted, authenticator)
 
 		debugAPIListener, err := net.Listen("tcp", o.DebugAPIAddr)
 		if err != nil {
@@ -447,6 +449,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	var (
 		postageContractService postagecontract.Interface
+		pledgeContractService  pledge.Service
 		batchSvc               postage.EventUpdater
 		eventListener          postage.Listener
 	)
@@ -486,6 +489,23 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		transactionService,
 		post,
 		batchStore,
+	)
+
+	pledgeAddress := chainCfg.PledgeAddress
+	if o.PledgeAddress != "" {
+		if !common.IsHexAddress(o.PledgeAddress) {
+			return nil, errors.New("malformed pledge address")
+		}
+		postageContractAddress = common.HexToAddress(o.PostageContractAddress)
+	} else if !found {
+		return nil, errors.New("no known pledge addresses for this network")
+	}
+
+	pledgeContractService = pledge.New(
+		overlayEthAddress,
+		swapBackend,
+		transactionService,
+		pledgeAddress,
 	)
 
 	if natManager := p2ps.NATManager(); natManager != nil {
@@ -843,7 +863,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 			debugAPIService.MustRegisterMetrics(chainSyncer.Metrics()...)
 		}
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, traversalService)
+		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, pledgeContractService, traversalService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {

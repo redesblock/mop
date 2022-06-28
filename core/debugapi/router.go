@@ -59,6 +59,38 @@ func (s *Service) newBasicRouter() *mux.Router {
 		router.Handle(path, handler)
 	}
 
+	router.Handle("/node", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeGetHandler),
+	})
+
+	router.Handle("/node/balance", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeBalanceHandler),
+	})
+
+	router.Handle("/node/storage", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeStorageHandler),
+	})
+
+	router.Handle("/node/storage/transaction", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeStorageTransactionHandler),
+	})
+
+	handle("/node/stake/{amount}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.nodePledgeStakeHandler),
+	})
+
+	handle("/node/unstake/{amount}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.nodePledgeUnStakeHandler),
+	})
+
+	router.Handle("/node/pledge", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodePledgeHandler),
+	})
+
+	router.Handle("/node/pledge/transaction", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodePledgeTransactionHandler),
+	})
+
 	handle("/addresses", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.addressesHandler),
 	})

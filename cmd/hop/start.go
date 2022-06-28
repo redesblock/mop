@@ -182,6 +182,7 @@ func (c *command) initStartCmd() (err error) {
 				BlockHash:                  c.config.GetString(optionNameBlockHash),
 				PostageContractAddress:     c.config.GetString(optionNamePostageContractAddress),
 				PriceOracleAddress:         c.config.GetString(optionNamePriceOracleAddress),
+				PledgeAddress:              c.config.GetString(optionNamePledgeAddress),
 				BlockTime:                  networkConfig.blockTime,
 				DeployGasPrice:             c.config.GetString(optionNameSwapDeploymentGasPrice),
 				WarmupTime:                 c.config.GetDuration(optionWarmUpTime),

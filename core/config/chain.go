@@ -20,6 +20,9 @@ var (
 	// postage stamp
 	testnetPostageStampContractAddress = common.HexToAddress("0xb06d1bcaaeee431db99c7e4b4ff2e4313b6d38cc")
 	mainnetPostageStampContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
+	// pledge
+	testnetPledgeContractAddress = common.HexToAddress("0x61846DA3318FdE90426F2D46F2540CfaF915815A")
+	mainnetPledgeContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
 )
 
 type ChainConfig struct {
@@ -28,6 +31,7 @@ type ChainConfig struct {
 	PostageStamp       common.Address
 	CurrentFactory     common.Address
 	PriceOracleAddress common.Address
+	PledgeAddress      common.Address
 }
 
 func GetChainConfig(chainID int64) (*ChainConfig, bool) {
@@ -39,6 +43,7 @@ func GetChainConfig(chainID int64) (*ChainConfig, bool) {
 		cfg.CurrentFactory = testnetFactoryAddress
 		cfg.LegacyFactories = []common.Address{}
 		cfg.PriceOracleAddress = testnetContractAddress
+		cfg.PledgeAddress = testnetPledgeContractAddress
 		return &cfg, true
 	case mainnetChainID:
 		cfg.PostageStamp = mainnetPostageStampContractAddress
@@ -46,6 +51,7 @@ func GetChainConfig(chainID int64) (*ChainConfig, bool) {
 		cfg.CurrentFactory = mainnetFactoryAddress
 		cfg.LegacyFactories = []common.Address{}
 		cfg.PriceOracleAddress = mainnetContractAddress
+		cfg.PledgeAddress = mainnetPledgeContractAddress
 		return &cfg, true
 	default:
 		return &cfg, false

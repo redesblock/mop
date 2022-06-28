@@ -6,11 +6,11 @@ import "./IERC20.sol";
 
 contract Pledge is Ownable {
 
-    IERC20 stakeToken;
-    mapping(address => uint256) private shares;
-    uint256 totalShares;
-    mapping(address => uint256) private slashes;
-    uint256 totalSlashes;
+    IERC20 public stakeToken;
+    mapping(address => uint256) private _shares;
+    uint256 public totalShare;
+    mapping(address => uint256) private _slashes;
+    uint256 public totalSlash;
 
     event Stake(address indexed from, uint256 amount);
     event Unstake(address indexed from, uint256 amount);
@@ -22,18 +22,18 @@ contract Pledge is Ownable {
 
     function stake(uint256 _amount) external
     {
-        stakeToken.transferFrom(msg.sender, address(this), _amount);
-        shares[msg.sender] += _amount;
-        totalShares += _amount;
+        require(stakeToken.transferFrom(msg.sender, address(this), _amount), "STAKE_AMOUNT_MUST_HAD");
+        _shares[msg.sender] += _amount;
+        totalShare += _amount;
         emit Stake(msg.sender, _amount);
     }
 
     function unStake(uint256 _amount) external
     {
-        require(_amount <= shares[msg.sender], "UNSTAKE_AMOUNT_MUST_LESS_SHARES");
+        require(_amount <= _shares[msg.sender], "UNSTAKE_AMOUNT_MUST_LESS_SHARES");
         stakeToken.transferFrom(address(this), msg.sender, _amount);
-        shares[msg.sender] -= _amount;
-        totalShares -= _amount;
+        _shares[msg.sender] -= _amount;
+        totalShare -= _amount;
         emit Unstake(msg.sender, _amount);
     }
 
@@ -42,14 +42,14 @@ contract Pledge is Ownable {
         view
         returns(uint256)
     {
-        return shares[_addr];
+        return _shares[_addr];
     }
 
     function slash(uint256 _amount) external onlyOwner
     {
-        require(_amount <= shares[msg.sender], "UNSLASH_AMOUNT_MUST_LESS_SHARES");
-        shares[msg.sender] -= _amount;
-        totalSlashes += _amount;
+        require(_amount <= _slashes[msg.sender], "UNSLASH_AMOUNT_MUST_LESS_SHARES");
+        _slashes[msg.sender] -= _amount;
+        totalSlash += _amount;
         emit Slash(msg.sender, _amount);
     }
 
@@ -58,7 +58,6 @@ contract Pledge is Ownable {
         view
         returns(uint256)
     {
-        return slashes[_addr];
+        return _slashes[_addr];
     }
-
 }

@@ -62,6 +62,7 @@ const (
 	optionNameFullNode                   = "full-node"
 	optionNamePostageContractAddress     = "postage-stamp-address"
 	optionNamePriceOracleAddress         = "price-oracle-address"
+	optionNamePledgeAddress              = "pledge-address"
 	optionNameBlockTime                  = "block-time"
 	optionWarmUpTime                     = "warmup-time"
 	optionNameMainNet                    = "mainnet"
@@ -246,6 +247,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameFullNode, false, "cause the node to start in full mode")
 	cmd.Flags().String(optionNamePostageContractAddress, "", "postage stamp contract address")
 	cmd.Flags().String(optionNamePriceOracleAddress, "", "price oracle contract address")
+	cmd.Flags().String(optionNamePledgeAddress, "", "pledge contract address")
 	cmd.Flags().String(optionNameTransactionHash, "", "proof-of-identity transaction hash")
 	cmd.Flags().String(optionNameBlockHash, "", "block hash of the block whose parent is the block that contains the transaction hash")
 	cmd.Flags().Uint64(optionNameBlockTime, 15, "chain block time")

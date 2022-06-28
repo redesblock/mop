@@ -5,6 +5,7 @@ package debugapi
 
 import (
 	"crypto/ecdsa"
+	"github.com/redesblock/hop/core/settlement/swap/pledge"
 	"math/big"
 	"net/http"
 	"sync"
@@ -58,9 +59,11 @@ type Service struct {
 	chequebook         chequebook.Service
 	swap               swap.Interface
 	batchStore         postage.Storer
+	backend            transaction.Backend
 	transaction        transaction.Service
 	post               postage.Service
 	postageContract    postagecontract.Interface
+	pledgeContract     pledge.Service
 	logger             logging.Logger
 	corsAllowedOrigins []string
 	metricsRegistry    *prometheus.Registry
@@ -81,7 +84,7 @@ type Service struct {
 // to expose /addresses, /health endpoints, Go metrics and pprof. It is useful to expose
 // these endpoints before all dependencies are configured and injected to have
 // access to basic debugging tools and /health endpoint.
-func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address, logger logging.Logger, tracer *tracing.Tracer, corsAllowedOrigins []string, blockTime *big.Int, transaction transaction.Service, restrict bool, auth authenticator) *Service {
+func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address, logger logging.Logger, tracer *tracing.Tracer, corsAllowedOrigins []string, blockTime *big.Int, backend transaction.Backend, transaction transaction.Service, restrict bool, auth authenticator) *Service {
 	s := new(Service)
 	s.auth = auth
 	s.restricted = restrict
@@ -94,6 +97,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 	s.blockTime = blockTime
 	s.metricsRegistry = newMetricsRegistry()
 	s.transaction = transaction
+	s.backend = backend
 	s.postageSem = semaphore.NewWeighted(1)
 	s.cashOutChequeSem = semaphore.NewWeighted(1)
 
@@ -105,7 +109,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 // Configure injects required dependencies and configuration parameters and
 // constructs HTTP routes that depend on them. It is intended and safe to call
 // this method only once.
-func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface, traverser traversal.Traverser) {
+func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface, pledgeContract pledge.Service, traverser traversal.Traverser) {
 	s.p2p = p2p
 	s.pingpong = pingpong
 	s.topologyDriver = topologyDriver
@@ -121,6 +125,7 @@ func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpon
 	s.overlay = &overlay
 	s.post = post
 	s.postageContract = postageContract
+	s.pledgeContract = pledgeContract
 	s.traverser = traverser
 
 	s.setRouter(s.newRouter())
