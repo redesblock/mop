@@ -411,3 +411,20 @@ func (s *Service) chequebookDepositHandler(w http.ResponseWriter, r *http.Reques
 
 	jsonhttp.OK(w, chequebookTxResponse{TransactionHash: txHash})
 }
+
+type chequebookTransactionResponse struct {
+	Txs []string `json:"txs"`
+}
+
+func (s *Service) chequebookTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	txs, err := s.chequebook.Txs()
+	if err != nil {
+		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, err)
+		return
+	}
+
+	jsonhttp.OK(w, chequebookTransactionResponse{
+		Txs: txs,
+	})
+}

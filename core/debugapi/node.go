@@ -1,6 +1,7 @@
 package debugapi
 
 import (
+	"fmt"
 	"math/big"
 	"net/http"
 
@@ -61,8 +62,8 @@ type nodeBalanceResponse struct {
 func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
 	balance, err := s.backend.BalanceAt(r.Context(), s.ethereumAddress, nil)
 	if err != nil {
-		jsonhttp.InternalServerError(w, errETHBalance)
 		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, errETHBalance)
 		return
 	}
 	jsonhttp.OK(w, nodeBalanceResponse{Balance: bigint.Wrap(balance)})
@@ -99,29 +100,29 @@ type nodePledgeResponse struct {
 func (s *Service) nodePledgeHandler(w http.ResponseWriter, r *http.Request) {
 	totalPledgedBalance, err := s.pledgeContract.GetTotalShare(r.Context())
 	if err != nil {
-		jsonhttp.InternalServerError(w, errTotalPledgedBalanceBalance)
 		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, errTotalPledgedBalanceBalance)
 		return
 	}
 
 	pledgedBalance, err := s.pledgeContract.GetShare(r.Context(), s.ethereumAddress)
 	if err != nil {
-		jsonhttp.InternalServerError(w, errPledgedBalanceBalance)
 		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, errPledgedBalanceBalance)
 		return
 	}
 
 	totalSlashedBalance, err := s.pledgeContract.GetTotalSlash(r.Context())
 	if err != nil {
-		jsonhttp.InternalServerError(w, errTotalSlashedBalanceBalance)
 		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, errTotalSlashedBalanceBalance)
 		return
 	}
 
 	slashedBalance, err := s.pledgeContract.GetSlash(r.Context(), s.ethereumAddress)
 	if err != nil {
-		jsonhttp.InternalServerError(w, errSlashedBalanceBalance)
 		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, errSlashedBalanceBalance)
 		return
 	}
 
@@ -138,8 +139,15 @@ type nodePledgeTransactionResponse struct {
 }
 
 func (s *Service) nodePledgeTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	txs, err := s.pledgeContract.Txs()
+	if err != nil {
+		s.logger.Error(r.URL.Path, err)
+		jsonhttp.InternalServerError(w, err)
+		return
+	}
+
 	jsonhttp.OK(w, nodePledgeTransactionResponse{
-		Txs: []string{"0x26304c4f2924f1f50aec75d03f083d7d9caf9c49c77ceccb594cfd61df616128"},
+		Txs: txs,
 	})
 }
 
@@ -150,63 +158,61 @@ type pledgeTxResponse struct {
 func (s *Service) nodePledgeStakeHandler(w http.ResponseWriter, r *http.Request) {
 	amount, ok := big.NewInt(0).SetString(mux.Vars(r)["amount"], 10)
 	if !ok {
-		s.logger.Error("create batch: invalid amount")
-		jsonhttp.BadRequest(w, "invalid postage amount")
+		s.logger.Error(r.URL.Path, "invalid amount")
+		jsonhttp.BadRequest(w, "invalid amount")
 		return
-
 	}
 
 	ctx := r.Context()
 	if price, ok := r.Header[gasPriceHeader]; ok {
 		p, ok := big.NewInt(0).SetString(price[0], 10)
 		if !ok {
-			s.logger.Error("debug api: withdraw: bad gas price")
+			s.logger.Error(r.URL.Path, "bad gas price")
 			jsonhttp.BadRequest(w, errBadGasPrice)
 			return
 		}
 		ctx = sctx.SetGasPrice(ctx, p)
 	}
 
-	txhash, err := s.pledgeContract.Stake(ctx, amount)
+	txHash, err := s.pledgeContract.Stake(ctx, amount)
 	if err != nil {
 		s.logger.Error(r.URL.Path, err)
-		jsonhttp.InternalServerError(w, "cannot stake")
+		jsonhttp.InternalServerError(w, fmt.Sprintf("failed stake %v", err))
 		return
 	}
 
 	jsonhttp.OK(w, &pledgeTxResponse{
-		TransactionHash: txhash,
+		TransactionHash: txHash,
 	})
 }
 
 func (s *Service) nodePledgeUnStakeHandler(w http.ResponseWriter, r *http.Request) {
 	amount, ok := big.NewInt(0).SetString(mux.Vars(r)["amount"], 10)
 	if !ok {
-		s.logger.Error("create batch: invalid amount")
-		jsonhttp.BadRequest(w, "invalid postage amount")
+		s.logger.Error(r.URL.Path, "invalid amount")
+		jsonhttp.BadRequest(w, "invalid amount")
 		return
-
 	}
 
 	ctx := r.Context()
 	if price, ok := r.Header[gasPriceHeader]; ok {
 		p, ok := big.NewInt(0).SetString(price[0], 10)
 		if !ok {
-			s.logger.Error("debug api: withdraw: bad gas price")
+			s.logger.Error(r.URL.Path, "bad gas price")
 			jsonhttp.BadRequest(w, errBadGasPrice)
 			return
 		}
 		ctx = sctx.SetGasPrice(ctx, p)
 	}
 
-	txhash, err := s.pledgeContract.UnStake(ctx, amount)
+	txHash, err := s.pledgeContract.UnStake(ctx, amount)
 	if err != nil {
 		s.logger.Error(r.URL.Path, err)
-		jsonhttp.InternalServerError(w, "cannot unstake")
+		jsonhttp.InternalServerError(w, fmt.Sprintf("failed unstake %v", err))
 		return
 	}
 
 	jsonhttp.OK(w, &pledgeTxResponse{
-		TransactionHash: txhash,
+		TransactionHash: txHash,
 	})
 }

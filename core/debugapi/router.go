@@ -197,6 +197,10 @@ func (s *Service) newRouter() *mux.Router {
 			"GET": http.HandlerFunc(s.peerSettlementsHandler),
 		})
 
+		handle("/chequebook/transaction", jsonhttp.MethodHandler{
+			"GET": http.HandlerFunc(s.chequebookTransactionHandler),
+		})
+
 		handle("/chequebook/balance", jsonhttp.MethodHandler{
 			"GET": http.HandlerFunc(s.chequebookBalanceHandler),
 		})

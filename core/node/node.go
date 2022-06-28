@@ -502,6 +502,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	}
 
 	pledgeContractService = pledge.New(
+		stateStore,
 		overlayEthAddress,
 		swapBackend,
 		transactionService,

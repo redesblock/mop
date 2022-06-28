@@ -5,7 +5,9 @@ import (
 	"errors"
 	hopabi "github.com/redesblock/hop/contracts/abi"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
+	"github.com/redesblock/hop/core/storage"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,6 +19,7 @@ var (
 	pledgeABI            = transaction.ParseABIUnchecked(hopabi.PledgepABI)
 	errDecodeABI         = errors.New("could not decode abi data")
 	ErrInsufficientFunds = errors.New("insufficient token balance")
+	keyPrefix            = "pledge-txs-"
 )
 
 type Service interface {
@@ -26,17 +29,20 @@ type Service interface {
 	GetSlash(ctx context.Context, address common.Address) (*big.Int, error)
 	GetTotalShare(ctx context.Context) (*big.Int, error)
 	GetTotalSlash(ctx context.Context) (*big.Int, error)
+	Txs() ([]string, error)
 }
 
 type pledgeService struct {
+	stateStore         storage.StateStorer
 	overlayEthAddress  common.Address
 	backend            transaction.Backend
 	transactionService transaction.Service
 	address            common.Address
 }
 
-func New(overlayEthAddress common.Address, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
+func New(stateStore storage.StateStorer, overlayEthAddress common.Address, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
 	return &pledgeService{
+		stateStore:         stateStore,
 		overlayEthAddress:  overlayEthAddress,
 		backend:            backend,
 		transactionService: transactionService,
@@ -200,13 +206,8 @@ func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash,
 		return common.Hash{}, err
 	}
 
-	receipt, err := c.transactionService.WaitForReceipt(ctx, txHash)
-	if err != nil {
+	if err := c.storeTx(ctx, txHash); err != nil {
 		return common.Hash{}, err
-	}
-
-	if receipt.Status == 0 {
-		return common.Hash{}, transaction.ErrTransactionReverted
 	}
 
 	return txHash, nil
@@ -242,13 +243,8 @@ func (c *pledgeService) UnStake(ctx context.Context, value *big.Int) (common.Has
 		return common.Hash{}, err
 	}
 
-	receipt, err := c.transactionService.WaitForReceipt(ctx, txHash)
-	if err != nil {
+	if err := c.storeTx(ctx, txHash); err != nil {
 		return common.Hash{}, err
-	}
-
-	if receipt.Status == 0 {
-		return common.Hash{}, transaction.ErrTransactionReverted
 	}
 
 	return txHash, nil
@@ -282,4 +278,35 @@ func (c *pledgeService) ERC20Address(ctx context.Context) (common.Address, error
 		return common.Address{}, errDecodeABI
 	}
 	return *erc20Address, nil
+}
+
+func (c *pledgeService) Txs() ([]string, error) {
+	var txs []string
+	if err := c.stateStore.Iterate(keyPrefix, func(k, v []byte) (bool, error) {
+		if !strings.HasPrefix(string(k), keyPrefix) {
+			return true, nil
+		}
+
+		tx := strings.TrimPrefix(string(k), keyPrefix)
+		txs = append(txs, tx)
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return txs, nil
+}
+
+func (c *pledgeService) storeTx(ctx context.Context, txHash common.Hash) error {
+	receipt, err := c.transactionService.WaitForReceipt(ctx, txHash)
+	if err != nil {
+		return err
+	}
+
+	c.stateStore.Put(keyPrefix+txHash.String(), receipt)
+
+	if receipt.Status == 0 {
+		return transaction.ErrTransactionReverted
+	}
+	return nil
 }

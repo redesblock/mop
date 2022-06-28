@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	hopabi "github.com/redesblock/hop/contracts/abi"
 	"math/big"
 	"strings"
 	"sync"
+
+	hopabi "github.com/redesblock/hop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/hop/core/sctx"
@@ -22,6 +23,7 @@ type SendChequeFunc func(cheque *SignedCheque) error
 const (
 	lastIssuedChequeKeyPrefix = "swap_chequebook_last_issued_cheque_"
 	totalIssuedKey            = "swap_chequebook_total_issued_"
+	keyPrefix                 = "chequebook-txs-"
 )
 
 var (
@@ -55,6 +57,8 @@ type Service interface {
 	LastCheque(beneficiary common.Address) (*SignedCheque, error)
 	// LastCheque returns the last cheques for all beneficiaries.
 	LastCheques() (map[common.Address]*SignedCheque, error)
+
+	Txs() ([]string, error)
 }
 
 type service struct {
@@ -103,7 +107,15 @@ func (s *service) Deposit(ctx context.Context, amount *big.Int) (hash common.Has
 		return common.Hash{}, ErrInsufficientFunds
 	}
 
-	return s.erc20Service.Transfer(ctx, s.address, amount)
+	txHash, err := s.erc20Service.Transfer(ctx, s.address, amount)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if err := s.storeTx(ctx, txHash); err != nil {
+		return common.Hash{}, err
+	}
+	return txHash, nil
 }
 
 // Balance returns the token balance of the chequebook.
@@ -332,5 +344,40 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 		return common.Hash{}, err
 	}
 
+	if err := s.storeTx(ctx, txHash); err != nil {
+		return common.Hash{}, err
+	}
+
 	return txHash, nil
+}
+
+func (s *service) storeTx(ctx context.Context, txHash common.Hash) error {
+	receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
+	if err != nil {
+		return err
+	}
+
+	s.store.Put(keyPrefix+txHash.String(), receipt)
+
+	if receipt.Status == 0 {
+		return transaction.ErrTransactionReverted
+	}
+	return nil
+}
+
+func (s *service) Txs() ([]string, error) {
+	var txs []string
+	if err := s.store.Iterate(keyPrefix, func(k, v []byte) (bool, error) {
+		if !strings.HasPrefix(string(k), keyPrefix) {
+			return true, nil
+		}
+
+		tx := strings.TrimPrefix(string(k), keyPrefix)
+		txs = append(txs, tx)
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return txs, nil
 }
