@@ -1,0 +1,890 @@
+openapi: 3.0.3
+
+info:
+  version: 3.0.1
+  title: API
+  description: "A list of the currently provided Interfaces to interact with the swarm, implementing file operations and sending messages"
+
+security:
+  - {}
+
+externalDocs:
+  description: Browse the documentation
+
+servers:
+  - url: "http://{apiRoot}:{port}/v1"
+    variables:
+      apiRoot:
+        default: "localhost"
+        description: Base address of the local bee node main API
+      port:
+        default: "1633"
+        description: Service port provided in bee node config
+  - url: "http://{apiRoot}:{port}"
+    variables:
+      apiRoot:
+        default: "localhost"
+        description: Base address of the local bee node main API
+      port:
+        default: "1633"
+        description: Service port provided in bee node config
+
+paths:
+  "/auth":
+    post:
+      summary: "Authenticate - This endpoint is experimental"
+      tags:
+        - Auth
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "Common.yaml#/components/schemas/SecurityTokenRequest"
+      responses:
+        "201":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/SecurityTokenResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "401":
+          $ref: "Common.yaml#/components/responses/401"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/refresh":
+    post:
+      summary: "Refresh the auth token - This endpoint is experimental"
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "Common.yaml#/components/schemas/SecurityTokenRequest"
+      responses:
+        "201":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/SecurityTokenResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "401":
+          $ref: "Common.yaml#/components/responses/401"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/bytes":
+    post:
+      summary: "Upload data"
+      tags:
+        - Bytes
+      parameters:
+        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmEncryptParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/SwarmDeferredUpload"
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Ok
+          headers:
+            "swarm-tag":
+              $ref: "Common.yaml#/components/headers/SwarmTag"
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/ReferenceResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "402":
+          $ref: "Common.yaml#/components/responses/402"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/bytes/{reference}":
+    get:
+      summary: "Get referenced data"
+      tags:
+        - Bytes
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: Swarm address reference to content
+      responses:
+        "200":
+          description: Retrieved content specified by reference
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        default:
+          description: Default response
+
+  "/chunks/{reference}":
+    get:
+      summary: "Get Chunk"
+      tags:
+        - Chunk
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: Swarm address of chunk
+      responses:
+        "200":
+          description: Retrieved chunk content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/chunks":
+    post:
+      summary: "Upload Chunk"
+      tags:
+        - Chunk
+      parameters:
+        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/SwarmDeferredUpload"
+      requestBody:
+        description: Chunk binary data that has to have at least 8 bytes.
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Ok
+          headers:
+            "swarm-tag":
+              description: Tag UID if it was passed to the request `swarm-tag` header.
+              schema:
+                $ref: "Common.yaml#/components/schemas/Uid"
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/Status"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "402":
+          $ref: "Common.yaml#/components/responses/402"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/chunks/stream":
+    get:
+      summary: "Upload stream of chunks"
+      tags:
+        - Chunk
+      parameters:
+        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+      responses:
+        "200":
+          description: "Returns a Websocket connection on which stream of chunks can be uploaded. Each chunk sent is acknowledged using a binary response `0` which serves as confirmation of upload of single chunk. Chunks should be packaged as binary messages for uploading."
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        default:
+          description: Default response
+  "/bzz":
+    post:
+      summary: "Upload file or a collection of files"
+      description: "In order to upload a collection, user can send a multipart request with all the files populated in the form data with appropriate headers.\n\n
+        User can also upload a tar file along with the swarm-collection header. This will upload the tar file after extracting the entire directory structure.\n\n
+        If the swarm-collection header is absent, all requests (including tar files) are considered as single file uploads.\n\n
+        A multipart request is treated as a collection regardless of whether the swarm-collection header is present. This means in order to serve single files
+        uploaded as a multipart request, the swarm-index-document header should be used with the name of the file."
+      tags:
+        - BZZ
+      parameters:
+        - in: query
+          name: name
+          schema:
+            $ref: "Common.yaml#/components/schemas/FileName"
+          required: false
+          description: Filename when uploading single file
+        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmEncryptParameter"
+        - $ref: "Common.yaml#/components/parameters/ContentTypePreserved"
+        - $ref: "Common.yaml#/components/parameters/SwarmCollection"
+        - $ref: "Common.yaml#/components/parameters/SwarmIndexDocumentParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmErrorDocumentParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/SwarmDeferredUpload"
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                file:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/x-tar:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Ok
+          headers:
+            "swarm-tag":
+              $ref: "Common.yaml#/components/headers/SwarmTag"
+            "etag":
+              $ref: "Common.yaml#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/ReferenceResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "402":
+          $ref: "Common.yaml#/components/responses/402"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/bzz/{reference}":
+    patch:
+      summary: "Reupload a root hash to the network; deprecated: use /stewardship/{reference} instead"
+      deprecated: true
+      tags:
+        - BZZ
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: "Root hash of content (can be of any type: collection, file, chunk)"
+      responses:
+        "200":
+          description: Ok
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    get:
+      summary: "Get file or index document from a collection of files"
+      tags:
+        - BZZ
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: Swarm address of content
+      responses:
+        "200":
+          description: Ok
+          # "swarm-feed-index":
+          #   $ref: "Common.yaml#/components/headers/SwarmFeedIndex"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/bzz/{reference}/{path}":
+    get:
+      summary: "Get referenced file from a collection of files"
+      tags:
+        - BZZ
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: Swarm address of content
+        - in: path
+          name: path
+          schema:
+            type: string
+          required: true
+          description: Path to the file in the collection.
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/tags":
+    get:
+      summary: Get list of tags
+      tags:
+        - Tag
+      parameters:
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          required: false
+          description: The number of items to skip before starting to collect the result set.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+          required: false
+          description: The numbers of items to return.
+      responses:
+        "200":
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/TagsList"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    post:
+      summary: "Create Tag"
+      tags:
+        - Tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "Common.yaml#/components/schemas/NewTagRequest"
+      responses:
+        "201":
+          description: New Tag Info
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/NewTagResponse"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/tags/{uid}":
+    get:
+      summary: "Get Tag information using Uid"
+      tags:
+        - Tag
+      parameters:
+        - in: path
+          name: uid
+          schema:
+            $ref: "Common.yaml#/components/schemas/Uid"
+          required: true
+          description: Uid
+      responses:
+        "200":
+          description: Tag info
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/NewTagResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    delete:
+      summary: "Delete Tag information using Uid"
+      tags:
+        - Tag
+      parameters:
+        - in: path
+          name: uid
+          schema:
+            $ref: "Common.yaml#/components/schemas/Uid"
+          required: true
+          description: Uid
+      responses:
+        "204":
+          $ref: "Common.yaml#/components/responses/204"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    patch:
+      summary: "Update Total Count and swarm hash for a tag of an input stream of unknown size using Uid"
+      tags:
+        - Tag
+      parameters:
+        - in: path
+          name: uid
+          schema:
+            $ref: "Common.yaml#/components/schemas/Uid"
+          required: true
+          description: Uid
+      requestBody:
+        description: Can contain swarm hash to use for the tag
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "Common.yaml#/components/schemas/Address"
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/Status"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/pins/{reference}":
+    parameters:
+      - in: path
+        name: reference
+        schema:
+          $ref: "Common.yaml#/components/schemas/SwarmOnlyReference"
+        required: true
+        description: Swarm reference of the root hash
+    post:
+      summary: Pin the root hash with the given reference
+      tags:
+        - Pinning
+      responses:
+        "200":
+          description: Pin already exists, so no operation
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/Response"
+        "201":
+          description: New pin with root reference was created
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/Response"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    delete:
+      summary: Unpin the root hash with the given reference
+      tags:
+        - Pinning
+      responses:
+        "200":
+          description: Unpinning root hash with reference
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/Response"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    get:
+      summary: Get pinning status of the root hash with the given reference
+      tags:
+        - Pinning
+      responses:
+        "200":
+          description: Reference of the pinned root hash
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/SwarmOnlyReference"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/pins":
+    get:
+      summary: Get the list of pinned root hash references
+      tags:
+        - Pinning
+      responses:
+        "200":
+          description: List of pinned root hash references
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/SwarmOnlyReferencesList"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/pss/send/{topic}/{targets}":
+    post:
+      summary: Send to recipient or target with Postal Service for Swarm
+      tags:
+        - Postal Service for Swarm
+      parameters:
+        - in: path
+          name: topic
+          schema:
+            $ref: "Common.yaml#/components/schemas/PssTopic"
+          required: true
+          description: Topic name
+        - in: path
+          name: targets
+          schema:
+            $ref: "Common.yaml#/components/schemas/PssTargets"
+          required: true
+          description: Target message address prefix. If multiple targets are specified, only one would be matched.
+        - in: query
+          name: recipient
+          schema:
+            $ref: "Common.yaml#/components/schemas/PssRecipient"
+          required: false
+          description: Recipient publickey
+        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+      responses:
+        "201":
+          description: Subscribed to topic
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "402":
+          $ref: "Common.yaml#/components/responses/402"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/pss/subscribe/{topic}":
+    get:
+      summary: Subscribe for messages on the given topic.
+      tags:
+        - Postal Service for Swarm
+      parameters:
+        - in: path
+          name: topic
+          schema:
+            $ref: "Common.yaml#/components/schemas/PssTopic"
+          required: true
+          description: Topic name
+      responses:
+        "200":
+          description: Returns a WebSocket with a subscription for incoming message data on the requested topic.
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/soc/{owner}/{id}":
+    post:
+      summary: Upload single owner chunk
+      tags:
+        - Single owner chunk
+      parameters:
+        - in: path
+          name: owner
+          schema:
+            $ref: "Common.yaml#/components/schemas/EthereumAddress"
+          required: true
+          description: Owner
+        - in: path
+          name: id
+          schema:
+            $ref: "Common.yaml#/components/schemas/HexString"
+          required: true
+          description: Id
+        - in: query
+          name: sig
+          schema:
+            $ref: "Common.yaml#/components/schemas/HexString"
+          required: true
+          description: Signature
+        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/ReferenceResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "401":
+          $ref: "Common.yaml#/components/responses/401"
+        "402":
+          $ref: "Common.yaml#/components/responses/402"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/feeds/{owner}/{topic}":
+    post:
+      summary: Create an initial feed root manifest
+      tags:
+        - Feed
+      parameters:
+        - in: path
+          name: owner
+          schema:
+            $ref: "Common.yaml#/components/schemas/EthereumAddress"
+          required: true
+          description: Owner
+        - in: path
+          name: topic
+          schema:
+            $ref: "Common.yaml#/components/schemas/HexString"
+          required: true
+          description: Topic
+        - in: query
+          name: type
+          schema:
+            $ref: "Common.yaml#/components/schemas/FeedType"
+          required: false
+          description: "Feed indexing scheme (default: sequence)"
+        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/ReferenceResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "401":
+          $ref: "Common.yaml#/components/responses/401"
+        "402":
+          $ref: "Common.yaml#/components/responses/402"
+        "403":
+          $ref: "Common.yaml#/components/responses/GatewayForbidden"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    get:
+      summary: Find feed update
+      tags:
+        - Feed
+      parameters:
+        - in: path
+          name: owner
+          schema:
+            $ref: "Common.yaml#/components/schemas/EthereumAddress"
+          required: true
+          description: Owner
+        - in: path
+          name: topic
+          schema:
+            $ref: "Common.yaml#/components/schemas/HexString"
+          required: true
+          description: Topic
+        - in: query
+          name: at
+          schema:
+            type: integer
+          required: false
+          description: "Timestamp of the update (default: now)"
+        - in: query
+          name: type
+          schema:
+            $ref: "Common.yaml#/components/schemas/FeedType"
+          required: false
+          description: "Feed indexing scheme (default: sequence)"
+      responses:
+        "200":
+          description: Latest feed update
+          headers:
+            "swarm-feed-index":
+              $ref: "Common.yaml#/components/headers/SwarmFeedIndex"
+            "swarm-feed-index-next":
+              $ref: "Common.yaml#/components/headers/SwarmFeedIndexNext"
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/ReferenceResponse"
+        "400":
+          $ref: "Common.yaml#/components/responses/400"
+        "401":
+          $ref: "Common.yaml#/components/responses/401"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+  "/stewardship/{reference}":
+    get:
+      summary: "Check if content is available"
+      tags:
+        - Stewardship
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: "Root hash of content (can be of any type: collection, file, chunk)"
+      responses:
+        "200":
+          description: Returns if the content is retrievable
+          content:
+            application/json:
+              schema:
+                $ref: "Common.yaml#/components/schemas/IsRetrievableResponse"
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+    put:
+      summary: "Reupload a root hash to the network"
+      tags:
+        - Stewardship
+      parameters:
+        - in: path
+          name: reference
+          schema:
+            $ref: "Common.yaml#/components/schemas/SwarmReference"
+          required: true
+          description: "Root hash of content (can be of any type: collection, file, chunk)"
+      responses:
+        "200":
+          description: Ok
+        "404":
+          $ref: "Common.yaml#/components/responses/404"
+        "500":
+          $ref: "Common.yaml#/components/responses/500"
+        default:
+          description: Default response
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: SecurityToken

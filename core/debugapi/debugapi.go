@@ -6,6 +6,7 @@ package debugapi
 import (
 	"crypto/ecdsa"
 	"github.com/redesblock/hop/core/settlement/swap/pledge"
+	"github.com/redesblock/hop/core/settlement/swap/reward"
 	"math/big"
 	"net/http"
 	"sync"
@@ -41,29 +42,31 @@ type authenticator interface {
 
 // Service implements http.Handler interface to be used in HTTP server.
 type Service struct {
-	restricted         bool
-	auth               authenticator
-	overlay            *swarm.Address
-	publicKey          ecdsa.PublicKey
-	pssPublicKey       ecdsa.PublicKey
-	ethereumAddress    common.Address
-	p2p                p2p.DebugService
-	pingpong           pingpong.Interface
-	topologyDriver     topology.Driver
-	storer             storage.Storer
-	tracer             *tracing.Tracer
-	tags               *tags.Tags
-	accounting         accounting.Interface
-	pseudosettle       settlement.Interface
-	chequebookEnabled  bool
-	chequebook         chequebook.Service
-	swap               swap.Interface
-	batchStore         postage.Storer
-	backend            transaction.Backend
-	transaction        transaction.Service
-	post               postage.Service
-	postageContract    postagecontract.Interface
-	pledgeContract     pledge.Service
+	restricted        bool
+	auth              authenticator
+	overlay           *swarm.Address
+	publicKey         ecdsa.PublicKey
+	pssPublicKey      ecdsa.PublicKey
+	ethereumAddress   common.Address
+	p2p               p2p.DebugService
+	pingpong          pingpong.Interface
+	topologyDriver    topology.Driver
+	storer            storage.Storer
+	tracer            *tracing.Tracer
+	tags              *tags.Tags
+	accounting        accounting.Interface
+	pseudosettle      settlement.Interface
+	chequebookEnabled bool
+	chequebook        chequebook.Service
+	swap              swap.Interface
+	batchStore        postage.Storer
+	backend           transaction.Backend
+	transaction       transaction.Service
+	post              postage.Service
+	postageContract   postagecontract.Interface
+	pledgeContract    pledge.Service
+	rewardContract    reward.Service
+
 	logger             logging.Logger
 	corsAllowedOrigins []string
 	metricsRegistry    *prometheus.Registry
@@ -109,7 +112,7 @@ func New(publicKey, pssPublicKey ecdsa.PublicKey, ethereumAddress common.Address
 // Configure injects required dependencies and configuration parameters and
 // constructs HTTP routes that depend on them. It is intended and safe to call
 // this method only once.
-func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface, pledgeContract pledge.Service, traverser traversal.Traverser) {
+func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpong pingpong.Interface, topologyDriver topology.Driver, lightNodes *lightnode.Container, storer storage.Storer, tags *tags.Tags, accounting accounting.Interface, pseudosettle settlement.Interface, chequebookEnabled bool, swap swap.Interface, chequebook chequebook.Service, batchStore postage.Storer, post postage.Service, postageContract postagecontract.Interface, pledgeContract pledge.Service, rewardContract reward.Service, traverser traversal.Traverser) {
 	s.p2p = p2p
 	s.pingpong = pingpong
 	s.topologyDriver = topologyDriver
@@ -126,6 +129,7 @@ func (s *Service) Configure(overlay swarm.Address, p2p p2p.DebugService, pingpon
 	s.post = post
 	s.postageContract = postageContract
 	s.pledgeContract = pledgeContract
+	s.rewardContract = rewardContract
 	s.traverser = traverser
 
 	s.setRouter(s.newRouter())

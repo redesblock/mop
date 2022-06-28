@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/redesblock/hop/core/settlement/swap/pledge"
+	"github.com/redesblock/hop/core/settlement/swap/reward"
 	"io"
 	"log"
 	"math/big"
@@ -152,6 +153,7 @@ type Options struct {
 	PostageContractAddress     string
 	PriceOracleAddress         string
 	PledgeAddress              string
+	RewardAddress              string
 	BlockTime                  uint64
 	DeployGasPrice             string
 	WarmupTime                 time.Duration
@@ -164,6 +166,7 @@ type Options struct {
 	Restricted                 bool
 	TokenEncryptionKey         string
 	AdminPasswordHash          string
+	ReceiptEndPoint            string
 }
 
 const (
@@ -450,6 +453,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	var (
 		postageContractService postagecontract.Interface
 		pledgeContractService  pledge.Service
+		rewardContractService  reward.Service
 		batchSvc               postage.EventUpdater
 		eventListener          postage.Listener
 	)
@@ -507,6 +511,23 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		swapBackend,
 		transactionService,
 		pledgeAddress,
+	)
+
+	rewardAddress := chainCfg.RewardAddress
+	if o.PledgeAddress != "" {
+		if !common.IsHexAddress(o.RewardAddress) {
+			return nil, errors.New("malformed reward address")
+		}
+		postageContractAddress = common.HexToAddress(o.PostageContractAddress)
+	} else if !found {
+		return nil, errors.New("no known reward addresses for this network")
+	}
+	rewardContractService = reward.New(
+		stateStore,
+		overlayEthAddress,
+		swapBackend,
+		transactionService,
+		rewardAddress,
 	)
 
 	if natManager := p2ps.NATManager(); natManager != nil {
@@ -704,7 +725,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	pinningService := pinning.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(swarmAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime)
+	pushSyncProtocol := pushsync.New(swarmAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -864,7 +885,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 			debugAPIService.MustRegisterMetrics(chainSyncer.Metrics()...)
 		}
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, pledgeContractService, traversalService)
+		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, pledgeContractService, rewardContractService, traversalService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {

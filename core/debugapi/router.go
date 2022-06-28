@@ -67,27 +67,31 @@ func (s *Service) newBasicRouter() *mux.Router {
 		"GET": http.HandlerFunc(s.nodeBalanceHandler),
 	})
 
-	router.Handle("/node/storage", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.nodeStorageHandler),
+	router.Handle("/reward/balance", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeRewardBalanceHandler),
 	})
 
-	router.Handle("/node/storage/transaction", jsonhttp.MethodHandler{
-		"GET": http.HandlerFunc(s.nodeStorageTransactionHandler),
+	router.Handle("/reward/transactions", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeRewardTransactionHandler),
 	})
 
-	handle("/node/stake/{amount}", jsonhttp.MethodHandler{
+	router.Handle("/reward/cash/{amount}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.nodeRewardCashHandler),
+	})
+
+	handle("/pledge/stake/{amount}", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.nodePledgeStakeHandler),
 	})
 
-	handle("/node/unstake/{amount}", jsonhttp.MethodHandler{
+	handle("/pledge/unstake/{amount}", jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(s.nodePledgeUnStakeHandler),
 	})
 
-	router.Handle("/node/pledge", jsonhttp.MethodHandler{
+	router.Handle("/pledge/balance", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.nodePledgeHandler),
 	})
 
-	router.Handle("/node/pledge/transaction", jsonhttp.MethodHandler{
+	router.Handle("/pledge/transactions", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.nodePledgeTransactionHandler),
 	})
 
@@ -197,7 +201,7 @@ func (s *Service) newRouter() *mux.Router {
 			"GET": http.HandlerFunc(s.peerSettlementsHandler),
 		})
 
-		handle("/chequebook/transaction", jsonhttp.MethodHandler{
+		handle("/chequebook/transactions", jsonhttp.MethodHandler{
 			"GET": http.HandlerFunc(s.chequebookTransactionHandler),
 		})
 

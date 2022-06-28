@@ -62,11 +62,11 @@ func checkBalance(
 			}
 
 			if insufficientETH && insufficientERC20 {
-				logger.Warningf("cannot continue until there is sufficient BNB (for Gas) and at least %d HOP available on %x", neededERC20, overlayEthAddress)
+				logger.Warningf("cannot continue until there is sufficient BNB (for Gas) and at least %d MOP available on %x", neededERC20, overlayEthAddress)
 			} else if insufficientETH {
 				logger.Warningf("cannot continue until there is sufficient BNB (for Gas) available on %x", overlayEthAddress)
 			} else {
-				logger.Warningf("cannot continue until there is at least %d HOP available on %x", neededERC20, overlayEthAddress)
+				logger.Warningf("cannot continue until there is at least %d MOP available on %x", neededERC20, overlayEthAddress)
 			}
 
 			select {

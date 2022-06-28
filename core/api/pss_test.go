@@ -212,7 +212,7 @@ func TestPssSend(t *testing.T) {
 		)
 
 		// If this test needs to be modified (most probably because the max target length changed)
-		// the please verify that SwarmCommon.yaml -> components -> PssTarget also reflects the correct value
+		// the please verify that Common.yaml -> components -> PssTarget also reflects the correct value
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/to/123456789abcdf?recipient="+recipient, http.StatusBadRequest,
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{

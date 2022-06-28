@@ -18,6 +18,9 @@ const (
 	errPledgedBalanceBalance      = "cannot get pledged balance"
 	errTotalSlashedBalanceBalance = "cannot get total slashed balance"
 	errSlashedBalanceBalance      = "cannot get slashed balance"
+	errSystemRewardBalanceBalance = "cannot get system reward balance"
+	errCashedBalanceBalance       = "cannot get cashed reward balance"
+	errUnCashBalanceBalance       = "cannot get uncash reward balance"
 )
 
 type BeeNodeMode uint
@@ -62,31 +65,93 @@ type nodeBalanceResponse struct {
 func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
 	balance, err := s.backend.BalanceAt(r.Context(), s.ethereumAddress, nil)
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, errETHBalance)
 		return
 	}
 	jsonhttp.OK(w, nodeBalanceResponse{Balance: bigint.Wrap(balance)})
 }
 
-type nodeStorageResponse struct {
+type nodeRewardBalanceResponse struct {
 	SystemBalance *bigint.BigInt `json:"systemBalance"`
 	CashBalance   *bigint.BigInt `json:"cashBalance"`
 	UncashBalance *bigint.BigInt `json:"unCashBalance"`
 }
 
-func (s *Service) nodeStorageHandler(w http.ResponseWriter, r *http.Request) {
-	balance := big.NewInt(0)
-	jsonhttp.OK(w, nodeStorageResponse{SystemBalance: bigint.Wrap(balance), CashBalance: bigint.Wrap(balance), UncashBalance: bigint.Wrap(balance)})
+func (s *Service) nodeRewardBalanceHandler(w http.ResponseWriter, r *http.Request) {
+	systemReward, err := s.rewardContract.GetSystemReward(r.Context(), s.ethereumAddress)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, errSystemRewardBalanceBalance)
+		return
+	}
+
+	cashedBalance, err := s.rewardContract.GetCashedReward(r.Context(), s.ethereumAddress)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, errCashedBalanceBalance)
+		return
+	}
+
+	uncashBalance, err := s.rewardContract.GetUnCashReward(r.Context(), s.ethereumAddress)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, errUnCashBalanceBalance)
+		return
+	}
+
+	jsonhttp.OK(w, nodeRewardBalanceResponse{SystemBalance: bigint.Wrap(systemReward), CashBalance: bigint.Wrap(cashedBalance), UncashBalance: bigint.Wrap(uncashBalance)})
 }
 
-type nodeStorageTransactionResponse struct {
+type nodeRewardTransactionResponse struct {
 	Txs []string `json:"txs"`
 }
 
-func (s *Service) nodeStorageTransactionHandler(w http.ResponseWriter, r *http.Request) {
-	jsonhttp.OK(w, nodeStorageTransactionResponse{
-		Txs: []string{"0x03ef42927e896883ec2666cb1f0b6d758136c7f08eebd8e620a44a820ea86d2fda"},
+func (s *Service) nodeRewardTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	txs, err := s.rewardContract.Txs()
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, err)
+		return
+	}
+
+	jsonhttp.OK(w, nodeRewardTransactionResponse{
+		Txs: txs,
+	})
+}
+
+type rewardTxResponse struct {
+	TransactionHash common.Hash `json:"transactionHash"`
+}
+
+func (s *Service) nodeRewardCashHandler(w http.ResponseWriter, r *http.Request) {
+	amount, ok := big.NewInt(0).SetString(mux.Vars(r)["amount"], 10)
+	if !ok {
+		s.logger.Error(r.URL.Path, "invalid amount")
+		jsonhttp.BadRequest(w, "invalid amount")
+		return
+	}
+
+	ctx := r.Context()
+	if price, ok := r.Header[gasPriceHeader]; ok {
+		p, ok := big.NewInt(0).SetString(price[0], 10)
+		if !ok {
+			s.logger.Error(r.URL.Path, "bad gas price")
+			jsonhttp.BadRequest(w, errBadGasPrice)
+			return
+		}
+		ctx = sctx.SetGasPrice(ctx, p)
+	}
+
+	txHash, err := s.rewardContract.Cash(ctx, amount)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, fmt.Sprintf("failed cash %v", err))
+		return
+	}
+
+	jsonhttp.OK(w, &rewardTxResponse{
+		TransactionHash: txHash,
 	})
 }
 
@@ -100,28 +165,28 @@ type nodePledgeResponse struct {
 func (s *Service) nodePledgeHandler(w http.ResponseWriter, r *http.Request) {
 	totalPledgedBalance, err := s.pledgeContract.GetTotalShare(r.Context())
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, errTotalPledgedBalanceBalance)
 		return
 	}
 
 	pledgedBalance, err := s.pledgeContract.GetShare(r.Context(), s.ethereumAddress)
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, errPledgedBalanceBalance)
 		return
 	}
 
 	totalSlashedBalance, err := s.pledgeContract.GetTotalSlash(r.Context())
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, errTotalSlashedBalanceBalance)
 		return
 	}
 
 	slashedBalance, err := s.pledgeContract.GetSlash(r.Context(), s.ethereumAddress)
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, errSlashedBalanceBalance)
 		return
 	}
@@ -141,7 +206,7 @@ type nodePledgeTransactionResponse struct {
 func (s *Service) nodePledgeTransactionHandler(w http.ResponseWriter, r *http.Request) {
 	txs, err := s.pledgeContract.Txs()
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, err)
 		return
 	}
@@ -176,7 +241,7 @@ func (s *Service) nodePledgeStakeHandler(w http.ResponseWriter, r *http.Request)
 
 	txHash, err := s.pledgeContract.Stake(ctx, amount)
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, fmt.Sprintf("failed stake %v", err))
 		return
 	}
@@ -207,7 +272,7 @@ func (s *Service) nodePledgeUnStakeHandler(w http.ResponseWriter, r *http.Reques
 
 	txHash, err := s.pledgeContract.UnStake(ctx, amount)
 	if err != nil {
-		s.logger.Error(r.URL.Path, err)
+		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, fmt.Sprintf("failed unstake %v", err))
 		return
 	}

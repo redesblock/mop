@@ -4,8 +4,11 @@ package pushsync
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,23 +67,24 @@ type Receipt struct {
 }
 
 type PushSync struct {
-	address        swarm.Address
-	blockHash      []byte
-	streamer       p2p.StreamerDisconnecter
-	storer         storage.Putter
-	topologyDriver topology.Driver
-	tagger         *tags.Tags
-	unwrap         func(swarm.Chunk)
-	logger         logging.Logger
-	accounting     accounting.Interface
-	pricer         pricer.Interface
-	metrics        metrics
-	tracer         *tracing.Tracer
-	validStamp     postage.ValidStampFn
-	signer         crypto.Signer
-	isFullNode     bool
-	warmupPeriod   time.Time
-	skipList       *peerSkipList
+	address         swarm.Address
+	blockHash       []byte
+	streamer        p2p.StreamerDisconnecter
+	storer          storage.Putter
+	topologyDriver  topology.Driver
+	tagger          *tags.Tags
+	unwrap          func(swarm.Chunk)
+	logger          logging.Logger
+	accounting      accounting.Interface
+	pricer          pricer.Interface
+	metrics         metrics
+	tracer          *tracing.Tracer
+	validStamp      postage.ValidStampFn
+	signer          crypto.Signer
+	isFullNode      bool
+	warmupPeriod    time.Time
+	skipList        *peerSkipList
+	receiptEndPoint string
 }
 
 type receiptResult struct {
@@ -91,25 +95,26 @@ type receiptResult struct {
 	err       error
 }
 
-func New(address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration) *PushSync {
+func New(address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
 	ps := &PushSync{
-		address:        address,
-		blockHash:      blockHash,
-		streamer:       streamer,
-		storer:         storer,
-		topologyDriver: topology,
-		tagger:         tagger,
-		isFullNode:     isFullNode,
-		unwrap:         unwrap,
-		logger:         logger,
-		accounting:     accounting,
-		pricer:         pricer,
-		metrics:        newMetrics(),
-		tracer:         tracer,
-		validStamp:     validStamp,
-		signer:         signer,
-		skipList:       newPeerSkipList(),
-		warmupPeriod:   time.Now().Add(warmupTime),
+		address:         address,
+		blockHash:       blockHash,
+		streamer:        streamer,
+		storer:          storer,
+		topologyDriver:  topology,
+		tagger:          tagger,
+		isFullNode:      isFullNode,
+		unwrap:          unwrap,
+		logger:          logger,
+		accounting:      accounting,
+		pricer:          pricer,
+		metrics:         newMetrics(),
+		tracer:          tracer,
+		validStamp:      validStamp,
+		signer:          signer,
+		skipList:        newPeerSkipList(),
+		warmupPeriod:    time.Now().Add(warmupTime),
+		receiptEndPoint: receiptEndPoint,
 	}
 	return ps
 }
@@ -423,6 +428,15 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bo
 
 			if result.err == nil {
 				close(doneChan)
+				bts, _ := json.Marshal(result.receipt)
+				resp, err := http.Post(ps.receiptEndPoint, "application/json", strings.NewReader(string(bts)))
+				if err != nil {
+					logger.Errorf("pushsync: push receipt error: %s", err)
+				} else {
+					defer resp.Body.Close()
+				}
+
+				logger.Debugf("pushsync: push to peer %s: %s", result.peer, swarm.NewAddress(result.receipt.Address))
 				return result.receipt, nil
 			}
 

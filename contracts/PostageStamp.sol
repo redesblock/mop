@@ -230,7 +230,7 @@ contract PostageStamp is AccessControl, Pausable, Ownable {
         emit Incentive(_recipient, _amount);
     }
 
-    function getIncentive() external view returns(uint256) {
-        return incentives[msg.sender];
+    function getIncentive(address _recipient) external view returns(uint256) {
+        return incentives[_recipient];
     }
 }

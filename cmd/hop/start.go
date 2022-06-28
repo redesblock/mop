@@ -183,6 +183,7 @@ func (c *command) initStartCmd() (err error) {
 				PostageContractAddress:     c.config.GetString(optionNamePostageContractAddress),
 				PriceOracleAddress:         c.config.GetString(optionNamePriceOracleAddress),
 				PledgeAddress:              c.config.GetString(optionNamePledgeAddress),
+				RewardAddress:              c.config.GetString(optionNameRewardAddress),
 				BlockTime:                  networkConfig.blockTime,
 				DeployGasPrice:             c.config.GetString(optionNameSwapDeploymentGasPrice),
 				WarmupTime:                 c.config.GetDuration(optionWarmUpTime),
@@ -196,6 +197,7 @@ func (c *command) initStartCmd() (err error) {
 				Restricted:                 c.config.GetBool(optionNameRestrictedAPI),
 				TokenEncryptionKey:         c.config.GetString(optionNameTokenEncryptionKey),
 				AdminPasswordHash:          c.config.GetString(optionNameAdminPasswordHash),
+				ReceiptEndPoint:            c.config.GetString(optionNameReceiptEndpoint),
 			})
 			if err != nil {
 				return err
