@@ -4,6 +4,7 @@ package pushsync
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,6 +68,7 @@ type Receipt struct {
 }
 
 type PushSync struct {
+	networkID       uint64
 	address         swarm.Address
 	blockHash       []byte
 	streamer        p2p.StreamerDisconnecter
@@ -95,8 +97,9 @@ type receiptResult struct {
 	err       error
 }
 
-func New(address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
+func New(networkID uint64, address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
 	ps := &PushSync{
+		networkID:       networkID,
 		address:         address,
 		blockHash:       blockHash,
 		streamer:        streamer,
@@ -220,8 +223,11 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 			}
 			defer debit.Cleanup()
 
+			b := make([]byte, 8)
+			binary.BigEndian.PutUint64(b, ps.networkID)
+
 			// return back receipt
-			signature, err := ps.signer.Sign(chunkAddress.Bytes())
+			signature, err := ps.signer.Sign(append(chunkAddress.Bytes(), b...))
 			if err != nil {
 				ps.metrics.HandlerReplicationErrors.Inc()
 				return fmt.Errorf("receipt signature: %w", err)
@@ -278,7 +284,10 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 
 			storedChunk = true
 
-			signature, err := ps.signer.Sign(ch.Address)
+			b := make([]byte, 8)
+			binary.BigEndian.PutUint64(b, ps.networkID)
+
+			signature, err := ps.signer.Sign(append(ch.Address, b...))
 			if err != nil {
 				return fmt.Errorf("receipt signature: %w", err)
 			}

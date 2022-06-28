@@ -6,6 +6,7 @@ package pusher
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
@@ -210,8 +211,11 @@ func (s *Service) pushChunk(ctx context.Context, ch swarm.Chunk, logger *logrus.
 }
 
 func (s *Service) checkReceipt(receipt *pushsync.Receipt) error {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, s.networkID)
+
 	addr := receipt.Address
-	publicKey, err := crypto.Recover(receipt.Signature, addr.Bytes())
+	publicKey, err := crypto.Recover(receipt.Signature, append(addr.Bytes(), b...))
 	if err != nil {
 		return fmt.Errorf("pusher: receipt recover: %w", err)
 	}
