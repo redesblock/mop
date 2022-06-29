@@ -29,6 +29,7 @@ type Service interface {
 	GetSlash(ctx context.Context, address common.Address) (*big.Int, error)
 	GetTotalShare(ctx context.Context) (*big.Int, error)
 	GetTotalSlash(ctx context.Context) (*big.Int, error)
+	AvailableBalance(ctx context.Context, address common.Address) (*big.Int, error)
 	Txs() ([]string, error)
 }
 
@@ -171,13 +172,7 @@ func (c *pledgeService) GetTotalSlash(ctx context.Context) (*big.Int, error) {
 }
 
 func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash, error) {
-	erc20Address, err := c.ERC20Address(ctx)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	erc20Service := erc20.New(c.backend, c.transactionService, erc20Address)
-	balance, err := erc20Service.BalanceOf(ctx, c.overlayEthAddress)
+	balance, err := c.AvailableBalance(ctx, c.overlayEthAddress)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -211,6 +206,20 @@ func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash,
 	}
 
 	return txHash, nil
+}
+
+func (c *pledgeService) AvailableBalance(ctx context.Context, address common.Address) (*big.Int, error) {
+	erc20Address, err := c.ERC20Address(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	erc20Service := erc20.New(c.backend, c.transactionService, erc20Address)
+	balance, err := erc20Service.BalanceOf(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	return balance, nil
 }
 
 func (c *pledgeService) UnStake(ctx context.Context, value *big.Int) (common.Hash, error) {

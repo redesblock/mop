@@ -174,6 +174,19 @@ const PledgepABI = `[
 	},
 	{
 		"inputs": [],
+		"name": "stakeToken",
+		"outputs": [
+			{
+				"internalType": "contract IERC20",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "totalShare",
 		"outputs": [
 			{

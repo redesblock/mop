@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	errETHBalance                 = "cannot get chain balance"
+	errETHBalance                 = "cannot get bnb balance"
+	errHOPBalance                 = "cannot get hop balance"
+	errMOPBalance                 = "cannot get mop balance"
 	errTotalPledgedBalanceBalance = "cannot get total pledged balance"
 	errPledgedBalanceBalance      = "cannot get pledged balance"
 	errTotalSlashedBalanceBalance = "cannot get total slashed balance"
@@ -59,7 +61,9 @@ func (s *Service) nodeGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type nodeBalanceResponse struct {
-	Balance *bigint.BigInt `json:"balance"`
+	Balance    *bigint.BigInt `json:"balance"`
+	HopBalance *bigint.BigInt `json:"hopBalance"`
+	MopBalance *bigint.BigInt `json:"mopBalance"`
 }
 
 func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +73,22 @@ func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.InternalServerError(w, errETHBalance)
 		return
 	}
-	jsonhttp.OK(w, nodeBalanceResponse{Balance: bigint.Wrap(balance)})
+
+	hopBalance, err := s.pledgeContract.AvailableBalance(r.Context(), s.ethereumAddress)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, errHOPBalance)
+		return
+	}
+
+	mopBalance, err := s.postageContract.AvailableBalance(r.Context(), s.ethereumAddress)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, errMOPBalance)
+		return
+	}
+
+	jsonhttp.OK(w, nodeBalanceResponse{Balance: bigint.Wrap(balance), HopBalance: bigint.Wrap(hopBalance), MopBalance: bigint.Wrap(mopBalance)})
 }
 
 type nodeRewardBalanceResponse struct {

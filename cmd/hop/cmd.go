@@ -253,7 +253,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameRewardAddress, "", "reward contract address")
 	cmd.Flags().String(optionNameTransactionHash, "", "proof-of-identity transaction hash")
 	cmd.Flags().String(optionNameBlockHash, "", "block hash of the block whose parent is the block that contains the transaction hash")
-	cmd.Flags().Uint64(optionNameBlockTime, 15, "chain block time")
+	cmd.Flags().Uint64(optionNameBlockTime, 5, "chain block time")
 	cmd.Flags().String(optionNameSwapDeploymentGasPrice, "", "gas price in wei to use for deployment and funding")
 	cmd.Flags().Duration(optionWarmUpTime, time.Minute*20, "time to warmup the node before pull/push protocols can be kicked off.")
 	cmd.Flags().Bool(optionNameMainNet, false, "triggers connect to main net bootnodes.")
