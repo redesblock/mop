@@ -24,7 +24,7 @@ var (
 	testnetPledgeContractAddress = common.HexToAddress("0x732abD24e1017f46559e3325600E0A08160627A7")
 	mainnetPledgeContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
 	// reward
-	testnetRewardContractAddress = common.HexToAddress("0x9c209Ce68Ccc900EDdFB2626bcD8Ea8C4C7F4BB8")
+	testnetRewardContractAddress = common.HexToAddress("0xd8F848e3bA4837072B5514Acc888e1E2b34BeB41")
 	mainnetRewardContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
 )
 

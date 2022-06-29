@@ -108,7 +108,7 @@ func (s *service) GetCashedReward(ctx context.Context, address common.Address) (
 }
 
 func (s *service) GetUnCashReward(ctx context.Context, address common.Address) (*big.Int, error) {
-	callData, err := rewardABI.Pack("uncashReward", address)
+	callData, err := rewardABI.Pack("unCashReward", address)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (s *service) GetUnCashReward(ctx context.Context, address common.Address) (
 		return nil, err
 	}
 
-	results, err := rewardABI.Unpack("uncashReward", output)
+	results, err := rewardABI.Unpack("unCashReward", output)
 	if err != nil {
 		return nil, err
 	}
@@ -169,15 +169,15 @@ func (s *service) storeTx(ctx context.Context, txHash common.Hash) error {
 }
 
 func (c *service) Cash(ctx context.Context, value *big.Int) (common.Hash, error) {
-	//balance, err := c.GetUnCashReward(ctx, c.overlayEthAddress)
-	//if err != nil {
-	//	return common.Hash{}, err
-	//}
-	//
-	//// check we can afford this so we don't waste gas and don't risk bouncing cheques
-	//if balance.Cmp(value) < 0 {
-	//	return common.Hash{}, ErrInsufficientFunds
-	//}
+	balance, err := c.GetUnCashReward(ctx, c.overlayEthAddress)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	// check we can afford this so we don't waste gas and don't risk bouncing cheques
+	if balance.Cmp(value) < 0 {
+		return common.Hash{}, ErrInsufficientFunds
+	}
 
 	callData, err := rewardABI.Pack("cash", value)
 	if err != nil {

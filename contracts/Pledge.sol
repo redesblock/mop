@@ -30,7 +30,7 @@ contract Pledge is Ownable {
 
     function unStake(uint256 _amount) external
     {
-        require(_amount <= _shares[msg.sender], "UNSTAKE_AMOUNT_MUST_LESS_SHARES");
+        require(_amount <= _shares[msg.sender], "insufficient balance");
         stakeToken.transferFrom(address(this), msg.sender, _amount);
         _shares[msg.sender] -= _amount;
         totalShare -= _amount;
@@ -47,7 +47,7 @@ contract Pledge is Ownable {
 
     function slash(uint256 _amount) external onlyOwner
     {
-        require(_amount <= _slashes[msg.sender], "UNSLASH_AMOUNT_MUST_LESS_SHARES");
+        require(_amount <= _slashes[msg.sender], "insufficient balance");
         _slashes[msg.sender] -= _amount;
         totalSlash += _amount;
         emit Slash(msg.sender, _amount);
