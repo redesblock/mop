@@ -22,7 +22,7 @@ contract Pledge is Ownable {
 
     function stake(uint256 _amount) external
     {
-        require(stakeToken.transferFrom(msg.sender, address(this), _amount), "STAKE_AMOUNT_MUST_HAD");
+        require(stakeToken.transferFrom(msg.sender, address(this), _amount), "failed to transfer");
         _shares[msg.sender] += _amount;
         totalShare += _amount;
         emit Stake(msg.sender, _amount);

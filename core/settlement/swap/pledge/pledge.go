@@ -3,6 +3,7 @@ package pledge
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/core/types"
 	hopabi "github.com/redesblock/hop/contracts/abi"
 	"github.com/redesblock/hop/core/settlement/swap/erc20"
 	"github.com/redesblock/hop/core/storage"
@@ -16,6 +17,7 @@ import (
 )
 
 var (
+	erc20ABI             = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
 	pledgeABI            = transaction.ParseABIUnchecked(hopabi.PledgepABI)
 	errDecodeABI         = errors.New("could not decode abi data")
 	ErrInsufficientFunds = errors.New("insufficient token balance")
@@ -182,6 +184,10 @@ func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash,
 		return common.Hash{}, ErrInsufficientFunds
 	}
 
+	if _, err := c.sendApproveTransaction(ctx, value); err != nil {
+		return common.Hash{}, err
+	}
+
 	callData, err := pledgeABI.Pack("stake", value)
 	if err != nil {
 		return common.Hash{}, err
@@ -209,7 +215,7 @@ func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash,
 }
 
 func (c *pledgeService) AvailableBalance(ctx context.Context, address common.Address) (*big.Int, error) {
-	erc20Address, err := c.ERC20Address(ctx)
+	erc20Address, err := c.LookupERC20Address(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +265,7 @@ func (c *pledgeService) UnStake(ctx context.Context, value *big.Int) (common.Has
 	return txHash, nil
 }
 
-func (c *pledgeService) ERC20Address(ctx context.Context) (common.Address, error) {
+func (c *pledgeService) LookupERC20Address(ctx context.Context) (common.Address, error) {
 	callData, err := pledgeABI.Pack("stakeToken")
 	if err != nil {
 		return common.Address{}, err
@@ -318,4 +324,38 @@ func (c *pledgeService) storeTx(ctx context.Context, txHash common.Hash) error {
 		return transaction.ErrTransactionReverted
 	}
 	return nil
+}
+
+func (c *pledgeService) sendApproveTransaction(ctx context.Context, amount *big.Int) (*types.Receipt, error) {
+	erc20Address, err := c.LookupERC20Address(ctx)
+	if err != nil {
+		return nil, err
+	}
+	callData, err := erc20ABI.Pack("approve", erc20Address, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	txHash, err := c.transactionService.Send(ctx, &transaction.TxRequest{
+		To:          &c.address,
+		Data:        callData,
+		GasPrice:    sctx.GetGasPrice(ctx),
+		GasLimit:    65000,
+		Value:       big.NewInt(0),
+		Description: "Approve tokens for pledge operations",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	receipt, err := c.transactionService.WaitForReceipt(ctx, txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if receipt.Status == 0 {
+		return nil, transaction.ErrTransactionReverted
+	}
+
+	return receipt, nil
 }
