@@ -25,8 +25,8 @@ var (
 )
 
 type Service interface {
-	Stake(ctx context.Context, value *big.Int) (common.Hash, error)
-	UnStake(ctx context.Context, value *big.Int) (common.Hash, error)
+	Stake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error)
+	UnStake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error)
 	GetShare(ctx context.Context, address common.Address) (*big.Int, error)
 	GetSlash(ctx context.Context, address common.Address) (*big.Int, error)
 	GetTotalShare(ctx context.Context) (*big.Int, error)
@@ -37,16 +37,14 @@ type Service interface {
 
 type pledgeService struct {
 	stateStore         storage.StateStorer
-	overlayEthAddress  common.Address
 	backend            transaction.Backend
 	transactionService transaction.Service
 	address            common.Address
 }
 
-func New(stateStore storage.StateStorer, overlayEthAddress common.Address, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
+func New(stateStore storage.StateStorer, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
 	return &pledgeService{
 		stateStore:         stateStore,
-		overlayEthAddress:  overlayEthAddress,
 		backend:            backend,
 		transactionService: transactionService,
 		address:            address,
@@ -173,8 +171,8 @@ func (c *pledgeService) GetTotalSlash(ctx context.Context) (*big.Int, error) {
 	return balance, nil
 }
 
-func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash, error) {
-	balance, err := c.AvailableBalance(ctx, c.overlayEthAddress)
+func (c *pledgeService) Stake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
+	balance, err := c.AvailableBalance(ctx, address)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -197,7 +195,7 @@ func (c *pledgeService) Stake(ctx context.Context, value *big.Int) (common.Hash,
 		To:          &c.address,
 		Data:        callData,
 		GasPrice:    sctx.GetGasPrice(ctx),
-		GasLimit:    90000,
+		GasLimit:    100000,
 		Value:       big.NewInt(0),
 		Description: "token stake",
 	}
@@ -228,8 +226,8 @@ func (c *pledgeService) AvailableBalance(ctx context.Context, address common.Add
 	return balance, nil
 }
 
-func (c *pledgeService) UnStake(ctx context.Context, value *big.Int) (common.Hash, error) {
-	stakedBalance, err := c.GetShare(ctx, c.overlayEthAddress)
+func (c *pledgeService) UnStake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
+	stakedBalance, err := c.GetShare(ctx, address)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -248,7 +246,7 @@ func (c *pledgeService) UnStake(ctx context.Context, value *big.Int) (common.Has
 		To:          &c.address,
 		Data:        callData,
 		GasPrice:    sctx.GetGasPrice(ctx),
-		GasLimit:    90000,
+		GasLimit:    100000,
 		Value:       big.NewInt(0),
 		Description: "token unstake",
 	}
@@ -318,7 +316,9 @@ func (c *pledgeService) storeTx(ctx context.Context, txHash common.Hash) error {
 		return err
 	}
 
-	c.stateStore.Put(keyPrefix+txHash.String(), receipt)
+	if c.stateStore != nil {
+		c.stateStore.Put(keyPrefix+txHash.String(), receipt)
+	}
 
 	if receipt.Status == 0 {
 		return transaction.ErrTransactionReverted
@@ -331,13 +331,13 @@ func (c *pledgeService) sendApproveTransaction(ctx context.Context, amount *big.
 	if err != nil {
 		return nil, err
 	}
-	callData, err := erc20ABI.Pack("approve", erc20Address, amount)
+	callData, err := erc20ABI.Pack("approve", c.address, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	txHash, err := c.transactionService.Send(ctx, &transaction.TxRequest{
-		To:          &c.address,
+		To:          &erc20Address,
 		Data:        callData,
 		GasPrice:    sctx.GetGasPrice(ctx),
 		GasLimit:    65000,

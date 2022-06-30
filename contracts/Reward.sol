@@ -28,7 +28,7 @@ contract Reward is Ownable {
         for(uint i=0;i<_tos.length;i++){
             require(_tos[i] != address(0), "invalid address");
             require(_values[i] > 0);
-            require(IERC20(systemToken).transferFrom(address(this), _tos[i], _values[i]), "failed to transfer");
+            require(IERC20(systemToken).transferFrom(owner(), _tos[i], _values[i]), "failed to transfer");
             _systemRecord[_tos[i]] += _values[i];
             systemTotalAmount += _values[i];
         }
@@ -51,7 +51,7 @@ contract Reward is Ownable {
 
     function cash(uint256 _values) external {
         require(_values <= _unCashRecord[msg.sender], "insufficient balance");
-        require(IERC20(token).transferFrom(address(this), msg.sender, _values), "failed to transfer");
+        require(IERC20(token).transferFrom(owner(), msg.sender, _values), "failed to transfer");
         _unCashRecord[msg.sender] -= _values;
         _cashedRecord[msg.sender] += _values;
     }

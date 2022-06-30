@@ -500,31 +500,29 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		if !common.IsHexAddress(o.PledgeAddress) {
 			return nil, errors.New("malformed pledge address")
 		}
-		postageContractAddress = common.HexToAddress(o.PostageContractAddress)
+		pledgeAddress = common.HexToAddress(o.PledgeAddress)
 	} else if !found {
 		return nil, errors.New("no known pledge addresses for this network")
 	}
 
 	pledgeContractService = pledge.New(
 		stateStore,
-		overlayEthAddress,
 		swapBackend,
 		transactionService,
 		pledgeAddress,
 	)
 
 	rewardAddress := chainCfg.RewardAddress
-	if o.PledgeAddress != "" {
+	if o.RewardAddress != "" {
 		if !common.IsHexAddress(o.RewardAddress) {
 			return nil, errors.New("malformed reward address")
 		}
-		postageContractAddress = common.HexToAddress(o.PostageContractAddress)
+		rewardAddress = common.HexToAddress(o.RewardAddress)
 	} else if !found {
 		return nil, errors.New("no known reward addresses for this network")
 	}
 	rewardContractService = reward.New(
 		stateStore,
-		overlayEthAddress,
 		swapBackend,
 		transactionService,
 		rewardAddress,

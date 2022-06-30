@@ -31,7 +31,7 @@ contract Pledge is Ownable {
     function unStake(uint256 _amount) external
     {
         require(_amount <= _shares[msg.sender], "insufficient balance");
-        stakeToken.transferFrom(address(this), msg.sender, _amount);
+        require(stakeToken.transfer(msg.sender, _amount), "failed to transfer");
         _shares[msg.sender] -= _amount;
         totalShare -= _amount;
         emit Unstake(msg.sender, _amount);

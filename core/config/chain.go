@@ -21,10 +21,10 @@ var (
 	testnetPostageStampContractAddress = common.HexToAddress("0xB314052ACd38A66fBDa2a1D43f3AA593c7dd5e24")
 	mainnetPostageStampContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
 	// pledge
-	testnetPledgeContractAddress = common.HexToAddress("0x732abD24e1017f46559e3325600E0A08160627A7")
+	testnetPledgeContractAddress = common.HexToAddress("0xb5586586Ca0FD535389C7c034e0D8ce53a58C78B")
 	mainnetPledgeContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
 	// reward
-	testnetRewardContractAddress = common.HexToAddress("0xd8F848e3bA4837072B5514Acc888e1E2b34BeB41")
+	testnetRewardContractAddress = common.HexToAddress("0x179f367Cf345cE5fAB50D66E6b6F39C02dA47C85")
 	mainnetRewardContractAddress = common.HexToAddress("0x6a1a21eca3ab28be85c7ba22b2d6eae5907c900e")
 )
 

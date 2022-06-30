@@ -162,7 +162,7 @@ func (s *Service) nodeRewardCashHandler(w http.ResponseWriter, r *http.Request) 
 		ctx = sctx.SetGasPrice(ctx, p)
 	}
 
-	txHash, err := s.rewardContract.Cash(ctx, amount)
+	txHash, err := s.rewardContract.Cash(ctx, s.ethereumAddress, amount)
 	if err != nil {
 		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, fmt.Sprintf("failed cash %v", err))
@@ -175,13 +175,21 @@ func (s *Service) nodeRewardCashHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 type nodePledgeResponse struct {
-	TotalPledgedBalance *bigint.BigInt `json:"totalPledgedBalance"`
-	PledgedBalance      *bigint.BigInt `json:"pledgedBalance"`
-	TotalSlashedBalance *bigint.BigInt `json:"totalSlashedBalance"`
-	SlashedBalance      *bigint.BigInt `json:"slashedBalance"`
+	AvailablePledgedBalance *bigint.BigInt `json:"availablePledgedBalance"`
+	TotalPledgedBalance     *bigint.BigInt `json:"totalPledgedBalance"`
+	PledgedBalance          *bigint.BigInt `json:"pledgedBalance"`
+	TotalSlashedBalance     *bigint.BigInt `json:"totalSlashedBalance"`
+	SlashedBalance          *bigint.BigInt `json:"slashedBalance"`
 }
 
 func (s *Service) nodePledgeHandler(w http.ResponseWriter, r *http.Request) {
+	hopBalance, err := s.pledgeContract.AvailableBalance(r.Context(), s.ethereumAddress)
+	if err != nil {
+		s.logger.Error(r.URL.Path, " error ", err)
+		jsonhttp.InternalServerError(w, errHOPBalance)
+		return
+	}
+
 	totalPledgedBalance, err := s.pledgeContract.GetTotalShare(r.Context())
 	if err != nil {
 		s.logger.Error(r.URL.Path, " error ", err)
@@ -211,10 +219,11 @@ func (s *Service) nodePledgeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.OK(w, nodePledgeResponse{
-		TotalPledgedBalance: bigint.Wrap(totalPledgedBalance),
-		PledgedBalance:      bigint.Wrap(pledgedBalance),
-		TotalSlashedBalance: bigint.Wrap(totalSlashedBalance),
-		SlashedBalance:      bigint.Wrap(slashedBalance),
+		AvailablePledgedBalance: bigint.Wrap(hopBalance),
+		TotalPledgedBalance:     bigint.Wrap(totalPledgedBalance),
+		PledgedBalance:          bigint.Wrap(pledgedBalance),
+		TotalSlashedBalance:     bigint.Wrap(totalSlashedBalance),
+		SlashedBalance:          bigint.Wrap(slashedBalance),
 	})
 }
 
@@ -258,7 +267,7 @@ func (s *Service) nodePledgeStakeHandler(w http.ResponseWriter, r *http.Request)
 		ctx = sctx.SetGasPrice(ctx, p)
 	}
 
-	txHash, err := s.pledgeContract.Stake(ctx, amount)
+	txHash, err := s.pledgeContract.Stake(ctx, s.ethereumAddress, amount)
 	if err != nil {
 		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, fmt.Sprintf("failed stake %v", err))
@@ -289,7 +298,7 @@ func (s *Service) nodePledgeUnStakeHandler(w http.ResponseWriter, r *http.Reques
 		ctx = sctx.SetGasPrice(ctx, p)
 	}
 
-	txHash, err := s.pledgeContract.UnStake(ctx, amount)
+	txHash, err := s.pledgeContract.UnStake(ctx, s.ethereumAddress, amount)
 	if err != nil {
 		s.logger.Error(r.URL.Path, " error ", err)
 		jsonhttp.InternalServerError(w, fmt.Sprintf("failed unstake %v", err))

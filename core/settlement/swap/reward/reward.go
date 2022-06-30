@@ -3,6 +3,7 @@ package reward
 import (
 	"context"
 	"errors"
+	"fmt"
 	hopabi "github.com/redesblock/hop/contracts/abi"
 	"github.com/redesblock/hop/core/sctx"
 	"github.com/redesblock/hop/core/storage"
@@ -25,22 +26,22 @@ type Service interface {
 	GetSystemReward(ctx context.Context, address common.Address) (*big.Int, error)
 	GetCashedReward(ctx context.Context, address common.Address) (*big.Int, error)
 	GetUnCashReward(ctx context.Context, address common.Address) (*big.Int, error)
-	Cash(ctx context.Context, value *big.Int) (common.Hash, error)
+	DoSystemReward(ctx context.Context, addresses []common.Address, values []*big.Int) (common.Hash, error)
+	DoReward(ctx context.Context, addresses []common.Address, values []*big.Int) (common.Hash, error)
+	Cash(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error)
 	Txs() ([]string, error)
 }
 
 type service struct {
 	stateStore         storage.StateStorer
-	overlayEthAddress  common.Address
 	backend            transaction.Backend
 	transactionService transaction.Service
 	address            common.Address
 }
 
-func New(stateStore storage.StateStorer, overlayEthAddress common.Address, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
+func New(stateStore storage.StateStorer, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
 	return &service{
 		stateStore:         stateStore,
-		overlayEthAddress:  overlayEthAddress,
 		backend:            backend,
 		transactionService: transactionService,
 		address:            address,
@@ -160,7 +161,9 @@ func (s *service) storeTx(ctx context.Context, txHash common.Hash) error {
 		return err
 	}
 
-	s.stateStore.Put(keyPrefix+txHash.String(), receipt)
+	if s.stateStore != nil {
+		s.stateStore.Put(keyPrefix+txHash.String(), receipt)
+	}
 
 	if receipt.Status == 0 {
 		return transaction.ErrTransactionReverted
@@ -168,8 +171,8 @@ func (s *service) storeTx(ctx context.Context, txHash common.Hash) error {
 	return nil
 }
 
-func (c *service) Cash(ctx context.Context, value *big.Int) (common.Hash, error) {
-	balance, err := c.GetUnCashReward(ctx, c.overlayEthAddress)
+func (c *service) Cash(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
+	balance, err := c.GetUnCashReward(ctx, address)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -191,6 +194,68 @@ func (c *service) Cash(ctx context.Context, value *big.Int) (common.Hash, error)
 		GasLimit:    90000,
 		Value:       big.NewInt(0),
 		Description: "withdraw reward",
+	}
+
+	txHash, err := c.transactionService.Send(ctx, request)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if err := c.storeTx(ctx, txHash); err != nil {
+		return common.Hash{}, err
+	}
+
+	return txHash, nil
+}
+
+func (c *service) DoSystemReward(ctx context.Context, addresses []common.Address, values []*big.Int) (common.Hash, error) {
+	if len(addresses) != len(values) {
+		return common.Hash{}, fmt.Errorf("mismatch num")
+	}
+
+	callData, err := rewardABI.Pack("doSystemToken", addresses, values)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	request := &transaction.TxRequest{
+		To:          &c.address,
+		Data:        callData,
+		GasPrice:    sctx.GetGasPrice(ctx),
+		GasLimit:    90000,
+		Value:       big.NewInt(0),
+		Description: "system reward",
+	}
+
+	txHash, err := c.transactionService.Send(ctx, request)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if err := c.storeTx(ctx, txHash); err != nil {
+		return common.Hash{}, err
+	}
+
+	return txHash, nil
+}
+
+func (c *service) DoReward(ctx context.Context, addresses []common.Address, values []*big.Int) (common.Hash, error) {
+	if len(addresses) != len(values) {
+		return common.Hash{}, fmt.Errorf("mismatch num")
+	}
+
+	callData, err := rewardABI.Pack("doToken", addresses, values)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	request := &transaction.TxRequest{
+		To:          &c.address,
+		Data:        callData,
+		GasPrice:    sctx.GetGasPrice(ctx),
+		GasLimit:    90000,
+		Value:       big.NewInt(0),
+		Description: "system reward",
 	}
 
 	txHash, err := c.transactionService.Send(ctx, request)
