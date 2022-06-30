@@ -23,6 +23,8 @@ var (
 )
 
 type Service interface {
+	TokenAddress(ctx context.Context) (common.Address, error)
+	SystemTokenAddress(ctx context.Context) (common.Address, error)
 	GetSystemReward(ctx context.Context, address common.Address) (*big.Int, error)
 	GetCashedReward(ctx context.Context, address common.Address) (*big.Int, error)
 	GetUnCashReward(ctx context.Context, address common.Address) (*big.Int, error)
@@ -46,6 +48,66 @@ func New(stateStore storage.StateStorer, backend transaction.Backend, transactio
 		transactionService: transactionService,
 		address:            address,
 	}
+}
+
+func (c *service) TokenAddress(ctx context.Context) (common.Address, error) {
+	callData, err := rewardABI.Pack("token")
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	output, err := c.transactionService.Call(ctx, &transaction.TxRequest{
+		To:   &c.address,
+		Data: callData,
+	})
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	results, err := rewardABI.Unpack("token", output)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	if len(results) != 1 {
+		return common.Address{}, errDecodeABI
+	}
+
+	erc20Address, ok := abi.ConvertType(results[0], new(common.Address)).(*common.Address)
+	if !ok || erc20Address == nil {
+		return common.Address{}, errDecodeABI
+	}
+	return *erc20Address, nil
+}
+
+func (c *service) SystemTokenAddress(ctx context.Context) (common.Address, error) {
+	callData, err := rewardABI.Pack("systemToken")
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	output, err := c.transactionService.Call(ctx, &transaction.TxRequest{
+		To:   &c.address,
+		Data: callData,
+	})
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	results, err := rewardABI.Unpack("systemToken", output)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	if len(results) != 1 {
+		return common.Address{}, errDecodeABI
+	}
+
+	erc20Address, ok := abi.ConvertType(results[0], new(common.Address)).(*common.Address)
+	if !ok || erc20Address == nil {
+		return common.Address{}, errDecodeABI
+	}
+	return *erc20Address, nil
 }
 
 func (s *service) GetSystemReward(ctx context.Context, address common.Address) (*big.Int, error) {
