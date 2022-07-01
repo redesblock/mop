@@ -217,18 +217,20 @@ func (s *service) Txs() ([]string, error) {
 	return txs, nil
 }
 
-func (s *service) storeTx(ctx context.Context, txHash common.Hash) error {
-	receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
-	if err != nil {
-		return err
-	}
+func (s *service) storeTx(ctx context.Context, txHash common.Hash, wait bool) error {
+	if wait {
+		receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
+		if err != nil {
+			return err
+		}
 
-	if s.stateStore != nil {
 		s.stateStore.Put(keyPrefix+txHash.String(), receipt)
-	}
 
-	if receipt.Status == 0 {
-		return transaction.ErrTransactionReverted
+		if receipt.Status == 0 {
+			return transaction.ErrTransactionReverted
+		}
+	} else {
+		s.stateStore.Put(keyPrefix+txHash.String(), txHash)
 	}
 	return nil
 }
@@ -263,7 +265,7 @@ func (c *service) Cash(ctx context.Context, address common.Address, value *big.I
 		return common.Hash{}, err
 	}
 
-	if err := c.storeTx(ctx, txHash); err != nil {
+	if err := c.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 
@@ -294,7 +296,7 @@ func (c *service) DoSystemReward(ctx context.Context, addresses []common.Address
 		return common.Hash{}, err
 	}
 
-	if err := c.storeTx(ctx, txHash); err != nil {
+	if err := c.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 
@@ -325,7 +327,7 @@ func (c *service) DoReward(ctx context.Context, addresses []common.Address, valu
 		return common.Hash{}, err
 	}
 
-	if err := c.storeTx(ctx, txHash); err != nil {
+	if err := c.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 

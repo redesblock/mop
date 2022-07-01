@@ -35,7 +35,7 @@ type Service interface {
 	Txs() ([]string, error)
 }
 
-type pledgeService struct {
+type service struct {
 	stateStore         storage.StateStorer
 	backend            transaction.Backend
 	transactionService transaction.Service
@@ -43,7 +43,7 @@ type pledgeService struct {
 }
 
 func New(stateStore storage.StateStorer, backend transaction.Backend, transactionService transaction.Service, address common.Address) Service {
-	return &pledgeService{
+	return &service{
 		stateStore:         stateStore,
 		backend:            backend,
 		transactionService: transactionService,
@@ -51,7 +51,7 @@ func New(stateStore storage.StateStorer, backend transaction.Backend, transactio
 	}
 }
 
-func (c *pledgeService) GetShare(ctx context.Context, address common.Address) (*big.Int, error) {
+func (c *service) GetShare(ctx context.Context, address common.Address) (*big.Int, error) {
 	callData, err := pledgeABI.Pack("getShare", address)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (c *pledgeService) GetShare(ctx context.Context, address common.Address) (*
 	return balance, nil
 }
 
-func (c *pledgeService) GetSlash(ctx context.Context, address common.Address) (*big.Int, error) {
+func (c *service) GetSlash(ctx context.Context, address common.Address) (*big.Int, error) {
 	callData, err := pledgeABI.Pack("getSlash", address)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (c *pledgeService) GetSlash(ctx context.Context, address common.Address) (*
 	return balance, nil
 }
 
-func (c *pledgeService) GetTotalShare(ctx context.Context) (*big.Int, error) {
+func (c *service) GetTotalShare(ctx context.Context) (*big.Int, error) {
 	callData, err := pledgeABI.Pack("totalShare")
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (c *pledgeService) GetTotalShare(ctx context.Context) (*big.Int, error) {
 	return balance, nil
 }
 
-func (c *pledgeService) GetTotalSlash(ctx context.Context) (*big.Int, error) {
+func (c *service) GetTotalSlash(ctx context.Context) (*big.Int, error) {
 	callData, err := pledgeABI.Pack("totalSlash")
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func (c *pledgeService) GetTotalSlash(ctx context.Context) (*big.Int, error) {
 	return balance, nil
 }
 
-func (c *pledgeService) Stake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
+func (c *service) Stake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
 	balance, err := c.AvailableBalance(ctx, address)
 	if err != nil {
 		return common.Hash{}, err
@@ -205,14 +205,14 @@ func (c *pledgeService) Stake(ctx context.Context, address common.Address, value
 		return common.Hash{}, err
 	}
 
-	if err := c.storeTx(ctx, txHash); err != nil {
+	if err := c.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 
 	return txHash, nil
 }
 
-func (c *pledgeService) AvailableBalance(ctx context.Context, address common.Address) (*big.Int, error) {
+func (c *service) AvailableBalance(ctx context.Context, address common.Address) (*big.Int, error) {
 	erc20Address, err := c.LookupERC20Address(ctx)
 	if err != nil {
 		return nil, err
@@ -226,7 +226,7 @@ func (c *pledgeService) AvailableBalance(ctx context.Context, address common.Add
 	return balance, nil
 }
 
-func (c *pledgeService) UnStake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
+func (c *service) UnStake(ctx context.Context, address common.Address, value *big.Int) (common.Hash, error) {
 	stakedBalance, err := c.GetShare(ctx, address)
 	if err != nil {
 		return common.Hash{}, err
@@ -256,14 +256,14 @@ func (c *pledgeService) UnStake(ctx context.Context, address common.Address, val
 		return common.Hash{}, err
 	}
 
-	if err := c.storeTx(ctx, txHash); err != nil {
+	if err := c.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 
 	return txHash, nil
 }
 
-func (c *pledgeService) LookupERC20Address(ctx context.Context) (common.Address, error) {
+func (c *service) LookupERC20Address(ctx context.Context) (common.Address, error) {
 	callData, err := pledgeABI.Pack("stakeToken")
 	if err != nil {
 		return common.Address{}, err
@@ -293,7 +293,7 @@ func (c *pledgeService) LookupERC20Address(ctx context.Context) (common.Address,
 	return *erc20Address, nil
 }
 
-func (c *pledgeService) Txs() ([]string, error) {
+func (c *service) Txs() ([]string, error) {
 	var txs []string
 	if err := c.stateStore.Iterate(keyPrefix, func(k, v []byte) (bool, error) {
 		if !strings.HasPrefix(string(k), keyPrefix) {
@@ -310,23 +310,25 @@ func (c *pledgeService) Txs() ([]string, error) {
 	return txs, nil
 }
 
-func (c *pledgeService) storeTx(ctx context.Context, txHash common.Hash) error {
-	receipt, err := c.transactionService.WaitForReceipt(ctx, txHash)
-	if err != nil {
-		return err
-	}
+func (c *service) storeTx(ctx context.Context, txHash common.Hash, wait bool) error {
+	if wait {
+		receipt, err := c.transactionService.WaitForReceipt(ctx, txHash)
+		if err != nil {
+			return err
+		}
 
-	if c.stateStore != nil {
 		c.stateStore.Put(keyPrefix+txHash.String(), receipt)
-	}
 
-	if receipt.Status == 0 {
-		return transaction.ErrTransactionReverted
+		if receipt.Status == 0 {
+			return transaction.ErrTransactionReverted
+		}
+	} else {
+		c.stateStore.Put(keyPrefix+txHash.String(), txHash)
 	}
 	return nil
 }
 
-func (c *pledgeService) sendApproveTransaction(ctx context.Context, amount *big.Int) (*types.Receipt, error) {
+func (c *service) sendApproveTransaction(ctx context.Context, amount *big.Int) (*types.Receipt, error) {
 	erc20Address, err := c.LookupERC20Address(ctx)
 	if err != nil {
 		return nil, err

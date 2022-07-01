@@ -112,7 +112,7 @@ func (s *service) Deposit(ctx context.Context, amount *big.Int) (hash common.Has
 		return common.Hash{}, err
 	}
 
-	if err := s.storeTx(ctx, txHash); err != nil {
+	if err := s.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 	return txHash, nil
@@ -344,24 +344,29 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 		return common.Hash{}, err
 	}
 
-	if err := s.storeTx(ctx, txHash); err != nil {
+	if err := s.storeTx(ctx, txHash, false); err != nil {
 		return common.Hash{}, err
 	}
 
 	return txHash, nil
 }
 
-func (s *service) storeTx(ctx context.Context, txHash common.Hash) error {
-	receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
-	if err != nil {
-		return err
+func (s *service) storeTx(ctx context.Context, txHash common.Hash, wait bool) error {
+	if wait {
+		receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
+		if err != nil {
+			return err
+		}
+
+		s.store.Put(keyPrefix+txHash.String(), receipt)
+
+		if receipt.Status == 0 {
+			return transaction.ErrTransactionReverted
+		}
+	} else {
+		s.store.Put(keyPrefix+txHash.String(), txHash)
 	}
 
-	s.store.Put(keyPrefix+txHash.String(), receipt)
-
-	if receipt.Status == 0 {
-		return transaction.ErrTransactionReverted
-	}
 	return nil
 }
 
