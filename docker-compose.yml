@@ -11,8 +11,8 @@ services:
       HOP_MAINNET: "false"
       HOP_NETWORK_ID: 97
       HOP_FULL_NODE: "true"
-      HOP_SWAP_ENDPOINT: 127.0.0.1:8575
-      # HOP_SWAP_ENDPOINT: "https://data-seed-prebsc-1-s1.binance.org:8545"
+      #HOP_SWAP_ENDPOINT: http://127.0.0.1:8575
+      HOP_SWAP_ENDPOINT: "https://data-seed-prebsc-1-s1.binance.org:8545"
       HOP_NAT_ADDR: 127.0.0.1:1634
       HOP_CORS_ALLOWED_ORIGINS: "*"
     command:
