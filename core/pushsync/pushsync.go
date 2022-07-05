@@ -437,15 +437,17 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bo
 
 			if result.err == nil {
 				close(doneChan)
-				bts, _ := json.Marshal(result.receipt)
-				resp, err := http.Post(ps.receiptEndPoint, "application/json", strings.NewReader(string(bts)))
-				if err != nil {
-					logger.Errorf("pushsync: push receipt error: %s", err)
-				} else {
-					defer resp.Body.Close()
+				if len(ps.receiptEndPoint) > 0 {
+					bts, _ := json.Marshal(result.receipt)
+					resp, err := http.Post(ps.receiptEndPoint, "application/json", strings.NewReader(string(bts)))
+					if err != nil {
+						logger.Errorf("pushsync: push receipt %s error: %s", swarm.NewAddress(result.receipt.Address), err)
+					} else {
+						defer resp.Body.Close()
+					}
+					logger.Debugf("pushsync: push receipt %s to peer %s", swarm.NewAddress(result.receipt.Address), result.peer)
 				}
 
-				logger.Debugf("pushsync: push to peer %s: %s", result.peer, swarm.NewAddress(result.receipt.Address))
 				return result.receipt, nil
 			}
 
