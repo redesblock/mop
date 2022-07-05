@@ -134,6 +134,26 @@ func newCommand(opts ...option) (c *command, err error) {
 		return nil, err
 	}
 
+	if err := c.initBuyStampCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initListStampCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initShowStampCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initUploadCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initDownloadCmd(); err != nil {
+		return nil, err
+	}
+
 	c.initVersionCmd()
 	c.initDBCmd()
 
