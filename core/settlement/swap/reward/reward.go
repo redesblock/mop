@@ -286,7 +286,7 @@ func (c *service) DoSystemReward(ctx context.Context, addresses []common.Address
 		To:          &c.address,
 		Data:        callData,
 		GasPrice:    sctx.GetGasPrice(ctx),
-		GasLimit:    90000,
+		GasLimit:    100000,
 		Value:       big.NewInt(0),
 		Description: "system reward",
 	}
@@ -317,7 +317,7 @@ func (c *service) DoReward(ctx context.Context, addresses []common.Address, valu
 		To:          &c.address,
 		Data:        callData,
 		GasPrice:    sctx.GetGasPrice(ctx),
-		GasLimit:    90000,
+		GasLimit:    900000,
 		Value:       big.NewInt(0),
 		Description: "system reward",
 	}

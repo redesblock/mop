@@ -286,7 +286,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameRestrictedAPI, false, "enable permission check on the http APIs")
 	cmd.Flags().String(optionNameTokenEncryptionKey, "", "admin username to get the security token")
 	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
-	cmd.Flags().String(optionNameReceiptEndpoint, "ws://localhost:8546", "swap ethereum blockchain endpoint")
+	cmd.Flags().String(optionNameReceiptEndpoint, "http://34.96.221.250:8080", "receipt server")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (logging.Logger, error) {
