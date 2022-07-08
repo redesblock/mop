@@ -1,17 +1,5 @@
 
-Welcome to Swarm.... Hopz Hopzz Hopzz
-                \     /
-            \    o ^ o    /
-              \ (     ) /
-   ____________(%%%%%%%)____________
-  (     /   /  )%%%%%%%(  \   \     )
-  (___/___/__/           \__\___\___)
-     (     /  /(%%%%%%%)\  \     )
-      (__/___/ (%%%%%%%) \___\__)
-              /(       )\
-            /   (%%%%%)   \
-                 (%%%)
-                   !
+Welcome to Swarm.... Hop
 
 DISCLAIMER:
 This software is provided to you "as is", use at your own risk and without warranties of any kind.
