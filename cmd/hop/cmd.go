@@ -275,7 +275,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameBlockHash, "", "block hash of the block whose parent is the block that contains the transaction hash")
 	cmd.Flags().Uint64(optionNameBlockTime, 3, "chain block time")
 	cmd.Flags().String(optionNameSwapDeploymentGasPrice, "", "gas price in wei to use for deployment and funding")
-	cmd.Flags().Duration(optionWarmUpTime, time.Minute*20, "time to warmup the node before pull/push protocols can be kicked off.")
+	cmd.Flags().Duration(optionWarmUpTime, time.Minute, "time to warmup the node before pull/push protocols can be kicked off.")
 	cmd.Flags().Bool(optionNameMainNet, false, "triggers connect to main net bootnodes.")
 	cmd.Flags().Bool(optionNameRetrievalCaching, true, "enable forwarded content caching")
 	cmd.Flags().Bool(optionNameResync, false, "forces the node to resync postage contract data")
