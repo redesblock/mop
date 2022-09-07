@@ -170,9 +170,8 @@ type Options struct {
 }
 
 const (
-	refreshRate      = int64(4500000)
-	lightRefreshRate = int64(450000)
-	// basePrice                     = 10000
+	refreshRate                   = int64(4500000)
+	lightRefreshRate              = int64(450000)
 	basePrice                     = 0
 	postageSyncingStallingTimeout = 10 * time.Minute
 	postageSyncingBackoffTimeout  = 5 * time.Second

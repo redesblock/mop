@@ -45,7 +45,7 @@ type Service struct {
 var (
 	retryInterval    = 5 * time.Second  // time interval between retries
 	traceDuration    = 30 * time.Second // duration for every root tracing span
-	concurrentPushes = 10               // how many chunks to push simultaneously
+	concurrentPushes = 200              // how many chunks to push simultaneously
 	retryCount       = 6
 )
 
@@ -185,7 +185,7 @@ func (s *Service) pushChunk(ctx context.Context, ch swarm.Chunk, logger *logrus.
 	} else if err = s.checkReceipt(receipt); err != nil {
 		return err
 	}
-	logger.Debugf("xxxxx tagID %v, chunk %v, peer %v, size %v, duration %v", ch.TagID(), ch.Address().String(), receipt.Address.String(), len(ch.Data())/1024, time.Now().Sub(t))
+	logger.Debugf("pushsync tagID %v, chunk %v, size %v, duration %v", ch.TagID(), receipt.Address.String(), len(ch.Data())/1024, time.Now().Sub(t))
 	if err = s.storer.Set(ctx, storage.ModeSetSync, ch.Address()); err != nil {
 		return fmt.Errorf("pusher: set sync: %w", err)
 	}
