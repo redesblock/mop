@@ -592,8 +592,6 @@ func (s *Service) NATManager() basichost.NATManager {
 }
 
 func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration, reason string) error {
-	s.logger.Info("libp2p blocklist: peer %s for %v reason: %s", overlay.String(), duration, reason)
-	return nil
 	if err := s.blocklist.Add(overlay, duration); err != nil {
 		s.metrics.BlocklistedPeerErrCount.Inc()
 		_ = s.Disconnect(overlay, "failed blocklisting peer")

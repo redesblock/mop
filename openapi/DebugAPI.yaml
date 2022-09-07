@@ -715,7 +715,7 @@ paths:
 
   "/wallet":
     get:
-      summary: Get wallet balance for BZZ and xDai
+      summary: Get wallet balance for HOP and bnb
       tags:
         - Wallet
       responses:
@@ -889,7 +889,7 @@ paths:
   "/stamps/{amount}/{depth}":
     post:
       summary: Buy a new postage batch.
-      description: Be aware, this endpoint creates an on-chain transactions and transfers BZZ from the node's Ethereum account and hence directly manipulates the wallet balance!
+      description: Be aware, this endpoint creates an on-chain transactions and transfers HOP from the node's Ethereum account and hence directly manipulates the wallet balance!
       tags:
         - Postage Stamps
       parameters:
@@ -898,7 +898,7 @@ paths:
           schema:
             $ref: "Common.yaml#/components/schemas/BigInt"
           required: true
-          description: Amount of BZZ added that the postage batch will have.
+          description: Amount of HOP added that the postage batch will have.
         - in: path
           name: depth
           schema:
@@ -936,7 +936,7 @@ paths:
   "/stamps/topup/{id}/{amount}":
     patch:
       summary: Top up an existing postage batch.
-      description: Be aware, this endpoint creates on-chain transactions and transfers BZZ from the node's Ethereum account and hence directly manipulates the wallet balance!
+      description: Be aware, this endpoint creates on-chain transactions and transfers HOP from the node's Ethereum account and hence directly manipulates the wallet balance!
       tags:
         - Postage Stamps
       parameters:
@@ -951,7 +951,7 @@ paths:
           schema:
             type: integer
           required: true
-          description: Amount of BZZ per chunk to top up to an existing postage batch.
+          description: Amount of HOP per chunk to top up to an existing postage batch.
       responses:
         "202":
           description: Returns the postage batch ID that was topped up
@@ -973,7 +973,7 @@ paths:
   "/stamps/dilute/{id}/{depth}":
     patch:
       summary: Dilute an existing postage batch.
-      description: Be aware, this endpoint creates on-chain transactions and transfers BZZ from the node's Ethereum account and hence directly manipulates the wallet balance!
+      description: Be aware, this endpoint creates on-chain transactions and transfers HOP from the node's Ethereum account and hence directly manipulates the wallet balance!
       tags:
         - Postage Stamps
       parameters:

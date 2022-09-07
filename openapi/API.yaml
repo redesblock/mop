@@ -236,7 +236,7 @@ paths:
           $ref: "Common.yaml#/components/responses/400"
         default:
           description: Default response
-  "/bzz":
+  "/hop":
     post:
       summary: "Upload file or a collection of files"
       description: "In order to upload a collection, user can send a multipart request with all the files populated in the form data with appropriate headers.\n\n
@@ -245,7 +245,7 @@ paths:
         A multipart request is treated as a collection regardless of whether the swarm-collection header is present. This means in order to serve single files
         uploaded as a multipart request, the swarm-index-document header should be used with the name of the file."
       tags:
-        - BZZ
+        - HOP
       parameters:
         - in: query
           name: name
@@ -303,12 +303,12 @@ paths:
         default:
           description: Default response
 
-  "/bzz/{reference}":
+  "/hop/{reference}":
     patch:
       summary: "Reupload a root hash to the network; deprecated: use /stewardship/{reference} instead"
       deprecated: true
       tags:
-        - BZZ
+        - HOP
       parameters:
         - in: path
           name: reference
@@ -326,7 +326,7 @@ paths:
     get:
       summary: "Get file or index document from a collection of files"
       tags:
-        - BZZ
+        - HOP
       parameters:
         - in: path
           name: reference
@@ -353,11 +353,11 @@ paths:
         default:
           description: Default response
 
-  "/bzz/{reference}/{path}":
+  "/hop/{reference}/{path}":
     get:
       summary: "Get referenced file from a collection of files"
       tags:
-        - BZZ
+        - HOP
       parameters:
         - in: path
           name: reference

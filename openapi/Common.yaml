@@ -617,9 +617,9 @@ components:
     WalletResponse:
       type: object
       properties:
-        bzz:
+        hop:
           $ref: "#/components/schemas/BigInt"
-        xDai:
+        bnb:
           $ref: "#/components/schemas/BigInt"
         chainID:
             type: integer
