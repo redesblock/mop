@@ -185,7 +185,7 @@ func (s *Service) pushChunk(ctx context.Context, ch swarm.Chunk, logger *logrus.
 	} else if err = s.checkReceipt(receipt); err != nil {
 		return err
 	}
-	logger.Debugf("pushsync tagID %v, chunk %v, size %v, duration %v", ch.TagID(), receipt.Address.String(), len(ch.Data())/1024, time.Now().Sub(t))
+	logger.Debugf("pushsync tagID %v, chunk %v, size %v, duration %v", ch.TagID(), ch.Address().String(), len(ch.Data())/1024, time.Now().Sub(t))
 	if err = s.storer.Set(ctx, storage.ModeSetSync, ch.Address()); err != nil {
 		return fmt.Errorf("pusher: set sync: %w", err)
 	}
