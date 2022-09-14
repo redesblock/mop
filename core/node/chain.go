@@ -56,7 +56,7 @@ func InitChain(
 		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
 	}
 
-	logger.Infof("connected to ethereum backend: %s", versionString)
+	logger.Infof("connected to Binance Smart Chain backend: %s", versionString)
 
 	backend = wrapped.NewBackend(ethclient.NewClient(rpcClient))
 

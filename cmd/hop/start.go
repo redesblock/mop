@@ -397,7 +397,7 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 		publicKey = &swarmPrivateKey.PublicKey
 	}
 
-	logger.Infof("swarm public key %x", crypto.EncodeSecp256k1PublicKey(publicKey))
+	logger.Infof("public key %x", crypto.EncodeSecp256k1PublicKey(publicKey))
 
 	libp2pPrivateKey, created, err := keystore.Key("libp2p", password)
 	if err != nil {

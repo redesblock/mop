@@ -11,7 +11,7 @@ ifeq (,$(REVISION))
   endif
 endif
 
-GOPROXY=https://goproxy.io,direct
+export GOPROXY=https://goproxy.io,direct
 
 LD_FLAGS:=-ldflags "-X github.com/redesblock/cmd.commit=$(REVISION)"
 

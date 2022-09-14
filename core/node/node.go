@@ -306,7 +306,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("is synced: %w", err)
 	}
 	if !isSynced {
-		logger.Infof("waiting to sync with the Ethereum backend")
+		logger.Infof("waiting to sync with the Binance Smart Chain backend")
 
 		err := transaction.WaitSynced(p2pCtx, logger, swapBackend, maxDelay)
 		if err != nil {
