@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/pinning"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/pinning"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // pinRootHash pins root hash of given reference. This method is idempotent.

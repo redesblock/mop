@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/manifest/mantaray"
+	"github.com/redesblock/mop/core/manifest/mantaray"
 )
 
 func TestWalkNode(t *testing.T) {

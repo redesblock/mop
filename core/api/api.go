@@ -1,4 +1,4 @@
-// Package api provides the functionality of the hop
+// Package api provides the functionality of the mop
 // client-facing HTTP API.
 package api
 
@@ -18,25 +18,25 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/redesblock/hop/core/auth"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/logging"
-	m "github.com/redesblock/hop/core/metrics"
-	"github.com/redesblock/hop/core/pinning"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/resolver"
-	"github.com/redesblock/hop/core/steward"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/tracing"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/auth"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/logging"
+	m "github.com/redesblock/mop/core/metrics"
+	"github.com/redesblock/mop/core/pinning"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/resolver"
+	"github.com/redesblock/mop/core/steward"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/tracing"
+	"github.com/redesblock/mop/core/traversal"
 )
 
 const (
@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	errInvalidNameOrAddress = errors.New("invalid name or hop address")
+	errInvalidNameOrAddress = errors.New("invalid name or mop address")
 	errNoResolver           = errors.New("no resolver connected")
 	errInvalidRequest       = errors.New("could not validate request")
 	errInvalidContentType   = errors.New("invalid content-type")
@@ -201,10 +201,10 @@ func (s *server) getTag(tagUid string) (*tags.Tag, error) {
 func (s *server) resolveNameOrAddress(str string) (swarm.Address, error) {
 	log := s.logger
 
-	// Try and parse the name as a hop address.
+	// Try and parse the name as a mop address.
 	addr, err := swarm.ParseHexAddress(str)
 	if err == nil {
-		log.Tracef("name resolve: valid hop address %q", str)
+		log.Tracef("name resolve: valid mop address %q", str)
 		return addr, nil
 	}
 
@@ -214,7 +214,7 @@ func (s *server) resolveNameOrAddress(str string) (swarm.Address, error) {
 	}
 
 	// Try and resolve the name using the provided resolver.
-	log.Debugf("name resolve: attempting to resolve %s to hop address", str)
+	log.Debugf("name resolve: attempting to resolve %s to mop address", str)
 	addr, err = s.resolver.Resolve(str)
 	if err == nil {
 		log.Tracef("name resolve: resolved name %s to %s", str, addr)

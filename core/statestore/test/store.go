@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/storage"
 )
 
 const (

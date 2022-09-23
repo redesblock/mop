@@ -3,7 +3,7 @@ package pusher
 import (
 	"sync"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type inflight struct {

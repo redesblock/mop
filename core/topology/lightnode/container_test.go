@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/topology/lightnode"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/topology/lightnode"
 )
 
 func TestContainer(t *testing.T) {

@@ -4,12 +4,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/redesblock/hop/core/keystore/file"
-	"github.com/redesblock/hop/core/keystore/test"
+	"github.com/redesblock/mop/core/keystore/file"
+	"github.com/redesblock/mop/core/keystore/test"
 )
 
 func TestService(t *testing.T) {
-	dir, err := os.MkdirTemp("", "hop-keystore-file-")
+	dir, err := os.MkdirTemp("", "mop-keystore-file-")
 	if err != nil {
 		t.Fatal(err)
 	}

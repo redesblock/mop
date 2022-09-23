@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/feeds/sequence"
-	feedstesting "github.com/redesblock/hop/core/feeds/testing"
-	"github.com/redesblock/hop/core/storage/mock"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/feeds/sequence"
+	feedstesting "github.com/redesblock/mop/core/feeds/testing"
+	"github.com/redesblock/mop/core/storage/mock"
 )
 
 func BenchmarkFinder(b *testing.B) {

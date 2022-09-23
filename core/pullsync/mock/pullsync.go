@@ -6,8 +6,8 @@ import (
 	"math"
 	"sync"
 
-	"github.com/redesblock/hop/core/pullsync"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/pullsync"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var _ pullsync.Interface = (*PullSyncMock)(nil)

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/mop/core/crypto"
 )
 
 func TestGenerateSecp256k1Key(t *testing.T) {

@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/redesblock/hop/core/encryption"
+	"github.com/redesblock/mop/core/encryption"
 )
 
 type chunkEncrypter struct {

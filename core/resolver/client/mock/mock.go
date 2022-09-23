@@ -1,8 +1,8 @@
 package mock
 
 import (
-	"github.com/redesblock/hop/core/resolver/client"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/resolver/client"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Ensure mock Client implements the Client interface.

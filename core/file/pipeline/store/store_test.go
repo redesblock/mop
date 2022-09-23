@@ -6,12 +6,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline"
-	mock "github.com/redesblock/hop/core/file/pipeline/mock"
-	"github.com/redesblock/hop/core/file/pipeline/store"
-	"github.com/redesblock/hop/core/storage"
-	storer "github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file/pipeline"
+	mock "github.com/redesblock/mop/core/file/pipeline/mock"
+	"github.com/redesblock/mop/core/file/pipeline/store"
+	"github.com/redesblock/mop/core/storage"
+	storer "github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestStoreWriter tests that store writer stores the provided data and calls the next chain writer.

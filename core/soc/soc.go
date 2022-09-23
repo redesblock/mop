@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

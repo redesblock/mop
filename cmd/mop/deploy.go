@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/node"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/node"
 	"github.com/spf13/cobra"
 )
 

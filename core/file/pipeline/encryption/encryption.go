@@ -1,8 +1,8 @@
 package encryption
 
 import (
-	"github.com/redesblock/hop/core/encryption"
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/mop/core/encryption"
+	"github.com/redesblock/mop/core/file/pipeline"
 )
 
 type encryptionWriter struct {

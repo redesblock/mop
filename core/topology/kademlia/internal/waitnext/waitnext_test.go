@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/swarm/test"
-	"github.com/redesblock/hop/core/topology/kademlia/internal/waitnext"
+	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/topology/kademlia/internal/waitnext"
 )
 
 func TestSet(t *testing.T) {

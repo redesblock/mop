@@ -12,19 +12,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/redesblock/hop/core/config"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p/libp2p"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/settlement"
-	"github.com/redesblock/hop/core/settlement/swap"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/settlement/swap/priceoracle"
-	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/transaction"
-	"github.com/redesblock/hop/core/transaction/wrapped"
+	"github.com/redesblock/mop/core/config"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/settlement"
+	"github.com/redesblock/mop/core/settlement/swap"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/settlement/swap/priceoracle"
+	"github.com/redesblock/mop/core/settlement/swap/swapprotocol"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/transaction"
+	"github.com/redesblock/mop/core/transaction/wrapped"
 )
 
 const (
@@ -46,14 +46,14 @@ func InitChain(
 	var backend transaction.Backend
 	rpcClient, err := rpc.DialContext(ctx, endpoint)
 	if err != nil {
-		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("dial eth client: %w", err)
+		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("dial bnb client: %w", err)
 	}
 
 	var versionString string
 	err = rpcClient.CallContext(ctx, &versionString, "web3_clientVersion")
 	if err != nil {
 		logger.Infof("could not connect to backend at %v. In a swap-enabled network a working blockchain node is required. Check your node or specify another node using --swap-endpoint.", endpoint)
-		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
+		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("bnb client get version: %w", err)
 	}
 
 	logger.Infof("connected to Binance Smart Chain backend: %s", versionString)
@@ -67,7 +67,7 @@ func InitChain(
 
 	overlayEthAddress, err := signer.EthereumAddress()
 	if err != nil {
-		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth address: %w", err)
+		return nil, common.Address{}, 0, nil, nil, fmt.Errorf("bnb address: %w", err)
 	}
 
 	transactionMonitor := transaction.NewMonitor(logger, backend, overlayEthAddress, pollingInterval, cancellationDepth)

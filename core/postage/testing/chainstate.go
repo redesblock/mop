@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/mop/core/postage"
 )
 
 // NewChainState will create a new ChainState with random values.

@@ -9,11 +9,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	erc20mock "github.com/redesblock/hop/core/settlement/swap/erc20/mock"
-	storemock "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/transaction"
-	transactionmock "github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	erc20mock "github.com/redesblock/mop/core/settlement/swap/erc20/mock"
+	storemock "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/transaction"
+	transactionmock "github.com/redesblock/mop/core/transaction/mock"
 )
 
 func TestChequebookAddress(t *testing.T) {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"github.com/spf13/cobra"
 )
 

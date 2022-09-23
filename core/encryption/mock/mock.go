@@ -3,7 +3,7 @@ package mock
 import (
 	"errors"
 
-	"github.com/redesblock/hop/core/encryption"
+	"github.com/redesblock/mop/core/encryption"
 )
 
 var _ encryption.Interface = (*Encryptor)(nil)

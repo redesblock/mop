@@ -5,9 +5,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/inmemstore"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/inmemstore"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestStorePutGet(t *testing.T) {

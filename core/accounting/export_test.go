@@ -3,7 +3,7 @@ package accounting
 import (
 	"time"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func (s *Accounting) SetTimeNow(f func() time.Time) {

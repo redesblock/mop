@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // https://github.com/multiformats/multicodec/blob/master/table.csv

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/shed"
+	"github.com/redesblock/mop/core/shed"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

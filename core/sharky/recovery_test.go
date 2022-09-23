@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/sharky"
+	"github.com/redesblock/mop/core/sharky"
 )
 
 func TestMissingShard(t *testing.T) {

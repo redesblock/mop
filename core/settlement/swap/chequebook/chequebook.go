@@ -8,13 +8,13 @@ import (
 	"strings"
 	"sync"
 
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/settlement/swap/erc20"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/settlement/swap/erc20"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 // SendChequeFunc is a function to send cheques.
@@ -32,7 +32,7 @@ var (
 	// ErrInsufficientFunds is the error when the chequebook has not enough free funds for a user action
 	ErrInsufficientFunds = errors.New("insufficient token balance")
 
-	chequebookABI          = transaction.ParseABIUnchecked(hopabi.ERC20SimpleSwapABI)
+	chequebookABI          = transaction.ParseABIUnchecked(mopabi.ERC20SimpleSwapABI)
 	chequeCashedEventType  = chequebookABI.Events["ChequeCashed"]
 	chequeBouncedEventType = chequebookABI.Events["ChequeBounced"]
 )
@@ -336,7 +336,7 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 		GasPrice:    sctx.GetGasPrice(ctx),
 		GasLimit:    95000,
 		Value:       big.NewInt(0),
-		Description: fmt.Sprintf("chequebook withdrawal of %d HOP", amount),
+		Description: fmt.Sprintf("chequebook withdrawal of %d MOP", amount),
 	}
 
 	txHash, err := s.transactionService.Send(ctx, request)

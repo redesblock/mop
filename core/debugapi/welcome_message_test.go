@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/p2p/mock"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/p2p/mock"
 )
 
 func TestGetWelcomeMessage(t *testing.T) {
@@ -49,14 +49,14 @@ func TestSetWelcomeMessage(t *testing.T) {
 		{
 			desc:     "error - request entity too large",
 			wantFail: true,
-			message: `pPPopopopoHpHHPoHoPoooHpppPHPHoppHHHoHpHppPooHpHHpHHoPp
-			oPPPHHooPooPpHopHopoPHPpHPPoPpPpPpooPPHPppoHPHpPppHHpPPppPoPPPpooopp
-			oHpPPHoHPHpPpHPHpopHHopHHpopppHoHoPpPHPHPpHPPooPPHPPHpPpHPopPHpPoHpP
-			oooHooPpPopoPpPpopppoppopPPpoopoHPPoHoHPHHPpPppoHHHHHPoPpHppHopHooop
-			HHpooPHopopHPoppHpoPHppopoooHPHpHPpHPopHpPpHPPPHpPPHpHPPpopPoppPpHHp
-			PPpoPppPPPHPHHoPPoPpHHHpopPPooPPHPPHHHoHPpPoPHPHHHppPHoooopHpoopHHHp
-			oPHHoPpHoPPHpoHoPPHpHpHpHHopppPHopoPHopHoPpooHPHHooPoHHooHPopoPpoHpH
-			oHooPPopPpooHopPoPPPPoppPPoHpPPoPpPppHpoPP`, // 513 characters
+			message: `pPPopopopoMpMMPoMoPoooMpppPMPMoppMMMoMpMppPooMpMMpMMoPp
+			oPPPMMooPooPpMopMopoPMPpMPPoPpPpPpooPPMPppoMPMpPppMMpPPppPoPPPpooopp
+			oMpPPMoMPMpPpMPMpopMMopMMpopppMoMoPpPMPMPpMPPooPPMPPMpPpMPopPMpPoMpP
+			oooMooPpPopoPpPpopppoppopPPpoopoMPPoMoMPMMPpPppoMMMMMPoPpMppMopMooop
+			MMpooPMopopMPoppMpoPMppopoooMPMpMPpMPopMpPpMPPPMpPPMpMPPpopPoppPpMMp
+			PPpoPppPPPMPMMoPPoPpMMMpopPPooPPMPPMMMoMPpPoPMPMMMppPMoooopMpoopMMMp
+			oPMMoPpMoPPMpoMoPPMpMpMpMMopppPMopoPMopMoPpooMPMMooPoMMooMPopoPpoMpM
+			oMooPPopPpooMopPoPPPPoppPPoMpPPoPpPppMpoPP`, // 513 characters
 			wantStatus: http.StatusRequestEntityTooLarge,
 		},
 	}

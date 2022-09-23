@@ -7,20 +7,20 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	pinning "github.com/redesblock/hop/core/pinning/mock"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/mop/core/logging"
+	pinning "github.com/redesblock/mop/core/pinning/mock"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
 
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/tags"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestChunkUploadDownload uploads a chunk to an API that verifies the chunk according

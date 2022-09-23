@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/storage"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

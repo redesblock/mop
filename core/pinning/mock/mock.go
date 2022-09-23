@@ -3,8 +3,8 @@ package mock
 import (
 	"context"
 
-	"github.com/redesblock/hop/core/pinning"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/pinning"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var _ pinning.Interface = (*ServiceMock)(nil)

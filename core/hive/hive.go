@@ -19,14 +19,14 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
-	"github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/hive/pb"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/ratelimit"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/hive/pb"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/ratelimit"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -195,7 +195,7 @@ func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swa
 			continue // Don't advertise private CIDRs to the public network.
 		}
 
-		peersRequest.Peers = append(peersRequest.Peers, &pb.HopAddress{
+		peersRequest.Peers = append(peersRequest.Peers, &pb.MopAddress{
 			Overlay:     addr.Overlay.Bytes(),
 			Underlay:    addr.Underlay.Bytes(),
 			Signature:   addr.Signature,
@@ -314,7 +314,7 @@ func (s *Service) checkAndAddPeers(ctx context.Context, peers pb.Peers) {
 		}
 
 		wg.Add(1)
-		go func(newPeer *pb.HopAddress, cacheOverlay string) {
+		go func(newPeer *pb.MopAddress, cacheOverlay string) {
 
 			s.metrics.PeerConnectAttempts.Inc()
 
@@ -348,14 +348,14 @@ func (s *Service) checkAndAddPeers(ctx context.Context, peers pb.Peers) {
 
 			s.metrics.ReachablePeers.Inc()
 
-			hopAddress := hop.Address{
+			mopAddress := mop.Address{
 				Overlay:     swarm.NewAddress(newPeer.Overlay),
 				Underlay:    multiUnderlay,
 				Signature:   newPeer.Signature,
 				Transaction: newPeer.Transaction,
 			}
 
-			err = s.addressBook.Put(hopAddress.Overlay, hopAddress)
+			err = s.addressBook.Put(mopAddress.Overlay, mopAddress)
 			if err != nil {
 				s.metrics.StorePeerErr.Inc()
 				s.logger.Warningf("skipping peer in response %s: %v", newPeer.String(), err)
@@ -363,7 +363,7 @@ func (s *Service) checkAndAddPeers(ctx context.Context, peers pb.Peers) {
 			}
 
 			mtx.Lock()
-			peersToAdd = append(peersToAdd, hopAddress.Overlay)
+			peersToAdd = append(peersToAdd, mopAddress.Overlay)
 			mtx.Unlock()
 		}(p, cacheOverlay)
 	}

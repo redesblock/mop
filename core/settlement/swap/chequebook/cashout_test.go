@@ -5,20 +5,20 @@ import (
 	"math/big"
 	"testing"
 
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	chequestoremock "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
-	storemock "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/transaction"
-	"github.com/redesblock/hop/core/transaction/backendmock"
-	transactionmock "github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	chequestoremock "github.com/redesblock/mop/core/settlement/swap/chequestore/mock"
+	storemock "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/transaction"
+	"github.com/redesblock/mop/core/transaction/backendmock"
+	transactionmock "github.com/redesblock/mop/core/transaction/mock"
 )
 
 var (
-	chequebookABI          = transaction.ParseABIUnchecked(hopabi.ERC20SimpleSwapABI)
+	chequebookABI          = transaction.ParseABIUnchecked(mopabi.ERC20SimpleSwapABI)
 	chequeCashedEventType  = chequebookABI.Events["ChequeCashed"]
 	chequeBouncedEventType = chequebookABI.Events["ChequeBounced"]
 )

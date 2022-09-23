@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/mop/core/crypto"
 )
 
 func TestECDHCorrect(t *testing.T) {

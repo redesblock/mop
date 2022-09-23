@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"strconv"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/mop/core/logging"
 )
 
 const (

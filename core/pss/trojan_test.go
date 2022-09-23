@@ -5,9 +5,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestWrap(t *testing.T) {

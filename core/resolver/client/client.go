@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/redesblock/hop/core/resolver"
+	"github.com/redesblock/mop/core/resolver"
 )
 
 // Interface is a resolver client that can connect/disconnect to an external

@@ -1,16 +1,16 @@
-package hop_test
+package mop_test
 
 import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hop"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/mop"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func TestHopAddress(t *testing.T) {
+func TestMopAddress(t *testing.T) {
 	node1ma, err := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/1634/p2p/16Uiu2HAkx8ULY8cTXhdVAcMmLcH9AsTKz6uBQ7DPLKRjMLgBVYkA")
 	if err != nil {
 		t.Fatal(err)
@@ -30,31 +30,31 @@ func TestHopAddress(t *testing.T) {
 	}
 	signer1 := crypto.NewDefaultSigner(privateKey1)
 
-	hopAddress, err := hop.NewAddress(signer1, node1ma, overlay, 3, trxHash)
+	mopAddress, err := mop.NewAddress(signer1, node1ma, overlay, 3, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hopAddress2, err := hop.ParseAddress(node1ma.Bytes(), overlay.Bytes(), hopAddress.Signature, trxHash, blockHash, 3)
+	mopAddress2, err := mop.ParseAddress(node1ma.Bytes(), overlay.Bytes(), mopAddress.Signature, trxHash, blockHash, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !hopAddress.Equal(hopAddress2) {
-		t.Fatalf("got %s expected %s", hopAddress2, hopAddress)
+	if !mopAddress.Equal(mopAddress2) {
+		t.Fatalf("got %s expected %s", mopAddress2, mopAddress)
 	}
 
-	bytes, err := hopAddress.MarshalJSON()
+	bytes, err := mopAddress.MarshalJSON()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var newhop hop.Address
-	if err := newhop.UnmarshalJSON(bytes); err != nil {
+	var newMopAddress mop.Address
+	if err := newMopAddress.UnmarshalJSON(bytes); err != nil {
 		t.Fatal(err)
 	}
 
-	if !newhop.Equal(hopAddress) {
-		t.Fatalf("got %s expected %s", newhop, hopAddress)
+	if !newMopAddress.Equal(mopAddress) {
+		t.Fatalf("got %s expected %s", newMopAddress, mopAddress)
 	}
 }

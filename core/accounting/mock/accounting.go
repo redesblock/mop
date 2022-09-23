@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/redesblock/hop/core/accounting"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/accounting"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Service is the mock Accounting service.

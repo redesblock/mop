@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
-	filekeystore "github.com/redesblock/hop/core/keystore/file"
+	filekeystore "github.com/redesblock/mop/core/keystore/file"
 	"github.com/spf13/cobra"
 	"path/filepath"
 )
@@ -28,7 +28,7 @@ func (c *command) initExportPrivateCmd() error {
 			return c.config.BindPFlags(cmd.Flags())
 		},
 	}
-	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".hop"), "data directory")
+	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".mop"), "data directory")
 
 	c.root.AddCommand(cmd)
 

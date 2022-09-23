@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	swap "github.com/redesblock/hop/core/settlement/swap/headers"
-	"github.com/redesblock/hop/core/settlement/swap/priceoracle"
-	"github.com/redesblock/hop/core/settlement/swap/swapprotocol/pb"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	swap "github.com/redesblock/mop/core/settlement/swap/headers"
+	"github.com/redesblock/mop/core/settlement/swap/priceoracle"
+	"github.com/redesblock/mop/core/settlement/swap/swapprotocol/pb"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

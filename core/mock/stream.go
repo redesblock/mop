@@ -3,7 +3,7 @@ package mock
 import (
 	"bytes"
 
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/p2p"
 )
 
 type Stream struct {

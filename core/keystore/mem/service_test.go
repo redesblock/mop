@@ -3,8 +3,8 @@ package mem_test
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/keystore/mem"
-	"github.com/redesblock/hop/core/keystore/test"
+	"github.com/redesblock/mop/core/keystore/mem"
+	"github.com/redesblock/mop/core/keystore/test"
 )
 
 func TestService(t *testing.T) {

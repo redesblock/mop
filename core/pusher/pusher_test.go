@@ -10,20 +10,20 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/postage"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/postage"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
 
-	"github.com/redesblock/hop/core/localstore"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/pusher"
-	"github.com/redesblock/hop/core/pushsync"
-	pushsyncmock "github.com/redesblock/hop/core/pushsync/mock"
-	"github.com/redesblock/hop/core/storage"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/topology/mock"
+	"github.com/redesblock/mop/core/localstore"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/pusher"
+	"github.com/redesblock/mop/core/pushsync"
+	pushsyncmock "github.com/redesblock/mop/core/pushsync/mock"
+	"github.com/redesblock/mop/core/storage"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/topology/mock"
 )
 
 // no of times to retry to see if we have received response from pushsync
@@ -127,7 +127,7 @@ func TestSendChunkToSyncWithTag(t *testing.T) {
 }
 
 // TestSendChunkToPushSyncWithoutTag is similar to TestSendChunkToPushSync, excep that the tags are not
-// present to simulate hop api withotu splitter condition
+// present to simulate mop api withotu splitter condition
 func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 	chunk := testingc.GenerateTestRandomChunk()
 

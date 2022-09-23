@@ -3,7 +3,7 @@ package validator
 import (
 	"bytes"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // MockValidator returns true if the data and address passed in the Validate method

@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/pricer/headerutils"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/pricer/headerutils"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestMakePricingHeaders(t *testing.T) {

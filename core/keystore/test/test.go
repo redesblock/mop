@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/keystore"
+	"github.com/redesblock/mop/core/keystore"
 )
 
 // Service is a utility testing function that can be used to test

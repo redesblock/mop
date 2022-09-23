@@ -6,9 +6,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/tracing"
 	"github.com/uber/jaeger-client-go"
 )
 

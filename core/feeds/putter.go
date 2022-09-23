@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/soc"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/soc"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Updater is the generic interface f

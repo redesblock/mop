@@ -8,12 +8,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/p2p/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/p2p/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestAddresses(t *testing.T) {

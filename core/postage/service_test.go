@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/postage"
-	pstoremock "github.com/redesblock/hop/core/postage/batchstore/mock"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	storemock "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/mop/core/postage"
+	pstoremock "github.com/redesblock/mop/core/postage/batchstore/mock"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	storemock "github.com/redesblock/mop/core/statestore/mock"
 )
 
 // TestSaveLoad tests the idempotence of saving and loading the postage.Service

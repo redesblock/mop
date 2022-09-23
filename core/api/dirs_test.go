@@ -13,23 +13,23 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/file/loadsave"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/manifest"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 )
 
 func TestDirs(t *testing.T) {
 	var (
-		dirUploadResource   = "/hop"
-		hopDownloadResource = func(addr, path string) string { return "/hop/" + addr + "/" + path }
+		dirUploadResource   = "/mop"
+		mopDownloadResource = func(addr, path string) string { return "/mop/" + addr + "/" + path }
 		ctx                 = context.Background()
 		storer              = mock.NewStorer()
 		mockStatestore      = statestore.NewStateStore()
@@ -270,7 +270,7 @@ func TestDirs(t *testing.T) {
 			},
 		},
 	} {
-		verify := func(t *testing.T, resp api.HopUploadResponse) {
+		verify := func(t *testing.T, resp api.MopUploadResponse) {
 			t.Helper()
 			// NOTE: reference will be different each time when encryption is enabled
 			if !tc.encrypt {
@@ -292,7 +292,7 @@ func TestDirs(t *testing.T) {
 				t.Helper()
 
 				jsonhttptest.Request(t, client, http.MethodGet,
-					hopDownloadResource(resp.Reference.String(), filePath),
+					mopDownloadResource(resp.Reference.String(), filePath),
 					http.StatusOK,
 					jsonhttptest.WithExpectedResponse(file.data),
 					jsonhttptest.WithRequestHeader("Content-Type", file.header.Get("Content-Type")),
@@ -303,10 +303,10 @@ func TestDirs(t *testing.T) {
 				t.Helper()
 
 				expectedResponse := fmt.Sprintf("<a href=\"%s\">Permanent Redirect</a>.\n\n",
-					hopDownloadResource(resp.Reference.String(), toPath))
+					mopDownloadResource(resp.Reference.String(), toPath))
 
 				jsonhttptest.Request(t, client, http.MethodGet,
-					hopDownloadResource(resp.Reference.String(), fromPath),
+					mopDownloadResource(resp.Reference.String(), fromPath),
 					http.StatusPermanentRedirect,
 					jsonhttptest.WithExpectedResponse([]byte(expectedResponse)),
 				)
@@ -318,12 +318,12 @@ func TestDirs(t *testing.T) {
 				var respBytes []byte
 
 				jsonhttptest.Request(t, client, http.MethodGet,
-					hopDownloadResource(resp.Reference.String(), toPath), http.StatusOK,
+					mopDownloadResource(resp.Reference.String(), toPath), http.StatusOK,
 					jsonhttptest.WithPutResponseBody(&respBytes),
 				)
 
 				jsonhttptest.Request(t, client, http.MethodGet,
-					hopDownloadResource(resp.Reference.String(), fromPath), http.StatusOK,
+					mopDownloadResource(resp.Reference.String(), fromPath), http.StatusOK,
 					jsonhttptest.WithExpectedResponse(respBytes),
 				)
 			}
@@ -378,7 +378,7 @@ func TestDirs(t *testing.T) {
 				// tar all the test case files
 				tarReader := tarFiles(t, tc.files)
 
-				var resp api.HopUploadResponse
+				var resp api.MopUploadResponse
 
 				options := []jsonhttptest.Option{
 					jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
@@ -411,7 +411,7 @@ func TestDirs(t *testing.T) {
 					// tar all the test case files
 					mwReader, mwBoundary := multipartFiles(t, tc.files)
 
-					var resp api.HopUploadResponse
+					var resp api.MopUploadResponse
 
 					options := []jsonhttptest.Option{
 						jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),

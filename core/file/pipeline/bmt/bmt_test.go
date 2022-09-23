@@ -7,9 +7,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/bmt"
-	mock "github.com/redesblock/hop/core/file/pipeline/mock"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/bmt"
+	mock "github.com/redesblock/mop/core/file/pipeline/mock"
 )
 
 // TestStoreWriter tests that store writer stores the provided data and calls the next chain writer.

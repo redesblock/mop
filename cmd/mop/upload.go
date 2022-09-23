@@ -36,7 +36,7 @@ func (c *command) initUploadCmd() error {
 			}
 
 			client := &http.Client{}
-			req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:1633/hop"), bytes.NewReader(buf.Bytes()))
+			req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:1633/mop"), bytes.NewReader(buf.Bytes()))
 			if err != nil {
 				return err
 			}

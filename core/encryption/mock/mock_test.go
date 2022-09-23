@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/encryption/mock"
+	"github.com/redesblock/mop/core/encryption/mock"
 )
 
 var errTest = errors.New("test error")

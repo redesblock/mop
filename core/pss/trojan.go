@@ -12,11 +12,11 @@ import (
 	"io"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/redesblock/hop/core/bmtpool"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/encryption"
-	"github.com/redesblock/hop/core/encryption/elgamal"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/bmtpool"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/encryption"
+	"github.com/redesblock/mop/core/encryption/elgamal"
+	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/sync/errgroup"
 )
 

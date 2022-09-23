@@ -12,27 +12,26 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/file/loadsave"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest"
-	pinning "github.com/redesblock/hop/core/pinning/mock"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/steward/mock"
-	"github.com/redesblock/hop/core/storage"
-	smock "github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/manifest"
+	pinning "github.com/redesblock/mop/core/pinning/mock"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
+	smock "github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 )
 
-func TestHopFiles(t *testing.T) {
+func TestMopFiles(t *testing.T) {
 	var (
-		fileUploadResource   = "/hop"
+		fileUploadResource   = "/mop"
 		targets              = "0x222"
-		fileDownloadResource = func(addr string) string { return "/hop/" + addr }
+		fileDownloadResource = func(addr string) string { return "/mop/" + addr }
 		simpleData           = []byte("this is a simple text")
 		storerMock           = smock.NewStorer()
 		statestoreMock       = statestore.NewStateStore()
@@ -91,7 +90,7 @@ func TestHopFiles(t *testing.T) {
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(tr),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: address,
 			}),
 		)
@@ -148,7 +147,7 @@ func TestHopFiles(t *testing.T) {
 			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "true"),
 			jsonhttptest.WithRequestBody(tr),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: reference,
 			}),
 		)
@@ -178,7 +177,7 @@ func TestHopFiles(t *testing.T) {
 	t.Run("encrypt-decrypt", func(t *testing.T) {
 		fileName := "my-pictures.jpeg"
 
-		var resp api.HopUploadResponse
+		var resp api.MopUploadResponse
 		rcvdHeader := jsonhttptest.Request(t, client, http.MethodPost,
 			fileUploadResource+"?name="+fileName, http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
@@ -212,7 +211,7 @@ func TestHopFiles(t *testing.T) {
 		fileName := "my-pictures.jpeg"
 		fileNameWithPath := "../../" + fileName
 
-		var resp api.HopUploadResponse
+		var resp api.MopUploadResponse
 
 		_ = jsonhttptest.Request(t, client, http.MethodPost,
 			fileUploadResource+"?name="+fileNameWithPath, http.StatusCreated,
@@ -248,7 +247,7 @@ func TestHopFiles(t *testing.T) {
 			fileUploadResource+"?name="+fileName, http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 			jsonhttptest.WithRequestHeader("Content-Type", "image/jpeg; charset=utf-8"),
@@ -291,7 +290,7 @@ func TestHopFiles(t *testing.T) {
 			fileUploadResource+"?name="+fileName, http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(strings.NewReader(sampleHtml)),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 			jsonhttptest.WithRequestHeader("Content-Type", "text/html; charset=utf-8"),
@@ -332,7 +331,7 @@ func TestHopFiles(t *testing.T) {
 			fileUploadResource+"?name="+fileName, http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(simpleData)),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 			jsonhttptest.WithRequestHeader("Content-Type", "text/html; charset=utf-8"),
@@ -355,7 +354,7 @@ func TestHopFiles(t *testing.T) {
 
 // TestRangeRequests validates that all endpoints are serving content with
 // respect to HTTP Range headers.
-func TestHopFilesRangeRequests(t *testing.T) {
+func TestMopFilesRangeRequests(t *testing.T) {
 	data := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus dignissim tincidunt orci id aliquam. Praesent eget turpis in lectus semper consectetur et ut nibh. Nam rhoncus, augue sit amet sollicitudin lacinia, turpis tortor molestie urna, at mattis sem sapien sit amet augue. In bibendum ex vel odio dignissim interdum. Quisque hendrerit sapien et porta condimentum. Vestibulum efficitur mauris tellus, eget vestibulum sapien vulputate ac. Proin et vulputate sapien. Duis tincidunt mauris vulputate porta venenatis. Sed dictum aliquet urna, sit amet fermentum velit pellentesque vitae. Nam sed nisi ultrices, volutpat quam et, malesuada sapien. Nunc gravida non orci at rhoncus. Sed vitae dui accumsan, venenatis lectus et, mattis tellus. Proin sed mauris eu mi congue lacinia.")
 
 	uploads := []struct {
@@ -375,15 +374,15 @@ func TestHopFilesRangeRequests(t *testing.T) {
 		},
 		{
 			name:             "file",
-			uploadEndpoint:   "/hop",
-			downloadEndpoint: "/hop",
+			uploadEndpoint:   "/mop",
+			downloadEndpoint: "/mop",
 			reader:           bytes.NewReader(data),
 			contentType:      "text/plain; charset=utf-8",
 		},
 		{
 			name:             "dir",
-			uploadEndpoint:   "/hop",
-			downloadEndpoint: "/hop",
+			uploadEndpoint:   "/mop",
+			downloadEndpoint: "/mop",
 			filepath:         "ipsum/lorem.txt",
 			reader: tarFiles(t, []f{
 				{
@@ -448,7 +447,7 @@ func TestHopFilesRangeRequests(t *testing.T) {
 				Post:   mockpost.New(mockpost.WithAcceptAll()),
 			})
 
-			var resp api.HopUploadResponse
+			var resp api.MopUploadResponse
 
 			testOpts := []jsonhttptest.Option{
 				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
@@ -575,7 +574,7 @@ func TestFeedIndirection(t *testing.T) {
 		},
 	})
 
-	var resp api.HopUploadResponse
+	var resp api.MopUploadResponse
 
 	options := []jsonhttptest.Option{
 		jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
@@ -587,7 +586,7 @@ func TestFeedIndirection(t *testing.T) {
 	}
 
 	// verify directory tar upload response
-	jsonhttptest.Request(t, client, http.MethodPost, "/hop", http.StatusCreated, options...)
+	jsonhttptest.Request(t, client, http.MethodPost, "/mop", http.StatusCreated, options...)
 
 	if resp.Reference.String() == "" {
 		t.Fatalf("expected file reference, did not got any")
@@ -596,7 +595,7 @@ func TestFeedIndirection(t *testing.T) {
 	// now use the "content" to mock the feed lookup
 	// also, use the mocked mantaray chunks that unmarshal
 	// into a real manifest with the mocked feed values when
-	// called from the hop endpoint. then call the hop endpoint with
+	// called from the mop endpoint. then call the mop endpoint with
 	// the pregenerated feed root manifest hash
 
 	feedUpdate := toChunk(t, 121212, resp.Reference.Bytes())
@@ -604,7 +603,7 @@ func TestFeedIndirection(t *testing.T) {
 	var (
 		look                = newMockLookup(-1, 0, feedUpdate, nil, &id{}, nil)
 		factory             = newMockFactory(look)
-		hopDownloadResource = func(addr, path string) string { return "/hop/" + addr + "/" + path }
+		mopDownloadResource = func(addr, path string) string { return "/mop/" + addr + "/" + path }
 		ctx                 = context.Background()
 	)
 	client, _, _ = newTestServer(t, testServerOptions{
@@ -638,32 +637,7 @@ func TestFeedIndirection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	jsonhttptest.Request(t, client, http.MethodGet, hopDownloadResource(manifRef.String(), ""), http.StatusOK,
+	jsonhttptest.Request(t, client, http.MethodGet, mopDownloadResource(manifRef.String(), ""), http.StatusOK,
 		jsonhttptest.WithExpectedResponse(updateData),
 	)
-}
-
-func TestHopReupload(t *testing.T) {
-	var (
-		logger         = logging.New(io.Discard, 0)
-		statestoreMock = statestore.NewStateStore()
-		stewardMock    = &mock.Steward{}
-		storer         = smock.NewStorer()
-		addr           = swarm.NewAddress([]byte{31: 128})
-	)
-	client, _, _ := newTestServer(t, testServerOptions{
-		Storer:  storer,
-		Tags:    tags.NewTags(statestoreMock, logger),
-		Logger:  logger,
-		Steward: stewardMock,
-	})
-	jsonhttptest.Request(t, client, http.MethodPatch, "/v1/hop/"+addr.String(), http.StatusOK,
-		jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
-			Message: http.StatusText(http.StatusOK),
-			Code:    http.StatusOK,
-		}),
-	)
-	if !stewardMock.LastAddress().Equal(addr) {
-		t.Fatalf("got address %s want %s", stewardMock.LastAddress().String(), addr.String())
-	}
 }

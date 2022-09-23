@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"io"
 	"math/big"
 	"net/http"
@@ -15,28 +15,28 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/multiformats/go-multiaddr"
-	accountingmock "github.com/redesblock/hop/core/accounting/mock"
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	p2pmock "github.com/redesblock/hop/core/p2p/mock"
-	"github.com/redesblock/hop/core/pingpong"
-	"github.com/redesblock/hop/core/postage"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/resolver"
-	chequebookmock "github.com/redesblock/hop/core/settlement/swap/chequebook/mock"
-	swapmock "github.com/redesblock/hop/core/settlement/swap/mock"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/topology/lightnode"
-	topologymock "github.com/redesblock/hop/core/topology/mock"
-	transactionmock "github.com/redesblock/hop/core/transaction/mock"
-	"github.com/redesblock/hop/core/traversal"
+	accountingmock "github.com/redesblock/mop/core/accounting/mock"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	p2pmock "github.com/redesblock/mop/core/p2p/mock"
+	"github.com/redesblock/mop/core/pingpong"
+	"github.com/redesblock/mop/core/postage"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/resolver"
+	chequebookmock "github.com/redesblock/mop/core/settlement/swap/chequebook/mock"
+	swapmock "github.com/redesblock/mop/core/settlement/swap/mock"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/topology/lightnode"
+	topologymock "github.com/redesblock/mop/core/topology/mock"
+	transactionmock "github.com/redesblock/mop/core/transaction/mock"
+	"github.com/redesblock/mop/core/traversal"
 	"resenje.org/web"
 )
 
@@ -87,8 +87,8 @@ func newTestServer(t *testing.T, o testServerOptions) *testServer {
 	swapserv := swapmock.New(o.SwapOpts...)
 	transaction := transactionmock.New(o.TransactionOpts...)
 	ln := lightnode.NewContainer(o.Overlay)
-	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(io.Discard, 0), nil, o.CORSAllowedOrigins, big.NewInt(2), transaction, false, nil)
-	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, o.BatchStore, o.Post, o.PostageContract, o.Traverser)
+	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(io.Discard, 0), nil, o.CORSAllowedOrigins, big.NewInt(2), nil, transaction, false, nil)
+	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, o.BatchStore, o.Post, o.PostageContract, nil, nil, o.Traverser)
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
@@ -154,7 +154,7 @@ func TestServer_Configure(t *testing.T) {
 	swapserv := swapmock.New(o.SwapOpts...)
 	ln := lightnode.NewContainer(o.Overlay)
 	transaction := transactionmock.New(o.TransactionOpts...)
-	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(io.Discard, 0), nil, nil, big.NewInt(2), transaction, false, nil)
+	s := debugapi.New(o.PublicKey, o.PSSPublicKey, o.EthereumAddress, logging.New(io.Discard, 0), nil, nil, big.NewInt(2), nil, transaction, false, nil)
 	ts := httptest.NewServer(s)
 	t.Cleanup(ts.Close)
 
@@ -185,7 +185,7 @@ func TestServer_Configure(t *testing.T) {
 		}),
 	)
 
-	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, nil, mockpost.New(), nil, nil)
+	s.Configure(o.Overlay, o.P2P, o.Pingpong, topologyDriver, ln, o.Storer, o.Tags, acc, settlement, true, swapserv, chequebook, nil, mockpost.New(), nil, nil, nil, nil)
 
 	testBasicRouter(t, client)
 	jsonhttptest.Request(t, client, http.MethodGet, "/readiness", http.StatusOK,

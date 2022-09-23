@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestAddress(t *testing.T) {

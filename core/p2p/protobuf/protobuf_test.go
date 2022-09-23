@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/p2p/protobuf/internal/pb"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/p2p/protobuf/internal/pb"
 )
 
 func TestReader_ReadMsg(t *testing.T) {

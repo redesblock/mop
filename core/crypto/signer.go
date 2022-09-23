@@ -9,7 +9,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/crypto/eip712"
+	"github.com/redesblock/mop/core/crypto/eip712"
 )
 
 var (

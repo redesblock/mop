@@ -9,10 +9,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/redesblock/hop/core/encryption/store"
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/encryption/store"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/sync/errgroup"
 )
 

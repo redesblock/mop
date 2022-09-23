@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchstore/mock"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	chunktesting "github.com/redesblock/hop/core/storage/testing"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchstore/mock"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	chunktesting "github.com/redesblock/mop/core/storage/testing"
 )
 
 // TestStampMarshalling tests the idempotence  of binary marshal/unmarshals for Stamps.

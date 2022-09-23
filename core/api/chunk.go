@@ -9,16 +9,16 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/netstore"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/netstore"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 )
 
 type chunkAddressResponse struct {

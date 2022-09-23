@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/keystore"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/keystore"
 )
 
 var _ keystore.Service = (*Service)(nil)

@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/storage"
-	chunktesting "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/storage"
+	chunktesting "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

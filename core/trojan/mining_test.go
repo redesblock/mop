@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/trojan"
+	"github.com/redesblock/mop/core/trojan"
 )
 
 func newTargets(length, depth int) trojan.Targets {

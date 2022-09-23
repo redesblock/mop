@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type Reader interface {

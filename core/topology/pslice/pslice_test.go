@@ -5,9 +5,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
-	"github.com/redesblock/hop/core/topology/pslice"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/topology/pslice"
 )
 
 // TestShallowestEmpty tests that ShallowestEmpty functionality works correctly.

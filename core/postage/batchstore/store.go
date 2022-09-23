@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/storage"
 )
 
 const (

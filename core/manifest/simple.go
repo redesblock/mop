@@ -5,15 +5,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/manifest/simple"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/manifest/simple"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
 	// ManifestSimpleContentType represents content type used for noting that
 	// specific file should be processed as 'simple' manifest
-	ManifestSimpleContentType = "application/hop-manifest-simple+json"
+	ManifestSimpleContentType = "application/mop-manifest-simple+json"
 )
 
 type simpleManifest struct {

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 func (s *Service) topologyHandler(w http.ResponseWriter, r *http.Request) {

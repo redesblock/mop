@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/crypto/eip712"
-	signermock "github.com/redesblock/hop/core/crypto/mock"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/crypto/eip712"
+	signermock "github.com/redesblock/mop/core/crypto/mock"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
 )
 
 func TestSignCheque(t *testing.T) {

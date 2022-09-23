@@ -9,12 +9,12 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/bigint"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/bigint"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
 )
 
 func (s *Service) postageAccessHandler(h http.Handler) http.Handler {
@@ -274,7 +274,7 @@ type reserveStateResponse struct {
 type chainStateResponse struct {
 	Block        uint64         `json:"block"`        // The block number of the last postage event.
 	TotalAmount  *bigint.BigInt `json:"totalAmount"`  // Cumulative amount paid per stamp.
-	CurrentPrice *bigint.BigInt `json:"currentPrice"` // Hop/chunk/block normalised price.
+	CurrentPrice *bigint.BigInt `json:"currentPrice"` // mop/chunk/block normalised price.
 }
 
 func (s *Service) reserveStateHandler(w http.ResponseWriter, _ *http.Request) {

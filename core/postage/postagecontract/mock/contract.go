@@ -2,9 +2,11 @@ package mock
 
 import (
 	"context"
+	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 
-	"github.com/redesblock/hop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/postage/postagecontract"
 )
 
 type contractMock struct {
@@ -23,6 +25,10 @@ func (c *contractMock) TopUpBatch(ctx context.Context, batchID []byte, amount *b
 
 func (c *contractMock) DiluteBatch(ctx context.Context, batchID []byte, newDepth uint8) error {
 	return c.diluteBatch(ctx, batchID, newDepth)
+}
+
+func (c *contractMock) AvailableBalance(ctx context.Context, address common.Address) (*big.Int, error) {
+	return big.NewInt(0), errors.New("Error")
 }
 
 // Option is a an option passed to New

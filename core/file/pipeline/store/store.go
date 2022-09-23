@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 )
 
 var errInvalidData = errors.New("store: invalid data")

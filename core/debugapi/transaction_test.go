@@ -10,12 +10,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/redesblock/hop/core/bigint"
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/transaction"
-	"github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/bigint"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/transaction"
+	"github.com/redesblock/mop/core/transaction/mock"
 )
 
 func TestTransactionStoredTransaction(t *testing.T) {

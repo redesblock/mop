@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/crypto/clef"
-	"github.com/redesblock/hop/core/crypto/eip712"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/crypto/clef"
+	"github.com/redesblock/mop/core/crypto/eip712"
 )
 
 type mockClef struct {

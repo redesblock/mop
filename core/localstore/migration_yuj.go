@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/swarm"
 )
 
-// DBSchemaYuj is the hop schema identifier for storage incentives initial iteration.
+// DBSchemaYuj is the mop schema identifier for storage incentives initial iteration.
 const DBSchemaYuj = "yuj"
 
 // migrateYuj removes all existing database content, unless

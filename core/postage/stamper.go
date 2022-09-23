@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

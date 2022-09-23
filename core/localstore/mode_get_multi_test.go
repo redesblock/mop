@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/storage"
 )
 
 // TestModeGetMulti stores chunks and validates that GetMulti

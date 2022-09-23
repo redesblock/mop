@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/crypto/sha3"
 )
 

@@ -7,14 +7,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/bigint"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/sctx"
+	"github.com/redesblock/mop/core/bigint"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/sctx"
 )
 
 const (
 	errETHBalance                 = "cannot get bnb balance"
-	errHOPBalance                 = "cannot get hop balance"
+	errMONOPROBalance             = "cannot get monopro balance"
 	errMOPBalance                 = "cannot get mop balance"
 	errTotalPledgedBalanceBalance = "cannot get total pledged balance"
 	errPledgedBalanceBalance      = "cannot get pledged balance"
@@ -61,9 +61,9 @@ func (s *Service) nodeGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type nodeBalanceResponse struct {
-	Balance    *bigint.BigInt `json:"balance"`
-	HopBalance *bigint.BigInt `json:"hopBalance"`
-	MopBalance *bigint.BigInt `json:"mopBalance"`
+	Balance        *bigint.BigInt `json:"balance"`
+	MonoProBalance *bigint.BigInt `json:"monoproBalance"`
+	MopBalance     *bigint.BigInt `json:"mopBalance"`
 }
 
 func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -74,10 +74,10 @@ func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hopBalance, err := s.pledgeContract.AvailableBalance(r.Context(), s.ethereumAddress)
+	monoproBalance, err := s.pledgeContract.AvailableBalance(r.Context(), s.ethereumAddress)
 	if err != nil {
 		s.logger.Error(r.URL.Path, " error ", err)
-		jsonhttp.InternalServerError(w, errHOPBalance)
+		jsonhttp.InternalServerError(w, errMONOPROBalance)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (s *Service) nodeBalanceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonhttp.OK(w, nodeBalanceResponse{Balance: bigint.Wrap(balance), HopBalance: bigint.Wrap(hopBalance), MopBalance: bigint.Wrap(mopBalance)})
+	jsonhttp.OK(w, nodeBalanceResponse{Balance: bigint.Wrap(balance), MonoProBalance: bigint.Wrap(monoproBalance), MopBalance: bigint.Wrap(mopBalance)})
 }
 
 type nodeRewardBalanceResponse struct {
@@ -183,10 +183,10 @@ type nodePledgeResponse struct {
 }
 
 func (s *Service) nodePledgeHandler(w http.ResponseWriter, r *http.Request) {
-	hopBalance, err := s.pledgeContract.AvailableBalance(r.Context(), s.ethereumAddress)
+	monoproBalance, err := s.pledgeContract.AvailableBalance(r.Context(), s.ethereumAddress)
 	if err != nil {
 		s.logger.Error(r.URL.Path, " error ", err)
-		jsonhttp.InternalServerError(w, errHOPBalance)
+		jsonhttp.InternalServerError(w, errMONOPROBalance)
 		return
 	}
 
@@ -219,7 +219,7 @@ func (s *Service) nodePledgeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.OK(w, nodePledgeResponse{
-		AvailablePledgedBalance: bigint.Wrap(hopBalance),
+		AvailablePledgedBalance: bigint.Wrap(monoproBalance),
 		TotalPledgedBalance:     bigint.Wrap(totalPledgedBalance),
 		PledgedBalance:          bigint.Wrap(pledgedBalance),
 		TotalSlashedBalance:     bigint.Wrap(totalSlashedBalance),

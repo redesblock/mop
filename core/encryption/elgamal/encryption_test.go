@@ -6,9 +6,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/encryption/elgamal"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/encryption/elgamal"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestElgamalCorrect(t *testing.T) {

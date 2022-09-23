@@ -10,13 +10,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchstore"
-	postagetest "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/statestore/leveldb"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchstore"
+	postagetest "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/statestore/leveldb"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func setupBatchStore(t *testing.T) (postage.Storer, map[string]uint8) {
@@ -74,7 +74,7 @@ func setupBatchStore(t *testing.T) (postage.Storer, map[string]uint8) {
 // hook is called with the correct batch IDs and correct
 // Radius as a result of batches coming in from chain events.
 // All tests share the same initial state:
-//		▲ hop/chunk
+//		▲ mop/chunk
 //		│
 //	6	├──┐
 //	5	│  ├──┐
@@ -326,7 +326,7 @@ func TestBatchStore_Unreserve(t *testing.T) {
 // hook is called with the correct batch IDs and correct
 // Radius as a result of batches being topped up.
 // All tests share the same initial state:
-//		▲ hop/chunk
+//		▲ mop/chunk
 //		│
 //	6	├──┐
 //	5	│  ├──┐
@@ -443,7 +443,7 @@ func TestBatchStore_Topup(t *testing.T) {
 // hook is called with the correct batch IDs and correct
 // Radius as a result of batches being diluted.
 // All tests share the same initial state:
-//		▲ hop/chunk
+//		▲ mop/chunk
 //		│
 //	6	├──┐
 //	5	│  ├──┐

@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/pushsync"
-	"github.com/redesblock/hop/core/retrieval"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/pushsync"
+	"github.com/redesblock/mop/core/retrieval"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/traversal"
 	"golang.org/x/sync/errgroup"
 )
 

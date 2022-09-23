@@ -6,15 +6,15 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Service is the mock of a P2P Service
 type Service struct {
 	addProtocolFunc       func(p2p.ProtocolSpec) error
-	connectFunc           func(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error)
+	connectFunc           func(ctx context.Context, addr ma.Multiaddr) (address *mop.Address, err error)
 	disconnectFunc        func(overlay swarm.Address, reason string) error
 	peersFunc             func() []p2p.Peer
 	blocklistedPeersFunc  func() ([]p2p.Peer, error)
@@ -34,7 +34,7 @@ func WithAddProtocolFunc(f func(p2p.ProtocolSpec) error) Option {
 }
 
 // WithConnectFunc sets the mock implementation of the Connect function
-func WithConnectFunc(f func(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error)) Option {
+func WithConnectFunc(f func(ctx context.Context, addr ma.Multiaddr) (address *mop.Address, err error)) Option {
 	return optionFunc(func(s *Service) {
 		s.connectFunc = f
 	})
@@ -104,7 +104,7 @@ func (s *Service) AddProtocol(spec p2p.ProtocolSpec) error {
 	return s.addProtocolFunc(spec)
 }
 
-func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error) {
+func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *mop.Address, err error) {
 	if s.connectFunc == nil {
 		return nil, errors.New("function Connect not configured")
 	}

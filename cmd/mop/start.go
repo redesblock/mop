@@ -7,7 +7,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -20,24 +20,24 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/kardianos/service"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/crypto/clef"
-	"github.com/redesblock/hop/core/keystore"
-	filekeystore "github.com/redesblock/hop/core/keystore/file"
-	memkeystore "github.com/redesblock/hop/core/keystore/mem"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/node"
-	"github.com/redesblock/hop/core/resolver/multiresolver"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/crypto/clef"
+	"github.com/redesblock/mop/core/keystore"
+	filekeystore "github.com/redesblock/mop/core/keystore/file"
+	memkeystore "github.com/redesblock/mop/core/keystore/mem"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/node"
+	"github.com/redesblock/mop/core/resolver/multiresolver"
+	"github.com/redesblock/mop/core/swarm"
 	"github.com/spf13/cobra"
 )
 
 const (
-	serviceName = "SwarmHopSvc"
+	serviceName = "SwarmMopSvc"
 )
 
-//go:embed hop-welcome-message.txt
-var hopWelcomeMessage string
+//go:embed welcome-message.txt
+var welcomeMessage string
 
 func (c *command) initStartCmd() (err error) {
 
@@ -81,7 +81,7 @@ func (c *command) initStartCmd() (err error) {
 				}
 			}
 
-			fmt.Print(hopWelcomeMessage)
+			fmt.Print(welcomeMessage)
 
 			debugAPIAddr := c.config.GetString(optionNameDebugAPIAddr)
 			if !c.config.GetBool(optionNameDebugAPIEnable) {
@@ -243,8 +243,8 @@ func (c *command) initStartCmd() (err error) {
 			if isWindowsService {
 				s, err := service.New(p, &service.Config{
 					Name:        serviceName,
-					DisplayName: "Hop",
-					Description: "Hop, Swarm client.",
+					DisplayName: "Mop",
+					Description: "Swarm client.",
 				})
 				if err != nil {
 					return err

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/redesblock/hop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/postage/postagecontract"
 	"github.com/spf13/cobra"
 	"io"
 	"math/big"

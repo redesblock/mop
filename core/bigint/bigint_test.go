@@ -2,7 +2,7 @@ package bigint_test
 
 import (
 	"encoding/json"
-	"github.com/redesblock/hop/core/bigint"
+	"github.com/redesblock/mop/core/bigint"
 	"math"
 	"math/big"
 	"reflect"

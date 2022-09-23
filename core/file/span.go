@@ -3,7 +3,7 @@ package file
 import (
 	"math"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var Spans []int64

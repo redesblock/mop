@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/mop/core/logging"
 )
 
 var ErrTransactionCancelled = errors.New("transaction cancelled")

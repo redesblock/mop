@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
 )
 
 type AddrTuple struct {

@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/redesblock/hop/core/postage/batchstore/mock"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
+	"github.com/redesblock/mop/core/postage/batchstore/mock"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
 )
 
 func TestBatchStorePutGet(t *testing.T) {

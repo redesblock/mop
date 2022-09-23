@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/storage"
 )
 
 func TestPinCounter(t *testing.T) {

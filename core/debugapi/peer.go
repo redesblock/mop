@@ -6,9 +6,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type peerConnectResponse struct {
@@ -23,7 +23,7 @@ func (s *Service) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hopAddr, err := s.p2p.Connect(r.Context(), addr)
+	mopAddr, err := s.p2p.Connect(r.Context(), addr)
 	if err != nil {
 		s.logger.Debugf("debug api: peer connect %s: %v", addr, err)
 		s.logger.Errorf("unable to connect to peer %s", addr)
@@ -31,8 +31,8 @@ func (s *Service) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.topologyDriver.Connected(r.Context(), p2p.Peer{Address: hopAddr.Overlay}, true); err != nil {
-		_ = s.p2p.Disconnect(hopAddr.Overlay, "failed to notify topology")
+	if err := s.topologyDriver.Connected(r.Context(), p2p.Peer{Address: mopAddr.Overlay}, true); err != nil {
+		_ = s.p2p.Disconnect(mopAddr.Overlay, "failed to notify topology")
 		s.logger.Debugf("debug api: peer connect handler %s: %v", addr, err)
 		s.logger.Errorf("unable to connect to peer %s", addr)
 		jsonhttp.InternalServerError(w, err)
@@ -40,7 +40,7 @@ func (s *Service) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.OK(w, peerConnectResponse{
-		Address: hopAddr.Overlay.String(),
+		Address: mopAddr.Overlay.String(),
 	})
 }
 

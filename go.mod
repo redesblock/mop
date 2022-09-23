@@ -1,4 +1,4 @@
-module github.com/redesblock/hop
+module github.com/redesblock/mop
 
 go 1.17
 

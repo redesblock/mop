@@ -12,10 +12,10 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
 	"golang.org/x/net/context"
 )
 

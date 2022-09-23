@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 func TestMethodHandler(t *testing.T) {

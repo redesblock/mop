@@ -15,8 +15,8 @@ func (c *command) initDownloadCmd() error {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			client := &http.Client{}
-			fmt.Println(fmt.Sprintf("http://localhost:1633/hop/%s", args[0]))
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1633/hop/%s", args[0]), nil)
+			fmt.Println(fmt.Sprintf("http://localhost:1633/mop/%s", args[0]))
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1633/mop/%s", args[0]), nil)
 			if err != nil {
 				return err
 			}

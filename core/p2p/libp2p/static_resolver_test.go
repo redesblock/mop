@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/p2p/libp2p"
 )
 
 func TestStaticAddressResolver(t *testing.T) {

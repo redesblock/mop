@@ -5,7 +5,7 @@ package discovery
 import (
 	"context"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type Driver interface {

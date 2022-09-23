@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/steward/mock"
-	smock "github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/steward/mock"
+	smock "github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 )
 
 func TestStewardship(t *testing.T) {

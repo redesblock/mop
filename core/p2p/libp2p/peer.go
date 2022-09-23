@@ -9,8 +9,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type peerRegistry struct {

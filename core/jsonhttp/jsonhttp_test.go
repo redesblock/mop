@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 func TestRespond_defaults(t *testing.T) {

@@ -12,13 +12,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/file/loadsave"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/manifest"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/soc"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/manifest"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/soc"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

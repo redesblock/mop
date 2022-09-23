@@ -3,12 +3,12 @@ package recovery
 import (
 	"context"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/pushsync"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/pushsync"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

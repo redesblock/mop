@@ -11,14 +11,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology/lightnode"
+	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology/lightnode"
 )
 
 type libp2pServiceOpts struct {

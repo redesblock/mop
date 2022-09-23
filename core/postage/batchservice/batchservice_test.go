@@ -9,13 +9,13 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchservice"
-	"github.com/redesblock/hop/core/postage/batchstore/mock"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	mocks "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchservice"
+	"github.com/redesblock/mop/core/postage/batchstore/mock"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	mocks "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
 )
 
 var (

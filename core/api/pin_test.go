@@ -7,18 +7,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	pinning "github.com/redesblock/hop/core/pinning/mock"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	pinning "github.com/redesblock/mop/core/pinning/mock"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage/mock"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/traversal"
 )
 
 func checkPinHandlers(t *testing.T, client *http.Client, rootHash string, createPin bool) {
@@ -94,33 +94,33 @@ func TestPinHandlers(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, "/bytes", http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(strings.NewReader("this is a simple text")),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 		)
 		checkPinHandlers(t, client, rootHash, true)
 	})
 
-	t.Run("hop", func(t *testing.T) {
+	t.Run("mop", func(t *testing.T) {
 		tarReader := tarFiles(t, []f{{
 			data: []byte("<h1>Swarm"),
 			name: "index.html",
 			dir:  "",
 		}})
 		rootHash := "9e178dbd1ed4b748379e25144e28dfb29c07a4b5114896ef454480115a56b237"
-		jsonhttptest.Request(t, client, http.MethodPost, "/hop", http.StatusCreated,
+		jsonhttptest.Request(t, client, http.MethodPost, "/mop", http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(tarReader),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
 			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "true"),
 			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "true"),
-			jsonhttptest.WithExpectedJSONResponse(api.HopUploadResponse{
+			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
 				Reference: swarm.MustParseHexAddress(rootHash),
 			}),
 		)
 		checkPinHandlers(t, client, rootHash, false)
 
-		header := jsonhttptest.Request(t, client, http.MethodPost, "/hop?name=somefile.txt", http.StatusCreated,
+		header := jsonhttptest.Request(t, client, http.MethodPost, "/mop?name=somefile.txt", http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestHeader("Content-Type", "text/plain"),
 			jsonhttptest.WithRequestHeader(api.SwarmEncryptHeader, "true"),

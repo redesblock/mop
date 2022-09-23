@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/redesblock/hop/core/node"
+	"github.com/redesblock/mop/core/node"
 	"github.com/spf13/cobra"
 )
 

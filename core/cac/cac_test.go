@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestNewCAC(t *testing.T) {

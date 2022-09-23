@@ -15,17 +15,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ma "github.com/multiformats/go-multiaddr"
 
-	ab "github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hive"
-	"github.com/redesblock/hop/core/hive/pb"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/p2p/streamtest"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
+	ab "github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/hive"
+	"github.com/redesblock/mop/core/hive/pb"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/p2p/streamtest"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
 )
 
 var (
@@ -71,16 +71,16 @@ func TestHandlerRateLimit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID, tx)
+		mopAddr, err := mop.NewAddress(signer, underlay, overlay, networkID, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = addressbook.Put(hopAddr.Overlay, *hopAddr)
+		err = addressbook.Put(mopAddr.Overlay, *mopAddr)
 		if err != nil {
 			t.Fatal(err)
 		}
-		peers[i] = hopAddr.Overlay
+		peers[i] = mopAddr.Overlay
 	}
 
 	// create a hive client that will do broadcast
@@ -111,12 +111,12 @@ func TestBroadcastPeers(t *testing.T) {
 
 	// populate all expected and needed random resources for 2 full batches
 	// tests cases that uses fewer resources can use sub-slices of this data
-	var hopAddresses []hop.Address
+	var mopAddresses []mop.Address
 	var overlays []swarm.Address
 	var wantMsgs []pb.Peers
 
 	for i := 0; i < 2; i++ {
-		wantMsgs = append(wantMsgs, pb.Peers{Peers: []*pb.HopAddress{}})
+		wantMsgs = append(wantMsgs, pb.Peers{Peers: []*pb.MopAddress{}})
 	}
 
 	for i := 0; i < 2*hive.MaxBatchSize; i++ {
@@ -137,22 +137,22 @@ func TestBroadcastPeers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		hopAddr, err := hop.NewAddress(signer, underlay, overlay, networkID, tx)
+		mopAddr, err := mop.NewAddress(signer, underlay, overlay, networkID, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		hopAddresses = append(hopAddresses, *hopAddr)
-		overlays = append(overlays, hopAddr.Overlay)
-		err = addressbook.Put(hopAddr.Overlay, *hopAddr)
+		mopAddresses = append(mopAddresses, *mopAddr)
+		overlays = append(overlays, mopAddr.Overlay)
+		err = addressbook.Put(mopAddr.Overlay, *mopAddr)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		wantMsgs[i/hive.MaxBatchSize].Peers = append(wantMsgs[i/hive.MaxBatchSize].Peers, &pb.HopAddress{
-			Overlay:     hopAddresses[i].Overlay.Bytes(),
-			Underlay:    hopAddresses[i].Underlay.Bytes(),
-			Signature:   hopAddresses[i].Signature,
+		wantMsgs[i/hive.MaxBatchSize].Peers = append(wantMsgs[i/hive.MaxBatchSize].Peers, &pb.MopAddress{
+			Overlay:     mopAddresses[i].Overlay.Bytes(),
+			Underlay:    mopAddresses[i].Underlay.Bytes(),
+			Signature:   mopAddresses[i].Signature,
 			Transaction: tx,
 		})
 	}
@@ -162,7 +162,7 @@ func TestBroadcastPeers(t *testing.T) {
 		peers             []swarm.Address
 		wantMsgs          []pb.Peers
 		wantOverlays      []swarm.Address
-		wantHopAddresses  []hop.Address
+		wantMopAddresses  []mop.Address
 		allowPrivateCIDRs bool
 		pingErr           func(addr ma.Multiaddr) (time.Duration, error)
 	}{
@@ -171,7 +171,7 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             []swarm.Address{overlays[0]},
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:1]}},
 			wantOverlays:      []swarm.Address{overlays[0]},
-			wantHopAddresses:  []hop.Address{hopAddresses[0]},
+			wantMopAddresses:  []mop.Address{mopAddresses[0]},
 			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - multiple records": {
@@ -179,7 +179,7 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             overlays[:15],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
 			wantOverlays:      overlays[:15],
-			wantHopAddresses:  hopAddresses[:15],
+			wantMopAddresses:  mopAddresses[:15],
 			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - max number of records": {
@@ -187,7 +187,7 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             overlays[:hive.MaxBatchSize],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:hive.MaxBatchSize]}},
 			wantOverlays:      overlays[:hive.MaxBatchSize],
-			wantHopAddresses:  hopAddresses[:hive.MaxBatchSize],
+			wantMopAddresses:  mopAddresses[:hive.MaxBatchSize],
 			allowPrivateCIDRs: true,
 		},
 		"OK - multiple batches": {
@@ -195,7 +195,7 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             overlays[:hive.MaxBatchSize+10],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers[:10]}},
 			wantOverlays:      overlays[:hive.MaxBatchSize+10],
-			wantHopAddresses:  hopAddresses[:hive.MaxBatchSize+10],
+			wantMopAddresses:  mopAddresses[:hive.MaxBatchSize+10],
 			allowPrivateCIDRs: true,
 		},
 		"OK - multiple batches - max number of records": {
@@ -203,7 +203,7 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             overlays[:2*hive.MaxBatchSize],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers}},
 			wantOverlays:      overlays[:2*hive.MaxBatchSize],
-			wantHopAddresses:  hopAddresses[:2*hive.MaxBatchSize],
+			wantMopAddresses:  mopAddresses[:2*hive.MaxBatchSize],
 			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - skip ping failures": {
@@ -211,10 +211,10 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             overlays[:15],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
 			wantOverlays:      overlays[:10],
-			wantHopAddresses:  hopAddresses[:10],
+			wantMopAddresses:  mopAddresses[:10],
 			allowPrivateCIDRs: true,
 			pingErr: func(addr ma.Multiaddr) (rtt time.Duration, err error) {
-				for _, v := range hopAddresses[10:15] {
+				for _, v := range mopAddresses[10:15] {
 					if v.Underlay.Equal(addr) {
 						return rtt, errors.New("ping failure")
 					}
@@ -227,7 +227,7 @@ func TestBroadcastPeers(t *testing.T) {
 			peers:             overlays[:15],
 			wantMsgs:          []pb.Peers{{}},
 			wantOverlays:      nil,
-			wantHopAddresses:  nil,
+			wantMopAddresses:  nil,
 			allowPrivateCIDRs: false,
 		},
 	}
@@ -279,7 +279,7 @@ func TestBroadcastPeers(t *testing.T) {
 			}
 
 			expectOverlaysEventually(t, addressbookclean, tc.wantOverlays)
-			expectHopAddresessEventually(t, addressbookclean, tc.wantHopAddresses)
+			expectMopAddresessEventually(t, addressbookclean, tc.wantMopAddresses)
 		})
 	}
 }
@@ -325,12 +325,12 @@ func expectOverlaysEventually(t *testing.T, exporter ab.Interface, wantOverlays 
 	}
 }
 
-func expectHopAddresessEventually(t *testing.T, exporter ab.Interface, wantHopAddresses []hop.Address) {
+func expectMopAddresessEventually(t *testing.T, exporter ab.Interface, wantMopAddresses []mop.Address) {
 	var (
-		addresses []hop.Address
+		addresses []mop.Address
 		err       error
 
-		isIn = func(a hop.Address, addrs []hop.Address) bool {
+		isIn = func(a mop.Address, addrs []mop.Address) bool {
 			for _, v := range addrs {
 				if a.Equal(&v) {
 					return true
@@ -347,23 +347,23 @@ func expectHopAddresessEventually(t *testing.T, exporter ab.Interface, wantHopAd
 			t.Fatal(err)
 		}
 
-		if len(addresses) == len(wantHopAddresses) {
+		if len(addresses) == len(wantMopAddresses) {
 			break
 		}
 	}
-	if len(addresses) != len(wantHopAddresses) {
+	if len(addresses) != len(wantMopAddresses) {
 		debug.PrintStack()
-		t.Fatal("timed out waiting for hop addresses")
+		t.Fatal("timed out waiting for mop addresses")
 	}
 
-	for _, v := range wantHopAddresses {
+	for _, v := range wantMopAddresses {
 		if !isIn(v, addresses) {
 			t.Errorf("address %s expected but not found", v.Overlay.String())
 		}
 	}
 
 	if t.Failed() {
-		t.Errorf("hop addresses got %v, want %v", addresses, wantHopAddresses)
+		t.Errorf("mop addresses got %v, want %v", addresses, wantMopAddresses)
 	}
 }
 

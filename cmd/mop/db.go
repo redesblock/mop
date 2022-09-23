@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redesblock/hop/core/localstore"
-	"github.com/redesblock/hop/core/statestore/leveldb"
+	"github.com/redesblock/mop/core/localstore"
+	"github.com/redesblock/mop/core/statestore/leveldb"
 	"github.com/spf13/cobra"
 )
 
@@ -153,7 +153,7 @@ func dbImportCmd(cmd *cobra.Command) {
 func dbNukeCmd(cmd *cobra.Command) {
 	c := &cobra.Command{
 		Use:   "nuke",
-		Short: "Nuke the DB and the relevant statestore entries so that hop resyncs all data next time it boots up.",
+		Short: "Nuke the DB and the relevant statestore entries so that mop resyncs all data next time it boots up.",
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			v, err := cmd.Flags().GetString(optionNameVerbosity)
 			if err != nil {

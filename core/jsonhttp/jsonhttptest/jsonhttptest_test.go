@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 )
 
 func TestRequest_statusCode(t *testing.T) {
@@ -60,7 +60,7 @@ func TestRequest_url(t *testing.T) {
 	})
 
 	assert(t, "", "", func(m *mock) {
-		jsonhttptest.Request(m, c, http.MethodPost, endpoint+"/hop", http.StatusNotFound)
+		jsonhttptest.Request(m, c, http.MethodPost, endpoint+"/mop", http.StatusNotFound)
 	})
 }
 
@@ -319,7 +319,7 @@ func TestWithNoResponseBody(t *testing.T) {
 	})
 
 	assert(t, `got response body "not found", want none`, "", func(m *mock) {
-		jsonhttptest.Request(m, c, http.MethodGet, endpoint+"/hop", http.StatusOK,
+		jsonhttptest.Request(m, c, http.MethodGet, endpoint+"/mop", http.StatusOK,
 			jsonhttptest.WithNoResponseBody(),
 		)
 	})

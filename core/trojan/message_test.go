@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	chunktesting "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/trojan"
+	chunktesting "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/trojan"
 )
 
 // arbitrary targets for tests

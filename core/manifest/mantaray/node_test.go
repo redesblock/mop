@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/redesblock/hop/core/manifest/mantaray"
+	"github.com/redesblock/mop/core/manifest/mantaray"
 )
 
 func TestNilPath(t *testing.T) {

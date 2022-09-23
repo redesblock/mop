@@ -4,19 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	hopabi "github.com/redesblock/hop/contracts/abi"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
+	mopabi "github.com/redesblock/mop/contracts/abi"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
 	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 var (
-	rewardABI            = transaction.ParseABIUnchecked(hopabi.RewardABI)
+	rewardABI            = transaction.ParseABIUnchecked(mopabi.RewardABI)
 	errDecodeABI         = errors.New("could not decode abi data")
 	ErrInsufficientFunds = errors.New("insufficient token balance")
 	keyPrefix            = "reward-txs-"

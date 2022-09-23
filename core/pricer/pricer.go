@@ -1,7 +1,7 @@
 package pricer
 
 import (
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Pricer returns pricing information for chunk hashes.

@@ -8,14 +8,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestConnect(t *testing.T) {
@@ -39,17 +39,17 @@ func TestConnect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hopAddress, err := hop.NewAddress(crypto.NewDefaultSigner(privateKey), underlama, overlay, 0, nil)
+	mopAddress, err := mop.NewAddress(crypto.NewDefaultSigner(privateKey), underlama, overlay, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	testServer := newTestServer(t, testServerOptions{
-		P2P: mock.New(mock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*hop.Address, error) {
+		P2P: mock.New(mock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*mop.Address, error) {
 			if addr.String() == errorUnderlay {
 				return nil, testErr
 			}
-			return hopAddress, nil
+			return mopAddress, nil
 		})),
 	})
 
@@ -81,11 +81,11 @@ func TestConnect(t *testing.T) {
 
 	t.Run("error - add peer", func(t *testing.T) {
 		testServer := newTestServer(t, testServerOptions{
-			P2P: mock.New(mock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*hop.Address, error) {
+			P2P: mock.New(mock.WithConnectFunc(func(ctx context.Context, addr ma.Multiaddr) (*mop.Address, error) {
 				if addr.String() == errorUnderlay {
 					return nil, testErr
 				}
-				return hopAddress, nil
+				return mopAddress, nil
 			})),
 		})
 

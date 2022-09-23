@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/accounting"
-	"github.com/redesblock/hop/core/bigint"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/accounting"
+	"github.com/redesblock/mop/core/bigint"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

@@ -11,9 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"resenje.org/web"
 
-	"github.com/redesblock/hop/core/auth"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/logging/httpaccess"
+	"github.com/redesblock/mop/core/auth"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/logging/httpaccess"
 )
 
 // newBasicRouter constructs only the routes that do not depend on the injected dependencies:

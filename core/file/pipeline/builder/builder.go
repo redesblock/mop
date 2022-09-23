@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/redesblock/hop/core/encryption"
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/bmt"
-	enc "github.com/redesblock/hop/core/file/pipeline/encryption"
-	"github.com/redesblock/hop/core/file/pipeline/feeder"
-	"github.com/redesblock/hop/core/file/pipeline/hashtrie"
-	"github.com/redesblock/hop/core/file/pipeline/store"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/encryption"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/bmt"
+	enc "github.com/redesblock/mop/core/file/pipeline/encryption"
+	"github.com/redesblock/mop/core/file/pipeline/feeder"
+	"github.com/redesblock/mop/core/file/pipeline/hashtrie"
+	"github.com/redesblock/mop/core/file/pipeline/store"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // NewPipelineBuilder returns the appropriate pipeline according to the specified parameters

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/resolver/multiresolver/multierror"
+	"github.com/redesblock/mop/core/resolver/multiresolver/multierror"
 )
 
 // nestedError implements error and is used for tests.

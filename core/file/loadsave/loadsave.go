@@ -7,12 +7,12 @@ import (
 	"context"
 	"errors"
 
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/joiner"
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/file/joiner"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var readonlyLoadsaveError = errors.New("readonly manifest loadsaver")

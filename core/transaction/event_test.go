@@ -5,15 +5,15 @@ import (
 	"math/big"
 	"testing"
 
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 var (
-	erc20ABI = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
+	erc20ABI = transaction.ParseABIUnchecked(mopabi.ERC20ABI)
 )
 
 type transferEvent struct {

@@ -2,7 +2,7 @@ package swapprotocol
 
 import (
 	"context"
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/p2p"
 )
 
 func (s *Service) Init(ctx context.Context, p p2p.Peer) error {

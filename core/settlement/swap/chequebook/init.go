@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/settlement/swap/erc20"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/settlement/swap/erc20"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 const (
@@ -57,7 +57,7 @@ func checkBalance(
 		if insufficientERC20 || insufficientETH {
 			neededERC20, mod := new(big.Int).DivMod(swapInitialDeposit, big.NewInt(10000000000000000), new(big.Int))
 			if mod.Cmp(big.NewInt(0)) > 0 {
-				// always round up the division as the hopaar cannot handle decimals
+				// always round up the division as the mop aar cannot handle decimals
 				neededERC20.Add(neededERC20, big.NewInt(1))
 			}
 
@@ -73,9 +73,9 @@ func checkBalance(
 			case <-time.After(balanceCheckBackoffDuration):
 			case <-timeoutCtx.Done():
 				if insufficientERC20 {
-					return fmt.Errorf("insufficient HOP for initial deposit")
+					return fmt.Errorf("insufficient MOP for initial deposit")
 				} else {
-					return fmt.Errorf("insufficient ETH for initial deposit")
+					return fmt.Errorf("insufficient BNB for initial deposit")
 				}
 			}
 			continue

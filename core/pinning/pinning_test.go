@@ -5,16 +5,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	"github.com/redesblock/hop/core/pinning"
-	statestorem "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
-	storagem "github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/pinning"
+	statestorem "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
+	storagem "github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/traversal"
 )
 
 func TestPinningService(t *testing.T) {
-	const content = "Hello, Hop!"
+	const content = "Hello, Mop!"
 
 	var (
 		ctx        = context.Background()

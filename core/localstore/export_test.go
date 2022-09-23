@@ -5,8 +5,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestExportImport constructs two databases, one to put and export

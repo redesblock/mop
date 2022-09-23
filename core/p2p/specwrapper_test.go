@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/p2p"
 )
 
 func newTestProtocol(h p2p.HandlerFunc) p2p.ProtocolSpec {

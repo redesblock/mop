@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 //  stewardshipPutHandler re-uploads root hash and all of its underlying

@@ -3,7 +3,7 @@ package retrieval
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
-	m "github.com/redesblock/hop/core/metrics"
+	m "github.com/redesblock/mop/core/metrics"
 )
 
 type metrics struct {
@@ -64,7 +64,7 @@ func newMetrics() metrics {
 				Namespace: m.Namespace,
 				Subsystem: subsystem,
 				Name:      "chunk_po_gain_count",
-				Help:      "Counter of chunk retrieval requests per address PO hop distance.",
+				Help:      "Counter of chunk retrieval requests per address PO mop distance.",
 			},
 			[]string{"gain"},
 		),

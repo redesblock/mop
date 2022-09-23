@@ -8,13 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/pb"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/swarm"
 
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
@@ -83,7 +83,7 @@ type Service struct {
 
 // Info contains the information received from the handshake.
 type Info struct {
-	HopAddress *hop.Address
+	MopAddress *mop.Address
 	FullNode   bool
 }
 
@@ -171,12 +171,12 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, err
 	}
 
-	hopAddress, err := hop.NewAddress(s.signer, advertisableUnderlay, s.overlay, s.networkID, s.transaction)
+	mopAddress, err := mop.NewAddress(s.signer, advertisableUnderlay, s.overlay, s.networkID, s.transaction)
 	if err != nil {
 		return nil, err
 	}
 
-	advertisableUnderlayBytes, err := hopAddress.Underlay.MarshalBinary()
+	advertisableUnderlayBytes, err := mopAddress.Underlay.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, fmt.Errorf("overlay %v verification failed: %w", overlay, err)
 	}
 
-	remoteHopAddress, err := s.parseCheckAck(resp.Ack, blockHash)
+	remoteMopAddress, err := s.parseCheckAck(resp.Ack, blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -200,10 +200,10 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 	// Synced read:
 	welcomeMessage := s.GetWelcomeMessage()
 	if err := w.WriteMsgWithContext(ctx, &pb.Ack{
-		Address: &pb.HopAddress{
+		Address: &pb.MopAddress{
 			Underlay:  advertisableUnderlayBytes,
-			Overlay:   hopAddress.Overlay.Bytes(),
-			Signature: hopAddress.Signature,
+			Overlay:   mopAddress.Overlay.Bytes(),
+			Signature: mopAddress.Signature,
 		},
 		NetworkID:      s.networkID,
 		FullNode:       s.fullNode,
@@ -213,13 +213,13 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, fmt.Errorf("write ack message: %w", err)
 	}
 
-	s.logger.Tracef("handshake finished for peer (outbound) %s", remoteHopAddress.Overlay.String())
+	s.logger.Tracef("handshake finished for peer (outbound) %s", remoteMopAddress.Overlay.String())
 	if len(resp.Ack.WelcomeMessage) > 0 {
-		s.logger.Infof("greeting \"%s\" from peer: %s", resp.Ack.WelcomeMessage, remoteHopAddress.Overlay.String())
+		s.logger.Infof("greeting \"%s\" from peer: %s", resp.Ack.WelcomeMessage, remoteMopAddress.Overlay.String())
 	}
 
 	return &Info{
-		HopAddress: remoteHopAddress,
+		MopAddress: remoteMopAddress,
 		FullNode:   resp.Ack.FullNode,
 	}, nil
 }
@@ -265,12 +265,12 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 		return nil, err
 	}
 
-	hopAddress, err := hop.NewAddress(s.signer, advertisableUnderlay, s.overlay, s.networkID, s.transaction)
+	mopAddress, err := mop.NewAddress(s.signer, advertisableUnderlay, s.overlay, s.networkID, s.transaction)
 	if err != nil {
 		return nil, err
 	}
 
-	advertisableUnderlayBytes, err := hopAddress.Underlay.MarshalBinary()
+	advertisableUnderlayBytes, err := mopAddress.Underlay.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -282,10 +282,10 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 			ObservedUnderlay: fullRemoteMABytes,
 		},
 		Ack: &pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  advertisableUnderlayBytes,
-				Overlay:   hopAddress.Overlay.Bytes(),
-				Signature: hopAddress.Signature,
+				Overlay:   mopAddress.Overlay.Bytes(),
+				Signature: mopAddress.Signature,
 			},
 			NetworkID:      s.networkID,
 			FullNode:       s.fullNode,
@@ -322,18 +322,18 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 		return nil, fmt.Errorf("overlay %v verification failed: %w", overlay, err)
 	}
 
-	remoteHopAddress, err := s.parseCheckAck(&ack, blockHash)
+	remoteMopAddress, err := s.parseCheckAck(&ack, blockHash)
 	if err != nil {
 		return nil, err
 	}
 
-	s.logger.Tracef("handshake finished for peer (inbound) %s", remoteHopAddress.Overlay.String())
+	s.logger.Tracef("handshake finished for peer (inbound) %s", remoteMopAddress.Overlay.String())
 	if len(ack.WelcomeMessage) > 0 {
-		s.logger.Infof("greeting \"%s\" from peer: %s", ack.WelcomeMessage, remoteHopAddress.Overlay.String())
+		s.logger.Infof("greeting \"%s\" from peer: %s", ack.WelcomeMessage, remoteMopAddress.Overlay.String())
 	}
 
 	return &Info{
-		HopAddress: remoteHopAddress,
+		MopAddress: remoteMopAddress,
 		FullNode:   ack.FullNode,
 	}, nil
 }
@@ -363,11 +363,11 @@ func buildFullMA(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr, error) 
 	return ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", addr.String(), peerID.Pretty()))
 }
 
-func (s *Service) parseCheckAck(ack *pb.Ack, blockHash []byte) (*hop.Address, error) {
-	hopAddress, err := hop.ParseAddress(ack.Address.Underlay, ack.Address.Overlay, ack.Address.Signature, ack.Transaction, blockHash, s.networkID)
+func (s *Service) parseCheckAck(ack *pb.Ack, blockHash []byte) (*mop.Address, error) {
+	mopAddress, err := mop.ParseAddress(ack.Address.Underlay, ack.Address.Overlay, ack.Address.Signature, ack.Transaction, blockHash, s.networkID)
 	if err != nil {
 		return nil, ErrInvalidAck
 	}
 
-	return hopAddress, nil
+	return mopAddress, nil
 }

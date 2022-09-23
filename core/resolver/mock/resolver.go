@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/resolver"
+	"github.com/redesblock/mop/core/resolver"
 )
 
 // Assure mock Resolver implements the Resolver interface.

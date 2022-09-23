@@ -1,7 +1,7 @@
-// Package hop exposes the data structure and operations
-// necessary on the hop.Address type which used in the handshake
+// Package mop exposes the data structure and operations
+// necessary on the mop.Address type which used in the handshake
 // protocol, address-book and hive protocol.
-package hop
+package mop
 
 import (
 	"bytes"
@@ -12,15 +12,15 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/swarm"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 var ErrInvalidAddress = errors.New("invalid address")
 
-// Address represents the hop address in swarm.
+// Address represents the mop address in swarm.
 // It consists of a peers underlay (physical) address, overlay (topology) address and signature.
 // Signature is used to verify the `Overlay/Underlay` pair, as it is based on `underlay|networkID`, signed with the public key of Overlay address
 type Address struct {
@@ -78,7 +78,7 @@ func ParseAddress(underlay, overlay, signature, trxHash, blockHash []byte, netwo
 
 	ethAddress, err := crypto.NewEthereumAddress(*recoveredPK)
 	if err != nil {
-		return nil, fmt.Errorf("extract ethereum address: %v: %w", err, ErrInvalidAddress)
+		return nil, fmt.Errorf("extract Binance Smart Chain address: %v: %w", err, ErrInvalidAddress)
 	}
 
 	return &Address{
@@ -93,7 +93,7 @@ func ParseAddress(underlay, overlay, signature, trxHash, blockHash []byte, netwo
 func generateSignData(underlay, overlay []byte, networkID uint64) []byte {
 	networkIDBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(networkIDBytes, networkID)
-	signData := append([]byte("hop-handshake-"), underlay...)
+	signData := append([]byte("mop-handshake-"), underlay...)
 	signData = append(signData, overlay...)
 	return append(signData, networkIDBytes...)
 }
@@ -140,7 +140,7 @@ func (a *Address) String() string {
 	return fmt.Sprintf("[Underlay: %v, Overlay %v, Signature %x, Transaction %x]", a.Underlay, a.Overlay, a.Signature, a.Transaction)
 }
 
-// ShortString returns shortened versions of hop address in a format: [Overlay, Underlay]
+// ShortString returns shortened versions of mop address in a format: [Overlay, Underlay]
 // It can be used for logging
 func (a *Address) ShortString() string {
 	return fmt.Sprintf("[Overlay: %s, Underlay: %s]", a.Overlay.String(), a.Underlay.String())

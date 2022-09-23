@@ -1,7 +1,7 @@
 package soc
 
 import (
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Valid checks if the chunk is a valid single-owner chunk.

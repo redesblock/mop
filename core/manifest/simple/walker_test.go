@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/manifest/simple"
+	"github.com/redesblock/mop/core/manifest/simple"
 )
 
 func TestWalkEntry(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redesblock/hop/core/soc"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/soc"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Lookup is the interface for time based feed lookup

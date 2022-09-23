@@ -12,12 +12,12 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/redesblock/hop/core/blocker"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/blocker"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 const (

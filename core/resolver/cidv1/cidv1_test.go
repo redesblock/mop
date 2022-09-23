@@ -3,7 +3,7 @@ package cidv1_test
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/resolver/cidv1"
+	"github.com/redesblock/mop/core/resolver/cidv1"
 )
 
 func TestCIDResolver(t *testing.T) {

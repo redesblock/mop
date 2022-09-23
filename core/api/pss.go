@@ -13,11 +13,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

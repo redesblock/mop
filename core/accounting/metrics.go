@@ -2,7 +2,7 @@ package accounting
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	m "github.com/redesblock/hop/core/metrics"
+	m "github.com/redesblock/mop/core/metrics"
 )
 
 type metrics struct {
@@ -32,25 +32,25 @@ func newMetrics() metrics {
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
 			Name:      "total_debited_amount",
-			Help:      "Amount of HOP debited to peers (potential income of the node)",
+			Help:      "Amount of MOP debited to peers (potential income of the node)",
 		}),
 		TotalCreditedAmount: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
 			Name:      "total_credited_amount",
-			Help:      "Amount of HOP credited to peers (potential cost of the node)",
+			Help:      "Amount of MOP credited to peers (potential cost of the node)",
 		}),
 		DebitEventsCount: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
 			Name:      "debit_events_count",
-			Help:      "Number of occurrences of HOP debit events towards peers",
+			Help:      "Number of occurrences of MOP debit events towards peers",
 		}),
 		CreditEventsCount: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
 			Name:      "credit_events_count",
-			Help:      "Number of occurrences of HOP credit events towards peers",
+			Help:      "Number of occurrences of MOP credit events towards peers",
 		}),
 		AccountingDisconnectsEnforceRefreshCount: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,
@@ -99,13 +99,13 @@ func newMetrics() metrics {
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
 			Name:      "total_originated_credited_amount",
-			Help:      "Amount of HOP credited to peers (potential cost of the node) for originated traffic",
+			Help:      "Amount of MOP credited to peers (potential cost of the node) for originated traffic",
 		}),
 		OriginatedCreditEventsCount: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
 			Name:      "originated_credit_events_count",
-			Help:      "Number of occurrences of HOP credit events as originator towards peers",
+			Help:      "Number of occurrences of MOP credit events as originator towards peers",
 		}),
 	}
 }

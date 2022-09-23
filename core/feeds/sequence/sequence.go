@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // DefaultLevels is the number of concurrent lookaheads

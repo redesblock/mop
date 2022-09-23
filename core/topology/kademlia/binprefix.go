@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // generateCommonBinPrefixes generates the common bin prefixes

@@ -14,7 +14,7 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
-	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/mop/core/logging"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -229,11 +229,11 @@ func applyPolicies(e *casbin.Enforcer) error {
 		{"creator", "/bytes", "POST"},
 		{"consumer", "/chunks/*", "GET"},
 		{"creator", "/chunks", "POST"},
-		{"consumer", "/hop/*", "GET"},
-		{"creator", "/hop/*", "PATCH"},
-		{"creator", "/hop", "POST"},
-		{"creator", "/hop?*", "POST"},
-		{"consumer", "/hop/*/*", "GET"},
+		{"consumer", "/mop/*", "GET"},
+		{"creator", "/mop/*", "PATCH"},
+		{"creator", "/mop", "POST"},
+		{"creator", "/mop?*", "POST"},
+		{"consumer", "/mop/*/*", "GET"},
 		{"creator", "/tags", "GET"},
 		{"creator", "/tags?*", "GET"},
 		{"creator", "/tags", "POST"},

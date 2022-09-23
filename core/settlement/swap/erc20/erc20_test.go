@@ -2,19 +2,19 @@ package erc20_test
 
 import (
 	"context"
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/settlement/swap/erc20"
-	"github.com/redesblock/hop/core/transaction"
-	backendmock "github.com/redesblock/hop/core/transaction/backendmock"
-	transactionmock "github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/settlement/swap/erc20"
+	"github.com/redesblock/mop/core/transaction"
+	backendmock "github.com/redesblock/mop/core/transaction/backendmock"
+	transactionmock "github.com/redesblock/mop/core/transaction/mock"
 )
 
 var (
-	erc20ABI = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
+	erc20ABI = transaction.ParseABIUnchecked(mopabi.ERC20ABI)
 )
 
 func TestBalanceOf(t *testing.T) {

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/splitter/internal"
-	test "github.com/redesblock/hop/core/file/testing"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file/splitter/internal"
+	test "github.com/redesblock/mop/core/file/testing"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

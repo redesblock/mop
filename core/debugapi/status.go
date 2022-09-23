@@ -1,11 +1,11 @@
 package debugapi
 
 import (
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"net/http"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 type statusResponse struct {

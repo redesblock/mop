@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/storage"
 	"github.com/syndtr/goleveldb/leveldb"
 	ldberr "github.com/syndtr/goleveldb/leveldb/errors"
 

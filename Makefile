@@ -1,24 +1,18 @@
 
-BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
-COMMIT=$(shell git rev-parse --short HEAD)
-
-# don't override user values
-ifeq (,$(REVISION))
-  VERSION := $(shell git describe --exact-match 2>/dev/null)
-  # if VERSION is empty, then populate it with branch's name and raw commit hash
-  ifeq (,$(REVISION))
-    REVISION := $(BRANCH)-$(COMMIT)
-  endif
-endif
+COMMIT_HASH ?= "$(shell git describe --long --dirty --always --match "" || true)"
+CLEAN_COMMIT ?= "$(shell git describe --long --always --match "" || true)"
+COMMIT_TIME ?= "$(shell git show -s --format=%ct $(CLEAN_COMMIT) || true)"
 
 export GOPROXY=https://goproxy.io,direct
 
-LD_FLAGS:=-ldflags "-X github.com/redesblock/cmd.commit=$(REVISION)"
+LD_FLAGS ?= \
+-X github.com/redesblock/mop/cmd/version.commitHash="$(COMMIT_HASH)" \
+-X github.com/redesblock/mop/cmd/version.commitTime="$(COMMIT_TIME)"
 
 all:
 	@go mod tidy
 	@go fmt ./...
-	@go build -tags=jsoniter $(LD_FLAGS) -o ./bin/ ./...
+	@go build -tags=jsoniter -trimpath -ldflags "$(LD_FLAGS)" -o ./bin/ ./...
 
 generate:
 	@go generate ./...
@@ -31,4 +25,4 @@ linux:
 ###                                 Docker                                 ###
 ###############################################################################
 docker:
-	docker build -t redesblock/hop .
+	docker build -t redesblock/mop .

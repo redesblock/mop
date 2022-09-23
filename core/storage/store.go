@@ -1,5 +1,5 @@
 // Package storage provides implementation contracts and notions
-// used across storage-aware components in hop.
+// used across storage-aware components in mop.
 package storage
 
 import (
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

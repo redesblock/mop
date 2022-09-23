@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/settlement/swap/erc20"
+	"github.com/redesblock/mop/core/settlement/swap/erc20"
 )
 
 type Service struct {
@@ -35,9 +35,6 @@ func New(opts ...Option) erc20.Service {
 }
 
 func (s *Service) BalanceOf(ctx context.Context, address common.Address) (*big.Int, error) {
-	if s.balanceOfFunc != nil {
-		return s.balanceOfFunc(ctx, address)
-	}
 	return big.NewInt(0), errors.New("Error")
 }
 
@@ -46,6 +43,16 @@ func (s *Service) Transfer(ctx context.Context, address common.Address, value *b
 		return s.transferFunc(ctx, address, value)
 	}
 	return common.Hash{}, errors.New("Error")
+}
+
+func (s *Service) TotalSupply(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(0), errors.New("Error")
+}
+func (s *Service) Approval(ctx context.Context, spender common.Address, value *big.Int) (common.Hash, error) {
+	return common.Hash{}, errors.New("Error")
+}
+func (s *Service) Allowance(ctx context.Context, owner common.Address, spender common.Address) (*big.Int, error) {
+	return big.NewInt(0), errors.New("Error")
 }
 
 // Option is the option passed to the mock Chequebook service

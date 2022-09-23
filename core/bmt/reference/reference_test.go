@@ -8,7 +8,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/redesblock/hop/core/bmt/reference"
+	"github.com/redesblock/mop/core/bmt/reference"
 
 	"golang.org/x/crypto/sha3"
 )

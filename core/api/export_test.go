@@ -1,6 +1,6 @@
 package api
 
-import "github.com/redesblock/hop/core/swarm"
+import "github.com/redesblock/mop/core/swarm"
 
 type Server = server
 
@@ -9,7 +9,7 @@ type (
 	ChunkAddressResponse  = chunkAddressResponse
 	SocPostResponse       = socPostResponse
 	FeedReferenceResponse = feedReferenceResponse
-	HopUploadResponse     = hopUploadResponse
+	MopUploadResponse     = mopUploadResponse
 	TagResponse           = tagResponse
 	TagRequest            = tagRequest
 	ListTagsResponse      = listTagsResponse

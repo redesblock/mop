@@ -10,9 +10,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type Matcher struct {
@@ -126,9 +126,9 @@ func (m *Matcher) Matches(ctx context.Context, tx []byte, networkID uint64, send
 		)
 	}
 
-	expectedRemoteHopAddress := crypto.NewOverlayFromEthereumAddress(attestedOverlay.Bytes(), networkID, nextBlockHash)
+	expectedRemoteMopAddress := crypto.NewOverlayFromEthereumAddress(attestedOverlay.Bytes(), networkID, nextBlockHash)
 
-	if !expectedRemoteHopAddress.Equal(senderOverlay) {
+	if !expectedRemoteMopAddress.Equal(senderOverlay) {
 		return nil, m.greylist(senderOverlay, incomingTx, ErrOverlayMismatch)
 	}
 

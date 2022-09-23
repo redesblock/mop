@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/ratelimit"
+	"github.com/redesblock/mop/core/ratelimit"
 )
 
 func TestRateLimit(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
-	handshake "github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
+	handshake "github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
 )
 
 func (s *Service) HandshakeService() *handshake.Service {

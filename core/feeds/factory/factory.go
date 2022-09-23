@@ -1,10 +1,10 @@
 package factory
 
 import (
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/feeds/epochs"
-	"github.com/redesblock/hop/core/feeds/sequence"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/feeds/epochs"
+	"github.com/redesblock/mop/core/feeds/sequence"
+	"github.com/redesblock/mop/core/storage"
 )
 
 type factory struct {

@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestHasChunkHandler(t *testing.T) {

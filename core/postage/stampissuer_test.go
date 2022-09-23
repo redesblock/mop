@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/mop/core/postage"
 )
 
 // TestStampIssuerMarshalling tests the idempotence  of binary marshal/unmarshal.

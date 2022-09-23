@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"hash"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var _ Hash = (*Hasher)(nil)

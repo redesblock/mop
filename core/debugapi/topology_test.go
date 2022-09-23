@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 )
 
 func TestTopologyOK(t *testing.T) {

@@ -7,18 +7,18 @@ import (
 	"math/big"
 	"testing"
 
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/transaction"
-	"github.com/redesblock/hop/core/transaction/backendmock"
-	transactionmock "github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/transaction"
+	"github.com/redesblock/mop/core/transaction/backendmock"
+	transactionmock "github.com/redesblock/mop/core/transaction/mock"
 )
 
 var (
-	factoryABI              = transaction.ParseABIUnchecked(hopabi.SimpleSwapFactoryABI)
+	factoryABI              = transaction.ParseABIUnchecked(mopabi.SimpleSwapFactoryABI)
 	simpleSwapDeployedEvent = factoryABI.Events["SimpleSwapDeployed"]
 )
 
@@ -72,9 +72,9 @@ func TestFactoryVerifySelf(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		factory := chequebook.NewFactory(
 			backendWithCodeAt(map[common.Address]string{
-				factoryAddress: hopabi.SimpleSwapFactoryDeployedBinv0_4_0,
-				legacyFactory1: hopabi.SimpleSwapFactoryDeployedBinv0_3_1,
-				legacyFactory2: hopabi.SimpleSwapFactoryDeployedBinv0_3_1,
+				factoryAddress: mopabi.SimpleSwapFactoryDeployedBin,
+				legacyFactory1: mopabi.SimpleSwapFactoryDeployedBin,
+				legacyFactory2: mopabi.SimpleSwapFactoryDeployedBin,
 			}),
 			transactionmock.New(),
 			factoryAddress,
@@ -109,8 +109,8 @@ func TestFactoryVerifySelf(t *testing.T) {
 	t.Run("invalid legacy factories", func(t *testing.T) {
 		factory := chequebook.NewFactory(
 			backendWithCodeAt(map[common.Address]string{
-				factoryAddress: hopabi.SimpleSwapFactoryDeployedBinv0_4_0,
-				legacyFactory1: hopabi.SimpleSwapFactoryDeployedBinv0_3_1,
+				factoryAddress: mopabi.SimpleSwapFactoryDeployedBin,
+				legacyFactory1: mopabi.SimpleSwapFactoryDeployedBin,
 				legacyFactory2: "abcd",
 			}),
 			transactionmock.New(),

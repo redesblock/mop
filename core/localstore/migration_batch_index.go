@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/swarm"
 )
 
-// DBSchemaBatchIndex is the hop schema identifier for batch index.
+// DBSchemaBatchIndex is the mop schema identifier for batch index.
 const DBSchemaBatchIndex = "batch-index"
 
 // migrateBatchIndex removes all existing database content, unless pinned

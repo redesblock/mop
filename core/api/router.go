@@ -7,10 +7,10 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/auth"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/logging/httpaccess"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/auth"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/logging/httpaccess"
+	"github.com/redesblock/mop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"resenje.org/web"
 )
@@ -35,7 +35,7 @@ func (s *server) setupRouting() {
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Ethereum Swarm")
+		fmt.Fprintln(w, "MOP Swarm")
 	})
 
 	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -105,27 +105,27 @@ func (s *server) setupRouting() {
 		),
 	})
 
-	handle("/hop", jsonhttp.MethodHandler{
+	handle("/mop", jsonhttp.MethodHandler{
 		"POST": web.ChainHandlers(
 			s.contentLengthMetricMiddleware(),
-			s.newTracingHandler("hop-upload"),
-			web.FinalHandlerFunc(s.hopUploadHandler),
+			s.newTracingHandler("mop-upload"),
+			web.FinalHandlerFunc(s.mopUploadHandler),
 		),
 	})
-	handle("/hop/{address}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handle("/mop/{address}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := r.URL
 		u.Path += "/"
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	}))
-	handle("/hop/{address}/{path:.*}", jsonhttp.MethodHandler{
+	handle("/mop/{address}/{path:.*}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
 			s.contentLengthMetricMiddleware(),
-			s.newTracingHandler("hop-download"),
-			web.FinalHandlerFunc(s.hopDownloadHandler),
+			s.newTracingHandler("mop-download"),
+			web.FinalHandlerFunc(s.mopDownloadHandler),
 		),
 		"PATCH": web.ChainHandlers(
-			s.newTracingHandler("hop-patch"),
-			web.FinalHandlerFunc(s.hopPatchHandler),
+			s.newTracingHandler("mop-patch"),
+			web.FinalHandlerFunc(s.mopPatchHandler),
 		),
 	})
 

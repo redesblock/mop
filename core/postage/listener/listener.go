@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 	"math/big"
 	"strings"
 	"sync"
@@ -14,10 +14,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchservice"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchservice"
+	"github.com/redesblock/mop/core/transaction"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	postageStampABI = parseABI(hopabi.PostageStampABI)
+	postageStampABI = parseABI(mopabi.PostageStampABI)
 	// batchCreatedTopic is the postage contract's batch created event topic
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 	// batchTopupTopic is the postage contract's batch topup event topic

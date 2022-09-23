@@ -8,7 +8,7 @@ import (
 	random "math/rand"
 
 	bmtlegacy "github.com/ethersphere/bmt/legacy"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Topic is an alias for a 32 byte fixed-size array which contains an encoding of a message topic

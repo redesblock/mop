@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/redesblock/hop/core/crypto"
+	"github.com/redesblock/mop/core/crypto"
 )
 
 // Service is the file-based keystore.Service implementation.

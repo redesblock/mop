@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/keystore"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/keystore"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/sha3"
 )

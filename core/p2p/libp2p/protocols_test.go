@@ -13,8 +13,8 @@ import (
 	swarmt "github.com/libp2p/go-libp2p-swarm/testing"
 	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/multiformats/go-multistream"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p"
 )
 
 func TestNewStream(t *testing.T) {

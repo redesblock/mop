@@ -8,10 +8,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethersphere/go-price-oracle-abi/priceoracleabi"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/settlement/swap/priceoracle"
-	"github.com/redesblock/hop/core/transaction"
-	transactionmock "github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/settlement/swap/priceoracle"
+	"github.com/redesblock/mop/core/transaction"
+	transactionmock "github.com/redesblock/mop/core/transaction/mock"
 )
 
 var (

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // StampSize is the number of bytes in the serialisation of a stamp

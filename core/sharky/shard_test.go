@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/redesblock/hop/core/sharky"
+	"github.com/redesblock/mop/core/sharky"
 )
 
 func TestLocationSerialization(t *testing.T) {

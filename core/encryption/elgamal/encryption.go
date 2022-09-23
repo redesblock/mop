@@ -4,8 +4,8 @@ import (
 	"crypto/ecdsa"
 	"hash"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/encryption"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/encryption"
 )
 
 // New constructs an encryption interface (the modified blockcipher) with a base key derived from

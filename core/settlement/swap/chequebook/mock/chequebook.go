@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
 )
 
 // Service is the mock chequebook service.
@@ -138,6 +138,10 @@ func (s *Service) LastCheques() (map[common.Address]*chequebook.SignedCheque, er
 
 func (s *Service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Hash, err error) {
 	return s.chequebookWithdrawFunc(ctx, amount)
+}
+
+func (s *Service) Txs() ([]string, error) {
+	return nil, nil
 }
 
 // Option is the option passed to the mock Chequebook service

@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/mop/core/postage"
 )
 
 type optionFunc func(*mockPostage)

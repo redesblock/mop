@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/tracing"
 )
 
 type bytesPostResponse struct {

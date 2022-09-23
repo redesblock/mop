@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/soc"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/soc"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var errBadRequestParams = errors.New("owner, id or span is not well formed")

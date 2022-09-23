@@ -7,9 +7,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestStamperStamping tests if the stamp created by the stamper is valid.

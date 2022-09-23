@@ -17,43 +17,43 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/ethersphere/langos"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/file/joiner"
-	"github.com/redesblock/hop/core/file/loadsave"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/manifest"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/file/joiner"
+	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/manifest"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/tracing"
 )
 
-func (s *server) hopUploadHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) mopUploadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.logger)
 
 	contentType := r.Header.Get(contentTypeHeader)
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		logger.Debugf("hop upload: parse content type header %q: %v", contentType, err)
-		logger.Errorf("hop upload: parse content type header %q", contentType)
+		logger.Debugf("mop upload: parse content type header %q: %v", contentType, err)
+		logger.Errorf("mop upload: parse content type header %q", contentType)
 		jsonhttp.BadRequest(w, errInvalidContentType)
 		return
 	}
 
 	batch, err := requestPostageBatchId(r)
 	if err != nil {
-		logger.Debugf("hop upload: postage batch id: %v", err)
-		logger.Error("hop upload: postage batch id")
+		logger.Debugf("mop upload: postage batch id: %v", err)
+		logger.Error("mop upload: postage batch id")
 		jsonhttp.BadRequest(w, "invalid postage batch id")
 		return
 	}
 
 	putter, err := newStamperPutter(s.storer, s.post, s.signer, batch)
 	if err != nil {
-		logger.Debugf("hop upload: putter: %v", err)
-		logger.Error("hop upload: putter")
+		logger.Debugf("mop upload: putter: %v", err)
+		logger.Error("mop upload: putter")
 		switch {
 		case errors.Is(err, postage.ErrNotFound):
 			jsonhttp.BadRequest(w, "batch not found")
@@ -74,7 +74,7 @@ func (s *server) hopUploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // fileUploadResponse is returned when an HTTP request to upload a file is successful
-type hopUploadResponse struct {
+type mopUploadResponse struct {
 	Reference swarm.Address `json:"reference"`
 }
 
@@ -92,8 +92,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 
 	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagHeader))
 	if err != nil {
-		logger.Debugf("hop upload file: get or create tag: %v", err)
-		logger.Error("hop upload file: get or create tag")
+		logger.Debugf("mop upload file: get or create tag: %v", err)
+		logger.Error("mop upload file: get or create tag")
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
@@ -103,8 +103,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 		if estimatedTotalChunks := requestCalculateNumberOfChunks(r); estimatedTotalChunks > 0 {
 			err = tag.IncN(tags.TotalChunks, estimatedTotalChunks)
 			if err != nil {
-				s.logger.Debugf("hop upload file: increment tag: %v", err)
-				s.logger.Error("hop upload file: increment tag")
+				s.logger.Debugf("mop upload file: increment tag: %v", err)
+				s.logger.Error("mop upload file: increment tag")
 				jsonhttp.InternalServerError(w, nil)
 				return
 			}
@@ -122,8 +122,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 	// first store the file and get its reference
 	fr, err := p(ctx, reader)
 	if err != nil {
-		logger.Debugf("hop upload file: file store, file %q: %v", fileName, err)
-		logger.Errorf("hop upload file: file store, file %q", fileName)
+		logger.Debugf("mop upload file: file store, file %q: %v", fileName, err)
+		logger.Errorf("mop upload file: file store, file %q", fileName)
 		switch {
 		case errors.Is(err, postage.ErrBucketFull):
 			jsonhttp.PaymentRequired(w, "batch is overissued")
@@ -144,8 +144,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 
 	m, err := manifest.NewDefaultManifest(l, encrypt)
 	if err != nil {
-		logger.Debugf("hop upload file: create manifest, file %q: %v", fileName, err)
-		logger.Errorf("hop upload file: create manifest, file %q", fileName)
+		logger.Debugf("mop upload file: create manifest, file %q: %v", fileName, err)
+		logger.Errorf("mop upload file: create manifest, file %q", fileName)
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
@@ -156,8 +156,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 
 	err = m.Add(ctx, manifest.RootPath, manifest.NewEntry(swarm.ZeroAddress, rootMetadata))
 	if err != nil {
-		logger.Debugf("hop upload file: adding metadata to manifest, file %q: %v", fileName, err)
-		logger.Errorf("hop upload file: adding metadata to manifest, file %q", fileName)
+		logger.Debugf("mop upload file: adding metadata to manifest, file %q: %v", fileName, err)
+		logger.Errorf("mop upload file: adding metadata to manifest, file %q", fileName)
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
@@ -169,13 +169,13 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 
 	err = m.Add(ctx, fileName, manifest.NewEntry(fr, fileMtdt))
 	if err != nil {
-		logger.Debugf("hop upload file: adding file to manifest, file %q: %v", fileName, err)
-		logger.Errorf("hop upload file: adding file to manifest, file %q", fileName)
+		logger.Debugf("mop upload file: adding file to manifest, file %q: %v", fileName, err)
+		logger.Errorf("mop upload file: adding file to manifest, file %q", fileName)
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
 
-	logger.Debugf("hop upload file: encrypt %v filename: %s hash: %s metadata: %v",
+	logger.Debugf("mop upload file: encrypt %v filename: %s hash: %s metadata: %v",
 		encrypt, fileName, fr.String(), fileMtdt)
 
 	storeSizeFn := []manifest.StoreSizeFunc{}
@@ -195,8 +195,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 
 	manifestReference, err := m.Store(ctx, storeSizeFn...)
 	if err != nil {
-		logger.Debugf("hop upload file: manifest store, file %q: %v", fileName, err)
-		logger.Errorf("hop upload file: manifest store, file %q", fileName)
+		logger.Debugf("mop upload file: manifest store, file %q: %v", fileName, err)
+		logger.Errorf("mop upload file: manifest store, file %q", fileName)
 		switch {
 		case errors.Is(err, postage.ErrBucketFull):
 			jsonhttp.PaymentRequired(w, "batch is overissued")
@@ -205,13 +205,13 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 		}
 		return
 	}
-	logger.Debugf("hop upload file: manifest reference: %s", manifestReference.String())
+	logger.Debugf("mop upload file: manifest reference: %s", manifestReference.String())
 
 	if created {
 		_, err = tag.DoneSplit(manifestReference)
 		if err != nil {
-			logger.Debugf("hop upload file: done split: %v", err)
-			logger.Error("hop upload file: done split failed")
+			logger.Debugf("mop upload file: done split: %v", err)
+			logger.Error("mop upload file: done split failed")
 			jsonhttp.InternalServerError(w, nil)
 			return
 		}
@@ -219,8 +219,8 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 
 	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(ctx, manifestReference, false); err != nil {
-			logger.Debugf("hop upload file: creation of pin for %q failed: %v", manifestReference, err)
-			logger.Error("hop upload file: creation of pin failed")
+			logger.Debugf("mop upload file: creation of pin for %q failed: %v", manifestReference, err)
+			logger.Error("mop upload file: creation of pin failed")
 			jsonhttp.InternalServerError(w, nil)
 			return
 		}
@@ -229,12 +229,12 @@ func (s *server) fileUploadHandler(w http.ResponseWriter, r *http.Request, store
 	w.Header().Set("ETag", fmt.Sprintf("%q", manifestReference.String()))
 	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
 	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
-	jsonhttp.Created(w, hopUploadResponse{
+	jsonhttp.Created(w, mopUploadResponse{
 		Reference: manifestReference,
 	})
 }
 
-func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.logger)
 	ls := loadsave.NewReadonly(s.storer)
 	feedDereferenced := false
@@ -255,8 +255,8 @@ func (s *server) hopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	address, err := s.resolveNameOrAddress(nameOrHex)
 	if err != nil {
-		logger.Debugf("hop download: parse address %s: %v", nameOrHex, err)
-		logger.Error("hop download: parse address")
+		logger.Debugf("mop download: parse address %s: %v", nameOrHex, err)
+		logger.Error("mop download: parse address")
 		jsonhttp.NotFound(w, nil)
 		return
 	}
@@ -268,8 +268,8 @@ FETCH:
 		ls,
 	)
 	if err != nil {
-		logger.Debugf("hop download: not manifest %s: %v", address, err)
-		logger.Error("hop download: not manifest")
+		logger.Debugf("mop download: not manifest %s: %v", address, err)
+		logger.Error("mop download: not manifest")
 		jsonhttp.NotFound(w, nil)
 		return
 	}
@@ -283,21 +283,21 @@ FETCH:
 			//we have a feed manifest here
 			ch, cur, _, err := l.At(ctx, time.Now().Unix(), 0)
 			if err != nil {
-				logger.Debugf("hop download: feed lookup: %v", err)
-				logger.Error("hop download: feed lookup")
+				logger.Debugf("mop download: feed lookup: %v", err)
+				logger.Error("mop download: feed lookup")
 				jsonhttp.NotFound(w, "feed not found")
 				return
 			}
 			if ch == nil {
-				logger.Debugf("hop download: feed lookup: no updates")
-				logger.Error("hop download: feed lookup")
+				logger.Debugf("mop download: feed lookup: no updates")
+				logger.Error("mop download: feed lookup")
 				jsonhttp.NotFound(w, "no update found")
 				return
 			}
 			ref, _, err := parseFeedUpdate(ch)
 			if err != nil {
-				logger.Debugf("hop download: parse feed update: %v", err)
-				logger.Error("hop download: parse feed update")
+				logger.Debugf("mop download: parse feed update: %v", err)
+				logger.Error("mop download: parse feed update")
 				jsonhttp.InternalServerError(w, "parse feed update")
 				return
 			}
@@ -305,8 +305,8 @@ FETCH:
 			feedDereferenced = true
 			curBytes, err := cur.MarshalBinary()
 			if err != nil {
-				s.logger.Debugf("hop download: marshal feed index: %v", err)
-				s.logger.Error("hop download: marshal index")
+				s.logger.Debugf("mop download: marshal feed index: %v", err)
+				s.logger.Error("mop download: marshal index")
 				jsonhttp.InternalServerError(w, "marshal index")
 				return
 			}
@@ -322,14 +322,14 @@ FETCH:
 	}
 
 	if pathVar == "" {
-		logger.Tracef("hop download: handle empty path %s", address)
+		logger.Tracef("mop download: handle empty path %s", address)
 
 		if indexDocumentSuffixKey, ok := manifestMetadataLoad(ctx, m, manifest.RootPath, manifest.WebsiteIndexDocumentSuffixKey); ok {
 			pathWithIndex := path.Join(pathVar, indexDocumentSuffixKey)
 			indexDocumentManifestEntry, err := m.Lookup(ctx, pathWithIndex)
 			if err == nil {
 				// index document exists
-				logger.Debugf("hop download: serving path: %s", pathWithIndex)
+				logger.Debugf("mop download: serving path: %s", pathWithIndex)
 
 				s.serveManifestEntry(w, r, address, indexDocumentManifestEntry, !feedDereferenced)
 				return
@@ -339,8 +339,8 @@ FETCH:
 
 	me, err := m.Lookup(ctx, pathVar)
 	if err != nil {
-		logger.Debugf("hop download: invalid path %s/%s: %v", address, pathVar, err)
-		logger.Error("hop download: invalid path")
+		logger.Debugf("mop download: invalid path %s/%s: %v", address, pathVar, err)
+		logger.Error("mop download: invalid path")
 
 		if errors.Is(err, manifest.ErrNotFound) {
 
@@ -354,7 +354,7 @@ FETCH:
 					u.Path += "/"
 					redirectURL := u.String()
 
-					logger.Debugf("hop download: redirecting to %s: %v", redirectURL, err)
+					logger.Debugf("mop download: redirecting to %s: %v", redirectURL, err)
 
 					http.Redirect(w, r, redirectURL, http.StatusPermanentRedirect)
 					return
@@ -369,7 +369,7 @@ FETCH:
 					indexDocumentManifestEntry, err := m.Lookup(ctx, pathWithIndex)
 					if err == nil {
 						// index document exists
-						logger.Debugf("hop download: serving path: %s", pathWithIndex)
+						logger.Debugf("mop download: serving path: %s", pathWithIndex)
 
 						s.serveManifestEntry(w, r, address, indexDocumentManifestEntry, !feedDereferenced)
 						return
@@ -383,7 +383,7 @@ FETCH:
 					errorDocumentManifestEntry, err := m.Lookup(ctx, errorDocumentPath)
 					if err == nil {
 						// error document exists
-						logger.Debugf("hop download: serving path: %s", errorDocumentPath)
+						logger.Debugf("mop download: serving path: %s", errorDocumentPath)
 
 						s.serveManifestEntry(w, r, address, errorDocumentManifestEntry, !feedDereferenced)
 						return
@@ -520,20 +520,20 @@ func (s *server) manifestFeed(
 	return s.feedFactory.NewLookup(*t, f)
 }
 
-// hopPatchHandler endpoint has been deprecated; use stewardship endpoint instead.
-func (s *server) hopPatchHandler(w http.ResponseWriter, r *http.Request) {
+// mopPatchHandler endpoint has been deprecated; use stewardship endpoint instead.
+func (s *server) mopPatchHandler(w http.ResponseWriter, r *http.Request) {
 	nameOrHex := mux.Vars(r)["address"]
 	address, err := s.resolveNameOrAddress(nameOrHex)
 	if err != nil {
-		s.logger.Debugf("hop patch: parse address %s: %v", nameOrHex, err)
-		s.logger.Error("hop patch: parse address")
+		s.logger.Debugf("mop patch: parse address %s: %v", nameOrHex, err)
+		s.logger.Error("mop patch: parse address")
 		jsonhttp.NotFound(w, nil)
 		return
 	}
 	err = s.steward.Reupload(r.Context(), address)
 	if err != nil {
-		s.logger.Debugf("hop patch: reupload %s: %v", address.String(), err)
-		s.logger.Error("hop patch: reupload")
+		s.logger.Debugf("mop patch: reupload %s: %v", address.String(), err)
+		s.logger.Error("mop patch: reupload")
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}

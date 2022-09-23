@@ -3,11 +3,11 @@ package epochs_test
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/feeds/epochs"
-	feedstesting "github.com/redesblock/hop/core/feeds/testing"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/feeds/epochs"
+	feedstesting "github.com/redesblock/mop/core/feeds/testing"
+	"github.com/redesblock/mop/core/storage"
 )
 
 func TestFinder(t *testing.T) {

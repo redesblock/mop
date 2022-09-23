@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/pushsync"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/pushsync"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

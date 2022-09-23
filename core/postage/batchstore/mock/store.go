@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/mop/core/postage"
 )
 
 var _ postage.Storer = (*BatchStore)(nil)

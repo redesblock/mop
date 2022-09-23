@@ -3,8 +3,8 @@ package validator_test
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/storage/mock/validator"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/storage/mock/validator"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestMockValidator(t *testing.T) {

@@ -9,17 +9,17 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	"github.com/redesblock/hop/core/soc"
-	testingsoc "github.com/redesblock/hop/core/soc/testing"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	"github.com/redesblock/mop/core/soc"
+	testingsoc "github.com/redesblock/mop/core/soc/testing"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/tags"
 )
 
 func TestSOC(t *testing.T) {
@@ -47,7 +47,7 @@ func TestSOC(t *testing.T) {
 	})
 
 	t.Run("malformed id", func(t *testing.T) {
-		jsonhttptest.Request(t, client, http.MethodPost, socResource("8d3766440f0d7b949a5e32995d09619a7f86e632", "bhop", "cc"), http.StatusBadRequest,
+		jsonhttptest.Request(t, client, http.MethodPost, socResource("8d3766440f0d7b949a5e32995d09619a7f86e632", "bmop", "cc"), http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "bad id",
 				Code:    http.StatusBadRequest,

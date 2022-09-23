@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 type auth interface {

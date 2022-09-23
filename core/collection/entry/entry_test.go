@@ -3,8 +3,8 @@ package entry_test
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/collection/entry"
-	"github.com/redesblock/hop/core/swarm/test"
+	"github.com/redesblock/mop/core/collection/entry"
+	"github.com/redesblock/mop/core/swarm/test"
 )
 
 // TestEntrySerialize verifies integrity of serialization.

@@ -7,12 +7,12 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/settlement"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/settlement"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/settlement/swap/swapprotocol"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

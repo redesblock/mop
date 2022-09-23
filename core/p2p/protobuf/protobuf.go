@@ -7,7 +7,7 @@ import (
 
 	ggio "github.com/gogo/protobuf/io"
 	"github.com/gogo/protobuf/proto"
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/p2p"
 )
 
 const delimitedReaderMaxSize = 128 * 1024 // max message size

@@ -1,6 +1,6 @@
 package localstore
 
-// DBSchemaCode is the first hop schema identifier.
+// DBSchemaCode is the first mop schema identifier.
 const DBSchemaCode = "code"
 
 // DBSchemaCurrent represents the DB schema we want to use.

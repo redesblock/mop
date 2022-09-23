@@ -5,10 +5,10 @@ package hive;
 option go_package = "pb";
 
 message Peers {
-    repeated HopAddress peers = 1;
+    repeated MopAddress peers = 1;
 }
 
-message HopAddress {
+message MopAddress {
     bytes Underlay = 1;
     bytes Signature = 2;
     bytes Overlay = 3;

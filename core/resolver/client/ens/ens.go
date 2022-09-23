@@ -10,16 +10,16 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	goens "github.com/wealdtech/go-ens/v3"
 
-	"github.com/redesblock/hop/core/resolver/client"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/resolver/client"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
 	defaultENSContractAddress = "00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
-	swarmContentHashPrefix    = "hop://"
+	swarmContentHashPrefix    = "mop://"
 )
 
-// Address is the swarm hop address.
+// Address is the swarm mop address.
 type Address = swarm.Address
 
 // Make sure Client implements the resolver.Client interface.
@@ -116,12 +116,12 @@ func (c *Client) Resolve(name string) (Address, error) {
 	}
 
 	// Ensure that the content hash string is in a valid format, eg.
-	// "hop://<address>".
+	// "mop://<address>".
 	if !strings.HasPrefix(hash, swarmContentHashPrefix) {
 		return swarm.ZeroAddress, fmt.Errorf("contenthash %s: %w", hash, ErrInvalidContentHash)
 	}
 
-	// Trim the prefix and try to parse the result as a hop address.
+	// Trim the prefix and try to parse the result as a mop address.
 	return swarm.ParseHexAddress(strings.TrimPrefix(hash, swarmContentHashPrefix))
 }
 

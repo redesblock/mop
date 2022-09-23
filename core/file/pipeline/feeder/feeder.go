@@ -3,8 +3,8 @@ package feeder
 import (
 	"encoding/binary"
 
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const span = swarm.SpanSize

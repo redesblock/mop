@@ -5,15 +5,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/manifest/mantaray"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/manifest/mantaray"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
 	// ManifestMantarayContentType represents content type used for noting that
 	// specific file should be processed as mantaray manifest.
-	ManifestMantarayContentType = "application/hop-manifest-mantaray+octet-stream"
+	ManifestMantarayContentType = "application/mop-manifest-mantaray+octet-stream"
 )
 
 type mantarayManifest struct {

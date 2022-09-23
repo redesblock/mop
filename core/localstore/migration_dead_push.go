@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/shed"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/shed"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-// DBSchemaBatchIndex is the hop schema identifier for dead-push.
+// DBSchemaBatchIndex is the mop schema identifier for dead-push.
 const DBSchemaDeadPush = "dead-push"
 
 // migrateDeadPush cleans up dangling push index entries that make the pusher stop pushing entries

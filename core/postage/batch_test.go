@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/redesblock/hop/core/postage"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
+	"github.com/redesblock/mop/core/postage"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
 )
 
 // TestBatchMarshalling tests the idempotence  of binary marshal/unmarshal for a

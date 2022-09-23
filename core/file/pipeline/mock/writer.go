@@ -3,7 +3,7 @@ package mock
 import (
 	"sync"
 
-	"github.com/redesblock/hop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline"
 )
 
 type MockChainWriter struct {

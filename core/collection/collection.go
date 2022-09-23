@@ -2,11 +2,11 @@
 package collection
 
 import (
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Collection provides a specific ordering of a collection of binary data vectors
-// stored in hop.
+// stored in mop.
 type Collection interface {
 	Addresses() []swarm.Address
 }

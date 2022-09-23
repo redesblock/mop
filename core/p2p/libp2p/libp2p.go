@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"net"
 	"runtime"
 	"strconv"
@@ -29,20 +29,20 @@ import (
 	ws "github.com/libp2p/go-ws-transport"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multistream"
-	"github.com/redesblock/hop/core/addressbook"
-	hopCrypto "github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/blocklist"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/breaker"
-	handshake "github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/reacher"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/topology/lightnode"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/addressbook"
+	mopCrypto "github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/blocklist"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/breaker"
+	handshake "github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/reacher"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/topology/lightnode"
+	"github.com/redesblock/mop/core/tracing"
 )
 
 var (
@@ -105,7 +105,7 @@ type Options struct {
 	hostFactory    func(context.Context, ...libp2p.Option) (host.Host, error)
 }
 
-func New(ctx context.Context, signer hopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string, ab addressbook.Putter, storer storage.StateStorer, lightNodes *lightnode.Container, swapBackend handshake.SenderMatcher, logger logging.Logger, tracer *tracing.Tracer, o Options) (*Service, error) {
+func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string, ab addressbook.Putter, storer storage.StateStorer, lightNodes *lightnode.Container, swapBackend handshake.SenderMatcher, logger logging.Logger, tracer *tracing.Tracer, o Options) (*Service, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("address: %w", err)
@@ -347,7 +347,7 @@ func (s *Service) handleIncoming(stream network.Stream) {
 		return
 	}
 
-	overlay := i.HopAddress.Overlay
+	overlay := i.MopAddress.Overlay
 
 	blocked, err := s.blocklist.Exists(overlay)
 	if err != nil {
@@ -383,16 +383,16 @@ func (s *Service) handleIncoming(stream network.Stream) {
 	}
 
 	if i.FullNode {
-		err = s.addressbook.Put(i.HopAddress.Overlay, *i.HopAddress)
+		err = s.addressbook.Put(i.MopAddress.Overlay, *i.MopAddress)
 		if err != nil {
 			s.logger.Debugf("stream handler: addressbook put error %s: %v", peerID, err)
 			s.logger.Errorf("stream handler: unable to persist peer %v", peerID)
-			_ = s.Disconnect(i.HopAddress.Overlay, "unable to persist peer in addressbook")
+			_ = s.Disconnect(i.MopAddress.Overlay, "unable to persist peer in addressbook")
 			return
 		}
 	}
 
-	peer := p2p.Peer{Address: overlay, FullNode: i.FullNode, EthereumAddress: i.HopAddress.EthereumAddress}
+	peer := p2p.Peer{Address: overlay, FullNode: i.FullNode, EthereumAddress: i.MopAddress.EthereumAddress}
 
 	s.protocolsmu.RLock()
 	for _, tn := range s.protocols {
@@ -431,7 +431,7 @@ func (s *Service) handleIncoming(stream network.Stream) {
 			}
 		} else {
 			if err := s.notifier.Connected(s.ctx, peer, false); err != nil {
-				s.logger.Debugf("stream handler: notifier.Connected: peer disconnected: %s: %v", i.HopAddress.Overlay, err)
+				s.logger.Debugf("stream handler: notifier.Connected: peer disconnected: %s: %v", i.MopAddress.Overlay, err)
 				// note: this cannot be unit tested since the node
 				// waiting on handshakeStream.FullClose() on the other side
 				// might actually get a stream reset when we disconnect here
@@ -466,13 +466,13 @@ func (s *Service) handleIncoming(stream network.Stream) {
 	}
 
 	if s.reacher != nil {
-		s.reacher.Connected(overlay, i.HopAddress.Underlay)
+		s.reacher.Connected(overlay, i.MopAddress.Underlay)
 	}
 
 	peerUserAgent := appendSpace(s.peerUserAgent(s.ctx, peerID))
 
-	s.logger.Debugf("stream handler: successfully connected to peer %s%s%s (inbound)", i.HopAddress.ShortString(), i.LightString(), peerUserAgent)
-	s.logger.Infof("stream handler: successfully connected to peer %s%s%s (inbound)", i.HopAddress.Overlay, i.LightString(), peerUserAgent)
+	s.logger.Debugf("stream handler: successfully connected to peer %s%s%s (inbound)", i.MopAddress.ShortString(), i.LightString(), peerUserAgent)
+	s.logger.Infof("stream handler: successfully connected to peer %s%s%s (inbound)", i.MopAddress.Overlay, i.LightString(), peerUserAgent)
 }
 
 func (s *Service) SetPickyNotifier(n p2p.PickyNotifier) {
@@ -617,7 +617,7 @@ func buildUnderlayAddress(addr ma.Multiaddr, peerID libp2ppeer.ID) (ma.Multiaddr
 	return addr.Encapsulate(hostAddr), nil
 }
 
-func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error) {
+func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *mop.Address, err error) {
 	// Extract the peer ID from the multiaddr.
 	info, err := libp2ppeer.AddrInfoFromP2pAddr(addr)
 	if err != nil {
@@ -632,7 +632,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	remoteAddr := addr.Decapsulate(hostAddr)
 
 	if overlay, found := s.peers.isConnected(info.ID, remoteAddr); found {
-		address = &hop.Address{
+		address = &mop.Address{
 			Overlay:  overlay,
 			Underlay: addr,
 		}
@@ -667,7 +667,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 		return nil, p2p.ErrDialLightNode
 	}
 
-	overlay := i.HopAddress.Overlay
+	overlay := i.MopAddress.Overlay
 
 	blocked, err := s.blocklist.Exists(overlay)
 	if err != nil {
@@ -691,7 +691,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 			return nil, fmt.Errorf("peer exists, full close: %w", err)
 		}
 
-		return i.HopAddress, nil
+		return i.MopAddress, nil
 	}
 
 	if err := handshakeStream.FullClose(); err != nil {
@@ -700,17 +700,17 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	}
 
 	if i.FullNode {
-		err = s.addressbook.Put(overlay, *i.HopAddress)
+		err = s.addressbook.Put(overlay, *i.MopAddress)
 		if err != nil {
 			_ = s.Disconnect(overlay, "failed storing peer in addressbook")
-			return nil, fmt.Errorf("storing hop address: %w", err)
+			return nil, fmt.Errorf("storing mop address: %w", err)
 		}
 	}
 
 	s.protocolsmu.RLock()
 	for _, tn := range s.protocols {
 		if tn.ConnectOut != nil {
-			if err := tn.ConnectOut(ctx, p2p.Peer{Address: overlay, FullNode: i.FullNode, EthereumAddress: i.HopAddress.EthereumAddress}); err != nil {
+			if err := tn.ConnectOut(ctx, p2p.Peer{Address: overlay, FullNode: i.FullNode, EthereumAddress: i.MopAddress.EthereumAddress}); err != nil {
 				s.logger.Debugf("connectOut: protocol: %s, version:%s, peer: %s: %v", tn.Name, tn.Version, overlay, err)
 				_ = s.Disconnect(overlay, "failed to process outbound connection notifier")
 				s.protocolsmu.RUnlock()
@@ -728,14 +728,14 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.
 	s.metrics.CreatedConnectionCount.Inc()
 
 	if s.reacher != nil {
-		s.reacher.Connected(overlay, i.HopAddress.Underlay)
+		s.reacher.Connected(overlay, i.MopAddress.Underlay)
 	}
 
 	peerUserAgent := appendSpace(s.peerUserAgent(ctx, info.ID))
 
-	s.logger.Debugf("successfully connected to peer %s%s%s (outbound)", i.HopAddress.ShortString(), i.LightString(), peerUserAgent)
+	s.logger.Debugf("successfully connected to peer %s%s%s (outbound)", i.MopAddress.ShortString(), i.LightString(), peerUserAgent)
 	s.logger.Infof("successfully connected to peer %s%s%s (outbound)", overlay, i.LightString(), peerUserAgent)
-	return i.HopAddress, nil
+	return i.MopAddress, nil
 }
 
 func (s *Service) Disconnect(overlay swarm.Address, reason string) error {
@@ -974,5 +974,5 @@ func appendSpace(s string) string {
 
 // userAgent returns a User Agent string passed to the libp2p host to identify peer node.
 func userAgent() string {
-	return fmt.Sprintf("hop/%s %s %s/%s", version.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("mop/%s %s %s/%s", version.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }

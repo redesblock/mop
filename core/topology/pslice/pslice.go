@@ -3,8 +3,8 @@ package pslice
 import (
 	"sync"
 
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
 )
 
 // PSlice maintains a list of addresses, indexing them by their different proximity orders.

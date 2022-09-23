@@ -2,7 +2,7 @@ package swap
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	m "github.com/redesblock/hop/core/metrics"
+	m "github.com/redesblock/mop/core/metrics"
 )
 
 type metrics struct {

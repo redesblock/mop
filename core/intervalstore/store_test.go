@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/redesblock/hop/core/statestore/leveldb"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/statestore/leveldb"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
 )
 
 // TestInmemoryStore tests basic functionality of InmemoryStore.

@@ -11,9 +11,9 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/streamtest"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/streamtest"
+	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/sync/errgroup"
 )
 

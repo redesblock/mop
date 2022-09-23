@@ -3,17 +3,17 @@ package erc20
 import (
 	"context"
 	"errors"
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 var (
-	erc20ABI     = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
+	erc20ABI     = transaction.ParseABIUnchecked(mopabi.ERC20ABI)
 	errDecodeABI = errors.New("could not decode abi data")
 )
 

@@ -16,17 +16,17 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/gorilla/websocket"
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/pushsync"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/pushsync"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

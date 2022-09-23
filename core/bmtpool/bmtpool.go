@@ -3,8 +3,8 @@
 package bmtpool
 
 import (
-	"github.com/redesblock/hop/core/bmt"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/bmt"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const Capacity = 32

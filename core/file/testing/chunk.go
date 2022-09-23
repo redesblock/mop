@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // GenerateTestRandomFileChunk generates one single chunk with arbitrary content and address

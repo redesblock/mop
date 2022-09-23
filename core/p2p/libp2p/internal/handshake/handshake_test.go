@@ -9,15 +9,15 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/mock"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake/pb"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/mock"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/pb"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/swarm"
 
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -74,7 +74,7 @@ func TestHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node1HopAddress, err := hop.NewAddress(signer1, node1ma, addr, networkID, trxHash)
+	node1MopAddress, err := mop.NewAddress(signer1, node1ma, addr, networkID, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,17 +82,17 @@ func TestHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node2HopAddress, err := hop.NewAddress(signer2, node2ma, addr2, networkID, trxHash)
+	node2MopAddress, err := mop.NewAddress(signer2, node2ma, addr2, networkID, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	node1Info := handshake.Info{
-		HopAddress: node1HopAddress,
+		MopAddress: node1MopAddress,
 		FullNode:   true,
 	}
 	node2Info := handshake.Info{
-		HopAddress: node2HopAddress,
+		MopAddress: node2MopAddress,
 		FullNode:   true,
 	}
 
@@ -100,7 +100,7 @@ func TestHandshake(t *testing.T) {
 
 	senderMatcher := &MockSenderMatcher{v: true, blockHash: blockhash}
 
-	handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, testWelcomeMessage, node1AddrInfo.ID, logger)
+	handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, trxHash, testWelcomeMessage, node1AddrInfo.ID, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,10 +117,10 @@ func TestHandshake(t *testing.T) {
 				ObservedUnderlay: node1maBinary,
 			},
 			Ack: &pb.Ack{
-				Address: &pb.HopAddress{
+				Address: &pb.MopAddress{
 					Underlay:  node2maBinary,
-					Overlay:   node2HopAddress.Overlay.Bytes(),
-					Signature: node2HopAddress.Signature,
+					Overlay:   node2MopAddress.Overlay.Bytes(),
+					Signature: node2MopAddress.Signature,
 				},
 				NetworkID:      networkID,
 				FullNode:       true,
@@ -152,13 +152,13 @@ func TestHandshake(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !bytes.Equal(ack.Address.Overlay, node1HopAddress.Overlay.Bytes()) {
+		if !bytes.Equal(ack.Address.Overlay, node1MopAddress.Overlay.Bytes()) {
 			t.Fatal("bad ack - overlay")
 		}
 		if !bytes.Equal(ack.Address.Underlay, node1maBinary) {
 			t.Fatal("bad ack - underlay")
 		}
-		if !bytes.Equal(ack.Address.Signature, node1HopAddress.Signature) {
+		if !bytes.Equal(ack.Address.Signature, node1MopAddress.Signature) {
 			t.Fatal("bad ack - signature")
 		}
 		if ack.NetworkID != networkID {
@@ -175,7 +175,7 @@ func TestHandshake(t *testing.T) {
 
 	t.Run("Handshake - picker error", func(t *testing.T) {
 
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,10 +195,10 @@ func TestHandshake(t *testing.T) {
 		}
 
 		if err := w.WriteMsg(&pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  node2maBinary,
-				Overlay:   node2HopAddress.Overlay.Bytes(),
-				Signature: node2HopAddress.Signature,
+				Overlay:   node2MopAddress.Overlay.Bytes(),
+				Signature: node2MopAddress.Signature,
 			},
 			NetworkID:   networkID,
 			Transaction: trxHash,
@@ -218,7 +218,7 @@ func TestHandshake(t *testing.T) {
 		const LongMessage = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi consectetur urna ut lorem sollicitudin posuere. Donec sagittis laoreet sapien."
 
 		expectedErr := handshake.ErrWelcomeMessageLength
-		_, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, LongMessage, node1AddrInfo.ID, logger)
+		_, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, LongMessage, node1AddrInfo.ID, logger)
 		if err == nil || err.Error() != expectedErr.Error() {
 			t.Fatal("expected:", expectedErr, "got:", err)
 		}
@@ -292,10 +292,10 @@ func TestHandshake(t *testing.T) {
 				ObservedUnderlay: node1maBinary,
 			},
 			Ack: &pb.Ack{
-				Address: &pb.HopAddress{
+				Address: &pb.MopAddress{
 					Underlay:  node2maBinary,
-					Overlay:   node2HopAddress.Overlay.Bytes(),
-					Signature: node2HopAddress.Signature,
+					Overlay:   node2MopAddress.Overlay.Bytes(),
+					Signature: node2MopAddress.Signature,
 				},
 				NetworkID: networkID,
 				FullNode:  true,
@@ -327,10 +327,10 @@ func TestHandshake(t *testing.T) {
 				ObservedUnderlay: node1maBinary,
 			},
 			Ack: &pb.Ack{
-				Address: &pb.HopAddress{
+				Address: &pb.MopAddress{
 					Underlay:  node2maBinary,
-					Overlay:   node2HopAddress.Overlay.Bytes(),
-					Signature: node2HopAddress.Signature,
+					Overlay:   node2MopAddress.Overlay.Bytes(),
+					Signature: node2MopAddress.Signature,
 				},
 				NetworkID: 5,
 				FullNode:  true,
@@ -361,10 +361,10 @@ func TestHandshake(t *testing.T) {
 				ObservedUnderlay: node1maBinary,
 			},
 			Ack: &pb.Ack{
-				Address: &pb.HopAddress{
+				Address: &pb.MopAddress{
 					Underlay:  node2maBinary,
-					Overlay:   node2HopAddress.Overlay.Bytes(),
-					Signature: node1HopAddress.Signature,
+					Overlay:   node2MopAddress.Overlay.Bytes(),
+					Signature: node1MopAddress.Signature,
 				},
 				NetworkID: networkID,
 				FullNode:  true,
@@ -401,10 +401,10 @@ func TestHandshake(t *testing.T) {
 				ObservedUnderlay: node1maBinary,
 			},
 			Ack: &pb.Ack{
-				Address: &pb.HopAddress{
+				Address: &pb.MopAddress{
 					Underlay:  node2maBinary,
-					Overlay:   node2HopAddress.Overlay.Bytes(),
-					Signature: node2HopAddress.Signature,
+					Overlay:   node2MopAddress.Overlay.Bytes(),
+					Signature: node2MopAddress.Signature,
 				},
 				NetworkID: networkID,
 				FullNode:  true,
@@ -426,7 +426,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - OK", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -443,10 +443,10 @@ func TestHandshake(t *testing.T) {
 		}
 
 		if err := w.WriteMsg(&pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  node2maBinary,
-				Overlay:   node2HopAddress.Overlay.Bytes(),
-				Signature: node2HopAddress.Signature,
+				Overlay:   node2MopAddress.Overlay.Bytes(),
+				Signature: node2MopAddress.Signature,
 			},
 			NetworkID:   networkID,
 			Transaction: trxHash,
@@ -472,19 +472,19 @@ func TestHandshake(t *testing.T) {
 			t.Fatalf("got bad syn")
 		}
 
-		hopAddress, err := hop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.Transaction, blockhash, got.Ack.NetworkID)
+		mopAddress, err := mop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.Transaction, blockhash, got.Ack.NetworkID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		testInfo(t, node1Info, handshake.Info{
-			HopAddress: hopAddress,
+			MopAddress: mopAddress,
 			FullNode:   got.Ack.FullNode,
 		})
 	})
 
 	t.Run("Handle - read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -503,7 +503,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - write error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -530,7 +530,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - ack read error ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -559,7 +559,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - networkID mismatch ", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -576,10 +576,10 @@ func TestHandshake(t *testing.T) {
 		}
 
 		if err := w.WriteMsg(&pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  node2maBinary,
-				Overlay:   node2HopAddress.Overlay.Bytes(),
-				Signature: node2HopAddress.Signature,
+				Overlay:   node2MopAddress.Overlay.Bytes(),
+				Signature: node2MopAddress.Signature,
 			},
 			NetworkID: 5,
 			FullNode:  true,
@@ -598,7 +598,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - duplicate handshake", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -615,10 +615,10 @@ func TestHandshake(t *testing.T) {
 		}
 
 		if err := w.WriteMsg(&pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  node2maBinary,
-				Overlay:   node2HopAddress.Overlay.Bytes(),
-				Signature: node2HopAddress.Signature,
+				Overlay:   node2MopAddress.Overlay.Bytes(),
+				Signature: node2MopAddress.Signature,
 			},
 			NetworkID:   networkID,
 			Transaction: trxHash,
@@ -643,13 +643,13 @@ func TestHandshake(t *testing.T) {
 		if !bytes.Equal(got.Syn.ObservedUnderlay, node2maBinary) {
 			t.Fatalf("got bad syn")
 		}
-		hopAddress, err := hop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.Transaction, blockhash, got.Ack.NetworkID)
+		mopAddress, err := mop.ParseAddress(got.Ack.Address.Underlay, got.Ack.Address.Overlay, got.Ack.Address.Signature, got.Ack.Transaction, blockhash, got.Ack.NetworkID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		testInfo(t, node1Info, handshake.Info{
-			HopAddress: hopAddress,
+			MopAddress: mopAddress,
 			FullNode:   got.Ack.FullNode,
 		})
 
@@ -660,7 +660,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - invalid ack", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -677,10 +677,10 @@ func TestHandshake(t *testing.T) {
 		}
 
 		if err := w.WriteMsg(&pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  node2maBinary,
-				Overlay:   node2HopAddress.Overlay.Bytes(),
-				Signature: node1HopAddress.Signature,
+				Overlay:   node2MopAddress.Overlay.Bytes(),
+				Signature: node1MopAddress.Signature,
 			},
 			NetworkID: networkID,
 			FullNode:  true,
@@ -697,7 +697,7 @@ func TestHandshake(t *testing.T) {
 	t.Run("Handle - transaction is not on the blockchain", func(t *testing.T) {
 		sbMock := &MockSenderMatcher{v: false, blockHash: blockhash}
 
-		handshakeService, err := handshake.New(signer1, aaddresser, sbMock, node1Info.HopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, sbMock, node1Info.MopAddress.Overlay, networkID, true, trxHash, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -714,10 +714,10 @@ func TestHandshake(t *testing.T) {
 		}
 
 		if err := w.WriteMsg(&pb.Ack{
-			Address: &pb.HopAddress{
+			Address: &pb.MopAddress{
 				Underlay:  node2maBinary,
-				Overlay:   node2HopAddress.Overlay.Bytes(),
-				Signature: node2HopAddress.Signature,
+				Overlay:   node2MopAddress.Overlay.Bytes(),
+				Signature: node2MopAddress.Signature,
 			},
 			NetworkID:   networkID,
 			FullNode:    true,
@@ -733,7 +733,7 @@ func TestHandshake(t *testing.T) {
 	})
 
 	t.Run("Handle - advertisable error", func(t *testing.T) {
-		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.HopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
+		handshakeService, err := handshake.New(signer1, aaddresser, senderMatcher, node1Info.MopAddress.Overlay, networkID, true, nil, "", node1AddrInfo.ID, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -781,7 +781,7 @@ func (p *picker) Pick(peer p2p.Peer) bool {
 // testInfo validates if two Info instances are equal.
 func testInfo(t *testing.T, got, want handshake.Info) {
 	t.Helper()
-	if !got.HopAddress.Equal(want.HopAddress) || got.FullNode != want.FullNode {
+	if !got.MopAddress.Equal(want.MopAddress) || got.FullNode != want.FullNode {
 		t.Fatalf("got info %+v, want %+v", got, want)
 	}
 }

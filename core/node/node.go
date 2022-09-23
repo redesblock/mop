@@ -8,8 +8,8 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/redesblock/hop/core/settlement/swap/pledge"
-	"github.com/redesblock/hop/core/settlement/swap/reward"
+	"github.com/redesblock/mop/core/settlement/swap/pledge"
+	"github.com/redesblock/mop/core/settlement/swap/reward"
 	"io"
 	"log"
 	"math/big"
@@ -26,56 +26,56 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hashicorp/go-multierror"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/accounting"
-	"github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/auth"
-	"github.com/redesblock/hop/core/chainsync"
-	"github.com/redesblock/hop/core/chainsyncer"
-	"github.com/redesblock/hop/core/config"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/feeds/factory"
-	"github.com/redesblock/hop/core/hive"
-	"github.com/redesblock/hop/core/localstore"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/metrics"
-	"github.com/redesblock/hop/core/netstore"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
-	"github.com/redesblock/hop/core/pingpong"
-	"github.com/redesblock/hop/core/pinning"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchservice"
-	"github.com/redesblock/hop/core/postage/batchstore"
-	"github.com/redesblock/hop/core/postage/listener"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/pricer"
-	"github.com/redesblock/hop/core/pricing"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/puller"
-	"github.com/redesblock/hop/core/pullsync"
-	"github.com/redesblock/hop/core/pullsync/pullstorage"
-	"github.com/redesblock/hop/core/pusher"
-	"github.com/redesblock/hop/core/pushsync"
-	"github.com/redesblock/hop/core/recovery"
-	"github.com/redesblock/hop/core/resolver/multiresolver"
-	"github.com/redesblock/hop/core/retrieval"
-	"github.com/redesblock/hop/core/settlement/pseudosettle"
-	"github.com/redesblock/hop/core/settlement/swap"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/settlement/swap/priceoracle"
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/steward"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/topology/kademlia"
-	"github.com/redesblock/hop/core/topology/lightnode"
-	"github.com/redesblock/hop/core/tracing"
-	"github.com/redesblock/hop/core/transaction"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/accounting"
+	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/auth"
+	"github.com/redesblock/mop/core/chainsync"
+	"github.com/redesblock/mop/core/chainsyncer"
+	"github.com/redesblock/mop/core/config"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/feeds/factory"
+	"github.com/redesblock/mop/core/hive"
+	"github.com/redesblock/mop/core/localstore"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/metrics"
+	"github.com/redesblock/mop/core/netstore"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/pingpong"
+	"github.com/redesblock/mop/core/pinning"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchservice"
+	"github.com/redesblock/mop/core/postage/batchstore"
+	"github.com/redesblock/mop/core/postage/listener"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/pricer"
+	"github.com/redesblock/mop/core/pricing"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/puller"
+	"github.com/redesblock/mop/core/pullsync"
+	"github.com/redesblock/mop/core/pullsync/pullstorage"
+	"github.com/redesblock/mop/core/pusher"
+	"github.com/redesblock/mop/core/pushsync"
+	"github.com/redesblock/mop/core/recovery"
+	"github.com/redesblock/mop/core/resolver/multiresolver"
+	"github.com/redesblock/mop/core/retrieval"
+	"github.com/redesblock/mop/core/settlement/pseudosettle"
+	"github.com/redesblock/mop/core/settlement/swap"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/settlement/swap/priceoracle"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/steward"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/topology/kademlia"
+	"github.com/redesblock/mop/core/topology/lightnode"
+	"github.com/redesblock/mop/core/tracing"
+	"github.com/redesblock/mop/core/transaction"
+	"github.com/redesblock/mop/core/traversal"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/sync/errgroup"
@@ -245,7 +245,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	b.transactionMonitorCloser = transactionMonitor
 
 	if o.ChainID != -1 && o.ChainID != chainID {
-		return nil, fmt.Errorf("connected to wrong ethereum network; network chainID %d; configured chainID %d", chainID, o.ChainID)
+		return nil, fmt.Errorf("connected to wrong Binance Smart Chain network; network chainID %d; configured chainID %d", chainID, o.ChainID)
 	}
 
 	var authenticator *auth.Authenticator
@@ -262,7 +262,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	if o.DebugAPIAddr != "" {
 		overlayEthAddress, err := signer.EthereumAddress()
 		if err != nil {
-			return nil, fmt.Errorf("eth address: %w", err)
+			return nil, fmt.Errorf("bnb address: %w", err)
 		}
 
 		if o.MutexProfile {
@@ -1024,7 +1024,7 @@ func (b *Node) Shutdown(ctx context.Context) error {
 
 // pidKiller is used to issue a forced shut down of the node from sub modules. The issue with using the
 // node's Shutdown method is that it only shuts down the node and does not exit the start process
-// which is waiting on the os.Signals. This is not desirable, but currently hop node cannot handle
+// which is waiting on the os.Signals. This is not desirable, but currently mop node cannot handle
 // rate-limiting blockchain API calls properly. We will shut down the node in this case to allow the
 // user to rectify the API issues (by adjusting limits or using a different one). There is no platform
 // agnostic way to trigger os.Signals in go unfortunately. Which is why we will use the process.Kill

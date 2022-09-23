@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/headers/pb"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/headers/pb"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var sendHeadersTimeout = 10 * time.Second

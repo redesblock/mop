@@ -1,5 +1,5 @@
 // Package p2p provides the peer-to-peer abstractions used
-// across different protocols in hop.
+// across different protocols in mop.
 package p2p
 
 import (
@@ -9,8 +9,8 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // ReachabilityStatus represents the node reachability status.
@@ -31,7 +31,7 @@ const (
 type Service interface {
 	AddProtocol(ProtocolSpec) error
 	// Connect to a peer but do not notify topology about the established connection.
-	Connect(ctx context.Context, addr ma.Multiaddr) (address *hop.Address, err error)
+	Connect(ctx context.Context, addr ma.Multiaddr) (address *mop.Address, err error)
 	Disconnecter
 	Peers() []Peer
 	BlocklistedPeers() ([]Peer, error)
@@ -105,7 +105,7 @@ type StreamerDisconnecter interface {
 	Disconnecter
 }
 
-// Pinger interface is used to ping a underlay address which is not yet known to the hop node.
+// Pinger interface is used to ping a underlay address which is not yet known to the mop node.
 // It uses libp2p's default ping protocol. This is different from the PingPong protocol as this
 // is meant to be used before we know a particular underlay and we can consider it useful
 type Pinger interface {

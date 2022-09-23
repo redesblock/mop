@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/feeder"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/feeder"
 )
 
 // TestFeeder tests that partial writes work correctly.

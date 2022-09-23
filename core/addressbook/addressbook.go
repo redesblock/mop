@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const keyPrefix = "addressbook_entry_"
@@ -24,8 +24,8 @@ type Interface interface {
 	Overlays() ([]swarm.Address, error)
 	// IterateOverlays exposes overlays in a form of an iterator.
 	IterateOverlays(func(swarm.Address) (bool, error)) error
-	// Addresses returns a list of all hop.Address-es saved in addressbook.
-	Addresses() ([]hop.Address, error)
+	// Addresses returns a list of all mop.Address-es saved in addressbook.
+	Addresses() ([]mop.Address, error)
 }
 
 type GetPutter interface {
@@ -34,13 +34,13 @@ type GetPutter interface {
 }
 
 type Getter interface {
-	// Get returns pointer to saved hop.Address for requested overlay address.
-	Get(overlay swarm.Address) (addr *hop.Address, err error)
+	// Get returns pointer to saved mop.Address for requested overlay address.
+	Get(overlay swarm.Address) (addr *mop.Address, err error)
 }
 
 type Putter interface {
-	// Put saves relation between peer overlay address and hop.Address address.
-	Put(overlay swarm.Address, addr hop.Address) (err error)
+	// Put saves relation between peer overlay address and mop.Address address.
+	Put(overlay swarm.Address, addr mop.Address) (err error)
 }
 
 type Remover interface {
@@ -59,9 +59,9 @@ func New(storer storage.StateStorer) Interface {
 	}
 }
 
-func (s *store) Get(overlay swarm.Address) (*hop.Address, error) {
+func (s *store) Get(overlay swarm.Address) (*mop.Address, error) {
 	key := keyPrefix + overlay.String()
-	v := &hop.Address{}
+	v := &mop.Address{}
 	err := s.store.Get(key, &v)
 	if err != nil {
 		if err == storage.ErrNotFound {
@@ -73,7 +73,7 @@ func (s *store) Get(overlay swarm.Address) (*hop.Address, error) {
 	return v, nil
 }
 
-func (s *store) Put(overlay swarm.Address, addr hop.Address) (err error) {
+func (s *store) Put(overlay swarm.Address, addr mop.Address) (err error) {
 	key := keyPrefix + overlay.String()
 	return s.store.Put(key, &addr)
 }
@@ -119,9 +119,9 @@ func (s *store) Overlays() (overlays []swarm.Address, err error) {
 	return overlays, nil
 }
 
-func (s *store) Addresses() (addresses []hop.Address, err error) {
+func (s *store) Addresses() (addresses []mop.Address, err error) {
 	err = s.store.Iterate(keyPrefix, func(_, value []byte) (stop bool, err error) {
-		entry := &hop.Address{}
+		entry := &mop.Address{}
 		err = entry.UnmarshalJSON(value)
 		if err != nil {
 			return true, err

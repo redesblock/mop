@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/tracing"
 )
 
 func TestTracing(t *testing.T) {
 	tracer1, closer1, err := tracing.NewTracer(&tracing.Options{
 		Enabled:     true,
-		ServiceName: "hop-test",
+		ServiceName: "mop-test",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -23,7 +23,7 @@ func TestTracing(t *testing.T) {
 
 	tracer2, closer2, err := tracing.NewTracer(&tracing.Options{
 		Enabled:     true,
-		ServiceName: "hop-test",
+		ServiceName: "mop-test",
 	})
 	if err != nil {
 		t.Fatal(err)

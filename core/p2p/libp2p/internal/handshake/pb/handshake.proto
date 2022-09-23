@@ -9,7 +9,7 @@ message Syn {
 }
 
 message Ack {
-    HopAddress Address = 1;
+    MopAddress Address = 1;
     uint64 NetworkID = 2;
     bool FullNode = 3;
     bytes Transaction = 4;
@@ -21,7 +21,7 @@ message SynAck {
     Ack Ack = 2;
 }
 
-message HopAddress {
+message MopAddress {
     bytes Underlay = 1;
     bytes Signature = 2;
     bytes Overlay = 3;

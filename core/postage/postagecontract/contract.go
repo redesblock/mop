@@ -5,23 +5,23 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	hopabi "github.com/redesblock/hop/contracts/abi"
+	mopabi "github.com/redesblock/mop/contracts/abi"
 	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 var (
 	BucketDepth = uint8(16)
 
-	postageStampABI   = parseABI(hopabi.PostageStampABI)
-	erc20ABI          = parseABI(hopabi.ERC20ABI)
+	postageStampABI   = parseABI(mopabi.PostageStampABI)
+	erc20ABI          = parseABI(mopabi.ERC20ABI)
 	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
 	batchTopUpTopic   = postageStampABI.Events["BatchTopUp"].ID
 	batchDiluteTopic  = postageStampABI.Events["BatchDepthIncrease"].ID
@@ -48,7 +48,7 @@ type Interface interface {
 type postageContract struct {
 	owner                  common.Address
 	postageContractAddress common.Address
-	hopTokenAddress        common.Address
+	mopTokenAddress        common.Address
 	transactionService     transaction.Service
 	postageService         postage.Service
 	postageStorer          postage.Storer
@@ -57,7 +57,7 @@ type postageContract struct {
 func New(
 	owner,
 	postageContractAddress,
-	hopTokenAddress common.Address,
+	mopTokenAddress common.Address,
 	transactionService transaction.Service,
 	postageService postage.Service,
 	postageStorer postage.Storer,
@@ -65,7 +65,7 @@ func New(
 	return &postageContract{
 		owner:                  owner,
 		postageContractAddress: postageContractAddress,
-		hopTokenAddress:        hopTokenAddress,
+		mopTokenAddress:        mopTokenAddress,
 		transactionService:     transactionService,
 		postageService:         postageService,
 		postageStorer:          postageStorer,
@@ -79,7 +79,7 @@ func (c *postageContract) sendApproveTransaction(ctx context.Context, amount *bi
 	}
 
 	txHash, err := c.transactionService.Send(ctx, &transaction.TxRequest{
-		To:          &c.hopTokenAddress,
+		To:          &c.mopTokenAddress,
 		Data:        callData,
 		GasPrice:    sctx.GetGasPrice(ctx),
 		GasLimit:    65000,
@@ -181,7 +181,7 @@ func (c *postageContract) getBalance(ctx context.Context) (*big.Int, error) {
 	}
 
 	result, err := c.transactionService.Call(ctx, &transaction.TxRequest{
-		To:   &c.hopTokenAddress,
+		To:   &c.mopTokenAddress,
 		Data: callData,
 	})
 	if err != nil {
@@ -202,7 +202,7 @@ func (c *postageContract) AvailableBalance(ctx context.Context, address common.A
 	}
 
 	result, err := c.transactionService.Call(ctx, &transaction.TxRequest{
-		To:   &c.hopTokenAddress,
+		To:   &c.mopTokenAddress,
 		Data: callData,
 	})
 	if err != nil {

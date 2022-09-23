@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type Service struct {

@@ -9,12 +9,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/file/joiner"
-	"github.com/redesblock/hop/core/file/loadsave"
-	"github.com/redesblock/hop/core/manifest"
-	"github.com/redesblock/hop/core/manifest/mantaray"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file/joiner"
+	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/manifest"
+	"github.com/redesblock/mop/core/manifest/mantaray"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Traverser represents service which traverse through address dependent chunks.

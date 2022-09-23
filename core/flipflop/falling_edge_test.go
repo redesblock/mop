@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/flipflop"
+	"github.com/redesblock/mop/core/flipflop"
 )
 
 func TestFallingEdge(t *testing.T) {

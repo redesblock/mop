@@ -11,20 +11,20 @@ import (
 	"testing"
 	"time"
 
-	accountingmock "github.com/redesblock/hop/core/accounting/mock"
+	accountingmock "github.com/redesblock/mop/core/accounting/mock"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/p2p/streamtest"
-	pricermock "github.com/redesblock/hop/core/pricer/mock"
-	"github.com/redesblock/hop/core/retrieval"
-	pb "github.com/redesblock/hop/core/retrieval/pb"
-	"github.com/redesblock/hop/core/storage"
-	storemock "github.com/redesblock/hop/core/storage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/p2p/streamtest"
+	pricermock "github.com/redesblock/mop/core/pricer/mock"
+	"github.com/redesblock/mop/core/retrieval"
+	pb "github.com/redesblock/mop/core/retrieval/pb"
+	"github.com/redesblock/mop/core/storage"
+	storemock "github.com/redesblock/mop/core/storage/mock"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
 )
 
 var (

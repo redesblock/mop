@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/bmt"
-	"github.com/redesblock/hop/core/bmt/reference"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/bmt"
+	"github.com/redesblock/mop/core/bmt/reference"
+	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/sync/errgroup"
 )
 

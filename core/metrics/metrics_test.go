@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/redesblock/hop/core/metrics"
+	"github.com/redesblock/mop/core/metrics"
 )
 
 func TestPrometheusCollectorsFromFields(t *testing.T) {

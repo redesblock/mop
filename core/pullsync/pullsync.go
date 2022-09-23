@@ -12,17 +12,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redesblock/hop/core/bitvector"
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/pullsync/pb"
-	"github.com/redesblock/hop/core/pullsync/pullstorage"
-	"github.com/redesblock/hop/core/soc"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/bitvector"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/pullsync/pb"
+	"github.com/redesblock/mop/core/pullsync/pullstorage"
+	"github.com/redesblock/mop/core/soc"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

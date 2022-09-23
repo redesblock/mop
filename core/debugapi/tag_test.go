@@ -7,15 +7,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 )
 
 func tagsWithIdResource(id uint32) string { return fmt.Sprintf("/tags/%d", id) }

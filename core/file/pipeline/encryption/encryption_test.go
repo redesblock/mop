@@ -5,10 +5,10 @@ import (
 	"encoding/binary"
 	"testing"
 
-	mockenc "github.com/redesblock/hop/core/encryption/mock"
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/encryption"
-	mock "github.com/redesblock/hop/core/file/pipeline/mock"
+	mockenc "github.com/redesblock/mop/core/encryption/mock"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/encryption"
+	mock "github.com/redesblock/mop/core/file/pipeline/mock"
 )
 
 var (

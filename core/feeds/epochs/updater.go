@@ -3,9 +3,9 @@ package epochs
 import (
 	"context"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/storage"
 )
 
 var _ feeds.Updater = (*updater)(nil)

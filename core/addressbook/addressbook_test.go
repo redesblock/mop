@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/hop"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/mop"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/swarm"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -38,12 +38,12 @@ func run(t *testing.T, f bookFunc) {
 		t.Fatal(err)
 	}
 
-	hopAddr, err := hop.NewAddress(crypto.NewDefaultSigner(pk), multiaddr, addr1, 1, trxHash)
+	mopAddr, err := mop.NewAddress(crypto.NewDefaultSigner(pk), multiaddr, addr1, 1, trxHash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = store.Put(addr1, *hopAddr)
+	err = store.Put(addr1, *mopAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func run(t *testing.T, f bookFunc) {
 		t.Fatal(err)
 	}
 
-	if !hopAddr.Equal(v) {
+	if !mopAddr.Equal(v) {
 		t.Fatalf("expectted: %s, want %s", v, multiaddr)
 	}
 

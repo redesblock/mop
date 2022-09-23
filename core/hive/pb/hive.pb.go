@@ -23,7 +23,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Peers struct {
-	Peers []*HopAddress `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
+	Peers []*MopAddress `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
 }
 
 func (m *Peers) Reset()         { *m = Peers{} }
@@ -59,32 +59,32 @@ func (m *Peers) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Peers proto.InternalMessageInfo
 
-func (m *Peers) GetPeers() []*HopAddress {
+func (m *Peers) GetPeers() []*MopAddress {
 	if m != nil {
 		return m.Peers
 	}
 	return nil
 }
 
-type HopAddress struct {
+type MopAddress struct {
 	Underlay    []byte `protobuf:"bytes,1,opt,name=Underlay,proto3" json:"Underlay,omitempty"`
 	Signature   []byte `protobuf:"bytes,2,opt,name=Signature,proto3" json:"Signature,omitempty"`
 	Overlay     []byte `protobuf:"bytes,3,opt,name=Overlay,proto3" json:"Overlay,omitempty"`
 	Transaction []byte `protobuf:"bytes,4,opt,name=Transaction,proto3" json:"Transaction,omitempty"`
 }
 
-func (m *HopAddress) Reset()         { *m = HopAddress{} }
-func (m *HopAddress) String() string { return proto.CompactTextString(m) }
-func (*HopAddress) ProtoMessage()    {}
-func (*HopAddress) Descriptor() ([]byte, []int) {
+func (m *MopAddress) Reset()         { *m = MopAddress{} }
+func (m *MopAddress) String() string { return proto.CompactTextString(m) }
+func (*MopAddress) ProtoMessage()    {}
+func (*MopAddress) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d635d1ead41ba02c, []int{1}
 }
-func (m *HopAddress) XXX_Unmarshal(b []byte) error {
+func (m *MopAddress) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *HopAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MopAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_HopAddress.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MopAddress.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -94,40 +94,40 @@ func (m *HopAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *HopAddress) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HopAddress.Merge(m, src)
+func (m *MopAddress) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MopAddress.Merge(m, src)
 }
-func (m *HopAddress) XXX_Size() int {
+func (m *MopAddress) XXX_Size() int {
 	return m.Size()
 }
-func (m *HopAddress) XXX_DiscardUnknown() {
-	xxx_messageInfo_HopAddress.DiscardUnknown(m)
+func (m *MopAddress) XXX_DiscardUnknown() {
+	xxx_messageInfo_MopAddress.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_HopAddress proto.InternalMessageInfo
+var xxx_messageInfo_MopAddress proto.InternalMessageInfo
 
-func (m *HopAddress) GetUnderlay() []byte {
+func (m *MopAddress) GetUnderlay() []byte {
 	if m != nil {
 		return m.Underlay
 	}
 	return nil
 }
 
-func (m *HopAddress) GetSignature() []byte {
+func (m *MopAddress) GetSignature() []byte {
 	if m != nil {
 		return m.Signature
 	}
 	return nil
 }
 
-func (m *HopAddress) GetOverlay() []byte {
+func (m *MopAddress) GetOverlay() []byte {
 	if m != nil {
 		return m.Overlay
 	}
 	return nil
 }
 
-func (m *HopAddress) GetTransaction() []byte {
+func (m *MopAddress) GetTransaction() []byte {
 	if m != nil {
 		return m.Transaction
 	}
@@ -136,7 +136,7 @@ func (m *HopAddress) GetTransaction() []byte {
 
 func init() {
 	proto.RegisterType((*Peers)(nil), "hive.Peers")
-	proto.RegisterType((*HopAddress)(nil), "hive.HopAddress")
+	proto.RegisterType((*MopAddress)(nil), "hive.MopAddress")
 }
 
 func init() { proto.RegisterFile("hive.proto", fileDescriptor_d635d1ead41ba02c) }
@@ -146,7 +146,7 @@ var fileDescriptor_d635d1ead41ba02c = []byte{
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xca, 0xc8, 0x2c, 0x4b,
 	0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x01, 0xb1, 0x95, 0xf4, 0xb9, 0x58, 0x03, 0x52,
 	0x53, 0x8b, 0x8a, 0x85, 0xd4, 0xb8, 0x58, 0x0b, 0x40, 0x0c, 0x09, 0x46, 0x05, 0x66, 0x0d, 0x6e,
-	0x23, 0x01, 0x3d, 0xb0, 0x52, 0xa7, 0xaa, 0x2a, 0xc7, 0x94, 0x94, 0xa2, 0xd4, 0xe2, 0xe2, 0x20,
+	0x23, 0x01, 0x3d, 0xb0, 0x52, 0xdf, 0xfc, 0x02, 0xc7, 0x94, 0x94, 0xa2, 0xd4, 0xe2, 0xe2, 0x20,
 	0x88, 0xb4, 0x52, 0x13, 0x23, 0x17, 0x17, 0x42, 0x54, 0x48, 0x8a, 0x8b, 0x23, 0x34, 0x2f, 0x25,
 	0xb5, 0x28, 0x27, 0xb1, 0x52, 0x82, 0x51, 0x81, 0x51, 0x83, 0x27, 0x08, 0xce, 0x17, 0x92, 0xe1,
 	0xe2, 0x0c, 0xce, 0x4c, 0xcf, 0x4b, 0x2c, 0x29, 0x2d, 0x4a, 0x95, 0x60, 0x02, 0x4b, 0x22, 0x04,
@@ -154,7 +154,7 @@ var fileDescriptor_d635d1ead41ba02c = []byte{
 	0x77, 0x48, 0x51, 0x62, 0x5e, 0x71, 0x62, 0x72, 0x49, 0x66, 0x7e, 0x9e, 0x04, 0x0b, 0x58, 0x16,
 	0x59, 0xc8, 0x49, 0xe6, 0xc4, 0x23, 0x39, 0xc6, 0x0b, 0x8f, 0xe4, 0x18, 0x1f, 0x3c, 0x92, 0x63,
 	0x9c, 0xf0, 0x58, 0x8e, 0xe1, 0xc2, 0x63, 0x39, 0x86, 0x1b, 0x8f, 0xe5, 0x18, 0xa2, 0x98, 0x0a,
-	0x92, 0x92, 0xd8, 0xc0, 0x1e, 0x34, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0xe0, 0x0a, 0xbb, 0x89,
+	0x92, 0x92, 0xd8, 0xc0, 0x1e, 0x34, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0x4d, 0xb6, 0x62, 0x8e,
 	0xee, 0x00, 0x00, 0x00,
 }
 
@@ -195,7 +195,7 @@ func (m *Peers) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *HopAddress) Marshal() (dAtA []byte, err error) {
+func (m *MopAddress) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -205,12 +205,12 @@ func (m *HopAddress) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *HopAddress) MarshalTo(dAtA []byte) (int, error) {
+func (m *MopAddress) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *HopAddress) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MopAddress) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -272,7 +272,7 @@ func (m *Peers) Size() (n int) {
 	return n
 }
 
-func (m *HopAddress) Size() (n int) {
+func (m *MopAddress) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -361,7 +361,7 @@ func (m *Peers) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Peers = append(m.Peers, &HopAddress{})
+			m.Peers = append(m.Peers, &MopAddress{})
 			if err := m.Peers[len(m.Peers)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -372,10 +372,7 @@ func (m *Peers) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthHive
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthHive
 			}
 			if (iNdEx + skippy) > l {
@@ -390,7 +387,7 @@ func (m *Peers) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *HopAddress) Unmarshal(dAtA []byte) error {
+func (m *MopAddress) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -413,10 +410,10 @@ func (m *HopAddress) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: HopAddress: wiretype end group for non-group")
+			return fmt.Errorf("proto: MopAddress: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: HopAddress: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MopAddress: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -561,10 +558,7 @@ func (m *HopAddress) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthHive
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthHive
 			}
 			if (iNdEx + skippy) > l {

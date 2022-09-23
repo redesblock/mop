@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage/listener"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage/listener"
 )
 
 var hash common.Hash = common.HexToHash("ff6ec1ed9250a6952fabac07c6eb103550dc65175373eea432fd115ce8bb2246")

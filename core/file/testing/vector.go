@@ -3,7 +3,7 @@ package testing
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 	mockbytes "gitlab.com/nolash/go-mockbytes"
 )
 

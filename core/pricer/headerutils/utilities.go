@@ -3,8 +3,8 @@ package headerutils
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

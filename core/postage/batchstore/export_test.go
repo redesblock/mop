@@ -3,7 +3,7 @@ package batchstore
 import (
 	"fmt"
 
-	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/mop/core/postage"
 )
 
 // ChainStateKey is the statestore key for the chain state.

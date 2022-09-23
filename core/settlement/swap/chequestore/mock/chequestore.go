@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
 )
 
 // Service is the mock chequeStore service.

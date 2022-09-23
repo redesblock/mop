@@ -3,8 +3,8 @@ package libp2p_test
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/p2p/libp2p"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/handshake"
+	"github.com/redesblock/mop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
 )
 
 func TestDynamicWelcomeMessage(t *testing.T) {

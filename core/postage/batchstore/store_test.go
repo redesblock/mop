@@ -5,13 +5,13 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchstore"
-	postagetest "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/statestore/leveldb"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchstore"
+	postagetest "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/statestore/leveldb"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
 )
 
 var noopEvictFn = func([]byte) error { return nil }

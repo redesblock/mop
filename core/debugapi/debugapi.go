@@ -1,12 +1,12 @@
 // Package debugapi exposes the debug API used to
 // control and analyze low-level and runtime
-// features and functionalities of hop.
+// features and functionalities of mop.
 package debugapi
 
 import (
 	"crypto/ecdsa"
-	"github.com/redesblock/hop/core/settlement/swap/pledge"
-	"github.com/redesblock/hop/core/settlement/swap/reward"
+	"github.com/redesblock/mop/core/settlement/swap/pledge"
+	"github.com/redesblock/mop/core/settlement/swap/reward"
 	"math/big"
 	"net/http"
 	"sync"
@@ -14,23 +14,23 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/redesblock/hop/core/accounting"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/pingpong"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/settlement"
-	"github.com/redesblock/hop/core/settlement/swap"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/topology/lightnode"
-	"github.com/redesblock/hop/core/tracing"
-	"github.com/redesblock/hop/core/transaction"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/accounting"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/pingpong"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/settlement"
+	"github.com/redesblock/mop/core/settlement/swap"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/topology/lightnode"
+	"github.com/redesblock/mop/core/tracing"
+	"github.com/redesblock/mop/core/transaction"
+	"github.com/redesblock/mop/core/traversal"
 	"golang.org/x/sync/semaphore"
 )
 

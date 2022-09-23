@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
 
-	"github.com/redesblock/hop/core/blocker"
+	"github.com/redesblock/mop/core/blocker"
 )
 
 func TestBlocksAfterFlagTimeout(t *testing.T) {

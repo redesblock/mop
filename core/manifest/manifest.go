@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const DefaultManifestType = ManifestMantarayContentType

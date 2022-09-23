@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/postage"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/pushsync"
-	pushsyncmock "github.com/redesblock/hop/core/pushsync/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/postage"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/pushsync"
+	pushsyncmock "github.com/redesblock/mop/core/pushsync/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestSend creates a trojan chunk and sends it using push sync

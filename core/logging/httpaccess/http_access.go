@@ -8,8 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/tracing"
 )
 
 // NewHTTPAccessLogHandler creates a handler that will log a message after a

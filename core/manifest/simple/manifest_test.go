@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/manifest/simple"
+	"github.com/redesblock/mop/core/manifest/simple"
 )
 
 // randomAddress generates a random address.

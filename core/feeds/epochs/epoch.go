@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
 )
 
 const (

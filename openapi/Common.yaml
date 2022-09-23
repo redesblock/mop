@@ -617,7 +617,7 @@ components:
     WalletResponse:
       type: object
       properties:
-        hop:
+        mop:
           $ref: "#/components/schemas/BigInt"
         bnb:
           $ref: "#/components/schemas/BigInt"
@@ -648,7 +648,7 @@ components:
       properties:
         balance:
           $ref: "#/components/schemas/BigInt"
-        hop:
+        mop:
           $ref: "#/components/schemas/BigInt"
         mop:
           $ref: "#/components/schemas/BigInt"

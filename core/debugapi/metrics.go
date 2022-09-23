@@ -3,8 +3,8 @@ package debugapi
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/redesblock/hop/cmd/version"
-	"github.com/redesblock/hop/core/metrics"
+	"github.com/redesblock/mop/cmd/version"
+	"github.com/redesblock/mop/core/metrics"
 )
 
 func newMetricsRegistry() (r *prometheus.Registry) {
@@ -19,7 +19,7 @@ func newMetricsRegistry() (r *prometheus.Registry) {
 		prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Name:      "info",
-			Help:      "Hop information.",
+			Help:      "Mop information.",
 			ConstLabels: prometheus.Labels{
 				"version": version.Version,
 			},

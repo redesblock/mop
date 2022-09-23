@@ -4,21 +4,21 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/core/types"
-	hopabi "github.com/redesblock/hop/contracts/abi"
-	"github.com/redesblock/hop/core/settlement/swap/erc20"
-	"github.com/redesblock/hop/core/storage"
+	mopabi "github.com/redesblock/mop/contracts/abi"
+	"github.com/redesblock/mop/core/settlement/swap/erc20"
+	"github.com/redesblock/mop/core/storage"
 	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 var (
-	erc20ABI             = transaction.ParseABIUnchecked(hopabi.ERC20ABI)
-	pledgeABI            = transaction.ParseABIUnchecked(hopabi.PledgepABI)
+	erc20ABI             = transaction.ParseABIUnchecked(mopabi.ERC20ABI)
+	pledgeABI            = transaction.ParseABIUnchecked(mopabi.PledgepABI)
 	errDecodeABI         = errors.New("could not decode abi data")
 	ErrInsufficientFunds = errors.New("insufficient token balance")
 	keyPrefix            = "pledge-txs-"

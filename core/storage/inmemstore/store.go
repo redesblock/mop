@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Store implements a simple Putter and Getter which can be used to temporarily cache

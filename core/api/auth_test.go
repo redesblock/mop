@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/auth/mock"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/auth/mock"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
 )
 
 func TestAuth(t *testing.T) {

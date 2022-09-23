@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/p2p"
 )
 
 func (s *Service) SetTimeNow(f func() time.Time) {

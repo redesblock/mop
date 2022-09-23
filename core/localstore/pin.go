@@ -3,9 +3,9 @@ package localstore
 import (
 	"errors"
 
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

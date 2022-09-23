@@ -1,5 +1,5 @@
 // Package encryption exposes functionalities needed for
-// encryption and decryption operations in hop.
+// encryption and decryption operations in mop.
 package encryption
 
 import (

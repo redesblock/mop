@@ -4,7 +4,7 @@ import (
 	crand "crypto/rand"
 	"io"
 
-	"github.com/redesblock/hop/core/postage"
+	"github.com/redesblock/mop/core/postage"
 )
 
 const signatureSize = 65

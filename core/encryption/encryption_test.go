@@ -7,8 +7,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/redesblock/hop/core/encryption"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/encryption"
+	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/crypto/sha3"
 )
 

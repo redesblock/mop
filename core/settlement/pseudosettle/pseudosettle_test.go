@@ -9,15 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	mockp2p "github.com/redesblock/hop/core/p2p/mock"
-	"github.com/redesblock/hop/core/p2p/protobuf"
-	"github.com/redesblock/hop/core/p2p/streamtest"
-	"github.com/redesblock/hop/core/settlement/pseudosettle"
-	"github.com/redesblock/hop/core/settlement/pseudosettle/pb"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	mockp2p "github.com/redesblock/mop/core/p2p/mock"
+	"github.com/redesblock/mop/core/p2p/protobuf"
+	"github.com/redesblock/mop/core/p2p/streamtest"
+	"github.com/redesblock/mop/core/settlement/pseudosettle"
+	"github.com/redesblock/mop/core/settlement/pseudosettle/pb"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type testObserver struct {

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/p2p"
 )
 
 var (

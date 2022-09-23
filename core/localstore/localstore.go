@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/pinning"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/postage/batchstore"
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/pinning"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/postage/batchstore"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

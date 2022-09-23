@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var keyPrefix = "blocklist-"

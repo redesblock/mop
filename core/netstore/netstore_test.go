@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/netstore"
-	"github.com/redesblock/hop/core/postage"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/recovery"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/netstore"
+	"github.com/redesblock/mop/core/postage"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/recovery"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var chunkData = []byte("mockdata")

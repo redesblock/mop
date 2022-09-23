@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/intervalstore"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/puller"
-	mockps "github.com/redesblock/hop/core/pullsync/mock"
-	"github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
-	mockk "github.com/redesblock/hop/core/topology/kademlia/mock"
+	"github.com/redesblock/mop/core/intervalstore"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/puller"
+	mockps "github.com/redesblock/mop/core/pullsync/mock"
+	"github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
+	mockk "github.com/redesblock/mop/core/topology/kademlia/mock"
 )
 
 const max = math.MaxUint64

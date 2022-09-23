@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/tags"
 )
 
 type MockPusher struct {

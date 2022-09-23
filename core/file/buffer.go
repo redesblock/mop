@@ -3,7 +3,7 @@ package file
 import (
 	"io"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 const (

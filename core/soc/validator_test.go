@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/redesblock/hop/core/soc"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/soc"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestValid verifies that the validator can detect

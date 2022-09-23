@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestDB_SubscribePull_first is a regression test for the first=false (from-1) bug

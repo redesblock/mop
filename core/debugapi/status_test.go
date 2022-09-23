@@ -1,13 +1,13 @@
 package debugapi_test
 
 import (
-	"github.com/redesblock/hop/cmd/version"
+	"github.com/redesblock/mop/cmd/version"
 	"net/http"
 	"testing"
 
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/debugapi"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 )
 
 func TestHealth(t *testing.T) {

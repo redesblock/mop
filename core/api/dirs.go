@@ -14,32 +14,32 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/loadsave"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/manifest"
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/tracing"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/manifest"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/tracing"
 )
 
 // dirUploadHandler uploads a directory supplied as a tar in an HTTP request
 func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer storage.Storer) {
 	logger := tracing.NewLoggerWithTraceID(r.Context(), s.logger)
 	if r.Body == http.NoBody {
-		logger.Error("hop upload dir: request has no body")
+		logger.Error("mop upload dir: request has no body")
 		jsonhttp.BadRequest(w, errInvalidRequest)
 		return
 	}
 	contentType := r.Header.Get(contentTypeHeader)
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		logger.Errorf("hop upload dir: invalid content-type")
-		logger.Debugf("hop upload dir: invalid content-type err: %v", err)
+		logger.Errorf("mop upload dir: invalid content-type")
+		logger.Debugf("mop upload dir: invalid content-type err: %v", err)
 		jsonhttp.BadRequest(w, errInvalidContentType)
 		return
 	}
@@ -51,7 +51,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 	case multiPartFormData:
 		dReader = &multipartReader{r: multipart.NewReader(r.Body, params["boundary"])}
 	default:
-		logger.Error("hop upload dir: invalid content-type for directory upload")
+		logger.Error("mop upload dir: invalid content-type for directory upload")
 		jsonhttp.BadRequest(w, errInvalidContentType)
 		return
 	}
@@ -59,8 +59,8 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 
 	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagHeader))
 	if err != nil {
-		logger.Debugf("hop upload dir: get or create tag: %v", err)
-		logger.Error("hop upload dir: get or create tag")
+		logger.Debugf("mop upload dir: get or create tag: %v", err)
+		logger.Error("mop upload dir: get or create tag")
 		jsonhttp.InternalServerError(w, nil)
 		return
 	}
@@ -81,8 +81,8 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 		created,
 	)
 	if err != nil {
-		logger.Debugf("hop upload dir: store dir err: %v", err)
-		logger.Errorf("hop upload dir: store dir")
+		logger.Debugf("mop upload dir: store dir err: %v", err)
+		logger.Errorf("mop upload dir: store dir")
 		switch {
 		case errors.Is(err, postage.ErrBucketFull):
 			jsonhttp.PaymentRequired(w, "batch is overissued")
@@ -94,8 +94,8 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 	if created {
 		_, err = tag.DoneSplit(reference)
 		if err != nil {
-			logger.Debugf("hop upload dir: done split: %v", err)
-			logger.Error("hop upload dir: done split failed")
+			logger.Debugf("mop upload dir: done split: %v", err)
+			logger.Error("mop upload dir: done split failed")
 			jsonhttp.InternalServerError(w, nil)
 			return
 		}
@@ -103,8 +103,8 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 
 	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(r.Context(), reference, false); err != nil {
-			logger.Debugf("hop upload dir: creation of pin for %q failed: %v", reference, err)
-			logger.Error("hop upload dir: creation of pin failed")
+			logger.Debugf("mop upload dir: creation of pin for %q failed: %v", reference, err)
+			logger.Error("mop upload dir: creation of pin failed")
 			jsonhttp.InternalServerError(w, nil)
 			return
 		}
@@ -112,7 +112,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 
 	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
 	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
-	jsonhttp.Created(w, hopUploadResponse{
+	jsonhttp.Created(w, mopUploadResponse{
 		Reference: reference,
 	})
 }

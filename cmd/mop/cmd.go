@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -98,8 +98,8 @@ type option func(*command)
 func newCommand(opts ...option) (c *command, err error) {
 	c = &command{
 		root: &cobra.Command{
-			Use:           "hop",
-			Short:         "Ethereum Swarm",
+			Use:           "mop",
+			Short:         "MOP Swarm",
 			SilenceErrors: true,
 			SilenceUsage:  true,
 			PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -183,23 +183,23 @@ func Execute() (err error) {
 
 func (c *command) initGlobalFlags() {
 	globalFlags := c.root.PersistentFlags()
-	globalFlags.StringVar(&c.cfgFile, "config", "", "config file (default is $HOME/.hop.yaml)")
+	globalFlags.StringVar(&c.cfgFile, "config", "", "config file (default is $HOME/.mop.yaml)")
 }
 
 func (c *command) initConfig() (err error) {
 	config := viper.New()
-	configName := ".hop"
+	configName := ".mop"
 	if c.cfgFile != "" {
 		// Use config file from the flag.
 		config.SetConfigFile(c.cfgFile)
 	} else {
-		// Search config in home directory with name ".hop" (without extension).
+		// Search config in home directory with name ".mop" (without extension).
 		config.AddConfigPath(c.homeDir)
 		config.SetConfigName(configName)
 	}
 
 	// Environment
-	config.SetEnvPrefix("hop")
+	config.SetEnvPrefix("mop")
 	config.AutomaticEnv() // read in environment variables that match
 	config.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
@@ -231,7 +231,7 @@ func (c *command) setHomeDir() (err error) {
 }
 
 func (c *command) setAllFlags(cmd *cobra.Command) {
-	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".hop"), "data directory")
+	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".mop"), "data directory")
 	cmd.Flags().Uint64(optionNameCacheCapacity, 1000000, fmt.Sprintf("cache capacity in chunks, multiply by %d to get approximate capacity in bytes", swarm.ChunkSize))
 	cmd.Flags().Uint64(optionNameDBOpenFilesLimit, 200, "number of open files allowed by database")
 	cmd.Flags().Uint64(optionNameDBBlockCacheCapacity, 32*1024*1024, "size of block cache of the database in bytes")
@@ -252,7 +252,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameTracingEndpoint, "127.0.0.1:6831", "endpoint to send tracing data")
 	cmd.Flags().String(optionNameTracingHost, "", "host to send tracing data")
 	cmd.Flags().String(optionNameTracingPort, "", "port to send tracing data")
-	cmd.Flags().String(optionNameTracingServiceName, "hop", "service name identifier for tracing")
+	cmd.Flags().String(optionNameTracingServiceName, "mop", "service name identifier for tracing")
 	cmd.Flags().String(optionNameVerbosity, "info", "log verbosity level 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=trace")
 	cmd.Flags().String(optionWelcomeMessage, "", "send a welcome message string during handshakes")
 	cmd.Flags().Bool(optionNameGlobalPinningEnabled, false, "enable global pinning")
@@ -264,7 +264,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameBootnodeMode, false, "cause the node to always accept incoming connections")
 	cmd.Flags().Bool(optionNameClefSignerEnable, false, "enable clef signer")
 	cmd.Flags().String(optionNameClefSignerEndpoint, "", "clef signer endpoint")
-	cmd.Flags().String(optionNameClefSignerEthereumAddress, "", "ethereum address to use from clef signer")
+	cmd.Flags().String(optionNameClefSignerEthereumAddress, "", "Binance Smart Chain address to use from clef signer")
 	cmd.Flags().String(optionNameSwapEndpoint, "ws://localhost:8546", "swap Binance Smart Chain blockchain endpoint")
 	cmd.Flags().String(optionNameSwapFactoryAddress, "", "swap factory addresses")
 	cmd.Flags().StringSlice(optionNameSwapLegacyFactoryAddresses, nil, "legacy swap factory addresses")

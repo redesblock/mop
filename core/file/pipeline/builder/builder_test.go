@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	test "github.com/redesblock/hop/core/file/testing"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	test "github.com/redesblock/mop/core/file/testing"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestPartialWrites(t *testing.T) {
@@ -100,7 +100,7 @@ func TestAllVectors(t *testing.T) {
 go test -v -bench=. -run Bench -benchmem
 goos: linux
 goarch: amd64
-pkg: github.com/redesblock/hop/core/file/pipeline/builder
+pkg: github.com/redesblock/mop/core/file/pipeline/builder
 BenchmarkPipeline
 BenchmarkPipeline/1000-bytes
 BenchmarkPipeline/1000-bytes-4         	   14475	     75170 ns/op	   63611 B/op	     333 allocs/op
@@ -115,7 +115,7 @@ BenchmarkPipeline/10000000-bytes-4     	       4	 304759595 ns/op	175378648 B/op
 BenchmarkPipeline/100000000-bytes
 BenchmarkPipeline/100000000-bytes-4    	       1	3064439098 ns/op	1751509528 B/op	11342736 allocs/op
 PASS
-ok  	github.com/redesblock/hop/core/file/pipeline/builder	17.599s
+ok  	github.com/redesblock/mop/core/file/pipeline/builder	17.599s
 
 */
 func BenchmarkPipeline(b *testing.B) {

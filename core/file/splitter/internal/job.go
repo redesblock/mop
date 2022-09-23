@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/redesblock/hop/core/cac"
-	"github.com/redesblock/hop/core/encryption"
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/sctx"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/encryption"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/sctx"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
 	"golang.org/x/crypto/sha3"
 )
 

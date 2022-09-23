@@ -7,8 +7,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/resolver/client/ens"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/resolver/client/ens"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestENSIntegration(t *testing.T) {

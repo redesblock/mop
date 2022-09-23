@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/breaker"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/breaker"
 )
 
 func TestExecute(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/tags"
 )
 
 var (

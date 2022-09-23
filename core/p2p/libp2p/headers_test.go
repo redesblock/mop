@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestHeaders(t *testing.T) {

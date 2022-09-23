@@ -11,19 +11,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
+	"github.com/redesblock/mop/core/logging"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
 
 	"github.com/gorilla/websocket"
-	"github.com/redesblock/hop/core/api"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/storage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/storage/mock"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/tags"
 	"gitlab.com/nolash/go-mockbytes"
 )
 
@@ -36,7 +36,7 @@ func tagsWithIdResource(id uint32) string { return fmt.Sprintf("/tags/%d", id) }
 func TestTags(t *testing.T) {
 
 	var (
-		hopResource           = "/hop"
+		mopResource           = "/mop"
 		bytesResource         = "/bytes"
 		chunksResource        = "/chunks"
 		tagsResource          = "/tags"
@@ -319,10 +319,10 @@ func TestTags(t *testing.T) {
 	t.Run("file tags", func(t *testing.T) {
 		// upload a file without supplying tag
 		expectedHash := swarm.MustParseHexAddress("40e739ebdfd18292925bba4138cd097db9aa18c1b57e74042f48469b48da33a8")
-		expectedResponse := api.HopUploadResponse{Reference: expectedHash}
+		expectedResponse := api.MopUploadResponse{Reference: expectedHash}
 
 		respHeaders := jsonhttptest.Request(t, client, http.MethodPost,
-			hopResource+"?name=somefile", http.StatusCreated,
+			mopResource+"?name=somefile", http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader([]byte("some data"))),
 			jsonhttptest.WithExpectedJSONResponse(expectedResponse),
@@ -343,9 +343,9 @@ func TestTags(t *testing.T) {
 			name: "binary-file",
 		}})
 		expectedHash := swarm.MustParseHexAddress("42bc27c9137c93705ffbc2945fa1aab0e8e1826f1500b7f06f6e3f86f617213b")
-		expectedResponse := api.HopUploadResponse{Reference: expectedHash}
+		expectedResponse := api.MopUploadResponse{Reference: expectedHash}
 
-		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, hopResource, http.StatusCreated,
+		respHeaders := jsonhttptest.Request(t, client, http.MethodPost, mopResource, http.StatusCreated,
 			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(tarReader),
 			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "True"),

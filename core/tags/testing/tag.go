@@ -3,7 +3,7 @@ package testing
 import (
 	"testing"
 
-	"github.com/redesblock/hop/core/tags"
+	"github.com/redesblock/mop/core/tags"
 )
 
 // CheckTag checks the first tag in the api struct to be in a certain state

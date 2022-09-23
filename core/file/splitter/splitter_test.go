@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/file"
-	"github.com/redesblock/hop/core/file/splitter"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/file/splitter"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 	mockbytes "gitlab.com/nolash/go-mockbytes"
 )
 
@@ -184,7 +184,7 @@ func TestUnalignedSplit(t *testing.T) {
 go test -v -bench=. -run Bench -benchmem
 goos: linux
 goarch: amd64
-pkg: github.com/redesblock/hop/core/file/splitter
+pkg: github.com/redesblock/mop/core/file/splitter
 BenchmarkSplitter
 BenchmarkSplitter/1000-bytes
 BenchmarkSplitter/1000-bytes-4         	   12667	     95965 ns/op	  154870 B/op	     367 allocs/op
@@ -199,7 +199,7 @@ BenchmarkSplitter/10000000-bytes-4     	       4	 295615658 ns/op	186417904 B/op
 BenchmarkSplitter/100000000-bytes
 BenchmarkSplitter/100000000-bytes-4    	       1	2972826021 ns/op	1861374352 B/op	11321235 allocs/op
 PASS
-ok  	github.com/redesblock/hop/core/file/splitter	22.476s
+ok  	github.com/redesblock/mop/core/file/splitter	22.476s
 */
 
 func BenchmarkSplitter(b *testing.B) {

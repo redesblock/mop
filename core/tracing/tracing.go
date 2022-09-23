@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"

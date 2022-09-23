@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/redesblock/hop/core/statestore/leveldb"
-	"github.com/redesblock/hop/core/statestore/test"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/statestore/leveldb"
+	"github.com/redesblock/mop/core/statestore/test"
+	"github.com/redesblock/mop/core/storage"
 )
 
 func TestPersistentStateStore(t *testing.T) {

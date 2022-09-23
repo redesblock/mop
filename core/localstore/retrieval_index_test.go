@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // BenchmarkRetrievalIndexes uploads a number of chunks in order to measure

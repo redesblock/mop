@@ -30,9 +30,9 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/redesblock/hop/core/postage"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/postage"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // DefaultDepth is the initial depth for the reserve

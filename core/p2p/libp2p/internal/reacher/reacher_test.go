@@ -7,10 +7,10 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/libp2p/internal/reacher"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/swarm/test"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/libp2p/internal/reacher"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/swarm/test"
 	"go.uber.org/atomic"
 )
 

@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/redesblock/hop/core/pullsync/pullstorage"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/pullsync/pullstorage"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var _ pullstorage.Storer = (*PullStorage)(nil)

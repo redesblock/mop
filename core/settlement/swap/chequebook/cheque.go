@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/crypto/eip712"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/crypto/eip712"
 )
 
 // Cheque represents a cheque for a SimpleSwap chequebook

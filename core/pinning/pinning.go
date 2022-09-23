@@ -7,9 +7,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/traversal"
 )
 
 // ErrTraversal signals that errors occurred during nodes traversal.

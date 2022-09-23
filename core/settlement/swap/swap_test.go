@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/settlement/swap"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	mockchequebook "github.com/redesblock/hop/core/settlement/swap/chequebook/mock"
-	mockchequestore "github.com/redesblock/hop/core/settlement/swap/chequestore/mock"
-	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
-	mockstore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/settlement/swap"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	mockchequebook "github.com/redesblock/mop/core/settlement/swap/chequebook/mock"
+	mockchequestore "github.com/redesblock/mop/core/settlement/swap/chequestore/mock"
+	"github.com/redesblock/mop/core/settlement/swap/swapprotocol"
+	mockstore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type swapProtocolMock struct {

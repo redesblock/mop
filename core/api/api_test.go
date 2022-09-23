@@ -15,28 +15,28 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/redesblock/hop/core/api"
-	mockauth "github.com/redesblock/hop/core/auth/mock"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/feeds"
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	"github.com/redesblock/hop/core/jsonhttp/jsonhttptest"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/pinning"
-	"github.com/redesblock/hop/core/postage"
-	mockpost "github.com/redesblock/hop/core/postage/mock"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	"github.com/redesblock/hop/core/pss"
-	"github.com/redesblock/hop/core/resolver"
-	resolverMock "github.com/redesblock/hop/core/resolver/mock"
-	statestore "github.com/redesblock/hop/core/statestore/mock"
-	"github.com/redesblock/hop/core/steward"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/tags"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/api"
+	mockauth "github.com/redesblock/mop/core/auth/mock"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/pinning"
+	"github.com/redesblock/mop/core/postage"
+	mockpost "github.com/redesblock/mop/core/postage/mock"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	"github.com/redesblock/mop/core/pss"
+	"github.com/redesblock/mop/core/resolver"
+	resolverMock "github.com/redesblock/mop/core/resolver/mock"
+	statestore "github.com/redesblock/mop/core/statestore/mock"
+	"github.com/redesblock/mop/core/steward"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/traversal"
 	"resenje.org/web"
 )
 
@@ -160,7 +160,7 @@ func pipelineFactory(s storage.Putter, mode storage.ModePut, encrypt bool) func(
 }
 
 func TestParseName(t *testing.T) {
-	const hopHash = "89c17d0d8018a19057314aa035e61c9d23c47581a61dd3a79a7839692c617e4d"
+	const mopHash = "89c17d0d8018a19057314aa035e61c9d23c47581a61dd3a79a7839692c617e4d"
 	log := logging.New(io.Discard, 0)
 
 	testCases := []struct {
@@ -177,15 +177,15 @@ func TestParseName(t *testing.T) {
 			wantErr: api.ErrInvalidNameOrAddress,
 		},
 		{
-			desc:    "hop hash",
-			name:    hopHash,
-			wantAdr: swarm.MustParseHexAddress(hopHash),
+			desc:    "mop hash",
+			name:    mopHash,
+			wantAdr: swarm.MustParseHexAddress(mopHash),
 		},
 		{
-			desc:       "no resolver connected with hop hash",
-			name:       hopHash,
+			desc:       "no resolver connected with mop hash",
+			name:       mopHash,
 			noResolver: true,
-			wantAdr:    swarm.MustParseHexAddress(hopHash),
+			wantAdr:    swarm.MustParseHexAddress(mopHash),
 		},
 		{
 			desc:       "no resolver connected with name",
@@ -289,7 +289,7 @@ func TestPostageHeaderError(t *testing.T) {
 		})
 
 		endpoints = []string{
-			"bytes", "hop", "chunks",
+			"bytes", "mop", "chunks",
 		}
 	)
 	content := []byte{7: 0} // 8 zeros

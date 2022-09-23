@@ -3,8 +3,8 @@ package mock
 import (
 	"context"
 
-	"github.com/redesblock/hop/core/pushsync"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/pushsync"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type mock struct {

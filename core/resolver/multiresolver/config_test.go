@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/resolver/multiresolver"
+	"github.com/redesblock/mop/core/resolver/multiresolver"
 )
 
 func TestParseConnectionStrings(t *testing.T) {

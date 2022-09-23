@@ -6,5 +6,5 @@ import "math/big"
 type ChainState struct {
 	Block        uint64   // The block number of the last postage event.
 	TotalAmount  *big.Int // Cumulative amount paid per stamp.
-	CurrentPrice *big.Int // Hop/chunk/block normalised price.
+	CurrentPrice *big.Int // mop/chunk/block normalised price.
 }

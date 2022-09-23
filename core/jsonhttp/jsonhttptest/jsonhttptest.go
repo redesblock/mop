@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/redesblock/hop/core/jsonhttp"
+	"github.com/redesblock/mop/core/jsonhttp"
 )
 
 // Request is a testing helper function that makes an HTTP request using

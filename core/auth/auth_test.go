@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/auth"
-	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/mop/core/auth"
+	"github.com/redesblock/mop/core/logging"
 )
 
 const (
@@ -89,7 +89,7 @@ func TestEnforce(t *testing.T) {
 		}, {
 			desc:     "success with query param",
 			role:     "creator",
-			resource: "/hop?name=some-name",
+			resource: "/mop?name=some-name",
 			action:   "POST",
 			expected: true,
 		},

@@ -10,13 +10,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/postage"
-	postagestoreMock "github.com/redesblock/hop/core/postage/batchstore/mock"
-	postageMock "github.com/redesblock/hop/core/postage/mock"
-	"github.com/redesblock/hop/core/postage/postagecontract"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/transaction"
-	transactionMock "github.com/redesblock/hop/core/transaction/mock"
+	"github.com/redesblock/mop/core/postage"
+	postagestoreMock "github.com/redesblock/mop/core/postage/batchstore/mock"
+	postageMock "github.com/redesblock/mop/core/postage/mock"
+	"github.com/redesblock/mop/core/postage/postagecontract"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/transaction"
+	transactionMock "github.com/redesblock/mop/core/transaction/mock"
 )
 
 func TestCreateBatch(t *testing.T) {
@@ -27,7 +27,7 @@ func TestCreateBatch(t *testing.T) {
 	owner := common.HexToAddress("abcd")
 	label := "label"
 	postageStampAddress := common.HexToAddress("ffff")
-	hopTokenAddress := common.HexToAddress("eeee")
+	mopTokenAddress := common.HexToAddress("eeee")
 	ctx := context.Background()
 	initialBalance := big.NewInt(100)
 
@@ -48,10 +48,10 @@ func TestCreateBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (txHash common.Hash, err error) {
-					if *request.To == hopTokenAddress {
+					if *request.To == mopTokenAddress {
 						return txHashApprove, nil
 					} else if *request.To == postageStampAddress {
 						if !bytes.Equal(expectedCallData[:100], request.Data[:100]) {
@@ -77,7 +77,7 @@ func TestCreateBatch(t *testing.T) {
 					return nil, errors.New("unknown tx hash")
 				}),
 				transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
-					if *request.To == hopTokenAddress {
+					if *request.To == mopTokenAddress {
 						return totalAmount.FillBytes(make([]byte, 32)), nil
 					}
 					return nil, errors.New("unexpected call")
@@ -112,7 +112,7 @@ func TestCreateBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
 			postagestoreMock.New(),
@@ -131,10 +131,10 @@ func TestCreateBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
-					if *request.To == hopTokenAddress {
+					if *request.To == mopTokenAddress {
 						return big.NewInt(0).Sub(totalAmount, big.NewInt(1)).FillBytes(make([]byte, 32)), nil
 					}
 					return nil, errors.New("unexpected call")
@@ -202,7 +202,7 @@ func TestTopUpBatch(t *testing.T) {
 	postagecontract.BucketDepth = 9
 	owner := common.HexToAddress("abcd")
 	postageStampAddress := common.HexToAddress("ffff")
-	hopTokenAddress := common.HexToAddress("eeee")
+	mopTokenAddress := common.HexToAddress("eeee")
 	ctx := context.Background()
 	topupBalance := big.NewInt(100)
 
@@ -234,10 +234,10 @@ func TestTopUpBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (txHash common.Hash, err error) {
-					if *request.To == hopTokenAddress {
+					if *request.To == mopTokenAddress {
 						return txHashApprove, nil
 					} else if *request.To == postageStampAddress {
 						if !bytes.Equal(expectedCallData[:64], request.Data[:64]) {
@@ -263,7 +263,7 @@ func TestTopUpBatch(t *testing.T) {
 					return nil, errors.New("unknown tx hash")
 				}),
 				transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
-					if *request.To == hopTokenAddress {
+					if *request.To == mopTokenAddress {
 						return totalAmount.FillBytes(make([]byte, 32)), nil
 					}
 					return nil, errors.New("unexpected call")
@@ -293,7 +293,7 @@ func TestTopUpBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
 			postagestoreMock.New(postagestoreMock.WithGetErr(errNotFound, 0)),
@@ -313,10 +313,10 @@ func TestTopUpBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
-					if *request.To == hopTokenAddress {
+					if *request.To == mopTokenAddress {
 						return big.NewInt(0).Sub(totalAmount, big.NewInt(1)).FillBytes(make([]byte, 32)), nil
 					}
 					return nil, errors.New("unexpected call")
@@ -356,7 +356,7 @@ func TestDiluteBatch(t *testing.T) {
 	postagecontract.BucketDepth = 9
 	owner := common.HexToAddress("abcd")
 	postageStampAddress := common.HexToAddress("ffff")
-	hopTokenAddress := common.HexToAddress("eeee")
+	mopTokenAddress := common.HexToAddress("eeee")
 	ctx := context.Background()
 
 	t.Run("ok", func(t *testing.T) {
@@ -387,7 +387,7 @@ func TestDiluteBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (txHash common.Hash, err error) {
 					if *request.To == postageStampAddress {
@@ -434,7 +434,7 @@ func TestDiluteBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
 			postagestoreMock.New(postagestoreMock.WithGetErr(errNotFound, 0)),
@@ -454,7 +454,7 @@ func TestDiluteBatch(t *testing.T) {
 		contract := postagecontract.New(
 			owner,
 			postageStampAddress,
-			hopTokenAddress,
+			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
 			batchStoreMock,

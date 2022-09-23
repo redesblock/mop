@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
 
-	"github.com/redesblock/hop/core/logging"
+	"github.com/redesblock/mop/core/logging"
 	"github.com/sirupsen/logrus"
 )
 

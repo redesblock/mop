@@ -4,9 +4,9 @@ import (
 	"errors"
 	"math"
 
-	"github.com/redesblock/hop/core/collection"
-	"github.com/redesblock/hop/core/encryption"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/collection"
+	"github.com/redesblock/mop/core/encryption"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

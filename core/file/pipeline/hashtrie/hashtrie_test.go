@@ -6,13 +6,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline"
-	"github.com/redesblock/hop/core/file/pipeline/bmt"
-	"github.com/redesblock/hop/core/file/pipeline/hashtrie"
-	"github.com/redesblock/hop/core/file/pipeline/store"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/bmt"
+	"github.com/redesblock/mop/core/file/pipeline/hashtrie"
+	"github.com/redesblock/mop/core/file/pipeline/store"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -160,7 +160,7 @@ func TestLevels_TrieFull(t *testing.T) {
 }
 
 // TestRegression is a regression test for the bug
-// described in https://github.com/redesblock/hop/issues/1175
+// described in https://github.com/redesblock/mop/issues/1175
 func TestRegression(t *testing.T) {
 	var (
 		branching = 128

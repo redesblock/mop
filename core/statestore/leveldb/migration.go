@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/storage"
 )
 
 var (

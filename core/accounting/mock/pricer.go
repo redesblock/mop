@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type MockPricer struct {

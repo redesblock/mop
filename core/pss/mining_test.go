@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/pss"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/pss"
 )
 
 func newTargets(length, depth int) pss.Targets {

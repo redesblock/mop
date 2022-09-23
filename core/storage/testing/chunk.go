@@ -4,10 +4,10 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/redesblock/hop/core/cac"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/swarm"
-	swarmtesting "github.com/redesblock/hop/core/swarm/test"
+	"github.com/redesblock/mop/core/cac"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/swarm"
+	swarmtesting "github.com/redesblock/mop/core/swarm/test"
 )
 
 var mockStamp swarm.Stamp

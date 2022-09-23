@@ -10,10 +10,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/redesblock/hop/core/chainsync"
-	"github.com/redesblock/hop/core/p2p/streamtest"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/transaction/backendmock"
+	"github.com/redesblock/mop/core/chainsync"
+	"github.com/redesblock/mop/core/p2p/streamtest"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/transaction/backendmock"
 )
 
 func TestProve(t *testing.T) {

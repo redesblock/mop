@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/redesblock/hop/core/manifest/mantaray"
+	"github.com/redesblock/mop/core/manifest/mantaray"
 )
 
 func TestPersistIdempotence(t *testing.T) {

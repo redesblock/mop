@@ -6,15 +6,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/jsonhttp"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/jsonhttp"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type addressesResponse struct {
 	Overlay      *swarm.Address        `json:"overlay"`
 	Underlay     []multiaddr.Multiaddr `json:"underlay"`
-	Ethereum     common.Address        `json:"ethereum"`
+	Ethereum     common.Address        `json:"bsc"`
 	PublicKey    string                `json:"publicKey"`
 	PSSPublicKey string                `json:"pssPublicKey"`
 }

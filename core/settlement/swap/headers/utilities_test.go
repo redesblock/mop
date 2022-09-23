@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/settlement/swap/headers"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/settlement/swap/headers"
 )
 
 func TestParseSettlementResponseHeaders(t *testing.T) {

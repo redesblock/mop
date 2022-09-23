@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/resolver"
-	"github.com/redesblock/hop/core/resolver/mock"
-	"github.com/redesblock/hop/core/resolver/multiresolver"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/resolver"
+	"github.com/redesblock/mop/core/resolver/mock"
+	"github.com/redesblock/mop/core/resolver/multiresolver"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type Address = swarm.Address

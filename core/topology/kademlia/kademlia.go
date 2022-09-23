@@ -13,18 +13,18 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/redesblock/hop/core/addressbook"
-	"github.com/redesblock/hop/core/blocker"
-	"github.com/redesblock/hop/core/discovery"
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/pingpong"
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
-	im "github.com/redesblock/hop/core/topology/kademlia/internal/metrics"
-	"github.com/redesblock/hop/core/topology/kademlia/internal/waitnext"
-	"github.com/redesblock/hop/core/topology/pslice"
+	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/blocker"
+	"github.com/redesblock/mop/core/discovery"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/pingpong"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
+	im "github.com/redesblock/mop/core/topology/kademlia/internal/metrics"
+	"github.com/redesblock/mop/core/topology/kademlia/internal/waitnext"
+	"github.com/redesblock/mop/core/topology/pslice"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -341,7 +341,7 @@ func (k *Kad) connectNeighbours(wg *sync.WaitGroup, peerConnChan chan<- *peerCon
 // to peers sent by the producers to the peerConnChan.
 func (k *Kad) connectionAttemptsHandler(ctx context.Context, wg *sync.WaitGroup, neighbourhoodChan, balanceChan <-chan *peerConnInfo) {
 	connect := func(peer *peerConnInfo) {
-		hopAddr, err := k.addressBook.Get(peer.addr)
+		mopAddr, err := k.addressBook.Get(peer.addr)
 		switch {
 		case errors.Is(err, addressbook.ErrNotFound):
 			k.logger.Debugf("kademlia: empty address book entry for peer %q", peer.addr)
@@ -360,17 +360,17 @@ func (k *Kad) connectionAttemptsHandler(ctx context.Context, wg *sync.WaitGroup,
 			}
 		}
 
-		switch err = k.connect(ctx, peer.addr, hopAddr.Underlay); {
+		switch err = k.connect(ctx, peer.addr, mopAddr.Underlay); {
 		case errors.Is(err, errPruneEntry):
-			k.logger.Debugf("kademlia: dial to light node with overlay %q and underlay %q", peer.addr, hopAddr.Underlay)
+			k.logger.Debugf("kademlia: dial to light node with overlay %q and underlay %q", peer.addr, mopAddr.Underlay)
 			remove(peer)
 			return
 		case errors.Is(err, errOverlayMismatch):
-			k.logger.Debugf("kademlia: overlay mismatch has occurred to an overlay %q with underlay %q", peer.addr, hopAddr.Underlay)
+			k.logger.Debugf("kademlia: overlay mismatch has occurred to an overlay %q with underlay %q", peer.addr, mopAddr.Underlay)
 			remove(peer)
 			return
 		case err != nil:
-			k.logger.Debugf("kademlia: peer not reachable from kademlia %q: %v", hopAddr, err)
+			k.logger.Debugf("kademlia: peer not reachable from kademlia %q: %v", mopAddr, err)
 			k.logger.Warningf("peer not reachable when attempting to connect")
 			return
 		}
@@ -761,7 +761,7 @@ func (k *Kad) connectBootNodes(ctx context.Context) {
 			if attempts >= maxBootNodeAttempts {
 				return true, nil
 			}
-			hopAddress, err := k.p2p.Connect(ctx, addr)
+			mopAddress, err := k.p2p.Connect(ctx, addr)
 
 			attempts++
 			k.metrics.TotalBootNodesConnectionAttempts.Inc()
@@ -776,12 +776,12 @@ func (k *Kad) connectBootNodes(ctx context.Context) {
 				return false, nil
 			}
 
-			if err := k.onConnected(ctx, hopAddress.Overlay); err != nil {
+			if err := k.onConnected(ctx, mopAddress.Overlay); err != nil {
 				return false, err
 			}
 
 			k.metrics.TotalOutboundConnections.Inc()
-			k.collector.Record(hopAddress.Overlay, im.PeerLogIn(time.Now(), im.PeerConnectionDirectionOutbound))
+			k.collector.Record(mopAddress.Overlay, im.PeerLogIn(time.Now(), im.PeerConnectionDirectionOutbound))
 			k.logger.Tracef("connected to bootnode %s", addr)
 			connected++
 

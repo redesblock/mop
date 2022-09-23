@@ -6,10 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/redesblock/hop/core/settlement/swap"
-	"github.com/redesblock/hop/core/settlement/swap/chequebook"
-	"github.com/redesblock/hop/core/settlement/swap/swapprotocol"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/settlement/swap"
+	"github.com/redesblock/mop/core/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/settlement/swap/swapprotocol"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 type Service struct {

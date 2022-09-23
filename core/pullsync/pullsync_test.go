@@ -6,14 +6,14 @@ import (
 	"io"
 	"testing"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/p2p/streamtest"
-	postagetesting "github.com/redesblock/hop/core/postage/testing"
-	"github.com/redesblock/hop/core/pullsync"
-	"github.com/redesblock/hop/core/pullsync/pullstorage/mock"
-	testingc "github.com/redesblock/hop/core/storage/testing"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/streamtest"
+	postagetesting "github.com/redesblock/mop/core/postage/testing"
+	"github.com/redesblock/mop/core/pullsync"
+	"github.com/redesblock/mop/core/pullsync/pullstorage/mock"
+	testingc "github.com/redesblock/mop/core/storage/testing"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (

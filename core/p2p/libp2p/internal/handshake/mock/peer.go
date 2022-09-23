@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/redesblock/hop/core/swarm"
+import "github.com/redesblock/mop/core/swarm"
 
 // todo: implement peer registry mocks, export appropriate interface and move those in libp2p so it can be used in handshake
 type PeerFinder struct {

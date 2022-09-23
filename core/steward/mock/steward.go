@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 // Steward represents steward.Interface mock.

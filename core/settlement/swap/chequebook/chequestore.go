@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redesblock/hop/core/crypto"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/transaction"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/transaction"
 )
 
 const (

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/shed"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology/kademlia/internal/metrics"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/shed"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology/kademlia/internal/metrics"
 )
 
 func snapshot(t *testing.T, mc *metrics.Collector, sst time.Time, addr swarm.Address) *metrics.Snapshot {

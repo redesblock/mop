@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redesblock/hop/core/logging"
-	"github.com/redesblock/hop/core/p2p"
-	"github.com/redesblock/hop/core/pricing"
-	"github.com/redesblock/hop/core/settlement/pseudosettle"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/swarm"
+	"github.com/redesblock/mop/core/logging"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/pricing"
+	"github.com/redesblock/mop/core/settlement/pseudosettle"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -102,7 +102,7 @@ type Accounting struct {
 	accountingPeers   map[string]*accountingPeer
 	logger            logging.Logger
 	store             storage.StateStorer
-	// The payment threshold in HOP we communicate to our peers.
+	// The payment threshold in MOP we communicate to our peers.
 	paymentThreshold *big.Int
 	// The amount in percent we let peers exceed the payment threshold before we
 	// disconnect them.

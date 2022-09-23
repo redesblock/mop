@@ -7,15 +7,15 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/redesblock/hop/core/file/pipeline/builder"
-	"github.com/redesblock/hop/core/pushsync"
-	psmock "github.com/redesblock/hop/core/pushsync/mock"
-	"github.com/redesblock/hop/core/steward"
-	"github.com/redesblock/hop/core/storage"
-	"github.com/redesblock/hop/core/storage/mock"
-	"github.com/redesblock/hop/core/swarm"
-	"github.com/redesblock/hop/core/topology"
-	"github.com/redesblock/hop/core/traversal"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/pushsync"
+	psmock "github.com/redesblock/mop/core/pushsync/mock"
+	"github.com/redesblock/mop/core/steward"
+	"github.com/redesblock/mop/core/storage"
+	"github.com/redesblock/mop/core/storage/mock"
+	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/topology"
+	"github.com/redesblock/mop/core/traversal"
 )
 
 func TestSteward(t *testing.T) {

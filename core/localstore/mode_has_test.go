@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/hop/core/storage"
+	"github.com/redesblock/mop/core/storage"
 )
 
 // TestHas validates that Has method is returning true for
