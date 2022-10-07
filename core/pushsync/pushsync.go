@@ -81,7 +81,7 @@ type PushSync struct {
 	pricer          pricer.Interface
 	metrics         metrics
 	tracer          *tracing.Tracer
-	validStamp      postage.ValidStampFn
+	validVouch      postage.ValidVouchFn
 	signer          crypto.Signer
 	isFullNode      bool
 	warmupPeriod    time.Time
@@ -97,7 +97,7 @@ type receiptResult struct {
 	err       error
 }
 
-func New(networkID uint64, address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
+func New(networkID uint64, address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validVouch postage.ValidVouchFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
 	ps := &PushSync{
 		networkID:       networkID,
 		address:         address,
@@ -113,7 +113,7 @@ func New(networkID uint64, address swarm.Address, blockHash []byte, streamer p2p
 		pricer:          pricer,
 		metrics:         newMetrics(),
 		tracer:          tracer,
-		validStamp:      validStamp,
+		validVouch:      validVouch,
 		signer:          signer,
 		skipList:        newPeerSkipList(),
 		warmupPeriod:    time.Now().Add(warmupTime),
@@ -164,13 +164,13 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 	span, _, ctx := ps.tracer.StartSpanFromContext(ctx, "pushsync-handler", ps.logger, opentracing.Tag{Key: "address", Value: chunkAddress.String()})
 	defer span.Finish()
 
-	stamp := new(postage.Stamp)
-	// attaching the stamp is required becase pushToClosest expects a chunk with a stamp
-	err = stamp.UnmarshalBinary(ch.Stamp)
+	vouch := new(postage.Vouch)
+	// attaching the vouch is required becase pushToClosest expects a chunk with a vouch
+	err = vouch.UnmarshalBinary(ch.Vouch)
 	if err != nil {
-		return fmt.Errorf("pushsync stamp unmarshall: %w", err)
+		return fmt.Errorf("pushsync vouch unmarshall: %w", err)
 	}
-	chunk.WithStamp(stamp)
+	chunk.WithVouch(vouch)
 
 	if cac.Valid(chunk) {
 		if ps.unwrap != nil {
@@ -203,11 +203,11 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 				}
 			}
 
-			chunk, err = ps.validStamp(chunk, ch.Stamp)
+			chunk, err = ps.validVouch(chunk, ch.Vouch)
 			if err != nil {
-				ps.metrics.InvalidStampErrors.Inc()
+				ps.metrics.InvalidVouchErrors.Inc()
 				ps.metrics.HandlerReplicationErrors.Inc()
-				return fmt.Errorf("pushsync replication valid stamp: %w", err)
+				return fmt.Errorf("pushsync replication valid vouch: %w", err)
 			}
 
 			_, err = ps.storer.Put(ctxd, storage.ModePutSync, chunk)
@@ -252,10 +252,10 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 	defer func() {
 		if !storedChunk {
 			if ps.warmedUp() && ps.topologyDriver.IsWithinDepth(chunkAddress) {
-				verifiedChunk, err := ps.validStamp(chunk, ch.Stamp)
+				verifiedChunk, err := ps.validVouch(chunk, ch.Vouch)
 				if err != nil {
-					ps.metrics.InvalidStampErrors.Inc()
-					ps.logger.Warningf("pushsync: forwarder, invalid stamp for chunk %s", chunkAddress.String())
+					ps.metrics.InvalidVouchErrors.Inc()
+					ps.logger.Warningf("pushsync: forwarder, invalid vouch for chunk %s", chunkAddress.String())
 				} else {
 					chunk = verifiedChunk
 					_, err = ps.storer.Put(ctx, storage.ModePutSync, chunk)
@@ -271,10 +271,10 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 	if err != nil {
 		if errors.Is(err, topology.ErrWantSelf) {
 			ps.metrics.Storer.Inc()
-			chunk, err = ps.validStamp(chunk, ch.Stamp)
+			chunk, err = ps.validVouch(chunk, ch.Vouch)
 			if err != nil {
-				ps.metrics.InvalidStampErrors.Inc()
-				return fmt.Errorf("pushsync storer valid stamp: %w", err)
+				ps.metrics.InvalidVouchErrors.Inc()
+				return fmt.Errorf("pushsync storer valid vouch: %w", err)
 			}
 
 			_, err = ps.storer.Put(ctx, storage.ModePutSync, chunk)
@@ -514,7 +514,7 @@ func (ps *PushSync) pushPeer(ctx context.Context, resultChan chan<- receiptResul
 	}
 	defer creditAction.Cleanup()
 
-	stamp, err := ch.Stamp().MarshalBinary()
+	vouch, err := ch.Vouch().MarshalBinary()
 	if err != nil {
 		return
 	}
@@ -530,7 +530,7 @@ func (ps *PushSync) pushPeer(ctx context.Context, resultChan chan<- receiptResul
 	err = w.WriteMsgWithContext(ctx, &pb.Delivery{
 		Address: ch.Address().Bytes(),
 		Data:    ch.Data(),
-		Stamp:   stamp,
+		Vouch:   vouch,
 	})
 	if err != nil {
 		_ = streamer.Reset()
@@ -648,14 +648,14 @@ func (ps *PushSync) pushToNeighbour(ctx context.Context, peer swarm.Address, ch 
 	}()
 
 	w, r := protobuf.NewWriterAndReader(streamer)
-	stamp, err := ch.Stamp().MarshalBinary()
+	vouch, err := ch.Vouch().MarshalBinary()
 	if err != nil {
 		return
 	}
 	err = w.WriteMsgWithContext(ctx, &pb.Delivery{
 		Address: ch.Address().Bytes(),
 		Data:    ch.Data(),
-		Stamp:   stamp,
+		Vouch:   vouch,
 	})
 	if err != nil {
 		return

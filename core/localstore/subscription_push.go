@@ -82,9 +82,9 @@ func (db *DB) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-c
 						return true, err
 					}
 
-					stamp := postage.NewStamp(dataItem.BatchID, dataItem.Index, dataItem.Timestamp, dataItem.Sig)
+					vouch := postage.NewVouch(dataItem.BatchID, dataItem.Index, dataItem.Timestamp, dataItem.Sig)
 					select {
-					case chunks <- swarm.NewChunk(swarm.NewAddress(dataItem.Address), dataItem.Data).WithTagID(item.Tag).WithStamp(stamp):
+					case chunks <- swarm.NewChunk(swarm.NewAddress(dataItem.Address), dataItem.Data).WithTagID(item.Tag).WithVouch(vouch):
 						count++
 						// set next iteration start item
 						// when its chunk is successfully sent to channel

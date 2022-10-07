@@ -74,6 +74,7 @@ func setupBatchStore(t *testing.T) (postage.Storer, map[string]uint8) {
 // hook is called with the correct batch IDs and correct
 // Radius as a result of batches coming in from chain events.
 // All tests share the same initial state:
+//
 //		▲ mop/chunk
 //		│
 //	6	├──┐
@@ -82,7 +83,6 @@ func setupBatchStore(t *testing.T) (postage.Storer, map[string]uint8) {
 //	3	│  │  │  ├──┐---inner, outer
 //		│  │  │  │  │
 //		└──┴──┴──┴──┴───────> time
-//
 func TestBatchStore_Unreserve(t *testing.T) {
 	defer func(i int64, d uint8) {
 		batchstore.Capacity = i
@@ -326,6 +326,7 @@ func TestBatchStore_Unreserve(t *testing.T) {
 // hook is called with the correct batch IDs and correct
 // Radius as a result of batches being topped up.
 // All tests share the same initial state:
+//
 //		▲ mop/chunk
 //		│
 //	6	├──┐
@@ -334,7 +335,6 @@ func TestBatchStore_Unreserve(t *testing.T) {
 //	3	│  │  │  ├──┐
 //	2	│  │  │  │  ├──┐---inner, outer
 //		└──┴──┴──┴──┴──┴─────> time
-//
 func TestBatchStore_Topup(t *testing.T) {
 	defer func(i int64, d uint8) {
 		batchstore.Capacity = i
@@ -443,6 +443,7 @@ func TestBatchStore_Topup(t *testing.T) {
 // hook is called with the correct batch IDs and correct
 // Radius as a result of batches being diluted.
 // All tests share the same initial state:
+//
 //		▲ mop/chunk
 //		│
 //	6	├──┐
@@ -451,7 +452,6 @@ func TestBatchStore_Topup(t *testing.T) {
 //	3	│  │  │  ├──┐
 //	2	│  │  │  │  ├──┐---inner, outer
 //		└──┴──┴──┴──┴──┴─────> time
-//
 func TestBatchStore_Dilution(t *testing.T) {
 	defer func(i int64, d uint8) {
 		batchstore.Capacity = i

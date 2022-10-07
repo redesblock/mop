@@ -119,7 +119,7 @@ func TestValid(t *testing.T) {
 	}
 }
 
-/// TestInvalid checks whether a chunk is not a valid content-addressed chunk
+// / TestInvalid checks whether a chunk is not a valid content-addressed chunk
 func TestInvalid(t *testing.T) {
 	// Generates a chunk with the given data. No validation is performed here,
 	// the chunks are create as it is.

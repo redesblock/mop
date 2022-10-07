@@ -60,7 +60,7 @@ const (
 	optionNameBlockHash                  = "block-hash"
 	optionNameSwapDeploymentGasPrice     = "swap-deployment-gas-price"
 	optionNameFullNode                   = "full-node"
-	optionNamePostageContractAddress     = "postage-stamp-address"
+	optionNamePostageContractAddress     = "postage-vouch-address"
 	optionNamePriceOracleAddress         = "price-oracle-address"
 	optionNamePledgeAddress              = "pledge-address"
 	optionNameRewardAddress              = "reward-address"
@@ -134,15 +134,15 @@ func newCommand(opts ...option) (c *command, err error) {
 		return nil, err
 	}
 
-	if err := c.initBuyStampCmd(); err != nil {
+	if err := c.initBuyVouchCmd(); err != nil {
 		return nil, err
 	}
 
-	if err := c.initListStampCmd(); err != nil {
+	if err := c.initListVouchCmd(); err != nil {
 		return nil, err
 	}
 
-	if err := c.initShowStampCmd(); err != nil {
+	if err := c.initShowVouchCmd(); err != nil {
 		return nil, err
 	}
 
@@ -271,7 +271,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameSwapInitialDeposit, "10000000000000000", "initial deposit if deploying a new chequebook")
 	cmd.Flags().Bool(optionNameSwapEnable, true, "enable swap")
 	cmd.Flags().Bool(optionNameFullNode, false, "cause the node to start in full mode")
-	cmd.Flags().String(optionNamePostageContractAddress, "", "postage stamp contract address")
+	cmd.Flags().String(optionNamePostageContractAddress, "", "postage vouch contract address")
 	cmd.Flags().String(optionNamePriceOracleAddress, "", "price oracle contract address")
 	cmd.Flags().String(optionNamePledgeAddress, "", "pledge contract address")
 	cmd.Flags().String(optionNameRewardAddress, "", "reward contract address")

@@ -13,7 +13,8 @@ var _ feeds.Lookup = (*finder)(nil)
 var _ feeds.Lookup = (*asyncFinder)(nil)
 
 // finder encapsulates a chunk store getter and a feed and provides
-//  non-concurrent lookup methods
+//
+//	non-concurrent lookup methods
 type finder struct {
 	getter *feeds.Getter
 }
@@ -98,7 +99,8 @@ type result struct {
 }
 
 // asyncFinder encapsulates a chunk store getter and a feed and provides
-//  non-concurrent lookup methods
+//
+//	non-concurrent lookup methods
 type asyncFinder struct {
 	getter *feeds.Getter
 }

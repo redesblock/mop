@@ -66,7 +66,7 @@ type Syncer struct {
 	quit       chan struct{}
 	wg         sync.WaitGroup
 	unwrap     func(swarm.Chunk)
-	validStamp postage.ValidStampFn
+	validVouch postage.ValidVouchFn
 
 	ruidMtx sync.Mutex
 	ruidCtx map[string]map[uint32]func()
@@ -75,13 +75,13 @@ type Syncer struct {
 	io.Closer
 }
 
-func New(streamer p2p.Streamer, storage pullstorage.Storer, unwrap func(swarm.Chunk), validStamp postage.ValidStampFn, logger logging.Logger) *Syncer {
+func New(streamer p2p.Streamer, storage pullstorage.Storer, unwrap func(swarm.Chunk), validVouch postage.ValidVouchFn, logger logging.Logger) *Syncer {
 	return &Syncer{
 		streamer:   streamer,
 		storage:    storage,
 		metrics:    newMetrics(),
 		unwrap:     unwrap,
-		validStamp: validStamp,
+		validVouch: validVouch,
 		logger:     logger,
 		ruidCtx:    make(map[string]map[uint32]func()),
 		wg:         sync.WaitGroup{},
@@ -232,8 +232,8 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 		s.metrics.Delivered.Inc()
 
 		chunk := swarm.NewChunk(addr, delivery.Data)
-		if chunk, err = s.validStamp(chunk, delivery.Stamp); err != nil {
-			s.logger.Debugf("pullsync: unverified stamp: %v", err)
+		if chunk, err = s.validVouch(chunk, delivery.Vouch); err != nil {
+			s.logger.Debugf("pullsync: unverified vouch: %v", err)
 			continue
 		}
 
@@ -356,11 +356,11 @@ func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (er
 	}
 
 	for _, v := range chs {
-		stamp, err := v.Stamp().MarshalBinary()
+		vouch, err := v.Vouch().MarshalBinary()
 		if err != nil {
-			return fmt.Errorf("serialise stamp: %w", err)
+			return fmt.Errorf("serialise vouch: %w", err)
 		}
-		deliver := pb.Delivery{Address: v.Address().Bytes(), Data: v.Data(), Stamp: stamp}
+		deliver := pb.Delivery{Address: v.Address().Bytes(), Data: v.Data(), Vouch: vouch}
 		if err := w.WriteMsgWithContext(ctx, &deliver); err != nil {
 			return fmt.Errorf("write delivery: %w", err)
 		}

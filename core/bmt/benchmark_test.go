@@ -10,7 +10,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-//
 func BenchmarkBMT(t *testing.B) {
 	for size := 4096; size >= 128; size /= 2 {
 		t.Run(fmt.Sprintf("%v_size_%v", "SHA3", size), func(t *testing.B) {

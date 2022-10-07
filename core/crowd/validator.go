@@ -1,4 +1,4 @@
-package swarm
+package crowd
 
 type Validator interface {
 	Validate(ch Chunk) (valid bool)

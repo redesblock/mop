@@ -1,6 +1,6 @@
 package abi
 
-const PostageStampABI = `[
+const PostageVouchABI = `[
 	{
 		"inputs": [
 			{

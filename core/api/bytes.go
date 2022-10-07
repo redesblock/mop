@@ -31,7 +31,7 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	putter, err := newStamperPutter(s.storer, s.post, s.signer, batch)
+	putter, err := newVoucherPutter(s.storer, s.post, s.signer, batch)
 	if err != nil {
 		logger.Debugf("bytes upload: get putter:%v", err)
 		logger.Error("bytes upload: putter")

@@ -1,11 +1,11 @@
-package swarm
+package crowd
 
 import (
 	"errors"
 	"math/big"
 )
 
-// Distance returns the distance between address x and address y as a (comparable) big integer using the distance metric defined in the swarm specification.
+// Distance returns the distance between address x and address y as a (comparable) big integer using the distance metric defined in the crowd specification.
 // Fails if not all addresses are of equal length.
 func Distance(x, y []byte) (*big.Int, error) {
 	distanceBytes, err := DistanceRaw(x, y)
@@ -17,7 +17,7 @@ func Distance(x, y []byte) (*big.Int, error) {
 	return r, nil
 }
 
-// DistanceRaw returns the distance between address x and address y in big-endian binary format using the distance metric defined in the swarm specification.
+// DistanceRaw returns the distance between address x and address y in big-endian binary format using the distance metric defined in the crowd specification.
 // Fails if not all addresses are of equal length.
 func DistanceRaw(x, y []byte) ([]byte, error) {
 	if len(x) != len(y) {
@@ -30,11 +30,13 @@ func DistanceRaw(x, y []byte) ([]byte, error) {
 	return c, nil
 }
 
-// DistanceCmp compares x and y to a in terms of the distance metric defined in the swarm specification.
+// DistanceCmp compares x and y to a in terms of the distance metric defined in the crowd specification.
 // it returns:
-// 	1 if x is closer to a than y
-// 	0 if x and y are equally far apart from a (this means that x and y are the same address)
-// 	-1 if x is farther from a than y
+//
+//	1 if x is closer to a than y
+//	0 if x and y are equally far apart from a (this means that x and y are the same address)
+//	-1 if x is farther from a than y
+//
 // Fails if not all addresses are of equal length.
 func DistanceCmp(a, x, y []byte) (int, error) {
 	if len(a) != len(x) || len(a) != len(y) {

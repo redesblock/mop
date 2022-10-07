@@ -14,26 +14,26 @@ var (
 	ErrBucketFull = errors.New("bucket full")
 )
 
-// Stamper can issue stamps from the given address.
-type Stamper interface {
-	Stamp(swarm.Address) (*Stamp, error)
+// Voucher can issue vouches from the given address.
+type Voucher interface {
+	Vouch(swarm.Address) (*Vouch, error)
 }
 
-// stamper connects a stampissuer with a signer.
-// A stamper is created for each upload session.
-type stamper struct {
-	issuer *StampIssuer
+// voucher connects a vouchIssuer with a signer.
+// A voucher is created for each upload session.
+type voucher struct {
+	issuer *VouchIssuer
 	signer crypto.Signer
 }
 
-// NewStamper constructs a Stamper.
-func NewStamper(st *StampIssuer, signer crypto.Signer) Stamper {
-	return &stamper{st, signer}
+// NewVoucher constructs a Voucher.
+func NewVoucher(st *VouchIssuer, signer crypto.Signer) Voucher {
+	return &voucher{st, signer}
 }
 
-// Stamp takes chunk, see if the chunk can included in the batch and
-// signs it with the owner of the batch of this Stamp issuer.
-func (st *stamper) Stamp(addr swarm.Address) (*Stamp, error) {
+// Vouch takes chunk, see if the chunk can included in the batch and
+// signs it with the owner of the batch of this Vouch issuer.
+func (st *voucher) Vouch(addr swarm.Address) (*Vouch, error) {
 	index, err := st.issuer.inc(addr)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (st *stamper) Stamp(addr swarm.Address) (*Stamp, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewStamp(st.issuer.data.BatchID, index, ts, sig), nil
+	return NewVouch(st.issuer.data.BatchID, index, ts, sig), nil
 }
 
 func timestamp() []byte {

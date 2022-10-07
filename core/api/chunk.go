@@ -50,7 +50,7 @@ func (s *server) processUploadRequest(
 		return nil, nil, nil, errors.New("invalid postage batch id")
 	}
 
-	putter, err = newStamperPutter(s.storer, s.post, s.signer, batch)
+	putter, err = newVoucherPutter(s.storer, s.post, s.signer, batch)
 	if err != nil {
 		s.logger.Debugf("chunk upload: putter: %v", err)
 		s.logger.Error("chunk upload: putter")

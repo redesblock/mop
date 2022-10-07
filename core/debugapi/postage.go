@@ -103,7 +103,7 @@ func (s *Service) postageCreateHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type postageStampResponse struct {
+type postageVouchResponse struct {
 	BatchID       batchID        `json:"batchID"`
 	Utilization   uint32         `json:"utilization"`
 	Usable        bool           `json:"usable"`
@@ -117,11 +117,11 @@ type postageStampResponse struct {
 	BatchTTL      int64          `json:"batchTTL"`
 }
 
-type postageStampsResponse struct {
-	Stamps []postageStampResponse `json:"stamps"`
+type postageVouchsResponse struct {
+	Vouchs []postageVouchResponse `json:"vouches"`
 }
 
-type postageStampBucketsResponse struct {
+type postageVouchBucketsResponse struct {
 	Depth            uint8        `json:"depth"`
 	BucketDepth      uint8        `json:"bucketDepth"`
 	BucketUpperBound uint32       `json:"bucketUpperBound"`
@@ -133,24 +133,24 @@ type bucketData struct {
 	Collisions uint32 `json:"collisions"`
 }
 
-func (s *Service) postageGetStampsHandler(w http.ResponseWriter, _ *http.Request) {
-	resp := postageStampsResponse{}
-	for _, v := range s.post.StampIssuers() {
+func (s *Service) postageGetVouchsHandler(w http.ResponseWriter, _ *http.Request) {
+	resp := postageVouchsResponse{}
+	for _, v := range s.post.VouchIssuers() {
 		exists, err := s.batchStore.Exists(v.ID())
 		if err != nil {
-			s.logger.Debugf("get stamp issuer: check batch: %v", err)
-			s.logger.Error("get stamp issuer: check batch")
+			s.logger.Debugf("get vouch issuer: check batch: %v", err)
+			s.logger.Error("get vouch issuer: check batch")
 			jsonhttp.InternalServerError(w, "unable to check batch")
 			return
 		}
 		batchTTL, err := s.estimateBatchTTL(v.ID())
 		if err != nil {
-			s.logger.Debugf("get stamp issuer: estimate batch expiration: %v", err)
-			s.logger.Error("get stamp issuer: estimate batch expiration")
+			s.logger.Debugf("get vouch issuer: estimate batch expiration: %v", err)
+			s.logger.Error("get vouch issuer: estimate batch expiration")
 			jsonhttp.InternalServerError(w, "unable to estimate batch expiration")
 			return
 		}
-		resp.Stamps = append(resp.Stamps, postageStampResponse{
+		resp.Vouchs = append(resp.Vouchs, postageVouchResponse{
 			BatchID:       v.ID(),
 			Utilization:   v.Utilization(),
 			Usable:        exists && s.post.IssuerUsable(v),
@@ -167,31 +167,31 @@ func (s *Service) postageGetStampsHandler(w http.ResponseWriter, _ *http.Request
 	jsonhttp.OK(w, resp)
 }
 
-func (s *Service) postageGetStampBucketsHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Service) postageGetVouchBucketsHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	if len(idStr) != 64 {
-		s.logger.Error("get stamp issuer: invalid batchID")
+		s.logger.Error("get vouch issuer: invalid batchID")
 		jsonhttp.BadRequest(w, "invalid batchID")
 		return
 	}
 	id, err := hex.DecodeString(idStr)
 	if err != nil {
-		s.logger.Debugf("get stamp issuer: invalid batchID: %v", err)
-		s.logger.Error("get stamp issuer: invalid batchID")
+		s.logger.Debugf("get vouch issuer: invalid batchID: %v", err)
+		s.logger.Error("get vouch issuer: invalid batchID")
 		jsonhttp.BadRequest(w, "invalid batchID")
 		return
 	}
 
-	issuer, err := s.post.GetStampIssuer(id)
+	issuer, err := s.post.GetVouchIssuer(id)
 	if err != nil {
-		s.logger.Debugf("get stamp issuer: get issuer: %v", err)
-		s.logger.Error("get stamp issuer: get issuer")
+		s.logger.Debugf("get vouch issuer: get issuer: %v", err)
+		s.logger.Error("get vouch issuer: get issuer")
 		jsonhttp.BadRequest(w, "cannot get batch")
 		return
 	}
 
 	b := issuer.Buckets()
-	resp := postageStampBucketsResponse{
+	resp := postageVouchBucketsResponse{
 		Depth:            issuer.Depth(),
 		BucketDepth:      issuer.BucketDepth(),
 		BucketUpperBound: issuer.BucketUpperBound(),
@@ -205,45 +205,45 @@ func (s *Service) postageGetStampBucketsHandler(w http.ResponseWriter, r *http.R
 	jsonhttp.OK(w, resp)
 }
 
-func (s *Service) postageGetStampHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Service) postageGetVouchHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
 	if len(idStr) != 64 {
-		s.logger.Error("get stamp issuer: invalid batchID")
+		s.logger.Error("get vouch issuer: invalid batchID")
 		jsonhttp.BadRequest(w, "invalid batchID")
 		return
 	}
 	id, err := hex.DecodeString(idStr)
 	if err != nil {
-		s.logger.Debugf("get stamp issuer: invalid batchID: %v", err)
-		s.logger.Error("get stamp issuer: invalid batchID")
+		s.logger.Debugf("get vouch issuer: invalid batchID: %v", err)
+		s.logger.Error("get vouch issuer: invalid batchID")
 		jsonhttp.BadRequest(w, "invalid batchID")
 		return
 	}
 
-	issuer, err := s.post.GetStampIssuer(id)
+	issuer, err := s.post.GetVouchIssuer(id)
 	if err != nil && !errors.Is(err, postage.ErrNotUsable) {
-		s.logger.Debugf("get stamp issuer: get issuer: %v", err)
-		s.logger.Error("get stamp issuer: get issuer")
+		s.logger.Debugf("get vouch issuer: get issuer: %v", err)
+		s.logger.Error("get vouch issuer: get issuer")
 		jsonhttp.BadRequest(w, "cannot get issuer")
 		return
 	}
 
 	exists, err := s.batchStore.Exists(id)
 	if err != nil {
-		s.logger.Debugf("get stamp issuer: check batch: %v", err)
-		s.logger.Error("get stamp issuer: check batch")
+		s.logger.Debugf("get vouch issuer: check batch: %v", err)
+		s.logger.Error("get vouch issuer: check batch")
 		jsonhttp.InternalServerError(w, "unable to check batch")
 		return
 	}
 	batchTTL, err := s.estimateBatchTTL(id)
 	if err != nil {
-		s.logger.Debugf("get stamp issuer: estimate batch expiration: %v", err)
-		s.logger.Error("get stamp issuer: estimate batch expiration")
+		s.logger.Debugf("get vouch issuer: estimate batch expiration: %v", err)
+		s.logger.Error("get vouch issuer: estimate batch expiration")
 		jsonhttp.InternalServerError(w, "unable to estimate batch expiration")
 		return
 	}
 
-	resp := postageStampResponse{
+	resp := postageVouchResponse{
 		BatchID:  id,
 		Exists:   exists,
 		BatchTTL: batchTTL,
@@ -273,7 +273,7 @@ type reserveStateResponse struct {
 
 type chainStateResponse struct {
 	Block        uint64         `json:"block"`        // The block number of the last postage event.
-	TotalAmount  *bigint.BigInt `json:"totalAmount"`  // Cumulative amount paid per stamp.
+	TotalAmount  *bigint.BigInt `json:"totalAmount"`  // Cumulative amount paid per vouch.
 	CurrentPrice *bigint.BigInt `json:"currentPrice"` // mop/chunk/block normalised price.
 }
 

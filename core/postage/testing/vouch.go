@@ -20,8 +20,8 @@ func MustNewSignature() []byte {
 	return sig
 }
 
-// MustNewStamp will generate a postage stamp with random data. Panics on
+// MustNewVouch will generate a postage vouch with random data. Panics on
 // errors.
-func MustNewStamp() *postage.Stamp {
-	return postage.NewStamp(MustNewID(), MustNewID()[:8], MustNewID()[:8], MustNewSignature())
+func MustNewVouch() *postage.Vouch {
+	return postage.NewVouch(MustNewID(), MustNewID()[:8], MustNewID()[:8], MustNewSignature())
 }

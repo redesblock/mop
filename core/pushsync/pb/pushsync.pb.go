@@ -25,7 +25,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type Delivery struct {
 	Address []byte `protobuf:"bytes,1,opt,name=Address,proto3" json:"Address,omitempty"`
 	Data    []byte `protobuf:"bytes,2,opt,name=Data,proto3" json:"Data,omitempty"`
-	Stamp   []byte `protobuf:"bytes,3,opt,name=Stamp,proto3" json:"Stamp,omitempty"`
+	Vouch   []byte `protobuf:"bytes,3,opt,name=Vouch,proto3" json:"Vouch,omitempty"`
 }
 
 func (m *Delivery) Reset()         { *m = Delivery{} }
@@ -75,9 +75,9 @@ func (m *Delivery) GetData() []byte {
 	return nil
 }
 
-func (m *Delivery) GetStamp() []byte {
+func (m *Delivery) GetVouch() []byte {
 	if m != nil {
-		return m.Stamp
+		return m.Vouch
 	}
 	return nil
 }
@@ -185,10 +185,10 @@ func (m *Delivery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Stamp) > 0 {
-		i -= len(m.Stamp)
-		copy(dAtA[i:], m.Stamp)
-		i = encodeVarintPushsync(dAtA, i, uint64(len(m.Stamp)))
+	if len(m.Vouch) > 0 {
+		i -= len(m.Vouch)
+		copy(dAtA[i:], m.Vouch)
+		i = encodeVarintPushsync(dAtA, i, uint64(len(m.Vouch)))
 		i--
 		dAtA[i] = 0x1a
 	}
@@ -278,7 +278,7 @@ func (m *Delivery) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovPushsync(uint64(l))
 	}
-	l = len(m.Stamp)
+	l = len(m.Vouch)
 	if l > 0 {
 		n += 1 + l + sovPushsync(uint64(l))
 	}
@@ -411,7 +411,7 @@ func (m *Delivery) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Stamp", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Vouch", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -438,9 +438,9 @@ func (m *Delivery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Stamp = append(m.Stamp[:0], dAtA[iNdEx:postIndex]...)
-			if m.Stamp == nil {
-				m.Stamp = []byte{}
+			m.Vouch = append(m.Vouch[:0], dAtA[iNdEx:postIndex]...)
+			if m.Vouch == nil {
+				m.Vouch = []byte{}
 			}
 			iNdEx = postIndex
 		default:

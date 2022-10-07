@@ -45,7 +45,7 @@ func (db *DB) Export(w io.Writer) (count int64, err error) {
 		hdr := &tar.Header{
 			Name: hex.EncodeToString(item.Address),
 			Mode: 0644,
-			Size: int64(postage.StampSize + len(item.Data)),
+			Size: int64(postage.VouchSize + len(item.Data)),
 		}
 
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -135,21 +135,21 @@ func (db *DB) Import(ctx context.Context, r io.Reader) (count int64, err error) 
 				case <-ctx.Done():
 				}
 			}
-			stamp := new(postage.Stamp)
-			err = stamp.UnmarshalBinary(rawdata[:postage.StampSize])
+			vouch := new(postage.Vouch)
+			err = vouch.UnmarshalBinary(rawdata[:postage.VouchSize])
 			if err != nil {
 				select {
 				case errC <- err:
 				case <-ctx.Done():
 				}
 			}
-			data := rawdata[postage.StampSize:]
+			data := rawdata[postage.VouchSize:]
 			key := swarm.NewAddress(keybytes)
 
 			var ch swarm.Chunk
 			switch version {
 			case currentExportVersion:
-				ch = swarm.NewChunk(key, data).WithStamp(stamp)
+				ch = swarm.NewChunk(key, data).WithVouch(vouch)
 			default:
 				select {
 				case errC <- fmt.Errorf("unsupported export data version %q", version):

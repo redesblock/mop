@@ -28,9 +28,9 @@ type (
 	ReserveStateResponse              = reserveStateResponse
 	ChainStateResponse                = chainStateResponse
 	PostageCreateResponse             = postageCreateResponse
-	PostageStampResponse              = postageStampResponse
-	PostageStampsResponse             = postageStampsResponse
-	PostageStampBucketsResponse       = postageStampBucketsResponse
+	PostageVouchResponse              = postageVouchResponse
+	PostageVouchsResponse             = postageVouchsResponse
+	PostageVouchBucketsResponse       = postageVouchBucketsResponse
 	BucketData                        = bucketData
 )
 

@@ -221,7 +221,6 @@ func (s *Service) Disconnect(peer swarm.Address) {
 
 }
 
-//
 func (s *Service) SurplusBalance(peer swarm.Address) (*big.Int, error) {
 	if s.balanceFunc != nil {
 		return s.balanceSurplusFunc(peer)

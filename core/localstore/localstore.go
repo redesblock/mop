@@ -277,7 +277,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 	}
 
 	// Index storing actual chunk address, data and bin id.
-	headerSize := 16 + postage.StampSize
+	headerSize := 16 + postage.VouchSize
 	db.retrievalDataIndex, err = db.shed.NewIndex("Address->StoreTimestamp|BinID|BatchID|BatchIndex|Sig|Data", shed.IndexFuncs{
 		EncodeKey: func(fields shed.Item) (key []byte, err error) {
 			return fields.Address, nil
@@ -290,25 +290,25 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 			b := make([]byte, headerSize)
 			binary.BigEndian.PutUint64(b[:8], fields.BinID)
 			binary.BigEndian.PutUint64(b[8:16], uint64(fields.StoreTimestamp))
-			stamp, err := postage.NewStamp(fields.BatchID, fields.Index, fields.Timestamp, fields.Sig).MarshalBinary()
+			vouch, err := postage.NewVouch(fields.BatchID, fields.Index, fields.Timestamp, fields.Sig).MarshalBinary()
 			if err != nil {
 				return nil, err
 			}
-			copy(b[16:], stamp)
+			copy(b[16:], vouch)
 			value = append(b, fields.Data...)
 			return value, nil
 		},
 		DecodeValue: func(keyItem shed.Item, value []byte) (e shed.Item, err error) {
 			e.StoreTimestamp = int64(binary.BigEndian.Uint64(value[8:16]))
 			e.BinID = binary.BigEndian.Uint64(value[:8])
-			stamp := new(postage.Stamp)
-			if err = stamp.UnmarshalBinary(value[16:headerSize]); err != nil {
+			vouch := new(postage.Vouch)
+			if err = vouch.UnmarshalBinary(value[16:headerSize]); err != nil {
 				return e, err
 			}
-			e.BatchID = stamp.BatchID()
-			e.Index = stamp.Index()
-			e.Timestamp = stamp.Timestamp()
-			e.Sig = stamp.Sig()
+			e.BatchID = vouch.BatchID()
+			e.Index = vouch.Index()
+			e.Timestamp = vouch.Timestamp()
+			e.Sig = vouch.Sig()
 			e.Data = value[headerSize:]
 			return e, nil
 		},
@@ -619,10 +619,10 @@ func chunkToItem(ch swarm.Chunk) shed.Item {
 		Address:     ch.Address().Bytes(),
 		Data:        ch.Data(),
 		Tag:         ch.TagID(),
-		BatchID:     ch.Stamp().BatchID(),
-		Index:       ch.Stamp().Index(),
-		Timestamp:   ch.Stamp().Timestamp(),
-		Sig:         ch.Stamp().Sig(),
+		BatchID:     ch.Vouch().BatchID(),
+		Index:       ch.Vouch().Index(),
+		Timestamp:   ch.Vouch().Timestamp(),
+		Sig:         ch.Vouch().Sig(),
 		Depth:       ch.Depth(),
 		Radius:      ch.Radius(),
 		BucketDepth: ch.BucketDepth(),

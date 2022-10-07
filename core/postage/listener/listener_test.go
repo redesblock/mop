@@ -20,7 +20,7 @@ import (
 var hash common.Hash = common.HexToHash("ff6ec1ed9250a6952fabac07c6eb103550dc65175373eea432fd115ce8bb2246")
 var addr common.Address = common.HexToAddress("abcdef")
 
-var postageStampAddress common.Address = common.HexToAddress("eeee")
+var postageVouchAddress common.Address = common.HexToAddress("eeee")
 
 const (
 	stallingTimeout = 5 * time.Second
@@ -53,7 +53,7 @@ func TestListener(t *testing.T) {
 			),
 		)
 
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
+		l := listener.New(logger, mf, postageVouchAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -84,7 +84,7 @@ func TestListener(t *testing.T) {
 				topup.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
+		l := listener.New(logger, mf, postageVouchAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -115,7 +115,7 @@ func TestListener(t *testing.T) {
 				depthIncrease.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
+		l := listener.New(logger, mf, postageVouchAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -144,7 +144,7 @@ func TestListener(t *testing.T) {
 				priceUpdate.toLog(496),
 			),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
+		l := listener.New(logger, mf, postageVouchAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 		select {
 		case e := <-evC:
@@ -196,7 +196,7 @@ func TestListener(t *testing.T) {
 			),
 			WithBlockNumber(blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, nil, stallingTimeout, backoffTime)
+		l := listener.New(logger, mf, postageVouchAddress, 1, nil, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -266,7 +266,7 @@ func TestListener(t *testing.T) {
 		mf := newMockFilterer(
 			WithBlockNumberErrorOnce(errors.New("dummy error"), blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, stallingTimeout, 0*time.Second)
+		l := listener.New(logger, mf, postageVouchAddress, 1, shutdowner, stallingTimeout, 0*time.Second)
 		l.Listen(0, ev)
 
 		select {
@@ -283,7 +283,7 @@ func TestListener(t *testing.T) {
 		mf := newMockFilterer(
 			WithBlockNumberError(errors.New("dummy error")),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, 50*time.Millisecond, 0*time.Second)
+		l := listener.New(logger, mf, postageVouchAddress, 1, shutdowner, 50*time.Millisecond, 0*time.Second)
 		l.Listen(0, ev)
 
 		start := time.Now()
@@ -305,7 +305,7 @@ func TestListener(t *testing.T) {
 		mf := newMockFilterer(
 			WithBlockNumber(blockNumber),
 		)
-		l := listener.New(logger, mf, postageStampAddress, 1, shutdowner, stallingTimeout, backoffTime)
+		l := listener.New(logger, mf, postageVouchAddress, 1, shutdowner, stallingTimeout, backoffTime)
 		l.Listen(0, ev)
 
 		select {
@@ -523,7 +523,7 @@ func (c createArgs) compare(t *testing.T, want createArgs) {
 }
 
 func (c createArgs) toLog(blockNumber uint64) types.Log {
-	b, err := listener.PostageStampABI.Events["BatchCreated"].Inputs.NonIndexed().Pack(c.amount, c.normalisedAmount, common.BytesToAddress(c.owner), c.bucketDepth, c.depth, c.immutable)
+	b, err := listener.PostageVouchABI.Events["BatchCreated"].Inputs.NonIndexed().Pack(c.amount, c.normalisedAmount, common.BytesToAddress(c.owner), c.bucketDepth, c.depth, c.immutable)
 	if err != nil {
 		panic(err)
 	}
@@ -551,7 +551,7 @@ func (ta topupArgs) compare(t *testing.T, want topupArgs) {
 }
 
 func (ta topupArgs) toLog(blockNumber uint64) types.Log {
-	b, err := listener.PostageStampABI.Events["BatchTopUp"].Inputs.NonIndexed().Pack(ta.amount, ta.normalisedBalance)
+	b, err := listener.PostageVouchABI.Events["BatchTopUp"].Inputs.NonIndexed().Pack(ta.amount, ta.normalisedBalance)
 	if err != nil {
 		panic(err)
 	}
@@ -582,7 +582,7 @@ func (d depthArgs) compare(t *testing.T, want depthArgs) {
 }
 
 func (d depthArgs) toLog(blockNumber uint64) types.Log {
-	b, err := listener.PostageStampABI.Events["BatchDepthIncrease"].Inputs.NonIndexed().Pack(d.depth, d.normalisedBalance)
+	b, err := listener.PostageVouchABI.Events["BatchDepthIncrease"].Inputs.NonIndexed().Pack(d.depth, d.normalisedBalance)
 	if err != nil {
 		panic(err)
 	}
@@ -605,7 +605,7 @@ func (p priceArgs) compare(t *testing.T, want priceArgs) {
 }
 
 func (p priceArgs) toLog(blockNumber uint64) types.Log {
-	b, err := listener.PostageStampABI.Events["PriceUpdate"].Inputs.NonIndexed().Pack(p.price)
+	b, err := listener.PostageVouchABI.Events["PriceUpdate"].Inputs.NonIndexed().Pack(p.price)
 	if err != nil {
 		panic(err)
 	}

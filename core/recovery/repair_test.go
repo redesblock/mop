@@ -229,17 +229,17 @@ func newTestNetStore(t *testing.T, recoveryFunc recovery.Callback) storage.Store
 		return nil
 	}}
 
-	server := retrieval.New(swarm.ZeroAddress, mockStorer, nil, ps0, logger, serverMockAccounting, pricerMock, nil, false, noopStampValidator)
+	server := retrieval.New(swarm.ZeroAddress, mockStorer, nil, ps0, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
 	recorder := streamtest.New(
 		streamtest.WithProtocols(server.Protocol()),
 		streamtest.WithBaseAddr(peerID),
 	)
-	retrieve := retrieval.New(swarm.ZeroAddress, mockStorer, recorder, ps, logger, serverMockAccounting, pricerMock, nil, false, noopStampValidator)
-	validStamp := func(ch swarm.Chunk, stamp []byte) (swarm.Chunk, error) {
-		return ch.WithStamp(postage.NewStamp(nil, nil, nil, nil)), nil
+	retrieve := retrieval.New(swarm.ZeroAddress, mockStorer, recorder, ps, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
+	validVouch := func(ch swarm.Chunk, vouch []byte) (swarm.Chunk, error) {
+		return ch.WithVouch(postage.NewVouch(nil, nil, nil, nil)), nil
 	}
 
-	ns := netstore.New(storer, validStamp, recoveryFunc, retrieve, logger)
+	ns := netstore.New(storer, validVouch, recoveryFunc, retrieve, logger)
 	return ns
 }
 
@@ -259,11 +259,11 @@ type mockPssSender struct {
 }
 
 // Send mocks the pss Send function
-func (mp *mockPssSender) Send(ctx context.Context, topic pss.Topic, payload []byte, _ postage.Stamper, recipient *ecdsa.PublicKey, targets pss.Targets) error {
+func (mp *mockPssSender) Send(ctx context.Context, topic pss.Topic, payload []byte, _ postage.Voucher, recipient *ecdsa.PublicKey, targets pss.Targets) error {
 	mp.callbackC <- true
 	return nil
 }
 
-var noopStampValidator = func(chunk swarm.Chunk, stampBytes []byte) (swarm.Chunk, error) {
+var noopVouchValidator = func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error) {
 	return chunk, nil
 }

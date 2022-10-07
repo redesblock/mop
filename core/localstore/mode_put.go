@@ -172,8 +172,9 @@ func (db *DB) put(mode storage.ModePut, chs ...swarm.Chunk) (exist []bool, err e
 }
 
 // putRequest adds an Item to the batch by updating required indexes:
-//  - put to indexes: retrieve, gc
-//  - it does not enter the syncpool
+//   - put to indexes: retrieve, gc
+//   - it does not enter the syncpool
+//
 // The batch can be written to the database.
 // Provided batch and binID map are updated.
 func (db *DB) putRequest(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed.Item, forcePin, forceCache bool) (exists bool, gcSizeChange int64, err error) {
@@ -194,7 +195,7 @@ func (db *DB) putRequest(batch *leveldb.Batch, binIDs map[uint8]uint64, item she
 		if item.Immutable {
 			return false, 0, ErrOverwrite
 		}
-		// if a chunk is found with the same postage stamp index,
+		// if a chunk is found with the same postage vouch index,
 		// replace it with the new one only if timestamp is later
 		if !later(previous, item) {
 			return false, 0, nil
@@ -247,7 +248,7 @@ func (db *DB) putRequest(batch *leveldb.Batch, binIDs map[uint8]uint64, item she
 	}
 
 	if !forceCache {
-		// if we are here it means the chunk has a valid stamp
+		// if we are here it means the chunk has a valid vouch
 		// therefore we'd like to be able to pullsync it
 		err = db.pullIndex.PutInBatch(batch, item)
 		if err != nil {
@@ -259,7 +260,8 @@ func (db *DB) putRequest(batch *leveldb.Batch, binIDs map[uint8]uint64, item she
 }
 
 // putUpload adds an Item to the batch by updating required indexes:
-//  - put to indexes: retrieve, push, pull
+//   - put to indexes: retrieve, push, pull
+//
 // The batch can be written to the database.
 // Provided batch and binID map are updated.
 func (db *DB) putUpload(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed.Item) (exists bool, gcSizeChange int64, err error) {
@@ -280,7 +282,7 @@ func (db *DB) putUpload(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed
 		if item.Immutable {
 			return false, 0, ErrOverwrite
 		}
-		// if a chunk is found with the same postage stamp index,
+		// if a chunk is found with the same postage vouch index,
 		// replace it with the new one only if timestamp is later
 		if !later(previous, item) {
 			return false, 0, nil
@@ -320,7 +322,8 @@ func (db *DB) putUpload(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed
 }
 
 // putSync adds an Item to the batch by updating required indexes:
-//  - put to indexes: retrieve, pull, gc
+//   - put to indexes: retrieve, pull, gc
+//
 // The batch can be written to the database.
 // Provided batch and binID map are updated.
 func (db *DB) putSync(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed.Item) (exists bool, gcSizeChange int64, err error) {
@@ -341,7 +344,7 @@ func (db *DB) putSync(batch *leveldb.Batch, binIDs map[uint8]uint64, item shed.I
 		if item.Immutable {
 			return false, 0, ErrOverwrite
 		}
-		// if a chunk is found with the same postage stamp index,
+		// if a chunk is found with the same postage vouch index,
 		// replace it with the new one only if timestamp is later
 		if !later(previous, item) {
 			return false, 0, nil

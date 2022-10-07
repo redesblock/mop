@@ -1,4 +1,4 @@
-package swarm
+package crowd
 
 // Proximity returns the proximity order of the MSB distance between x and y
 //

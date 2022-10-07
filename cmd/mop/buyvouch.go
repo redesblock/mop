@@ -10,14 +10,14 @@ import (
 	"os"
 )
 
-func (c *command) initListStampCmd() error {
+func (c *command) initListVouchCmd() error {
 	cmd := &cobra.Command{
-		Use:   "list-stamp",
-		Short: "get all available stamps for this node",
+		Use:   "list-vouch",
+		Short: "get all available vouches for this node",
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			client := &http.Client{}
 
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1635/stamps"), nil)
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1635/vouches"), nil)
 			if err != nil {
 				return err
 			}
@@ -41,14 +41,14 @@ func (c *command) initListStampCmd() error {
 	return nil
 }
 
-func (c *command) initShowStampCmd() error {
+func (c *command) initShowVouchCmd() error {
 	cmd := &cobra.Command{
-		Use:   "show-stamp id",
+		Use:   "show-vouch id",
 		Short: "get an individual postage batch status",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			client := &http.Client{}
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1635/stamps/%s", args[0]), nil)
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1635/vouches/%s", args[0]), nil)
 			if err != nil {
 				return err
 			}
@@ -72,9 +72,9 @@ func (c *command) initShowStampCmd() error {
 	return nil
 }
 
-func (c *command) initBuyStampCmd() error {
+func (c *command) initBuyVouchCmd() error {
 	cmd := &cobra.Command{
-		Use:   "buy-stamp amount depth",
+		Use:   "buy-vouch amount depth",
 		Short: "buy a new postage batch.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -89,7 +89,7 @@ func (c *command) initBuyStampCmd() error {
 			}
 
 			client := &http.Client{}
-			req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:1635/stamps/%s/%s", args[0], args[1]), nil)
+			req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:1635/vouches/%s/%s", args[0], args[1]), nil)
 			if err != nil {
 				return err
 			}

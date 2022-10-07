@@ -9,14 +9,14 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// stampIssuerData groups related StampIssuer data.
+// vouchIssuerData groups related VouchIssuer data.
 // The data are factored out in order to make
 // serialization/deserialization easier and at the same
 // time not to export the fields outside of the package.
-type stampIssuerData struct {
+type vouchIssuerData struct {
 	Label          string   `msgpack:"label"`          // Label to identify the batch period/importance.
 	KeyID          string   `msgpack:"keyID"`          // Owner identity.
-	BatchID        []byte   `msgpack:"batchID"`        // The batch stamps are issued from.
+	BatchID        []byte   `msgpack:"batchID"`        // The batch vouchs are issued from.
 	BatchAmount    *big.Int `msgpack:"batchAmount"`    // Amount paid for the batch.
 	BatchDepth     uint8    `msgpack:"batchDepth"`     // Batch depth: batch size = 2^{depth}.
 	BucketDepth    uint8    `msgpack:"bucketDepth"`    // Bucket depth: the depth of collision Buckets uniformity.
@@ -26,21 +26,21 @@ type stampIssuerData struct {
 	ImmutableFlag  bool     `msgpack:"immutableFlag"`  // Specifies immutability of the created batch.
 }
 
-// StampIssuer is a local extension of a batch issuing stamps for uploads.
-// A StampIssuer instance extends a batch with bucket collision tracking
-// embedded in multiple Stampers, can be used concurrently.
-type StampIssuer struct {
+// VouchIssuer is a local extension of a batch issuing vouchs for uploads.
+// A VouchIssuer instance extends a batch with bucket collision tracking
+// embedded in multiple Vouchers, can be used concurrently.
+type VouchIssuer struct {
 	bucketMu sync.Mutex
-	data     stampIssuerData
+	data     vouchIssuerData
 }
 
-// NewStampIssuer constructs a StampIssuer as an extension of a batch for local
+// NewVouchIssuer constructs a VouchIssuer as an extension of a batch for local
 // upload.
 //
 // BucketDepth must always be smaller than batchDepth otherwise inc() panics.
-func NewStampIssuer(label, keyID string, batchID []byte, batchAmount *big.Int, batchDepth, bucketDepth uint8, blockNumber uint64, immutableFlag bool) *StampIssuer {
-	return &StampIssuer{
-		data: stampIssuerData{
+func NewVouchIssuer(label, keyID string, batchID []byte, batchAmount *big.Int, batchDepth, bucketDepth uint8, blockNumber uint64, immutableFlag bool) *VouchIssuer {
+	return &VouchIssuer{
+		data: vouchIssuerData{
 			Label:         label,
 			KeyID:         keyID,
 			BatchID:       batchID,
@@ -54,9 +54,9 @@ func NewStampIssuer(label, keyID string, batchID []byte, batchAmount *big.Int, b
 	}
 }
 
-// inc increments the count in the correct collision bucket for a newly stamped
+// inc increments the count in the correct collision bucket for a newly vouched
 // chunk with address addr.
-func (si *StampIssuer) inc(addr swarm.Address) ([]byte, error) {
+func (si *VouchIssuer) inc(addr swarm.Address) ([]byte, error) {
 	si.bucketMu.Lock()
 	defer si.bucketMu.Unlock()
 	b := toBucket(si.BucketDepth(), addr)
@@ -96,69 +96,69 @@ func bytesToIndex(buf []byte) (bucket, index uint32) {
 }
 
 // Label returns the label of the issuer.
-func (si *StampIssuer) Label() string {
+func (si *VouchIssuer) Label() string {
 	return si.data.Label
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (si *StampIssuer) MarshalBinary() ([]byte, error) {
+func (si *VouchIssuer) MarshalBinary() ([]byte, error) {
 	return msgpack.Marshal(si.data)
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
-func (si *StampIssuer) UnmarshalBinary(data []byte) error {
+func (si *VouchIssuer) UnmarshalBinary(data []byte) error {
 	return msgpack.Unmarshal(data, &si.data)
 }
 
 // Utilization returns the batch utilization in the form of
 // an integer between 0 and 4294967295. Batch fullness can be
 // calculated with: max_bucket_value / 2 ^ (batch_depth - bucket_depth)
-func (si *StampIssuer) Utilization() uint32 {
+func (si *VouchIssuer) Utilization() uint32 {
 	si.bucketMu.Lock()
 	defer si.bucketMu.Unlock()
 	return si.data.MaxBucketCount
 }
 
 // ID returns the BatchID for this batch.
-func (si *StampIssuer) ID() []byte {
+func (si *VouchIssuer) ID() []byte {
 	id := make([]byte, len(si.data.BatchID))
 	copy(id, si.data.BatchID)
 	return id
 }
 
 // Depth represent issued batch depth.
-func (si *StampIssuer) Depth() uint8 {
+func (si *VouchIssuer) Depth() uint8 {
 	return si.data.BatchDepth
 }
 
 // Amount represent issued batch amount paid.
-func (si *StampIssuer) Amount() *big.Int {
+func (si *VouchIssuer) Amount() *big.Int {
 	return si.data.BatchAmount
 }
 
 // BucketDepth the depth of collision Buckets uniformity.
-func (si *StampIssuer) BucketDepth() uint8 {
+func (si *VouchIssuer) BucketDepth() uint8 {
 	return si.data.BucketDepth
 }
 
 // BucketUpperBound returns the maximum number of collisions
 // possible in a bucket given the batch's depth and bucket
 // depth.
-func (si *StampIssuer) BucketUpperBound() uint32 {
+func (si *VouchIssuer) BucketUpperBound() uint32 {
 	return 1 << (si.Depth() - si.BucketDepth())
 }
 
 // BlockNumber when this batch was created.
-func (si *StampIssuer) BlockNumber() uint64 {
+func (si *VouchIssuer) BlockNumber() uint64 {
 	return si.data.BlockNumber
 }
 
 // ImmutableFlag immutability of the created batch.
-func (si *StampIssuer) ImmutableFlag() bool {
+func (si *VouchIssuer) ImmutableFlag() bool {
 	return si.data.ImmutableFlag
 }
 
-func (si *StampIssuer) Buckets() []uint32 {
+func (si *VouchIssuer) Buckets() []uint32 {
 	si.bucketMu.Lock()
 	b := make([]uint32, len(si.data.Buckets))
 	copy(b, si.data.Buckets)

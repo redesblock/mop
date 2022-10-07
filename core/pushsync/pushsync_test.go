@@ -555,7 +555,6 @@ func TestPushChunkToClosestFailedAttemptRetry(t *testing.T) {
 // It also sends the chunk to the closest peer and receives a receipt.
 //
 // Chunk moves from   TriggerPeer -> PivotPeer -> ClosestPeer
-//
 func TestHandler(t *testing.T) {
 	// chunk data to upload
 	chunk := testingc.FixtureChunk("7000")
@@ -818,11 +817,11 @@ func createPushSyncNodeWithAccounting(t *testing.T, addr swarm.Address, prices p
 		unwrap = func(swarm.Chunk) {}
 	}
 
-	validStamp := func(ch swarm.Chunk, stamp []byte) (swarm.Chunk, error) {
+	validVouch := func(ch swarm.Chunk, vouch []byte) (swarm.Chunk, error) {
 		return ch, nil
 	}
 
-	return pushsync.New(97, addr, blockHash.Bytes(), recorderDisconnecter, storer, mockTopology, mtag, true, unwrap, validStamp, logger, acct, mockPricer, signer, nil, -1, ""), storer, mtag
+	return pushsync.New(97, addr, blockHash.Bytes(), recorderDisconnecter, storer, mockTopology, mtag, true, unwrap, validVouch, logger, acct, mockPricer, signer, nil, -1, ""), storer, mtag
 }
 
 func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.Recorder, add swarm.Address, data []byte) {

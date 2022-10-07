@@ -1,7 +1,7 @@
 package postagecontract
 
 var (
-	PostageStampABI   = postageStampABI
+	PostageVouchABI   = postageVouchABI
 	BatchCreatedTopic = batchCreatedTopic
 	BatchTopUpTopic   = batchTopUpTopic
 	BatchDiluteTopic  = batchDiluteTopic

@@ -105,12 +105,12 @@ func (n *Node) makeWithMetadata() {
 	n.nodeType = n.nodeType | nodeTypeWithMetadata
 }
 
-//nolint,unused
+// nolint,unused
 func (n *Node) makeNotValue() {
 	n.nodeType = (nodeTypeMask ^ nodeTypeValue) & n.nodeType
 }
 
-//nolint,unused
+// nolint,unused
 func (n *Node) makeNotEdge() {
 	n.nodeType = (nodeTypeMask ^ nodeTypeEdge) & n.nodeType
 }
@@ -119,7 +119,7 @@ func (n *Node) makeNotWithPathSeparator() {
 	n.nodeType = (nodeTypeMask ^ nodeTypeWithPathSeparator) & n.nodeType
 }
 
-//nolint,unused
+// nolint,unused
 func (n *Node) makeNotWithMetadata() {
 	n.nodeType = (nodeTypeMask ^ nodeTypeWithMetadata) & n.nodeType
 }

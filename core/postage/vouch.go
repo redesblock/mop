@@ -10,9 +10,9 @@ import (
 	"github.com/redesblock/mop/core/swarm"
 )
 
-// StampSize is the number of bytes in the serialisation of a stamp
+// VouchSize is the number of bytes in the serialisation of a vouch
 const (
-	StampSize   = 113
+	VouchSize   = 113
 	IndexSize   = 8
 	BucketDepth = 16
 )
@@ -20,53 +20,53 @@ const (
 var (
 	// ErrOwnerMismatch is the error given for invalid signatures.
 	ErrOwnerMismatch = errors.New("owner mismatch")
-	// ErrInvalidIndex the error given for invalid stamp index.
+	// ErrInvalidIndex the error given for invalid vouch index.
 	ErrInvalidIndex = errors.New("invalid index")
-	// ErrStampInvalid is the error given if stamp cannot deserialise.
-	ErrStampInvalid = errors.New("invalid stamp")
-	// ErrBucketMismatch is the error given if stamp index bucket verification fails.
+	// ErrVouchInvalid is the error given if vouch cannot deserialise.
+	ErrVouchInvalid = errors.New("invalid vouch")
+	// ErrBucketMismatch is the error given if vouch index bucket verification fails.
 	ErrBucketMismatch = errors.New("bucket mismatch")
 )
 
-var _ swarm.Stamp = (*Stamp)(nil)
+var _ swarm.Vouch = (*Vouch)(nil)
 
-// Stamp represents a postage stamp as attached to a chunk.
-type Stamp struct {
+// Vouch represents a postage vouch as attached to a chunk.
+type Vouch struct {
 	batchID   []byte // postage batch ID
 	index     []byte // index of the batch
 	timestamp []byte // to signal order when assigning the indexes to multiple chunks
 	sig       []byte // common r[32]s[32]v[1]-style 65 byte ECDSA signature of batchID|index|address by owner or grantee
 }
 
-// NewStamp constructs a new stamp from a given batch ID, index and signatures.
-func NewStamp(batchID, index, timestamp, sig []byte) *Stamp {
-	return &Stamp{batchID, index, timestamp, sig}
+// NewVouch constructs a new vouch from a given batch ID, index and signatures.
+func NewVouch(batchID, index, timestamp, sig []byte) *Vouch {
+	return &Vouch{batchID, index, timestamp, sig}
 }
 
-// BatchID returns the batch ID of the stamp.
-func (s *Stamp) BatchID() []byte {
+// BatchID returns the batch ID of the vouch.
+func (s *Vouch) BatchID() []byte {
 	return s.batchID
 }
 
-// Index returns the within-batch index of the stamp.
-func (s *Stamp) Index() []byte {
+// Index returns the within-batch index of the vouch.
+func (s *Vouch) Index() []byte {
 	return s.index
 }
 
-// Sig returns the signature of the stamp by the user
-func (s *Stamp) Sig() []byte {
+// Sig returns the signature of the vouch by the user
+func (s *Vouch) Sig() []byte {
 	return s.sig
 }
 
-// Timestamp returns the timestamp of the stamp
-func (s *Stamp) Timestamp() []byte {
+// Timestamp returns the timestamp of the vouch
+func (s *Vouch) Timestamp() []byte {
 	return s.timestamp
 }
 
-// MarshalBinary gives the byte slice serialisation of a stamp:
+// MarshalBinary gives the byte slice serialisation of a vouch:
 // batchID[32]|index[8]|timestamp[8]|Signature[65].
-func (s *Stamp) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, StampSize)
+func (s *Vouch) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, VouchSize)
 	copy(buf, s.batchID)
 	copy(buf[32:40], s.index)
 	copy(buf[40:48], s.timestamp)
@@ -74,10 +74,10 @@ func (s *Stamp) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-// UnmarshalBinary parses a serialised stamp into id and signature.
-func (s *Stamp) UnmarshalBinary(buf []byte) error {
-	if len(buf) != StampSize {
-		return ErrStampInvalid
+// UnmarshalBinary parses a serialised vouch into id and signature.
+func (s *Vouch) UnmarshalBinary(buf []byte) error {
+	if len(buf) != VouchSize {
+		return ErrVouchInvalid
 	}
 	s.batchID = buf[:32]
 	s.index = buf[32:40]
@@ -86,7 +86,7 @@ func (s *Stamp) UnmarshalBinary(buf []byte) error {
 	return nil
 }
 
-// toSignDigest creates a digest to represent the stamp which is to be signed by
+// toSignDigest creates a digest to represent the vouch which is to be signed by
 // the owner.
 func toSignDigest(addr, batchId, index, timestamp []byte) ([]byte, error) {
 	h := swarm.NewHasher()
@@ -109,36 +109,36 @@ func toSignDigest(addr, batchId, index, timestamp []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-type ValidStampFn func(chunk swarm.Chunk, stampBytes []byte) (swarm.Chunk, error)
+type ValidVouchFn func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error)
 
-// ValidStamp returns a stampvalidator function passed to protocols with chunk entrypoints.
-func ValidStamp(batchStore Storer) ValidStampFn {
-	return func(chunk swarm.Chunk, stampBytes []byte) (swarm.Chunk, error) {
-		stamp := new(Stamp)
-		err := stamp.UnmarshalBinary(stampBytes)
+// ValidVouch returns a vouchvalidator function passed to protocols with chunk entrypoints.
+func ValidVouch(batchStore Storer) ValidVouchFn {
+	return func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error) {
+		vouch := new(Vouch)
+		err := vouch.UnmarshalBinary(vouchBytes)
 		if err != nil {
 			return nil, err
 		}
-		b, err := batchStore.Get(stamp.BatchID())
+		b, err := batchStore.Get(vouch.BatchID())
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return nil, fmt.Errorf("batchstore get: %v, %w", err, ErrNotFound)
 			}
 			return nil, err
 		}
-		if err = stamp.Valid(chunk.Address(), b.Owner, b.Depth, b.BucketDepth, b.Immutable); err != nil {
+		if err = vouch.Valid(chunk.Address(), b.Owner, b.Depth, b.BucketDepth, b.Immutable); err != nil {
 			return nil, err
 		}
-		return chunk.WithStamp(stamp).WithBatch(b.Radius, b.Depth, b.BucketDepth, b.Immutable), nil
+		return chunk.WithVouch(vouch).WithBatch(b.Radius, b.Depth, b.BucketDepth, b.Immutable), nil
 	}
 }
 
-// Valid checks the validity of the postage stamp; in particular:
+// Valid checks the validity of the postage vouch; in particular:
 // - authenticity - check batch is valid on the blockchain
-// - authorisation - the batch owner is the stamp signer
+// - authorisation - the batch owner is the vouch signer
 // the validity  check is only meaningful in its association of a chunk
 // this chunk address needs to be given as argument
-func (s *Stamp) Valid(chunkAddr swarm.Address, ownerAddr []byte, depth, bucketDepth uint8, immutable bool) error {
+func (s *Vouch) Valid(chunkAddr swarm.Address, ownerAddr []byte, depth, bucketDepth uint8, immutable bool) error {
 	toSign, err := toSignDigest(chunkAddr.Bytes(), s.batchID, s.index, s.timestamp)
 	if err != nil {
 		return err

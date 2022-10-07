@@ -8,10 +8,10 @@ import "./ERC20.sol";
 import "./Ownable.sol";
 
 /**
- * @title PostageStamp contract
- * @dev The postage stamp contracts allows users to create and manage postage stamp batches.
+ * @title PostageVouch contract
+ * @dev The postage vouch contracts allows users to create and manage postage vouch batches.
  */
-contract PostageStamp is AccessControl, Pausable, Ownable {
+contract PostageVouch is AccessControl, Pausable, Ownable {
     using SafeMath for uint256;
     /**
      * @dev Emitted when a new batch is created.

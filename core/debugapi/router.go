@@ -239,39 +239,39 @@ func (s *Service) newRouter() *mux.Router {
 		"GET": http.HandlerFunc(s.getTagHandler),
 	})
 
-	handle("/stamps", web.ChainHandlers(
+	handle("/vouches", web.ChainHandlers(
 		web.FinalHandler(jsonhttp.MethodHandler{
-			"GET": http.HandlerFunc(s.postageGetStampsHandler),
+			"GET": http.HandlerFunc(s.postageGetVouchsHandler),
 		})),
 	)
 
-	handle("/stamps/{id}", web.ChainHandlers(
+	handle("/vouches/{id}", web.ChainHandlers(
 		web.FinalHandler(jsonhttp.MethodHandler{
-			"GET": http.HandlerFunc(s.postageGetStampHandler),
+			"GET": http.HandlerFunc(s.postageGetVouchHandler),
 		})),
 	)
 
-	handle("/stamps/{id}/buckets", web.ChainHandlers(
+	handle("/vouches/{id}/buckets", web.ChainHandlers(
 		web.FinalHandler(jsonhttp.MethodHandler{
-			"GET": http.HandlerFunc(s.postageGetStampBucketsHandler),
+			"GET": http.HandlerFunc(s.postageGetVouchBucketsHandler),
 		})),
 	)
 
-	handle("/stamps/{amount}/{depth}", web.ChainHandlers(
+	handle("/vouches/{amount}/{depth}", web.ChainHandlers(
 		s.postageAccessHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"POST": http.HandlerFunc(s.postageCreateHandler),
 		})),
 	)
 
-	handle("/stamps/topup/{id}/{amount}", web.ChainHandlers(
+	handle("/vouches/topup/{id}/{amount}", web.ChainHandlers(
 		s.postageAccessHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"PATCH": http.HandlerFunc(s.postageTopUpHandler),
 		})),
 	)
 
-	handle("/stamps/dilute/{id}/{depth}", web.ChainHandlers(
+	handle("/vouches/dilute/{id}/{depth}", web.ChainHandlers(
 		s.postageAccessHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"PATCH": http.HandlerFunc(s.postageDiluteHandler),

@@ -61,10 +61,10 @@ type Service struct {
 	pricer        pricer.Interface
 	tracer        *tracing.Tracer
 	caching       bool
-	validStamp    postage.ValidStampFn
+	validVouch    postage.ValidVouchFn
 }
 
-func New(addr swarm.Address, storer storage.Storer, streamer p2p.Streamer, chunkPeerer topology.EachPeerer, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, tracer *tracing.Tracer, forwarderCaching bool, validStamp postage.ValidStampFn) *Service {
+func New(addr swarm.Address, storer storage.Storer, streamer p2p.Streamer, chunkPeerer topology.EachPeerer, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, tracer *tracing.Tracer, forwarderCaching bool, validVouch postage.ValidVouchFn) *Service {
 	return &Service{
 		addr:          addr,
 		streamer:      streamer,
@@ -76,7 +76,7 @@ func New(addr swarm.Address, storer storage.Storer, streamer p2p.Streamer, chunk
 		metrics:       newMetrics(),
 		tracer:        tracer,
 		caching:       forwarderCaching,
-		validStamp:    validStamp,
+		validVouch:    validVouch,
 	}
 }
 
@@ -331,12 +331,12 @@ func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *ski
 		Observe(time.Since(startTimer).Seconds())
 	s.metrics.TotalRetrieved.Inc()
 
-	stamp := new(postage.Stamp)
-	err = stamp.UnmarshalBinary(d.Stamp)
+	vouch := new(postage.Vouch)
+	err = vouch.UnmarshalBinary(d.Vouch)
 	if err != nil {
-		return nil, peer, true, fmt.Errorf("stamp unmarshal: %w", err)
+		return nil, peer, true, fmt.Errorf("vouch unmarshal: %w", err)
 	}
-	chunk = swarm.NewChunk(addr, d.Data).WithStamp(stamp)
+	chunk = swarm.NewChunk(addr, d.Data).WithVouch(vouch)
 	if !cac.Valid(chunk) {
 		if !soc.Valid(chunk) {
 			s.metrics.InvalidChunkRetrieved.Inc()
@@ -437,9 +437,9 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 			return fmt.Errorf("get from store: %w", err)
 		}
 	}
-	stamp, err := chunk.Stamp().MarshalBinary()
+	vouch, err := chunk.Vouch().MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("stamp marshal: %w", err)
+		return fmt.Errorf("vouch marshal: %w", err)
 	}
 
 	chunkPrice := s.pricer.Price(chunk.Address())
@@ -451,7 +451,7 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 
 	if err := w.WriteMsgWithContext(ctx, &pb.Delivery{
 		Data:  chunk.Data(),
-		Stamp: stamp,
+		Vouch: vouch,
 	}); err != nil {
 		return fmt.Errorf("write delivery: %w peer %s", err, p.Address.String())
 	}
@@ -467,9 +467,9 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 	if s.caching && forwarded {
 		putMode := storage.ModePutRequest
 
-		cch, err := s.validStamp(chunk, stamp)
+		cch, err := s.validVouch(chunk, vouch)
 		if err != nil {
-			// if a chunk with an invalid postage stamp was received
+			// if a chunk with an invalid postage vouch was received
 			// we force it into the cache.
 			putMode = storage.ModePutRequestCache
 			cch = chunk

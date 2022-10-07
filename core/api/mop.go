@@ -50,7 +50,7 @@ func (s *server) mopUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	putter, err := newStamperPutter(s.storer, s.post, s.signer, batch)
+	putter, err := newVoucherPutter(s.storer, s.post, s.signer, batch)
 	if err != nil {
 		logger.Debugf("mop upload: putter: %v", err)
 		logger.Error("mop upload: putter")

@@ -145,7 +145,7 @@ func (s *server) feedPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	putter, err := newStamperPutter(s.storer, s.post, s.signer, batch)
+	putter, err := newVoucherPutter(s.storer, s.post, s.signer, batch)
 	if err != nil {
 		s.logger.Debugf("feed put: putter: %v", err)
 		s.logger.Error("feed put: putter")

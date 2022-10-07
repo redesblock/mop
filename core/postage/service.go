@@ -27,10 +27,10 @@ var (
 
 // Service is the postage service interface.
 type Service interface {
-	Add(*StampIssuer) error
-	StampIssuers() []*StampIssuer
-	GetStampIssuer([]byte) (*StampIssuer, error)
-	IssuerUsable(*StampIssuer) bool
+	Add(*VouchIssuer) error
+	VouchIssuers() []*VouchIssuer
+	GetVouchIssuer([]byte) (*VouchIssuer, error)
+	IssuerUsable(*VouchIssuer) bool
 	BatchEventListener
 	io.Closer
 }
@@ -42,7 +42,7 @@ type service struct {
 	store        storage.StateStorer
 	postageStore Storer
 	chainID      int64
-	issuers      []*StampIssuer
+	issuers      []*VouchIssuer
 }
 
 // NewService constructs a new Service.
@@ -61,7 +61,7 @@ func NewService(store storage.StateStorer, postageStore Storer, chainID int64) (
 		return nil, err
 	}
 	for i := 0; i < n; i++ {
-		st := &StampIssuer{}
+		st := &VouchIssuer{}
 		err := s.store.Get(s.keyForIndex(i), st)
 		if err != nil {
 			return nil, err
@@ -71,8 +71,8 @@ func NewService(store storage.StateStorer, postageStore Storer, chainID int64) (
 	return s, nil
 }
 
-// Add adds a stamp issuer to the active issuers.
-func (ps *service) Add(st *StampIssuer) error {
+// Add adds a vouch issuer to the active issuers.
+func (ps *service) Add(st *VouchIssuer) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -85,8 +85,8 @@ func (ps *service) Add(st *StampIssuer) error {
 	return nil
 }
 
-// add adds a stamp issuer to the active issuers and returns false if it is already present.
-func (ps *service) add(st *StampIssuer) bool {
+// add adds a vouch issuer to the active issuers and returns false if it is already present.
+func (ps *service) add(st *VouchIssuer) bool {
 
 	for _, v := range ps.issuers {
 		if bytes.Equal(st.data.BatchID, v.data.BatchID) {
@@ -99,10 +99,10 @@ func (ps *service) add(st *StampIssuer) bool {
 }
 
 // HandleCreate implements the BatchEventListener interface. This is fired on receiving
-// a batch creation event from the blockchain listener to ensure that if a stamp
+// a batch creation event from the blockchain listener to ensure that if a vouch
 // issuer was not created initially, we will create it here.
 func (ps *service) HandleCreate(b *Batch) error {
-	return ps.Add(NewStampIssuer(
+	return ps.Add(NewVouchIssuer(
 		"recovered",
 		string(b.Owner),
 		b.ID,
@@ -115,7 +115,7 @@ func (ps *service) HandleCreate(b *Batch) error {
 }
 
 // HandleTopUp implements the BatchEventListener interface. This is fired on receiving
-// a batch topup event from the blockchain to update stampissuer details
+// a batch topup event from the blockchain to update vouchIssuer details
 func (ps *service) HandleTopUp(batchID []byte, newValue *big.Int) {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
@@ -145,28 +145,28 @@ func (ps *service) HandleDepthIncrease(batchID []byte, newDepth uint8, normalise
 	}
 }
 
-// StampIssuers returns the currently active stamp issuers.
-func (ps *service) StampIssuers() []*StampIssuer {
+// VouchIssuers returns the currently active vouch issuers.
+func (ps *service) VouchIssuers() []*VouchIssuer {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 	return ps.issuers
 }
 
-func (ps *service) IssuerUsable(st *StampIssuer) bool {
+func (ps *service) IssuerUsable(st *VouchIssuer) bool {
 	cs := ps.postageStore.GetChainState()
 
 	// this checks atleast threshold blocks are seen on the blockchain after
-	// the batch creation, before we start using a stamp issuer. The threshold
+	// the batch creation, before we start using a vouch issuer. The threshold
 	// is meant to allow enough time for upstream peers to see the batch and
-	// hence validate the stamps issued
+	// hence validate the vouches issued
 	if cs.Block < st.data.BlockNumber || (cs.Block-st.data.BlockNumber) < blockThreshold {
 		return false
 	}
 	return true
 }
 
-// GetStampIssuer finds a stamp issuer by batch ID.
-func (ps *service) GetStampIssuer(batchID []byte) (*StampIssuer, error) {
+// GetVouchIssuer finds a vouch issuer by batch ID.
+func (ps *service) GetVouchIssuer(batchID []byte) (*VouchIssuer, error) {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 	for _, st := range ps.issuers {
@@ -180,7 +180,7 @@ func (ps *service) GetStampIssuer(batchID []byte) (*StampIssuer, error) {
 	return nil, ErrNotFound
 }
 
-// Close saves all the active stamp issuers to statestore.
+// Close saves all the active vouch issuers to statestore.
 func (ps *service) Close() error {
 	for i, st := range ps.issuers {
 		if err := ps.store.Put(ps.keyForIndex(i), st); err != nil {

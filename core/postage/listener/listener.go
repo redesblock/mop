@@ -29,15 +29,15 @@ const (
 )
 
 var (
-	postageStampABI = parseABI(mopabi.PostageStampABI)
+	postageVouchABI = parseABI(mopabi.PostageVouchABI)
 	// batchCreatedTopic is the postage contract's batch created event topic
-	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
+	batchCreatedTopic = postageVouchABI.Events["BatchCreated"].ID
 	// batchTopupTopic is the postage contract's batch topup event topic
-	batchTopupTopic = postageStampABI.Events["BatchTopUp"].ID
+	batchTopupTopic = postageVouchABI.Events["BatchTopUp"].ID
 	// batchDepthIncreaseTopic is the postage contract's batch dilution event topic
-	batchDepthIncreaseTopic = postageStampABI.Events["BatchDepthIncrease"].ID
+	batchDepthIncreaseTopic = postageVouchABI.Events["BatchDepthIncrease"].ID
 	// priceUpdateTopic is the postage contract's price update event topic
-	priceUpdateTopic = postageStampABI.Events["PriceUpdate"].ID
+	priceUpdateTopic = postageVouchABI.Events["PriceUpdate"].ID
 
 	ErrPostageSyncingStalled = errors.New("postage syncing stalled")
 )
@@ -58,7 +58,7 @@ type listener struct {
 	ev        BlockHeightContractFilterer
 	blockTime uint64
 
-	postageStampAddress common.Address
+	postageVouchAddress common.Address
 	quit                chan struct{}
 	wg                  sync.WaitGroup
 	metrics             metrics
@@ -70,7 +70,7 @@ type listener struct {
 func New(
 	logger logging.Logger,
 	ev BlockHeightContractFilterer,
-	postageStampAddress common.Address,
+	postageVouchAddress common.Address,
 	blockTime uint64,
 	shutdowner Shutdowner,
 	stallingTimeout time.Duration,
@@ -80,7 +80,7 @@ func New(
 		logger:              logger,
 		ev:                  ev,
 		blockTime:           blockTime,
-		postageStampAddress: postageStampAddress,
+		postageVouchAddress: postageVouchAddress,
 		quit:                make(chan struct{}),
 		metrics:             newMetrics(),
 		shutdowner:          shutdowner,
@@ -94,7 +94,7 @@ func (l *listener) filterQuery(from, to *big.Int) ethereum.FilterQuery {
 		FromBlock: from,
 		ToBlock:   to,
 		Addresses: []common.Address{
-			l.postageStampAddress,
+			l.postageVouchAddress,
 		},
 		Topics: [][]common.Hash{
 			{
@@ -112,7 +112,7 @@ func (l *listener) processEvent(e types.Log, updater postage.EventUpdater) error
 	switch e.Topics[0] {
 	case batchCreatedTopic:
 		c := &batchCreatedEvent{}
-		err := transaction.ParseEvent(&postageStampABI, "BatchCreated", c, e)
+		err := transaction.ParseEvent(&postageVouchABI, "BatchCreated", c, e)
 		if err != nil {
 			return err
 		}
@@ -128,7 +128,7 @@ func (l *listener) processEvent(e types.Log, updater postage.EventUpdater) error
 		)
 	case batchTopupTopic:
 		c := &batchTopUpEvent{}
-		err := transaction.ParseEvent(&postageStampABI, "BatchTopUp", c, e)
+		err := transaction.ParseEvent(&postageVouchABI, "BatchTopUp", c, e)
 		if err != nil {
 			return err
 		}
@@ -140,7 +140,7 @@ func (l *listener) processEvent(e types.Log, updater postage.EventUpdater) error
 		)
 	case batchDepthIncreaseTopic:
 		c := &batchDepthIncreaseEvent{}
-		err := transaction.ParseEvent(&postageStampABI, "BatchDepthIncrease", c, e)
+		err := transaction.ParseEvent(&postageVouchABI, "BatchDepthIncrease", c, e)
 		if err != nil {
 			return err
 		}
@@ -153,7 +153,7 @@ func (l *listener) processEvent(e types.Log, updater postage.EventUpdater) error
 		)
 	case priceUpdateTopic:
 		c := &priceUpdateEvent{}
-		err := transaction.ParseEvent(&postageStampABI, "PriceUpdate", c, e)
+		err := transaction.ParseEvent(&postageVouchABI, "PriceUpdate", c, e)
 		if err != nil {
 			return err
 		}

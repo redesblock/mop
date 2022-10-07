@@ -131,7 +131,7 @@ func totalKeyPeer(key []byte, prefix string) (peer swarm.Address, err error) {
 
 // peerAllowance computes the maximum incoming payment value we accept
 // this is the time based allowance or the peers actual debt, whichever is less
-func (s *Service) peerAllowance(peer swarm.Address, fullNode bool) (limit *big.Int, stamp int64, err error) {
+func (s *Service) peerAllowance(peer swarm.Address, fullNode bool) (limit *big.Int, vouch int64, err error) {
 	var lastTime lastPayment
 	err = s.store.Get(totalKey(peer, SettlementReceivedPrefix), &lastTime)
 	if err != nil {

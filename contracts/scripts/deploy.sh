@@ -27,7 +27,7 @@ mint_erc20 $TOKEN_ADDRESS $PRIMARY_ACCOUNT 10000000000000000000 > /dev/null &
 echo "minting tokens for $PRIMARY_ACCOUNT" >&2
 
 POSTAGE_STAMP_ADDRESS=$(wait_for_deploy $(FROM=$PRIMARY_ACCOUNT DATA="${POSTAGE_STAMP_BIN}$(to_abi_address $TOKEN_ADDRESS)" GAS=3500000 eth_sendTransaction))
-echo deployed postage stamp contract to $POSTAGE_STAMP_ADDRESS >&2
+echo deployed postage vouch contract to $POSTAGE_STAMP_ADDRESS >&2
 
 PRICE_ORACLE_ADDRESS=$(wait_for_deploy $(FROM=$PRIMARY_ACCOUNT DATA="${PRICE_ORACLE_BIN}$(to_abi_hex 100000 64)$(to_abi_hex 1 64)" GAS=3500000 eth_sendTransaction))
 echo deployed price oracle contract to $PRICE_ORACLE_ADDRESS >&2

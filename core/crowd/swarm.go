@@ -1,5 +1,5 @@
-// Package swarm contains most basic and general Swarm concepts.
-package swarm
+// Package crowd contains most basic and general Swarm concepts.
+package crowd
 
 import (
 	"bytes"
@@ -136,15 +136,15 @@ type Chunk interface {
 	TagID() uint32
 	// WithTagID attaches the tag ID to the chunk.
 	WithTagID(t uint32) Chunk
-	// Stamp returns the postage stamp associated with this chunk.
-	Stamp() Stamp
-	// WithStamp attaches a postage stamp to the chunk.
-	WithStamp(Stamp) Chunk
+	// Vouch returns the postage vouch associated with this chunk.
+	Vouch() Vouch
+	// WithVouch attaches a postage vouch to the chunk.
+	WithVouch(Vouch) Chunk
 	// Radius is the PO above which the batch is preserved.
 	Radius() uint8
-	// Depth returns the batch depth of the stamp - allowed batch size = 2^{depth}.
+	// Depth returns the batch depth of the vouch - allowed batch size = 2^{depth}.
 	Depth() uint8
-	// BucketDepth returns the bucket depth of the batch of the stamp - always < depth.
+	// BucketDepth returns the bucket depth of the batch of the vouch - always < depth.
 	BucketDepth() uint8
 	// Immutable returns whether the batch is immutable
 	Immutable() bool
@@ -154,8 +154,8 @@ type Chunk interface {
 	Equal(Chunk) bool
 }
 
-// Stamp interface for postage.Stamp to avoid circular dependency
-type Stamp interface {
+// Vouch interface for postage.Vouch to avoid circular dependency
+type Vouch interface {
 	BatchID() []byte
 	Index() []byte
 	Sig() []byte
@@ -168,7 +168,7 @@ type chunk struct {
 	addr        Address
 	sdata       []byte
 	tagID       uint32
-	stamp       Stamp
+	vouch       Vouch
 	radius      uint8
 	depth       uint8
 	bucketDepth uint8
@@ -187,8 +187,8 @@ func (c *chunk) WithTagID(t uint32) Chunk {
 	return c
 }
 
-func (c *chunk) WithStamp(stamp Stamp) Chunk {
-	c.stamp = stamp
+func (c *chunk) WithVouch(vouch Vouch) Chunk {
+	c.vouch = vouch
 	return c
 }
 
@@ -212,8 +212,8 @@ func (c *chunk) TagID() uint32 {
 	return c.tagID
 }
 
-func (c *chunk) Stamp() Stamp {
-	return c.stamp
+func (c *chunk) Vouch() Vouch {
+	return c.vouch
 }
 
 func (c *chunk) Radius() uint8 {

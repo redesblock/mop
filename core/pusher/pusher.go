@@ -30,7 +30,7 @@ type Service struct {
 	networkID         uint64
 	storer            storage.Storer
 	pushSyncer        pushsync.PushSyncer
-	validStamp        postage.ValidStampFn
+	validVouch        postage.ValidVouchFn
 	depther           topology.NeighborhoodDepther
 	logger            logging.Logger
 	tag               *tags.Tags
@@ -54,12 +54,12 @@ var (
 	ErrShallowReceipt = errors.New("shallow recipt")
 )
 
-func New(networkID uint64, storer storage.Storer, depther topology.NeighborhoodDepther, pushSyncer pushsync.PushSyncer, validStamp postage.ValidStampFn, tagger *tags.Tags, logger logging.Logger, tracer *tracing.Tracer, warmupTime time.Duration) *Service {
+func New(networkID uint64, storer storage.Storer, depther topology.NeighborhoodDepther, pushSyncer pushsync.PushSyncer, validVouch postage.ValidVouchFn, tagger *tags.Tags, logger logging.Logger, tracer *tracing.Tracer, warmupTime time.Duration) *Service {
 	p := &Service{
 		networkID:         networkID,
 		storer:            storer,
 		pushSyncer:        pushSyncer,
-		validStamp:        validStamp,
+		validVouch:        validVouch,
 		depther:           depther,
 		tag:               tagger,
 		logger:            logger,
@@ -127,11 +127,11 @@ func (s *Service) chunksWorker(warmupTime time.Duration, tracer *tracing.Tracer)
 	}()
 
 	for ch := range chunks {
-		// If the stamp is invalid, the chunk is not synced with the network
+		// If the vouch is invalid, the chunk is not synced with the network
 		// since other nodes would reject the chunk, so the chunk is marked as
 		// synced which makes it available to the node but not to the network
 		if err := s.valid(ch); err != nil {
-			logger.Warningf("pusher: stamp with batch ID %x is no longer valid, skipping syncing for chunk %s: %v", ch.Stamp().BatchID(), ch.Address().String(), err)
+			logger.Warningf("pusher: vouch with batch ID %x is no longer valid, skipping syncing for chunk %s: %v", ch.Vouch().BatchID(), ch.Address().String(), err)
 			if err = s.storer.Set(ctx, storage.ModeSetSync, ch.Address()); err != nil {
 				s.logger.Errorf("pusher: set sync: %w", err)
 			}
@@ -238,16 +238,16 @@ func (s *Service) checkReceipt(receipt *pushsync.Receipt) error {
 	return nil
 }
 
-// valid checks whether the stamp for a chunk is valid before sending
+// valid checks whether the vouch for a chunk is valid before sending
 // it out on the network.
 func (s *Service) valid(ch swarm.Chunk) error {
-	stampBytes, err := ch.Stamp().MarshalBinary()
+	vouchBytes, err := ch.Vouch().MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("pusher: valid stamp marshal: %w", err)
+		return fmt.Errorf("pusher: valid vouch marshal: %w", err)
 	}
-	_, err = s.validStamp(ch, stampBytes)
+	_, err = s.validVouch(ch, vouchBytes)
 	if err != nil {
-		return fmt.Errorf("pusher: valid stamp: %w", err)
+		return fmt.Errorf("pusher: valid vouch: %w", err)
 	}
 	return nil
 }

@@ -443,7 +443,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	b.localstoreCloser = storer
 	unreserveFn = storer.UnreserveBatch
 
-	validStamp := postage.ValidStamp(batchStore)
+	validVouch := postage.ValidVouch(batchStore)
 	post, err := postage.NewService(stateStore, batchStore, chainID)
 	if err != nil {
 		return nil, fmt.Errorf("postage service load: %w", err)
@@ -460,14 +460,14 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	var postageSyncStart uint64 = 0
 	chainCfg, found := config.GetChainConfig(chainID)
-	postageContractAddress, startBlock := chainCfg.PostageStamp, chainCfg.StartBlock
+	postageContractAddress, startBlock := chainCfg.PostageVouch, chainCfg.StartBlock
 	if o.PostageContractAddress != "" {
 		if !common.IsHexAddress(o.PostageContractAddress) {
-			return nil, errors.New("malformed postage stamp address")
+			return nil, errors.New("malformed postage vouch address")
 		}
 		postageContractAddress = common.HexToAddress(o.PostageContractAddress)
 	} else if !found {
-		return nil, errors.New("no known postage stamp addresses for this network")
+		return nil, errors.New("no known postage vouch addresses for this network")
 	}
 	if found {
 		postageSyncStart = startBlock
@@ -702,7 +702,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	pricing.SetPaymentThresholdObserver(acc)
 
-	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer, o.RetrievalCaching, validStamp)
+	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer, o.RetrievalCaching, validVouch)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
 
@@ -713,9 +713,9 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 	if o.GlobalPinningEnabled {
 		// create recovery callback for content repair
 		recoverFunc := recovery.NewCallback(pssService)
-		ns = netstore.New(storer, validStamp, recoverFunc, retrieve, logger)
+		ns = netstore.New(storer, validVouch, recoverFunc, retrieve, logger)
 	} else {
-		ns = netstore.New(storer, validStamp, nil, retrieve, logger)
+		ns = netstore.New(storer, validVouch, nil, retrieve, logger)
 	}
 	b.nsCloser = ns
 
@@ -723,7 +723,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	pinningService := pinning.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(networkID, swarmAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
+	pushSyncProtocol := pushsync.New(networkID, swarmAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validVouch, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -734,12 +734,12 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		b.recoveryHandleCleanup = pssService.Register(recovery.Topic, chunkRepairHandler)
 	}
 
-	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, validStamp, tagService, logger, tracer, warmupTime)
+	pusherService := pusher.New(networkID, storer, kad, pushSyncProtocol, validVouch, tagService, logger, tracer, warmupTime)
 	b.pusherCloser = pusherService
 
 	pullStorage := pullstorage.New(storer)
 
-	pullSyncProtocol := pullsync.New(p2ps, pullStorage, pssService.TryUnwrap, validStamp, logger)
+	pullSyncProtocol := pullsync.New(p2ps, pullStorage, pssService.TryUnwrap, validVouch, logger)
 	b.pullSyncCloser = pullSyncProtocol
 
 	var pullerService *puller.Puller

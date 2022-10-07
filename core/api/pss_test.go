@@ -182,7 +182,7 @@ func TestPssSend(t *testing.T) {
 			mtx.Unlock()
 			return err
 		}
-		mp           = mockpost.New(mockpost.WithIssuer(postage.NewStampIssuer("", "", batchOk, big.NewInt(3), 11, 10, 1000, true)))
+		mp           = mockpost.New(mockpost.WithIssuer(postage.NewVouchIssuer("", "", batchOk, big.NewInt(3), 11, 10, 1000, true)))
 		p            = newMockPss(sendFn)
 		client, _, _ = newTestServer(t, testServerOptions{
 			Pss:    p,
@@ -431,7 +431,7 @@ func newMockPss(f pssSendFn) *mpss {
 }
 
 // Send arbitrary byte slice with the given topic to Targets.
-func (m *mpss) Send(ctx context.Context, topic pss.Topic, payload []byte, _ postage.Stamper, recipient *ecdsa.PublicKey, targets pss.Targets) error {
+func (m *mpss) Send(ctx context.Context, topic pss.Topic, payload []byte, _ postage.Voucher, recipient *ecdsa.PublicKey, targets pss.Targets) error {
 	chunk, err := pss.Wrap(ctx, topic, payload, recipient, targets)
 	if err != nil {
 		return err

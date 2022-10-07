@@ -35,7 +35,7 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address)
 		return nil, err
 	}
 	return swarm.NewChunk(swarm.NewAddress(out.Address), out.Data).
-		WithStamp(postage.NewStamp(out.BatchID, out.Index, out.Timestamp, out.Sig)), nil
+		WithVouch(postage.NewVouch(out.BatchID, out.Index, out.Timestamp, out.Sig)), nil
 }
 
 // get returns Item from the retrieval index

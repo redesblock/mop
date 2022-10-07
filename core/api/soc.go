@@ -131,7 +131,7 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	i, err := s.post.GetStampIssuer(batch)
+	i, err := s.post.GetVouchIssuer(batch)
 	if err != nil {
 		s.logger.Debugf("soc upload: postage batch issuer: %v", err)
 		s.logger.Error("soc upload: postage batch issue")
@@ -141,24 +141,24 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, postage.ErrNotUsable):
 			jsonhttp.BadRequest(w, "batch not usable yet")
 		default:
-			jsonhttp.BadRequest(w, "postage stamp issuer")
+			jsonhttp.BadRequest(w, "postage vouch issuer")
 		}
 		return
 	}
-	stamper := postage.NewStamper(i, s.signer)
-	stamp, err := stamper.Stamp(sch.Address())
+	voucher := postage.NewVoucher(i, s.signer)
+	vouch, err := voucher.Vouch(sch.Address())
 	if err != nil {
-		s.logger.Debugf("soc upload: stamp: %v", err)
-		s.logger.Error("soc upload: stamp error")
+		s.logger.Debugf("soc upload: vouch: %v", err)
+		s.logger.Error("soc upload: vouch error")
 		switch {
 		case errors.Is(err, postage.ErrBucketFull):
 			jsonhttp.PaymentRequired(w, "batch is overissued")
 		default:
-			jsonhttp.InternalServerError(w, "stamp error")
+			jsonhttp.InternalServerError(w, "vouch error")
 		}
 		return
 	}
-	sch = sch.WithStamp(stamp)
+	sch = sch.WithVouch(vouch)
 	_, err = s.storer.Put(ctx, requestModePut(r), sch)
 	if err != nil {
 		s.logger.Debugf("soc upload: chunk write error: %v", err)

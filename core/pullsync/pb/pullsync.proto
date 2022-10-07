@@ -36,6 +36,6 @@ message Want {
 message Delivery {
   bytes Address = 1;
   bytes Data = 2;
-  bytes Stamp = 3;
+  bytes Vouch = 3;
 }
 

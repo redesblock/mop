@@ -30,9 +30,9 @@ type Item struct {
 	PinCounter      uint64 // maintains the no of time a chunk is pinned
 	Tag             uint32
 	BatchID         []byte // postage batch ID
-	Index           []byte // postage stamp within-batch: index
-	Timestamp       []byte // postage stamp validity
-	Sig             []byte // postage stamp signature
+	Index           []byte // postage vouch within-batch: index
+	Timestamp       []byte // postage vouch validity
+	Sig             []byte // postage vouch signature
 	BucketDepth     uint8  // postage batch bucket depth (for collision sets)
 	Depth           uint8  // postage batch depth (for size)
 	Radius          uint8  // postage batch reserve radius, po upto and excluding which chunks are unpinned

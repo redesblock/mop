@@ -24,13 +24,13 @@ import (
 	"github.com/redesblock/mop/core/sctx"
 )
 
-func TestPostageCreateStamp(t *testing.T) {
+func TestPostageCreateVouch(t *testing.T) {
 	batchID := []byte{1, 2, 3, 4}
 	initialBalance := int64(1000)
 	depth := uint8(1)
 	label := "label"
 	createBatch := func(amount int64, depth uint8, label string) string {
-		return fmt.Sprintf("/stamps/%d/%d?label=%s", amount, depth, label)
+		return fmt.Sprintf("/vouches/%d/%d?label=%s", amount, depth, label)
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestPostageCreateStamp(t *testing.T) {
 	t.Run("invalid depth", func(t *testing.T) {
 		ts := newTestServer(t, testServerOptions{})
 
-		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/stamps/1000/ab", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/vouches/1000/ab", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid depth",
@@ -146,7 +146,7 @@ func TestPostageCreateStamp(t *testing.T) {
 			PostageContract: contract,
 		})
 
-		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/stamps/1000/9", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/vouches/1000/9", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid depth",
@@ -157,7 +157,7 @@ func TestPostageCreateStamp(t *testing.T) {
 	t.Run("invalid balance", func(t *testing.T) {
 		ts := newTestServer(t, testServerOptions{})
 
-		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/stamps/abcd/2", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/vouches/abcd/2", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid postage amount",
@@ -178,7 +178,7 @@ func TestPostageCreateStamp(t *testing.T) {
 			PostageContract: contract,
 		})
 
-		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/stamps/1000/24", http.StatusCreated,
+		jsonhttptest.Request(t, ts.Client, http.MethodPost, "/vouches/1000/24", http.StatusCreated,
 			jsonhttptest.WithRequestHeader("Immutable", "true"),
 			jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageCreateResponse{
 				BatchID: batchID,
@@ -192,18 +192,18 @@ func TestPostageCreateStamp(t *testing.T) {
 	})
 }
 
-func TestPostageGetStamps(t *testing.T) {
+func TestPostageGetVouchs(t *testing.T) {
 	b := postagetesting.MustNewBatch()
 	b.Value = big.NewInt(20)
-	si := postage.NewStampIssuer("", "", b.ID, big.NewInt(3), 11, 10, 1000, true)
+	si := postage.NewVouchIssuer("", "", b.ID, big.NewInt(3), 11, 10, 1000, true)
 	mp := mockpost.New(mockpost.WithIssuer(si))
 	cs := &postage.ChainState{Block: 10, TotalAmount: big.NewInt(5), CurrentPrice: big.NewInt(2)}
 	bs := mock.New(mock.WithChainState(cs), mock.WithBatch(b))
 	ts := newTestServer(t, testServerOptions{Post: mp, BatchStore: bs})
 
-	jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps", http.StatusOK,
-		jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageStampsResponse{
-			Stamps: []debugapi.PostageStampResponse{
+	jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches", http.StatusOK,
+		jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageVouchsResponse{
+			Vouchs: []debugapi.PostageVouchResponse{
 				{
 					BatchID:       b.ID,
 					Utilization:   si.Utilization(),
@@ -222,18 +222,18 @@ func TestPostageGetStamps(t *testing.T) {
 	)
 }
 
-func TestPostageGetStamp(t *testing.T) {
+func TestPostageGetVouch(t *testing.T) {
 	b := postagetesting.MustNewBatch()
 	b.Value = big.NewInt(20)
-	si := postage.NewStampIssuer("", "", b.ID, big.NewInt(3), 11, 10, 1000, true)
+	si := postage.NewVouchIssuer("", "", b.ID, big.NewInt(3), 11, 10, 1000, true)
 	mp := mockpost.New(mockpost.WithIssuer(si))
 	cs := &postage.ChainState{Block: 10, TotalAmount: big.NewInt(5), CurrentPrice: big.NewInt(2)}
 	bs := mock.New(mock.WithChainState(cs), mock.WithBatch(b))
 	ts := newTestServer(t, testServerOptions{Post: mp, BatchStore: bs})
 
 	t.Run("ok", func(t *testing.T) {
-		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps/"+hex.EncodeToString(b.ID), http.StatusOK,
-			jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageStampResponse{
+		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches/"+hex.EncodeToString(b.ID), http.StatusOK,
+			jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageVouchResponse{
 				BatchID:       b.ID,
 				Utilization:   si.Utilization(),
 				Usable:        true,
@@ -251,7 +251,7 @@ func TestPostageGetStamp(t *testing.T) {
 	t.Run("bad request", func(t *testing.T) {
 		badBatch := []byte{0, 1, 2}
 
-		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps/"+hex.EncodeToString(badBatch), http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches/"+hex.EncodeToString(badBatch), http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid batchID",
@@ -261,7 +261,7 @@ func TestPostageGetStamp(t *testing.T) {
 	t.Run("bad request", func(t *testing.T) {
 		badBatch := []byte{0, 1, 2, 4}
 
-		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps/"+hex.EncodeToString(badBatch), http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches/"+hex.EncodeToString(badBatch), http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid batchID",
@@ -271,7 +271,7 @@ func TestPostageGetStamp(t *testing.T) {
 }
 
 func TestPostageGetBuckets(t *testing.T) {
-	si := postage.NewStampIssuer("", "", batchOk, big.NewInt(3), 11, 10, 1000, true)
+	si := postage.NewVouchIssuer("", "", batchOk, big.NewInt(3), 11, 10, 1000, true)
 	mp := mockpost.New(mockpost.WithIssuer(si))
 	ts := newTestServer(t, testServerOptions{Post: mp})
 	buckets := make([]debugapi.BucketData, 1024)
@@ -280,8 +280,8 @@ func TestPostageGetBuckets(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps/"+batchOkStr+"/buckets", http.StatusOK,
-			jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageStampBucketsResponse{
+		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches/"+batchOkStr+"/buckets", http.StatusOK,
+			jsonhttptest.WithExpectedJSONResponse(&debugapi.PostageVouchBucketsResponse{
 				Depth:            si.Depth(),
 				BucketDepth:      si.BucketDepth(),
 				BucketUpperBound: si.BucketUpperBound(),
@@ -292,7 +292,7 @@ func TestPostageGetBuckets(t *testing.T) {
 	t.Run("bad batch", func(t *testing.T) {
 		badBatch := []byte{0, 1, 2}
 
-		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps/"+hex.EncodeToString(badBatch)+"/buckets", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches/"+hex.EncodeToString(badBatch)+"/buckets", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid batchID",
@@ -302,7 +302,7 @@ func TestPostageGetBuckets(t *testing.T) {
 	t.Run("bad batch", func(t *testing.T) {
 		badBatch := []byte{0, 1, 2, 4}
 
-		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/stamps/"+hex.EncodeToString(badBatch)+"/buckets", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodGet, "/vouches/"+hex.EncodeToString(badBatch)+"/buckets", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid batchID",
@@ -367,10 +367,10 @@ func TestChainState(t *testing.T) {
 	})
 }
 
-func TestPostageTopUpStamp(t *testing.T) {
+func TestPostageTopUpVouch(t *testing.T) {
 	topupAmount := int64(1000)
 	topupBatch := func(id string, amount int64) string {
-		return fmt.Sprintf("/stamps/topup/%s/%d", id, amount)
+		return fmt.Sprintf("/vouches/topup/%s/%d", id, amount)
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -462,7 +462,7 @@ func TestPostageTopUpStamp(t *testing.T) {
 	t.Run("invalid batch id", func(t *testing.T) {
 		ts := newTestServer(t, testServerOptions{})
 
-		jsonhttptest.Request(t, ts.Client, http.MethodPatch, "/stamps/topup/abcd/2", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodPatch, "/vouches/topup/abcd/2", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid batchID",
@@ -473,7 +473,7 @@ func TestPostageTopUpStamp(t *testing.T) {
 	t.Run("invalid amount", func(t *testing.T) {
 		ts := newTestServer(t, testServerOptions{})
 
-		wrongURL := fmt.Sprintf("/stamps/topup/%s/amount", batchOkStr)
+		wrongURL := fmt.Sprintf("/vouches/topup/%s/amount", batchOkStr)
 
 		jsonhttptest.Request(t, ts.Client, http.MethodPatch, wrongURL, http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
@@ -484,10 +484,10 @@ func TestPostageTopUpStamp(t *testing.T) {
 	})
 }
 
-func TestPostageDiluteStamp(t *testing.T) {
+func TestPostageDiluteVouch(t *testing.T) {
 	newBatchDepth := uint8(17)
 	diluteBatch := func(id string, depth uint8) string {
-		return fmt.Sprintf("/stamps/dilute/%s/%d", id, depth)
+		return fmt.Sprintf("/vouches/dilute/%s/%d", id, depth)
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -579,7 +579,7 @@ func TestPostageDiluteStamp(t *testing.T) {
 	t.Run("invalid batch id", func(t *testing.T) {
 		ts := newTestServer(t, testServerOptions{})
 
-		jsonhttptest.Request(t, ts.Client, http.MethodPatch, "/stamps/dilute/abcd/2", http.StatusBadRequest,
+		jsonhttptest.Request(t, ts.Client, http.MethodPatch, "/vouches/dilute/abcd/2", http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
 				Code:    http.StatusBadRequest,
 				Message: "invalid batchID",
@@ -590,7 +590,7 @@ func TestPostageDiluteStamp(t *testing.T) {
 	t.Run("invalid depth", func(t *testing.T) {
 		ts := newTestServer(t, testServerOptions{})
 
-		wrongURL := fmt.Sprintf("/stamps/dilute/%s/depth", batchOkStr)
+		wrongURL := fmt.Sprintf("/vouches/dilute/%s/depth", batchOkStr)
 
 		jsonhttptest.Request(t, ts.Client, http.MethodPatch, wrongURL, http.StatusBadRequest,
 			jsonhttptest.WithExpectedJSONResponse(&jsonhttp.StatusResponse{
@@ -617,7 +617,7 @@ func TestPostageAccessHandler(t *testing.T) {
 		{
 			name:     "create batch ok",
 			method:   http.MethodPost,
-			url:      "/stamps/1000/17?label=test",
+			url:      "/vouches/1000/17?label=test",
 			respCode: http.StatusCreated,
 			resp: &debugapi.PostageCreateResponse{
 				BatchID: batchOk,
@@ -626,7 +626,7 @@ func TestPostageAccessHandler(t *testing.T) {
 		{
 			name:     "topup batch ok",
 			method:   http.MethodPatch,
-			url:      fmt.Sprintf("/stamps/topup/%s/10", batchOkStr),
+			url:      fmt.Sprintf("/vouches/topup/%s/10", batchOkStr),
 			respCode: http.StatusAccepted,
 			resp: &debugapi.PostageCreateResponse{
 				BatchID: batchOk,
@@ -635,7 +635,7 @@ func TestPostageAccessHandler(t *testing.T) {
 		{
 			name:     "dilute batch ok",
 			method:   http.MethodPatch,
-			url:      fmt.Sprintf("/stamps/dilute/%s/18", batchOkStr),
+			url:      fmt.Sprintf("/vouches/dilute/%s/18", batchOkStr),
 			respCode: http.StatusAccepted,
 			resp: &debugapi.PostageCreateResponse{
 				BatchID: batchOk,
@@ -647,7 +647,7 @@ func TestPostageAccessHandler(t *testing.T) {
 		{
 			name:     "create batch not ok",
 			method:   http.MethodPost,
-			url:      "/stamps/1000/17?label=test",
+			url:      "/vouches/1000/17?label=test",
 			respCode: http.StatusTooManyRequests,
 			resp: &jsonhttp.StatusResponse{
 				Code:    http.StatusTooManyRequests,
@@ -657,7 +657,7 @@ func TestPostageAccessHandler(t *testing.T) {
 		{
 			name:     "topup batch not ok",
 			method:   http.MethodPatch,
-			url:      fmt.Sprintf("/stamps/topup/%s/10", batchOkStr),
+			url:      fmt.Sprintf("/vouches/topup/%s/10", batchOkStr),
 			respCode: http.StatusTooManyRequests,
 			resp: &jsonhttp.StatusResponse{
 				Code:    http.StatusTooManyRequests,
@@ -667,7 +667,7 @@ func TestPostageAccessHandler(t *testing.T) {
 		{
 			name:     "dilute batch not ok",
 			method:   http.MethodPatch,
-			url:      fmt.Sprintf("/stamps/dilute/%s/18", batchOkStr),
+			url:      fmt.Sprintf("/vouches/dilute/%s/18", batchOkStr),
 			respCode: http.StatusTooManyRequests,
 			resp: &jsonhttp.StatusResponse{
 				Code:    http.StatusTooManyRequests,

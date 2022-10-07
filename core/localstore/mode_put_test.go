@@ -481,10 +481,10 @@ func TestModePut_sameChunk(t *testing.T) {
 // TestModePut_sameChunk puts the same chunk multiple times
 // and validates that all relevant indexes have only one item
 // in them.
-func TestModePut_SameStamp(t *testing.T) {
+func TestModePut_SameVouch(t *testing.T) {
 
 	ctx := context.Background()
-	stamp := postagetesting.MustNewStamp()
+	vouch := postagetesting.MustNewVouch()
 	ts := time.Now().Unix()
 
 	for _, modeTc1 := range putModes {
@@ -494,16 +494,16 @@ func TestModePut_SameStamp(t *testing.T) {
 				discardChunk swarm.Chunk
 			}{
 				{
-					persistChunk: generateChunkWithTimestamp(stamp, ts),
-					discardChunk: generateChunkWithTimestamp(stamp, ts),
+					persistChunk: generateChunkWithTimestamp(vouch, ts),
+					discardChunk: generateChunkWithTimestamp(vouch, ts),
 				},
 				{
-					persistChunk: generateChunkWithTimestamp(stamp, ts+1),
-					discardChunk: generateChunkWithTimestamp(stamp, ts),
+					persistChunk: generateChunkWithTimestamp(vouch, ts+1),
+					discardChunk: generateChunkWithTimestamp(vouch, ts),
 				},
 				{
-					persistChunk: generateChunkWithTimestamp(stamp, ts),
-					discardChunk: generateChunkWithTimestamp(stamp, ts-1),
+					persistChunk: generateChunkWithTimestamp(vouch, ts),
+					discardChunk: generateChunkWithTimestamp(vouch, ts-1),
 				},
 			} {
 				t.Run(modeTc1.String()+modeTc2.String(), func(t *testing.T) {
@@ -542,10 +542,10 @@ func TestModePut_SameStamp(t *testing.T) {
 	}
 }
 
-func TestModePut_ImmutableStamp(t *testing.T) {
+func TestModePut_ImmutableVouch(t *testing.T) {
 
 	ctx := context.Background()
-	stamp := postagetesting.MustNewStamp()
+	vouch := postagetesting.MustNewVouch()
 	ts := time.Now().Unix()
 
 	for _, modeTc1 := range putModes {
@@ -557,18 +557,18 @@ func TestModePut_ImmutableStamp(t *testing.T) {
 			}{
 				{
 					name:         "same timestamps",
-					persistChunk: generateImmutableChunkWithTimestamp(stamp, ts),
-					discardChunk: generateImmutableChunkWithTimestamp(stamp, ts),
+					persistChunk: generateImmutableChunkWithTimestamp(vouch, ts),
+					discardChunk: generateImmutableChunkWithTimestamp(vouch, ts),
 				},
 				{
 					name:         "higher timestamp",
-					persistChunk: generateImmutableChunkWithTimestamp(stamp, ts),
-					discardChunk: generateImmutableChunkWithTimestamp(stamp, ts+1),
+					persistChunk: generateImmutableChunkWithTimestamp(vouch, ts),
+					discardChunk: generateImmutableChunkWithTimestamp(vouch, ts+1),
 				},
 				{
 					name:         "higher timestamp first",
-					persistChunk: generateImmutableChunkWithTimestamp(stamp, ts+1),
-					discardChunk: generateImmutableChunkWithTimestamp(stamp, ts),
+					persistChunk: generateImmutableChunkWithTimestamp(vouch, ts+1),
+					discardChunk: generateImmutableChunkWithTimestamp(vouch, ts),
 				},
 			} {
 				testName := fmt.Sprintf("%s %s %s", modeTc1.String(), modeTc2.String(), tc.name)
@@ -583,7 +583,7 @@ func TestModePut_ImmutableStamp(t *testing.T) {
 					}
 					_, err = db.Put(ctx, modeTc2, tc.discardChunk)
 					if !errors.Is(err, ErrOverwrite) {
-						t.Fatalf("expected overwrite error on immutable stamp got %v", err)
+						t.Fatalf("expected overwrite error on immutable vouch got %v", err)
 					}
 
 					newItemsCountTest(db.retrievalDataIndex, 1)(t)
@@ -608,15 +608,15 @@ func TestModePut_ImmutableStamp(t *testing.T) {
 	}
 }
 
-func generateChunkWithTimestamp(stamp *postage.Stamp, timestamp int64) swarm.Chunk {
+func generateChunkWithTimestamp(vouch *postage.Vouch, timestamp int64) swarm.Chunk {
 	tsBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(tsBuf, uint64(timestamp))
 	chunk := generateTestRandomChunk()
-	return chunk.WithStamp(postage.NewStamp(stamp.BatchID(), stamp.Index(), tsBuf, stamp.Sig()))
+	return chunk.WithVouch(postage.NewVouch(vouch.BatchID(), vouch.Index(), tsBuf, vouch.Sig()))
 }
 
-func generateImmutableChunkWithTimestamp(stamp *postage.Stamp, timestamp int64) swarm.Chunk {
-	return generateChunkWithTimestamp(stamp, timestamp).WithBatch(4, 12, 8, true)
+func generateImmutableChunkWithTimestamp(vouch *postage.Vouch, timestamp int64) swarm.Chunk {
+	return generateChunkWithTimestamp(vouch, timestamp).WithBatch(4, 12, 8, true)
 }
 
 // TestPutDuplicateChunks validates the expected behaviour for

@@ -12,21 +12,21 @@ import (
 	chunktesting "github.com/redesblock/mop/core/storage/testing"
 )
 
-// TestStampMarshalling tests the idempotence  of binary marshal/unmarshals for Stamps.
-func TestStampMarshalling(t *testing.T) {
-	sExp := postagetesting.MustNewStamp()
+// TestVouchMarshalling tests the idempotence  of binary marshal/unmarshals for Vouchs.
+func TestVouchMarshalling(t *testing.T) {
+	sExp := postagetesting.MustNewVouch()
 	buf, _ := sExp.MarshalBinary()
-	if len(buf) != postage.StampSize {
-		t.Fatalf("invalid length for serialised stamp. expected %d, got  %d", postage.StampSize, len(buf))
+	if len(buf) != postage.VouchSize {
+		t.Fatalf("invalid length for serialised vouch. expected %d, got  %d", postage.VouchSize, len(buf))
 	}
-	s := postage.NewStamp(nil, nil, nil, nil)
+	s := postage.NewVouch(nil, nil, nil, nil)
 	if err := s.UnmarshalBinary(buf); err != nil {
-		t.Fatalf("unexpected error unmarshalling stamp: %v", err)
+		t.Fatalf("unexpected error unmarshalling vouch: %v", err)
 	}
-	compareStamps(t, sExp, s)
+	compareVouchs(t, sExp, s)
 }
 
-func compareStamps(t *testing.T, s1, s2 *postage.Stamp) {
+func compareVouchs(t *testing.T, s1, s2 *postage.Vouch) {
 	if !bytes.Equal(s1.BatchID(), s2.BatchID()) {
 		t.Fatalf("id mismatch, expected %x, got %x", s1.BatchID(), s2.BatchID())
 	}
@@ -41,8 +41,8 @@ func compareStamps(t *testing.T, s1, s2 *postage.Stamp) {
 	}
 }
 
-// TestStampIndexMarshalling tests the idempotence of stamp index serialisation.
-func TestStampIndexMarshalling(t *testing.T) {
+// TestVouchIndexMarshalling tests the idempotence of vouch index serialisation.
+func TestVouchIndexMarshalling(t *testing.T) {
 	var (
 		expBucket uint32 = 11789
 		expIndex  uint32 = 199999
@@ -57,7 +57,7 @@ func TestStampIndexMarshalling(t *testing.T) {
 	}
 }
 
-func TestValidStamp(t *testing.T) {
+func TestValidVouch(t *testing.T) {
 
 	privKey, err := crypto.GenerateSecp256k1Key()
 	if err != nil {
@@ -71,14 +71,14 @@ func TestValidStamp(t *testing.T) {
 	b := postagetesting.MustNewBatch(postagetesting.WithOwner(owner))
 	bs := mock.New(mock.WithBatch(b))
 	signer := crypto.NewDefaultSigner(privKey)
-	issuer := postage.NewStampIssuer("label", "keyID", b.ID, big.NewInt(3), b.Depth, b.BucketDepth, 1000, true)
-	stamper := postage.NewStamper(issuer, signer)
+	issuer := postage.NewVouchIssuer("label", "keyID", b.ID, big.NewInt(3), b.Depth, b.BucketDepth, 1000, true)
+	voucher := postage.NewVoucher(issuer, signer)
 
-	// this creates a chunk with a mocked stamp. ValidStamp will override this
-	// stamp on execution
+	// this creates a chunk with a mocked vouch. ValidVouch will override this
+	// vouch on execution
 	ch := chunktesting.GenerateTestRandomChunk()
 
-	st, err := stamper.Stamp(ch.Address())
+	st, err := voucher.Vouch(ch.Address())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,17 +87,17 @@ func TestValidStamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// ensure the chunk doesnt have the batch details filled before we validate stamp
+	// ensure the chunk doesnt have the batch details filled before we validate vouch
 	if ch.Depth() == b.Depth || ch.BucketDepth() == b.BucketDepth {
 		t.Fatal("expected chunk to not have correct depth and bucket depth at start")
 	}
 
-	ch, err = postage.ValidStamp(bs)(ch, stBytes)
+	ch, err = postage.ValidVouch(bs)(ch, stBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	compareStamps(t, st, ch.Stamp().(*postage.Stamp))
+	compareVouchs(t, st, ch.Vouch().(*postage.Vouch))
 
 	if ch.Depth() != b.Depth {
 		t.Fatalf("invalid batch depth added on chunk exp %d got %d", b.Depth, ch.Depth())

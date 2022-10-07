@@ -1,7 +1,7 @@
 package listener
 
 var (
-	PostageStampABI = postageStampABI
+	PostageVouchABI = postageVouchABI
 
 	BatchCreatedTopic       = batchCreatedTopic
 	BatchTopupTopic         = batchTopupTopic

@@ -10,7 +10,7 @@ import (
 	swarmtesting "github.com/redesblock/mop/core/swarm/test"
 )
 
-var mockStamp swarm.Stamp
+var mockVouch swarm.Vouch
 
 // fixtureChunks are pregenerated content-addressed chunks necessary for explicit
 // test scenarios where random generated chunks are not good enough.
@@ -37,7 +37,7 @@ func init() {
 	// needed for GenerateTestRandomChunk
 	rand.Seed(time.Now().UnixNano())
 
-	mockStamp = postagetesting.MustNewStamp()
+	mockVouch = postagetesting.MustNewVouch()
 
 }
 
@@ -46,8 +46,8 @@ func GenerateTestRandomChunk() swarm.Chunk {
 	data := make([]byte, swarm.ChunkSize)
 	_, _ = rand.Read(data)
 	ch, _ := cac.New(data)
-	stamp := postagetesting.MustNewStamp()
-	return ch.WithStamp(stamp)
+	vouch := postagetesting.MustNewVouch()
+	return ch.WithVouch(vouch)
 }
 
 // GenerateTestRandomInvalidChunk generates a random, however invalid, content
@@ -57,8 +57,8 @@ func GenerateTestRandomInvalidChunk() swarm.Chunk {
 	_, _ = rand.Read(data)
 	key := make([]byte, swarm.SectionSize)
 	_, _ = rand.Read(key)
-	stamp := postagetesting.MustNewStamp()
-	return swarm.NewChunk(swarm.NewAddress(key), data).WithStamp(stamp)
+	vouch := postagetesting.MustNewVouch()
+	return swarm.NewChunk(swarm.NewAddress(key), data).WithVouch(vouch)
 }
 
 // GenerateTestRandomChunks generates a slice of random
@@ -76,8 +76,8 @@ func GenerateTestRandomChunkAt(target swarm.Address, po int) swarm.Chunk {
 	data := make([]byte, swarm.ChunkSize)
 	_, _ = rand.Read(data)
 	addr := swarmtesting.RandomAddressAt(target, po)
-	stamp := postagetesting.MustNewStamp()
-	return swarm.NewChunk(addr, data).WithStamp(stamp)
+	vouch := postagetesting.MustNewVouch()
+	return swarm.NewChunk(addr, data).WithVouch(vouch)
 }
 
 // FixtureChunk gets a pregenerated content-addressed chunk and
@@ -87,5 +87,5 @@ func FixtureChunk(prefix string) swarm.Chunk {
 	if !ok {
 		panic("no fixture found")
 	}
-	return c.WithStamp(mockStamp)
+	return c.WithVouch(mockVouch)
 }

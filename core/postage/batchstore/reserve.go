@@ -5,7 +5,7 @@
 // - the localstore which stores chunks and manages garbage collection
 //
 // when a new chunk arrives in the localstore, the batchstore reserve is asked to check
-// the batch used in the postage stamp attached to the chunk.
+// the batch used in the postage vouch attached to the chunk.
 // Depending on the value of the batch (reserve depth of the batch), the localstore
 // either pins the chunk (thereby protecting it from garbage collection) or not.
 // the chunk stays pinned until it is 'unreserved' based on changes in relative priority of the batch it belongs to

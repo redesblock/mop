@@ -10,5 +10,5 @@ message Request {
 
 message Delivery {
   bytes Data = 1;
-  bytes Stamp = 2;
+  bytes Vouch = 2;
 }

@@ -20,7 +20,7 @@ func (f optionFunc) apply(r *mockPostage) { f(r) }
 // New creates a new mock postage service.
 func New(o ...Option) postage.Service {
 	m := &mockPostage{
-		issuersMap: make(map[string]*postage.StampIssuer),
+		issuersMap: make(map[string]*postage.VouchIssuer),
 	}
 	for _, v := range o {
 		v.apply(m)
@@ -30,24 +30,24 @@ func New(o ...Option) postage.Service {
 }
 
 // WithAcceptAll sets the mock to return a new BatchIssuer on every
-// call to GetStampIssuer.
+// call to GetVouchIssuer.
 func WithAcceptAll() Option {
 	return optionFunc(func(m *mockPostage) { m.acceptAll = true })
 }
 
-func WithIssuer(s *postage.StampIssuer) Option {
+func WithIssuer(s *postage.VouchIssuer) Option {
 	return optionFunc(func(m *mockPostage) {
-		m.issuersMap = map[string]*postage.StampIssuer{string(s.ID()): s}
+		m.issuersMap = map[string]*postage.VouchIssuer{string(s.ID()): s}
 	})
 }
 
 type mockPostage struct {
-	issuersMap map[string]*postage.StampIssuer
+	issuersMap map[string]*postage.VouchIssuer
 	issuerLock sync.Mutex
 	acceptAll  bool
 }
 
-func (m *mockPostage) Add(s *postage.StampIssuer) error {
+func (m *mockPostage) Add(s *postage.VouchIssuer) error {
 	m.issuerLock.Lock()
 	defer m.issuerLock.Unlock()
 
@@ -55,20 +55,20 @@ func (m *mockPostage) Add(s *postage.StampIssuer) error {
 	return nil
 }
 
-func (m *mockPostage) StampIssuers() []*postage.StampIssuer {
+func (m *mockPostage) VouchIssuers() []*postage.VouchIssuer {
 	m.issuerLock.Lock()
 	defer m.issuerLock.Unlock()
 
-	issuers := []*postage.StampIssuer{}
+	issuers := []*postage.VouchIssuer{}
 	for _, v := range m.issuersMap {
 		issuers = append(issuers, v)
 	}
 	return issuers
 }
 
-func (m *mockPostage) GetStampIssuer(id []byte) (*postage.StampIssuer, error) {
+func (m *mockPostage) GetVouchIssuer(id []byte) (*postage.VouchIssuer, error) {
 	if m.acceptAll {
-		return postage.NewStampIssuer("test fallback", "test identity", id, big.NewInt(3), 24, 6, 1000, true), nil
+		return postage.NewVouchIssuer("test fallback", "test identity", id, big.NewInt(3), 24, 6, 1000, true), nil
 	}
 
 	m.issuerLock.Lock()
@@ -76,12 +76,12 @@ func (m *mockPostage) GetStampIssuer(id []byte) (*postage.StampIssuer, error) {
 
 	i, exists := m.issuersMap[string(id)]
 	if !exists {
-		return nil, errors.New("stampissuer not found")
+		return nil, errors.New("vouchIssuer not found")
 	}
 	return i, nil
 }
 
-func (m *mockPostage) IssuerUsable(_ *postage.StampIssuer) bool {
+func (m *mockPostage) IssuerUsable(_ *postage.VouchIssuer) bool {
 	return true
 }
 

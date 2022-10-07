@@ -26,7 +26,7 @@ func TestCreateBatch(t *testing.T) {
 	postagecontract.BucketDepth = 9
 	owner := common.HexToAddress("abcd")
 	label := "label"
-	postageStampAddress := common.HexToAddress("ffff")
+	postageVouchAddress := common.HexToAddress("ffff")
 	mopTokenAddress := common.HexToAddress("eeee")
 	ctx := context.Background()
 	initialBalance := big.NewInt(100)
@@ -40,20 +40,20 @@ func TestCreateBatch(t *testing.T) {
 		batchID := common.HexToHash("dddd")
 		postageMock := postageMock.New()
 
-		expectedCallData, err := postagecontract.PostageStampABI.Pack("createBatch", owner, initialBalance, depth, postagecontract.BucketDepth, common.Hash{}, false)
+		expectedCallData, err := postagecontract.PostageVouchABI.Pack("createBatch", owner, initialBalance, depth, postagecontract.BucketDepth, common.Hash{}, false)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (txHash common.Hash, err error) {
 					if *request.To == mopTokenAddress {
 						return txHashApprove, nil
-					} else if *request.To == postageStampAddress {
+					} else if *request.To == postageVouchAddress {
 						if !bytes.Equal(expectedCallData[:100], request.Data[:100]) {
 							return common.Hash{}, fmt.Errorf("got wrong call data. wanted %x, got %x", expectedCallData, request.Data)
 						}
@@ -69,7 +69,7 @@ func TestCreateBatch(t *testing.T) {
 					} else if txHash == txHashCreate {
 						return &types.Receipt{
 							Logs: []*types.Log{
-								newCreateEvent(postageStampAddress, batchID),
+								newCreateEvent(postageVouchAddress, batchID),
 							},
 							Status: 1,
 						}, nil
@@ -96,13 +96,13 @@ func TestCreateBatch(t *testing.T) {
 			t.Fatalf("got wrong batchId. wanted %v, got %v", batchID, returnedID)
 		}
 
-		si, err := postageMock.GetStampIssuer(returnedID)
+		si, err := postageMock.GetVouchIssuer(returnedID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if si == nil {
-			t.Fatal("stamp issuer not set")
+			t.Fatal("vouch issuer not set")
 		}
 	})
 
@@ -111,7 +111,7 @@ func TestCreateBatch(t *testing.T) {
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
@@ -130,7 +130,7 @@ func TestCreateBatch(t *testing.T) {
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
@@ -152,7 +152,7 @@ func TestCreateBatch(t *testing.T) {
 }
 
 func newCreateEvent(postageContractAddress common.Address, batchId common.Hash) *types.Log {
-	b, err := postagecontract.PostageStampABI.Events["BatchCreated"].Inputs.NonIndexed().Pack(
+	b, err := postagecontract.PostageVouchABI.Events["BatchCreated"].Inputs.NonIndexed().Pack(
 		big.NewInt(0),
 		big.NewInt(0),
 		common.Address{},
@@ -171,26 +171,26 @@ func newCreateEvent(postageContractAddress common.Address, batchId common.Hash) 
 }
 
 func TestLookupERC20Address(t *testing.T) {
-	postageStampAddress := common.HexToAddress("ffff")
+	postageVouchAddress := common.HexToAddress("ffff")
 	erc20Address := common.HexToAddress("ffff")
 
 	addr, err := postagecontract.LookupERC20Address(
 		context.Background(),
 		transactionMock.New(
 			transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
-				if *request.To != postageStampAddress {
-					return nil, fmt.Errorf("called wrong contract. wanted %v, got %v", postageStampAddress, request.To)
+				if *request.To != postageVouchAddress {
+					return nil, fmt.Errorf("called wrong contract. wanted %v, got %v", postageVouchAddress, request.To)
 				}
 				return erc20Address.Hash().Bytes(), nil
 			}),
 		),
-		postageStampAddress,
+		postageVouchAddress,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if addr != postageStampAddress {
+	if addr != postageVouchAddress {
 		t.Fatalf("got wrong erc20 address. wanted %v, got %v", erc20Address, addr)
 	}
 }
@@ -201,7 +201,7 @@ func TestTopUpBatch(t *testing.T) {
 	}(postagecontract.BucketDepth)
 	postagecontract.BucketDepth = 9
 	owner := common.HexToAddress("abcd")
-	postageStampAddress := common.HexToAddress("ffff")
+	postageVouchAddress := common.HexToAddress("ffff")
 	mopTokenAddress := common.HexToAddress("eeee")
 	ctx := context.Background()
 	topupBalance := big.NewInt(100)
@@ -214,7 +214,7 @@ func TestTopUpBatch(t *testing.T) {
 		batch := postagetesting.MustNewBatch(postagetesting.WithOwner(owner.Bytes()))
 		batch.Depth = uint8(10)
 		batch.BucketDepth = uint8(9)
-		postageMock := postageMock.New(postageMock.WithIssuer(postage.NewStampIssuer(
+		postageMock := postageMock.New(postageMock.WithIssuer(postage.NewVouchIssuer(
 			"label",
 			"keyID",
 			batch.ID,
@@ -226,20 +226,20 @@ func TestTopUpBatch(t *testing.T) {
 		)))
 		batchStoreMock := postagestoreMock.New(postagestoreMock.WithBatch(batch))
 
-		expectedCallData, err := postagecontract.PostageStampABI.Pack("topUp", common.BytesToHash(batch.ID), topupBalance)
+		expectedCallData, err := postagecontract.PostageVouchABI.Pack("topUp", common.BytesToHash(batch.ID), topupBalance)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (txHash common.Hash, err error) {
 					if *request.To == mopTokenAddress {
 						return txHashApprove, nil
-					} else if *request.To == postageStampAddress {
+					} else if *request.To == postageVouchAddress {
 						if !bytes.Equal(expectedCallData[:64], request.Data[:64]) {
 							return common.Hash{}, fmt.Errorf("got wrong call data. wanted %x, got %x", expectedCallData, request.Data)
 						}
@@ -255,7 +255,7 @@ func TestTopUpBatch(t *testing.T) {
 					} else if txHash == txHashTopup {
 						return &types.Receipt{
 							Logs: []*types.Log{
-								newTopUpEvent(postageStampAddress, batch),
+								newTopUpEvent(postageVouchAddress, batch),
 							},
 							Status: 1,
 						}, nil
@@ -278,13 +278,13 @@ func TestTopUpBatch(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		si, err := postageMock.GetStampIssuer(batch.ID)
+		si, err := postageMock.GetVouchIssuer(batch.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if si == nil {
-			t.Fatal("stamp issuer not set")
+			t.Fatal("vouch issuer not set")
 		}
 	})
 
@@ -292,7 +292,7 @@ func TestTopUpBatch(t *testing.T) {
 		errNotFound := errors.New("not found")
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
@@ -312,7 +312,7 @@ func TestTopUpBatch(t *testing.T) {
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
@@ -334,7 +334,7 @@ func TestTopUpBatch(t *testing.T) {
 }
 
 func newTopUpEvent(postageContractAddress common.Address, batch *postage.Batch) *types.Log {
-	b, err := postagecontract.PostageStampABI.Events["BatchTopUp"].Inputs.NonIndexed().Pack(
+	b, err := postagecontract.PostageVouchABI.Events["BatchTopUp"].Inputs.NonIndexed().Pack(
 		big.NewInt(0),
 		big.NewInt(0),
 	)
@@ -355,7 +355,7 @@ func TestDiluteBatch(t *testing.T) {
 	}(postagecontract.BucketDepth)
 	postagecontract.BucketDepth = 9
 	owner := common.HexToAddress("abcd")
-	postageStampAddress := common.HexToAddress("ffff")
+	postageVouchAddress := common.HexToAddress("ffff")
 	mopTokenAddress := common.HexToAddress("eeee")
 	ctx := context.Background()
 
@@ -367,7 +367,7 @@ func TestDiluteBatch(t *testing.T) {
 		batch.BucketDepth = uint8(9)
 		batch.Value = big.NewInt(100)
 		newDepth := batch.Depth + 1
-		postageMock := postageMock.New(postageMock.WithIssuer(postage.NewStampIssuer(
+		postageMock := postageMock.New(postageMock.WithIssuer(postage.NewVouchIssuer(
 			"label",
 			"keyID",
 			batch.ID,
@@ -379,18 +379,18 @@ func TestDiluteBatch(t *testing.T) {
 		)))
 		batchStoreMock := postagestoreMock.New(postagestoreMock.WithBatch(batch))
 
-		expectedCallData, err := postagecontract.PostageStampABI.Pack("increaseDepth", common.BytesToHash(batch.ID), newDepth)
+		expectedCallData, err := postagecontract.PostageVouchABI.Pack("increaseDepth", common.BytesToHash(batch.ID), newDepth)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(
 				transactionMock.WithSendFunc(func(ctx context.Context, request *transaction.TxRequest) (txHash common.Hash, err error) {
-					if *request.To == postageStampAddress {
+					if *request.To == postageVouchAddress {
 						if !bytes.Equal(expectedCallData[:64], request.Data[:64]) {
 							return common.Hash{}, fmt.Errorf("got wrong call data. wanted %x, got %x", expectedCallData, request.Data)
 						}
@@ -402,7 +402,7 @@ func TestDiluteBatch(t *testing.T) {
 					if txHash == txHashDilute {
 						return &types.Receipt{
 							Logs: []*types.Log{
-								newDiluteEvent(postageStampAddress, batch),
+								newDiluteEvent(postageVouchAddress, batch),
 							},
 							Status: 1,
 						}, nil
@@ -419,13 +419,13 @@ func TestDiluteBatch(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		si, err := postageMock.GetStampIssuer(batch.ID)
+		si, err := postageMock.GetVouchIssuer(batch.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if si == nil {
-			t.Fatal("stamp issuer not set")
+			t.Fatal("vouch issuer not set")
 		}
 	})
 
@@ -433,7 +433,7 @@ func TestDiluteBatch(t *testing.T) {
 		errNotFound := errors.New("not found")
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
@@ -453,7 +453,7 @@ func TestDiluteBatch(t *testing.T) {
 
 		contract := postagecontract.New(
 			owner,
-			postageStampAddress,
+			postageVouchAddress,
 			mopTokenAddress,
 			transactionMock.New(),
 			postageMock.New(),
@@ -468,7 +468,7 @@ func TestDiluteBatch(t *testing.T) {
 }
 
 func newDiluteEvent(postageContractAddress common.Address, batch *postage.Batch) *types.Log {
-	b, err := postagecontract.PostageStampABI.Events["BatchDepthIncrease"].Inputs.NonIndexed().Pack(
+	b, err := postagecontract.PostageVouchABI.Events["BatchDepthIncrease"].Inputs.NonIndexed().Pack(
 		uint8(0),
 		big.NewInt(0),
 	)

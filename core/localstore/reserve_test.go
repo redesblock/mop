@@ -166,7 +166,7 @@ func TestDB_ReserveGC_AllWithinRadius(t *testing.T) {
 		}
 		mtx.Lock()
 		addrs = append(addrs, ch.Address())
-		batchIDs = append(batchIDs, ch.Stamp().BatchID())
+		batchIDs = append(batchIDs, ch.Vouch().BatchID())
 		mtx.Unlock()
 	}
 
@@ -280,7 +280,7 @@ func TestDB_ReserveGC_Unreserve(t *testing.T) {
 			t.Fatal(err)
 		}
 		mtx.Lock()
-		batchIDs = append(batchIDs, ch.Stamp().BatchID())
+		batchIDs = append(batchIDs, ch.Vouch().BatchID())
 		addrs = append(addrs, ch.Address())
 		mtx.Unlock()
 	}
@@ -317,7 +317,7 @@ func TestDB_ReserveGC_Unreserve(t *testing.T) {
 			t.Fatal(err)
 		}
 		mtx.Lock()
-		batchIDs = append(batchIDs, ch.Stamp().BatchID())
+		batchIDs = append(batchIDs, ch.Vouch().BatchID())
 		addrs = append(addrs, ch.Address())
 		mtx.Unlock()
 	}
@@ -468,7 +468,7 @@ func TestDB_ReserveGC_EvictMaxPO(t *testing.T) {
 			t.Fatal(err)
 		}
 		mtx.Lock()
-		batchIDs = append(batchIDs, ch.Stamp().BatchID())
+		batchIDs = append(batchIDs, ch.Vouch().BatchID())
 		addrs = append(addrs, ch.Address())
 		mtx.Unlock()
 	}
@@ -513,7 +513,7 @@ func TestDB_ReserveGC_EvictMaxPO(t *testing.T) {
 			t.Fatal(err)
 		}
 		mtx.Lock()
-		batchIDs = append(batchIDs, ch.Stamp().BatchID())
+		batchIDs = append(batchIDs, ch.Vouch().BatchID())
 		addrs = append(addrs, ch.Address())
 		mtx.Unlock()
 	}

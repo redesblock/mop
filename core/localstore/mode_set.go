@@ -101,9 +101,10 @@ func (db *DB) set(mode storage.ModeSet, addrs ...swarm.Address) (err error) {
 }
 
 // setSync adds the chunk to the garbage collection after syncing by updating indexes
-// - ModeSetSync - the corresponding tag is incremented, then item is removed
-//   from push sync index
-// - update to gc index happens given item does not exist in pin index
+//   - ModeSetSync - the corresponding tag is incremented, then item is removed
+//     from push sync index
+//   - update to gc index happens given item does not exist in pin index
+//
 // Provided batch is updated.
 func (db *DB) setSync(batch *leveldb.Batch, addr swarm.Address) (gcSizeChange int64, err error) {
 	item := addressToItem(addr)
@@ -180,7 +181,8 @@ func (db *DB) setSync(batch *leveldb.Batch, addr swarm.Address) (gcSizeChange in
 }
 
 // setRemove removes the chunk by updating indexes:
-//  - delete from retrieve, pull, gc
+//   - delete from retrieve, pull, gc
+//
 // Provided batch is updated.
 func (db *DB) setRemove(batch *leveldb.Batch, item shed.Item, check bool) (gcSizeChange int64, err error) {
 	if item.AccessTimestamp == 0 {

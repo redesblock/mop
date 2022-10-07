@@ -45,7 +45,7 @@ func TestDelivery(t *testing.T) {
 
 		pricerMock = pricermock.NewMockService(defaultPrice, defaultPrice)
 	)
-	stamp, err := chunk.Stamp().MarshalBinary()
+	vouch, err := chunk.Vouch().MarshalBinary()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestDelivery(t *testing.T) {
 	}
 
 	// create the server that will handle the request and will serve the response
-	server := retrieval.New(swarm.MustParseHexAddress("0034"), mockStorer, nil, nil, logger, serverMockAccounting, pricerMock, nil, false, noopStampValidator)
+	server := retrieval.New(swarm.MustParseHexAddress("0034"), mockStorer, nil, nil, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
 	recorder := streamtest.New(
 		streamtest.WithProtocols(server.Protocol()),
 		streamtest.WithBaseAddr(clientAddr),
@@ -74,7 +74,7 @@ func TestDelivery(t *testing.T) {
 		return nil
 	}}
 
-	client := retrieval.New(clientAddr, clientMockStorer, recorder, ps, logger, clientMockAccounting, pricerMock, nil, false, noopStampValidator)
+	client := retrieval.New(clientAddr, clientMockStorer, recorder, ps, logger, clientMockAccounting, pricerMock, nil, false, noopVouchValidator)
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 	v, err := client.RetrieveChunk(ctx, chunk.Address(), true)
@@ -84,12 +84,12 @@ func TestDelivery(t *testing.T) {
 	if !bytes.Equal(v.Data(), chunk.Data()) {
 		t.Fatalf("request and response data not equal. got %s want %s", v, chunk.Data())
 	}
-	vstamp, err := v.Stamp().MarshalBinary()
+	tvouch, err := v.Vouch().MarshalBinary()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(vstamp, stamp) {
-		t.Fatal("stamp mismatch")
+	if !bytes.Equal(vouch, tvouch) {
+		t.Fatal("vouch mismatch")
 	}
 	records, err := recorder.Records(serverAddr, "retrieval", "1.1.0", "retrieval")
 	if err != nil {
@@ -163,14 +163,14 @@ func TestRetrieveChunk(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		server := retrieval.New(serverAddress, serverStorer, nil, nil, logger, accountingmock.NewAccounting(), pricer, nil, false, noopStampValidator)
+		server := retrieval.New(serverAddress, serverStorer, nil, nil, logger, accountingmock.NewAccounting(), pricer, nil, false, noopVouchValidator)
 		recorder := streamtest.New(streamtest.WithProtocols(server.Protocol()))
 
 		clientSuggester := mockPeerSuggester{eachPeerRevFunc: func(f topology.EachPeerFunc) error {
 			_, _, _ = f(serverAddress, 0)
 			return nil
 		}}
-		client := retrieval.New(clientAddress, nil, recorder, clientSuggester, logger, accountingmock.NewAccounting(), pricer, nil, false, noopStampValidator)
+		client := retrieval.New(clientAddress, nil, recorder, clientSuggester, logger, accountingmock.NewAccounting(), pricer, nil, false, noopVouchValidator)
 
 		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
@@ -204,7 +204,7 @@ func TestRetrieveChunk(t *testing.T) {
 			pricer,
 			nil,
 			false,
-			noopStampValidator,
+			noopVouchValidator,
 		)
 
 		forwarderStore := storemock.NewStorer()
@@ -222,7 +222,7 @@ func TestRetrieveChunk(t *testing.T) {
 			pricer,
 			nil,
 			true, // note explicit caching
-			noopStampValidator,
+			noopVouchValidator,
 		)
 
 		client := retrieval.New(
@@ -238,7 +238,7 @@ func TestRetrieveChunk(t *testing.T) {
 			pricer,
 			nil,
 			false,
-			noopStampValidator,
+			noopVouchValidator,
 		)
 
 		if got, _ := forwarderStore.Has(context.Background(), chunk.Address()); got {
@@ -319,8 +319,8 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 		return peerSuggester
 	}
 
-	server1 := retrieval.New(serverAddress1, serverStorer1, nil, noPeerSuggester, logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopStampValidator)
-	server2 := retrieval.New(serverAddress2, serverStorer2, nil, noPeerSuggester, logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopStampValidator)
+	server1 := retrieval.New(serverAddress1, serverStorer1, nil, noPeerSuggester, logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopVouchValidator)
+	server2 := retrieval.New(serverAddress2, serverStorer2, nil, noPeerSuggester, logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopVouchValidator)
 
 	t.Run("peer not reachable", func(t *testing.T) {
 		ranOnce := true
@@ -348,7 +348,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 			streamtest.WithBaseAddr(clientAddress),
 		)
 
-		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopStampValidator)
+		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopVouchValidator)
 
 		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
@@ -384,7 +384,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 			),
 		)
 
-		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopStampValidator)
+		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopVouchValidator)
 
 		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
@@ -413,8 +413,8 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 		server1MockAccounting := accountingmock.NewAccounting()
 		server2MockAccounting := accountingmock.NewAccounting()
 
-		server1 := retrieval.New(serverAddress1, serverStorer1, nil, noPeerSuggester, logger, server1MockAccounting, pricerMock, nil, false, noopStampValidator)
-		server2 := retrieval.New(serverAddress2, serverStorer2, nil, noPeerSuggester, logger, server2MockAccounting, pricerMock, nil, false, noopStampValidator)
+		server1 := retrieval.New(serverAddress1, serverStorer1, nil, noPeerSuggester, logger, server1MockAccounting, pricerMock, nil, false, noopVouchValidator)
+		server2 := retrieval.New(serverAddress2, serverStorer2, nil, noPeerSuggester, logger, server2MockAccounting, pricerMock, nil, false, noopVouchValidator)
 
 		// NOTE: must be more than retry duration
 		// (here one second more)
@@ -448,7 +448,7 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 
 		clientMockAccounting := accountingmock.NewAccounting()
 
-		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, clientMockAccounting, pricerMock, nil, false, noopStampValidator)
+		client := retrieval.New(clientAddress, nil, recorder, peerSuggesterFn(peers...), logger, clientMockAccounting, pricerMock, nil, false, noopVouchValidator)
 
 		got, err := client.RetrieveChunk(context.Background(), chunk.Address(), true)
 		if err != nil {
@@ -486,21 +486,21 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 
 	t.Run("peer forwards request", func(t *testing.T) {
 		// server 2 has the chunk
-		server2 := retrieval.New(serverAddress2, serverStorer2, nil, noPeerSuggester, logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopStampValidator)
+		server2 := retrieval.New(serverAddress2, serverStorer2, nil, noPeerSuggester, logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopVouchValidator)
 
 		server1Recorder := streamtest.New(
 			streamtest.WithProtocols(server2.Protocol()),
 		)
 
 		// server 1 will forward request to server 2
-		server1 := retrieval.New(serverAddress1, serverStorer1, server1Recorder, peerSuggesterFn(serverAddress2), logger, accountingmock.NewAccounting(), pricerMock, nil, true, noopStampValidator)
+		server1 := retrieval.New(serverAddress1, serverStorer1, server1Recorder, peerSuggesterFn(serverAddress2), logger, accountingmock.NewAccounting(), pricerMock, nil, true, noopVouchValidator)
 
 		clientRecorder := streamtest.New(
 			streamtest.WithProtocols(server1.Protocol()),
 		)
 
 		// client only knows about server 1
-		client := retrieval.New(clientAddress, nil, clientRecorder, peerSuggesterFn(serverAddress1), logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopStampValidator)
+		client := retrieval.New(clientAddress, nil, clientRecorder, peerSuggesterFn(serverAddress1), logger, accountingmock.NewAccounting(), pricerMock, nil, false, noopVouchValidator)
 
 		if got, _ := serverStorer1.Has(context.Background(), chunk.Address()); got {
 			t.Fatalf("forwarder node already has chunk")
@@ -540,6 +540,6 @@ func (s mockPeerSuggester) EachPeerRev(f topology.EachPeerFunc, _ topology.Filte
 	return s.eachPeerRevFunc(f)
 }
 
-var noopStampValidator = func(chunk swarm.Chunk, stampBytes []byte) (swarm.Chunk, error) {
+var noopVouchValidator = func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error) {
 	return chunk, nil
 }

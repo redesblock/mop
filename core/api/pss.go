@@ -82,7 +82,7 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.BadRequest(w, "invalid postage batch id")
 		return
 	}
-	i, err := s.post.GetStampIssuer(batch)
+	i, err := s.post.GetVouchIssuer(batch)
 	if err != nil {
 		s.logger.Debugf("pss: postage batch issuer: %v", err)
 		s.logger.Error("pss: postage batch issue")
@@ -92,13 +92,13 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, postage.ErrNotUsable):
 			jsonhttp.BadRequest(w, "batch not usable yet")
 		default:
-			jsonhttp.BadRequest(w, "postage stamp issuer")
+			jsonhttp.BadRequest(w, "postage vouch issuer")
 		}
 		return
 	}
-	stamper := postage.NewStamper(i, s.signer)
+	voucher := postage.NewVoucher(i, s.signer)
 
-	err = s.pss.Send(r.Context(), topic, payload, stamper, recipient, targets)
+	err = s.pss.Send(r.Context(), topic, payload, voucher, recipient, targets)
 	if err != nil {
 		s.logger.Debugf("pss send payload: %v. topic: %s", err, topicVar)
 		s.logger.Error("pss send payload")

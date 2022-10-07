@@ -16,7 +16,7 @@ type metrics struct {
 	TotalSkippedPeers               prometheus.Counter
 	TotalOutgoing                   prometheus.Counter
 	TotalOutgoingErrors             prometheus.Counter
-	InvalidStampErrors              prometheus.Counter
+	InvalidVouchErrors              prometheus.Counter
 	HandlerReplication              prometheus.Counter
 	HandlerReplicationErrors        prometheus.Counter
 	Forwarder                       prometheus.Counter
@@ -92,11 +92,11 @@ func newMetrics() metrics {
 			Name:      "total_outgoing_errors",
 			Help:      "Total no of errors of entire operation to sync a chunk (multiple attempts included)",
 		}),
-		InvalidStampErrors: prometheus.NewCounter(prometheus.CounterOpts{
+		InvalidVouchErrors: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,
 			Subsystem: subsystem,
-			Name:      "invalid_stamps",
-			Help:      "No of invalid stamp errors.",
+			Name:      "invalid_vouches",
+			Help:      "No of invalid vouch errors.",
 		}),
 		HandlerReplication: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,

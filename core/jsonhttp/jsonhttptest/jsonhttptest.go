@@ -221,7 +221,6 @@ func WithUnmarshalJSONResponse(response interface{}) Option {
 //		jsonhttptest.WithPutResponseBody(&respBytes),
 //	}
 //	// ...
-//
 func WithPutResponseBody(b *[]byte) Option {
 	return optionFunc(func(o *options) error {
 		o.responseBody = b

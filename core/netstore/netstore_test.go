@@ -23,12 +23,12 @@ import (
 )
 
 var chunkData = []byte("mockdata")
-var chunkStamp = postagetesting.MustNewStamp()
+var chunkVouch = postagetesting.MustNewVouch()
 
 // TestNetstoreRetrieval verifies that a chunk is asked from the network whenever
 // it is not found locally
 func TestNetstoreRetrieval(t *testing.T) {
-	retrieve, store, nstore := newRetrievingNetstore(t, nil, noopValidStamp)
+	retrieve, store, nstore := newRetrievingNetstore(t, nil, noopvalidVouch)
 	addr := swarm.MustParseHexAddress("000001")
 	_, err := nstore.Get(context.Background(), storage.ModeGetRequest, addr)
 	if err != nil {
@@ -69,7 +69,7 @@ func TestNetstoreRetrieval(t *testing.T) {
 // TestNetstoreNoRetrieval verifies that a chunk is not requested from the network
 // whenever it is found locally.
 func TestNetstoreNoRetrieval(t *testing.T) {
-	retrieve, store, nstore := newRetrievingNetstore(t, nil, noopValidStamp)
+	retrieve, store, nstore := newRetrievingNetstore(t, nil, noopvalidVouch)
 	addr := swarm.MustParseHexAddress("000001")
 
 	// store should have the chunk in advance
@@ -99,7 +99,7 @@ func TestRecovery(t *testing.T) {
 		callbackC: callbackWasCalled,
 	}
 
-	retrieve, _, nstore := newRetrievingNetstore(t, rec.recovery, noopValidStamp)
+	retrieve, _, nstore := newRetrievingNetstore(t, rec.recovery, noopvalidVouch)
 	addr := swarm.MustParseHexAddress("deadbeef")
 	retrieve.failure = true
 	ctx := context.Background()
@@ -119,7 +119,7 @@ func TestRecovery(t *testing.T) {
 }
 
 func TestInvalidRecoveryFunction(t *testing.T) {
-	retrieve, _, nstore := newRetrievingNetstore(t, nil, noopValidStamp)
+	retrieve, _, nstore := newRetrievingNetstore(t, nil, noopvalidVouch)
 	addr := swarm.MustParseHexAddress("deadbeef")
 	retrieve.failure = true
 	ctx := context.Background()
@@ -131,9 +131,9 @@ func TestInvalidRecoveryFunction(t *testing.T) {
 	}
 }
 
-func TestInvalidPostageStamp(t *testing.T) {
+func TestInvalidPostageVouch(t *testing.T) {
 	f := func(c swarm.Chunk, _ []byte) (swarm.Chunk, error) {
-		return nil, errors.New("invalid postage stamp")
+		return nil, errors.New("invalid postage vouch")
 	}
 	retrieve, store, nstore := newRetrievingNetstore(t, nil, f)
 	addr := swarm.MustParseHexAddress("000001")
@@ -195,11 +195,11 @@ func waitAndGetChunk(t *testing.T, store storage.Storer, addr swarm.Address, mod
 }
 
 // returns a mock retrieval protocol, a mock local storage and a netstore
-func newRetrievingNetstore(t *testing.T, rec recovery.Callback, validStamp postage.ValidStampFn) (ret *retrievalMock, mockStore *mock.MockStorer, ns storage.Storer) {
+func newRetrievingNetstore(t *testing.T, rec recovery.Callback, validVouch postage.ValidVouchFn) (ret *retrievalMock, mockStore *mock.MockStorer, ns storage.Storer) {
 	retrieve := &retrievalMock{}
 	store := mock.NewStorer()
 	logger := logging.New(io.Discard, 0)
-	ns = netstore.New(store, validStamp, rec, retrieve, logger)
+	ns = netstore.New(store, validVouch, rec, retrieve, logger)
 	t.Cleanup(func() {
 		err := ns.Close()
 		if err != nil {
@@ -223,7 +223,7 @@ func (r *retrievalMock) RetrieveChunk(ctx context.Context, addr swarm.Address, o
 	r.called = true
 	atomic.AddInt32(&r.callCount, 1)
 	r.addr = addr
-	return swarm.NewChunk(addr, chunkData).WithStamp(chunkStamp), nil
+	return swarm.NewChunk(addr, chunkData).WithVouch(chunkVouch), nil
 }
 
 type mockRecovery struct {
@@ -239,6 +239,6 @@ func (r *mockRecovery) RetrieveChunk(ctx context.Context, addr swarm.Address, or
 	return nil, fmt.Errorf("chunk not found")
 }
 
-var noopValidStamp = func(c swarm.Chunk, _ []byte) (swarm.Chunk, error) {
+var noopvalidVouch = func(c swarm.Chunk, _ []byte) (swarm.Chunk, error) {
 	return c, nil
 }

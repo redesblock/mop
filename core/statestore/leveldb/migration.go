@@ -21,7 +21,7 @@ const (
 	dbSchemaGrace           = "grace"
 	dbSchemaDrain           = "drain"
 	dbSchemaCleanInterval   = "clean-interval"
-	dbSchemaNoStamp         = "no-stamp"
+	dbSchemaNoVouch         = "no-vouch"
 	dbSchemaFlushBlock      = "flushblock"
 	dbSchemaSwapAddr        = "swapaddr"
 	dBSchemaKademliaMetrics = "kademlia-metrics"
@@ -42,7 +42,7 @@ var schemaMigrations = []migration{
 	{name: dbSchemaGrace, fn: func(s *Store) error { return nil }},
 	{name: dbSchemaDrain, fn: migrateGrace},
 	{name: dbSchemaCleanInterval, fn: migrateGrace},
-	{name: dbSchemaNoStamp, fn: migrateStamp},
+	{name: dbSchemaNoVouch, fn: migrateVouch},
 	{name: dbSchemaFlushBlock, fn: migrateFB},
 	{name: dbSchemaSwapAddr, fn: migrateSwap},
 	{name: dBSchemaKademliaMetrics, fn: migrateKademliaMetrics},
@@ -56,7 +56,7 @@ func migrateFB(s *Store) error {
 	return deleteKeys(s, collectedKeys)
 }
 
-func migrateStamp(s *Store) error {
+func migrateVouch(s *Store) error {
 	for _, pfx := range []string{"postage", "batchstore", "addressbook_entry_"} {
 		collectedKeys, err := collectKeys(s, pfx)
 		if err != nil {

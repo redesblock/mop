@@ -40,7 +40,7 @@ func TestSend(t *testing.T) {
 		t.Fatal(err)
 	}
 	recipient := &privkey.PublicKey
-	s := &stamper{}
+	s := &voucher{}
 	// call Send to store trojan chunk in localstore
 	if err = p.Send(ctx, topic, payload, s, recipient, targets); err != nil {
 		t.Fatal(err)
@@ -228,8 +228,8 @@ func ensureCalls(t *testing.T, calls *int, exp int) {
 	}
 }
 
-type stamper struct{}
+type voucher struct{}
 
-func (s *stamper) Stamp(_ swarm.Address) (*postage.Stamp, error) {
-	return postagetesting.MustNewStamp(), nil
+func (s *voucher) Vouch(_ swarm.Address) (*postage.Vouch, error) {
+	return postagetesting.MustNewVouch(), nil
 }

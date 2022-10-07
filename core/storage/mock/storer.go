@@ -96,8 +96,8 @@ func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...swarm
 		b := make([]byte, len(ch.Data()))
 		copy(b, ch.Data())
 		addr := swarm.NewAddress(ch.Address().Bytes())
-		stamp := ch.Stamp()
-		m.store[ch.Address().String()] = swarm.NewChunk(addr, b).WithStamp(stamp)
+		vouch := ch.Vouch()
+		m.store[ch.Address().String()] = swarm.NewChunk(addr, b).WithVouch(vouch)
 		m.modePut[ch.Address().String()] = mode
 
 		// pin chunks if needed

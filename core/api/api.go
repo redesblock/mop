@@ -462,22 +462,22 @@ func equalASCIIFold(s, t string) bool {
 	return s == t
 }
 
-type stamperPutter struct {
+type voucherPutter struct {
 	storage.Storer
-	stamper postage.Stamper
+	voucher postage.Voucher
 }
 
-func newStamperPutter(s storage.Storer, post postage.Service, signer crypto.Signer, batch []byte) (storage.Storer, error) {
-	i, err := post.GetStampIssuer(batch)
+func newVoucherPutter(s storage.Storer, post postage.Service, signer crypto.Signer, batch []byte) (storage.Storer, error) {
+	i, err := post.GetVouchIssuer(batch)
 	if err != nil {
-		return nil, fmt.Errorf("stamp issuer: %w", err)
+		return nil, fmt.Errorf("vouch issuer: %w", err)
 	}
 
-	stamper := postage.NewStamper(i, signer)
-	return &stamperPutter{Storer: s, stamper: stamper}, nil
+	voucher := postage.NewVoucher(i, signer)
+	return &voucherPutter{Storer: s, voucher: voucher}, nil
 }
 
-func (p *stamperPutter) Put(ctx context.Context, mode storage.ModePut, chs ...swarm.Chunk) (exists []bool, err error) {
+func (p *voucherPutter) Put(ctx context.Context, mode storage.ModePut, chs ...swarm.Chunk) (exists []bool, err error) {
 	var (
 		ctp []swarm.Chunk
 		idx []int
@@ -493,11 +493,11 @@ func (p *stamperPutter) Put(ctx context.Context, mode storage.ModePut, chs ...sw
 			exists[i] = true
 			continue
 		}
-		stamp, err := p.stamper.Stamp(c.Address())
+		vouch, err := p.voucher.Vouch(c.Address())
 		if err != nil {
 			return nil, err
 		}
-		chs[i] = c.WithStamp(stamp)
+		chs[i] = c.WithVouch(vouch)
 		ctp = append(ctp, chs[i])
 		idx = append(idx, i)
 	}

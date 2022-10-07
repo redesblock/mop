@@ -20,11 +20,11 @@ import (
 var (
 	BucketDepth = uint8(16)
 
-	postageStampABI   = parseABI(mopabi.PostageStampABI)
+	postageVouchABI   = parseABI(mopabi.PostageVouchABI)
 	erc20ABI          = parseABI(mopabi.ERC20ABI)
-	batchCreatedTopic = postageStampABI.Events["BatchCreated"].ID
-	batchTopUpTopic   = postageStampABI.Events["BatchTopUp"].ID
-	batchDiluteTopic  = postageStampABI.Events["BatchDepthIncrease"].ID
+	batchCreatedTopic = postageVouchABI.Events["BatchCreated"].ID
+	batchTopUpTopic   = postageVouchABI.Events["BatchTopUp"].ID
+	batchDiluteTopic  = postageVouchABI.Events["BatchDepthIncrease"].ID
 
 	ErrBatchCreate       = errors.New("batch creation failed")
 	ErrInsufficientFunds = errors.New("insufficient token balance")
@@ -131,7 +131,7 @@ func (c *postageContract) sendTransaction(ctx context.Context, callData []byte, 
 
 func (c *postageContract) sendCreateBatchTransaction(ctx context.Context, owner common.Address, initialBalance *big.Int, depth uint8, nonce common.Hash, immutable bool) (*types.Receipt, error) {
 
-	callData, err := postageStampABI.Pack("createBatch", owner, initialBalance, depth, BucketDepth, nonce, immutable)
+	callData, err := postageVouchABI.Pack("createBatch", owner, initialBalance, depth, BucketDepth, nonce, immutable)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (c *postageContract) sendCreateBatchTransaction(ctx context.Context, owner 
 
 func (c *postageContract) sendTopUpBatchTransaction(ctx context.Context, batchID []byte, topUpAmount *big.Int) (*types.Receipt, error) {
 
-	callData, err := postageStampABI.Pack("topUp", common.BytesToHash(batchID), topUpAmount)
+	callData, err := postageVouchABI.Pack("topUp", common.BytesToHash(batchID), topUpAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (c *postageContract) sendTopUpBatchTransaction(ctx context.Context, batchID
 
 func (c *postageContract) sendDiluteTransaction(ctx context.Context, batchID []byte, newDepth uint8) (*types.Receipt, error) {
 
-	callData, err := postageStampABI.Pack("increaseDepth", common.BytesToHash(batchID), newDepth)
+	callData, err := postageVouchABI.Pack("increaseDepth", common.BytesToHash(batchID), newDepth)
 	if err != nil {
 		return nil, err
 	}
@@ -251,14 +251,14 @@ func (c *postageContract) CreateBatch(ctx context.Context, initialBalance *big.I
 	for _, ev := range receipt.Logs {
 		if ev.Address == c.postageContractAddress && len(ev.Topics) > 0 && ev.Topics[0] == batchCreatedTopic {
 			var createdEvent batchCreatedEvent
-			err = transaction.ParseEvent(&postageStampABI, "BatchCreated", &createdEvent, *ev)
+			err = transaction.ParseEvent(&postageVouchABI, "BatchCreated", &createdEvent, *ev)
 			if err != nil {
 				return nil, err
 			}
 
 			batchID := createdEvent.BatchId[:]
 
-			err = c.postageService.Add(postage.NewStampIssuer(
+			err = c.postageService.Add(postage.NewVouchIssuer(
 				label,
 				c.owner.Hex(),
 				batchID,
@@ -360,7 +360,7 @@ func parseABI(json string) abi.ABI {
 }
 
 func LookupERC20Address(ctx context.Context, transactionService transaction.Service, postageContractAddress common.Address) (common.Address, error) {
-	callData, err := postageStampABI.Pack("token")
+	callData, err := postageVouchABI.Pack("token")
 	if err != nil {
 		return common.Address{}, err
 	}

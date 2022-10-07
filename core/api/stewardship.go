@@ -7,7 +7,8 @@ import (
 	"github.com/redesblock/mop/core/jsonhttp"
 )
 
-//  stewardshipPutHandler re-uploads root hash and all of its underlying
+//	stewardshipPutHandler re-uploads root hash and all of its underlying
+//
 // associated chunks to the network.
 func (s *server) stewardshipPutHandler(w http.ResponseWriter, r *http.Request) {
 	nameOrHex := mux.Vars(r)["address"]

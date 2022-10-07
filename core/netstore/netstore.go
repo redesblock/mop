@@ -28,7 +28,7 @@ type store struct {
 	storage.Storer
 	retrieval        retrieval.Interface
 	logger           logging.Logger
-	validStamp       postage.ValidStampFn
+	validVouch       postage.ValidVouchFn
 	recoveryCallback recovery.Callback // this is the callback to be executed when a chunk fails to be retrieved
 	bgWorkers        chan struct{}
 	sCtx             context.Context
@@ -41,8 +41,8 @@ var (
 )
 
 // New returns a new NetStore that wraps a given Storer.
-func New(s storage.Storer, validStamp postage.ValidStampFn, rcb recovery.Callback, r retrieval.Interface, logger logging.Logger) storage.Storer {
-	ns := &store{Storer: s, validStamp: validStamp, recoveryCallback: rcb, retrieval: r, logger: logger}
+func New(s storage.Storer, validVouch postage.ValidVouchFn, rcb recovery.Callback, r retrieval.Interface, logger logging.Logger) storage.Storer {
+	ns := &store{Storer: s, validVouch: validVouch, recoveryCallback: rcb, retrieval: r, logger: logger}
 	ns.sCtx, ns.sCancel = context.WithCancel(context.Background())
 	ns.bgWorkers = make(chan struct{}, maxBgPutters)
 	return ns
@@ -90,9 +90,9 @@ func (s *store) put(ch swarm.Chunk, mode storage.ModeGet) {
 			<-s.bgWorkers
 		}()
 
-		stamp, err := ch.Stamp().MarshalBinary()
+		vouch, err := ch.Vouch().MarshalBinary()
 		if err != nil {
-			s.logger.Errorf("netstore: failed to marshal stamp from chunk %s err:%s", ch.Address(), err.Error())
+			s.logger.Errorf("netstore: failed to marshal vouch from chunk %s err:%s", ch.Address(), err.Error())
 			return
 		}
 
@@ -101,9 +101,9 @@ func (s *store) put(ch swarm.Chunk, mode storage.ModeGet) {
 			putMode = storage.ModePutRequestPin
 		}
 
-		cch, err := s.validStamp(ch, stamp)
+		cch, err := s.validVouch(ch, vouch)
 		if err != nil {
-			// if a chunk with an invalid postage stamp was received
+			// if a chunk with an invalid postage vouch was received
 			// we force it into the cache.
 			putMode = storage.ModePutRequestCache
 			cch = ch
