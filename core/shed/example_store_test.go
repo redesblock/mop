@@ -9,10 +9,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -128,7 +128,7 @@ func New(path string) (s *Store, err error) {
 }
 
 // Put stores the chunk and sets it store timestamp.
-func (s *Store) Put(_ context.Context, ch swarm.Chunk) (err error) {
+func (s *Store) Put(_ context.Context, ch flock.Chunk) (err error) {
 	return s.retrievalIndex.Put(shed.Item{
 		Address:        ch.Address().Bytes(),
 		Data:           ch.Data(),
@@ -140,7 +140,7 @@ func (s *Store) Put(_ context.Context, ch swarm.Chunk) (err error) {
 // It updates access and gc indexes by removing the previous
 // items from them and adding new items as keys of index entries
 // are changed.
-func (s *Store) Get(_ context.Context, addr swarm.Address) (c swarm.Chunk, err error) {
+func (s *Store) Get(_ context.Context, addr flock.Address) (c flock.Chunk, err error) {
 	batch := new(leveldb.Batch)
 
 	// Get the chunk data and storage timestamp.
@@ -212,7 +212,7 @@ func (s *Store) Get(_ context.Context, addr swarm.Address) (c swarm.Chunk, err e
 	}
 
 	// Return the chunk.
-	return swarm.NewChunk(swarm.NewAddress(item.Address), item.Data), nil
+	return flock.NewChunk(flock.NewAddress(item.Address), item.Data), nil
 }
 
 // CollectGarbage is an example of index iteration.

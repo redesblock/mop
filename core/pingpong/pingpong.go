@@ -8,11 +8,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/pingpong/pb"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tracing"
 )
 
@@ -23,7 +23,7 @@ const (
 )
 
 type Interface interface {
-	Ping(ctx context.Context, address swarm.Address, msgs ...string) (rtt time.Duration, err error)
+	Ping(ctx context.Context, address flock.Address, msgs ...string) (rtt time.Duration, err error)
 }
 
 type Service struct {
@@ -55,7 +55,7 @@ func (s *Service) Protocol() p2p.ProtocolSpec {
 	}
 }
 
-func (s *Service) Ping(ctx context.Context, address swarm.Address, msgs ...string) (rtt time.Duration, err error) {
+func (s *Service) Ping(ctx context.Context, address flock.Address, msgs ...string) (rtt time.Duration, err error) {
 	span, _, ctx := s.tracer.StartSpanFromContext(ctx, "pingpong-p2p-ping", s.logger)
 	defer span.Finish()
 

@@ -6,9 +6,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type peerConnectResponse struct {
@@ -46,14 +46,14 @@ func (s *Service) peerConnectHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) peerDisconnectHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["address"]
-	swarmAddr, err := swarm.ParseHexAddress(addr)
+	flockAddr, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: parse peer address %s: %v", addr, err)
 		jsonhttp.BadRequest(w, "invalid peer address")
 		return
 	}
 
-	if err := s.p2p.Disconnect(swarmAddr, "user requested disconnect"); err != nil {
+	if err := s.p2p.Disconnect(flockAddr, "user requested disconnect"); err != nil {
 		s.logger.Debugf("debug api: peer disconnect %s: %v", addr, err)
 		if errors.Is(err, p2p.ErrPeerNotFound) {
 			jsonhttp.BadRequest(w, "peer not found")
@@ -69,7 +69,7 @@ func (s *Service) peerDisconnectHandler(w http.ResponseWriter, r *http.Request) 
 
 // Peer holds information about a Peer.
 type Peer struct {
-	Address  swarm.Address `json:"address"`
+	Address  flock.Address `json:"address"`
 	FullNode bool          `json:"fullNode"`
 }
 

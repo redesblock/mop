@@ -5,19 +5,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // SubscribePush returns a channel that provides storage chunks with ordering from push syncing index.
 // Returned stop function will terminate current and further iterations, and also it will close
 // the returned channel without any errors. Make sure that you check the second returned parameter
 // from the channel to stop iteration when its value is false.
-func (db *DB) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan swarm.Chunk, reset, stop func()) {
+func (db *DB) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan flock.Chunk, reset, stop func()) {
 	db.metrics.SubscribePush.Inc()
 
-	chunks := make(chan swarm.Chunk)
+	chunks := make(chan flock.Chunk)
 	trigger := make(chan struct{}, 1)
 	resetC := make(chan struct{}, 1)
 
@@ -84,7 +84,7 @@ func (db *DB) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-c
 
 					vouch := postage.NewVouch(dataItem.BatchID, dataItem.Index, dataItem.Timestamp, dataItem.Sig)
 					select {
-					case chunks <- swarm.NewChunk(swarm.NewAddress(dataItem.Address), dataItem.Data).WithTagID(item.Tag).WithVouch(vouch):
+					case chunks <- flock.NewChunk(flock.NewAddress(dataItem.Address), dataItem.Data).WithTagID(item.Tag).WithVouch(vouch):
 						count++
 						// set next iteration start item
 						// when its chunk is successfully sent to channel

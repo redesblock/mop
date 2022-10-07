@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	goens "github.com/wealdtech/go-ens/v3"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/resolver/client/ens"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestNewENSClient(t *testing.T) {
@@ -115,7 +115,7 @@ func TestClose(t *testing.T) {
 func TestResolve(t *testing.T) {
 	testContractAddrString := "00000000000C2E074eC69A0dFb2997BA6C702e1B"
 	testContractAddr := common.HexToAddress(testContractAddrString)
-	testSwarmAddr := swarm.MustParseHexAddress("aaabbbcc")
+	testflockAddr := flock.MustParseHexAddress("aaabbbcc")
 
 	testCases := []struct {
 		desc         string
@@ -144,16 +144,16 @@ func TestResolve(t *testing.T) {
 			wantErr: ens.ErrInvalidContentHash,
 		},
 		{
-			desc: "resolve does not prefix address with /swarm",
+			desc: "resolve does not prefix address with /flock",
 			resolveFn: func(*goens.Registry, common.Address, string) (string, error) {
-				return testSwarmAddr.String(), nil
+				return testflockAddr.String(), nil
 			},
 			wantErr: ens.ErrInvalidContentHash,
 		},
 		{
 			desc: "resolve returns prefixed address",
 			resolveFn: func(*goens.Registry, common.Address, string) (string, error) {
-				return ens.SwarmContentHashPrefix + testSwarmAddr.String(), nil
+				return ens.FlockContentHashPrefix + testflockAddr.String(), nil
 			},
 			wantErr: ens.ErrInvalidContentHash,
 		},
@@ -163,7 +163,7 @@ func TestResolve(t *testing.T) {
 				if c != testContractAddr {
 					return "", errors.New("invalid contract address")
 				}
-				return ens.SwarmContentHashPrefix + testSwarmAddr.String(), nil
+				return ens.FlockContentHashPrefix + testflockAddr.String(), nil
 			},
 		},
 	}

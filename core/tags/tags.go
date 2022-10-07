@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -106,7 +106,7 @@ func (ts *Tags) Get(uid uint32) (*Tag, error) {
 }
 
 // GetByAddress returns the latest underlying tag for the address or an error if not found
-func (ts *Tags) GetByAddress(address swarm.Address) (*Tag, error) {
+func (ts *Tags) GetByAddress(address flock.Address) (*Tag, error) {
 	var t *Tag
 	var lastTime time.Time
 	ts.tags.Range(func(key interface{}, value interface{}) bool {

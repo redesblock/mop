@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestDB_ReserveGC_AllOutOfRadius tests that when all chunks fall outside of
@@ -35,10 +35,10 @@ func TestDB_ReserveGC_AllOutOfRadius(t *testing.T) {
 	})
 	closed = db.close
 
-	addrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
 
 	for i := 0; i < chunkCount; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(5, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(5, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
@@ -152,10 +152,10 @@ func TestDB_ReserveGC_AllWithinRadius(t *testing.T) {
 	})
 	closed = db.close
 
-	addrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
 
 	for i := 0; i < chunkCount; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
@@ -226,7 +226,7 @@ func TestDB_ReserveGC_Unreserve(t *testing.T) {
 	var (
 		mtx      sync.Mutex
 		batchIDs [][]byte
-		addrs    []swarm.Address
+		addrs    []flock.Address
 	)
 
 	unres := func(f postage.UnreserveIteratorFn) error {
@@ -270,7 +270,7 @@ func TestDB_ReserveGC_Unreserve(t *testing.T) {
 	// will cause reserve eviction of 10 chunks into
 	// the cache. gc of the cache is still not triggered
 	for i := 0; i < chunkCount; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
@@ -307,7 +307,7 @@ func TestDB_ReserveGC_Unreserve(t *testing.T) {
 
 	// insert another 90, this will trigger gc
 	for i := 0; i < 90; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
@@ -385,13 +385,13 @@ func TestDB_ReserveGC_Unreserve(t *testing.T) {
 }
 
 // TestDB_ReserveGC_EvictMaxPO tests that when unreserving a batch at
-// swarm.MaxPO+1 results in the correct behaviour.
+// flock.MaxPO+1 results in the correct behaviour.
 func TestDB_ReserveGC_EvictMaxPO(t *testing.T) {
 
 	var (
 		mtx        sync.Mutex
 		batchIDs   [][]byte
-		addrs      []swarm.Address
+		addrs      []flock.Address
 		chunkCount = 100
 
 		testHookCollectGarbageChan = make(chan uint64)
@@ -435,7 +435,7 @@ func TestDB_ReserveGC_EvictMaxPO(t *testing.T) {
 			if stop {
 				return nil
 			}
-			stop, err = f(item, swarm.MaxPO+1)
+			stop, err = f(item, flock.MaxPO+1)
 			if err != nil {
 				return err
 			}
@@ -458,7 +458,7 @@ func TestDB_ReserveGC_EvictMaxPO(t *testing.T) {
 
 	// put the first chunkCount chunks within radius
 	for i := 0; i < chunkCount; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
@@ -503,7 +503,7 @@ func TestDB_ReserveGC_EvictMaxPO(t *testing.T) {
 	t.Run("postage radius index count", newItemsCountTest(db.postageRadiusIndex, 0))
 
 	for i := 0; i < 90; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)

@@ -9,10 +9,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
@@ -27,8 +27,8 @@ func (s *server) chunkUploadStreamHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  swarm.ChunkSize,
-		WriteBufferSize: swarm.ChunkSize,
+		ReadBufferSize:  flock.ChunkSize,
+		WriteBufferSize: flock.ChunkSize,
 		CheckOrigin:     s.checkOrigin,
 	}
 
@@ -47,7 +47,7 @@ func (s *server) chunkUploadStreamHandler(w http.ResponseWriter, r *http.Request
 		tag,
 		putter,
 		requestModePut(r),
-		strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true",
+		strings.ToLower(r.Header.Get(FlockPinHeader)) == "true",
 	)
 }
 
@@ -144,7 +144,7 @@ func (s *server) handleUploadStream(
 			}
 		}
 
-		if len(msg) < swarm.SpanSize {
+		if len(msg) < flock.SpanSize {
 			s.logger.Debug("chunk stream handler: not enough data")
 			s.logger.Error("chunk stream handler: not enough data")
 			return

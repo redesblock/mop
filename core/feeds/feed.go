@@ -12,9 +12,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/soc"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var ErrFeedTypeNotFound = errors.New("no such feed type")
@@ -98,7 +98,7 @@ func (f *Feed) Update(index Index) *Update {
 }
 
 // NewUpdate creates an update from an index, timestamp, payload and signature
-func NewUpdate(f *Feed, idx Index, timestamp int64, payload, sig []byte) (swarm.Chunk, error) {
+func NewUpdate(f *Feed, idx Index, timestamp int64, payload, sig []byte) (flock.Chunk, error) {
 	id, err := f.Update(idx).Id()
 	if err != nil {
 		return nil, fmt.Errorf("update: %w", err)
@@ -140,8 +140,8 @@ func Id(topic []byte, index Index) ([]byte, error) {
 }
 
 // Address calculates the soc address of a feed update
-func (u *Update) Address() (swarm.Address, error) {
-	var addr swarm.Address
+func (u *Update) Address() (flock.Address, error) {
+	var addr flock.Address
 	i, err := u.Id()
 	if err != nil {
 		return addr, err

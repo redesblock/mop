@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/mop/core/chainsync"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p/streamtest"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/transaction/backendmock"
 )
 
@@ -49,7 +49,7 @@ func TestProve(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addr := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	addr := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	hash, err := client.Prove(context.Background(), addr, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestProveErr(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addr := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	addr := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	_, err = client.Prove(context.Background(), addr, 1)
 	if err == nil {
 		t.Fatal("expected error but got none")

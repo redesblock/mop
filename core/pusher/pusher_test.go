@@ -14,6 +14,7 @@ import (
 	"github.com/redesblock/mop/core/postage"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/localstore"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/pusher"
@@ -21,7 +22,6 @@ import (
 	pushsyncmock "github.com/redesblock/mop/core/pushsync/mock"
 	"github.com/redesblock/mop/core/storage"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/topology/mock"
 )
@@ -29,7 +29,7 @@ import (
 // no of times to retry to see if we have received response from pushsync
 var noOfRetries = 20
 var block = common.HexToHash("0x1").Bytes()
-var defaultMockvalidVouch = func(ch swarm.Chunk, vouch []byte) (swarm.Chunk, error) {
+var defaultMockvalidVouch = func(ch flock.Chunk, vouch []byte) (flock.Chunk, error) {
 	return ch, nil
 }
 
@@ -46,7 +46,7 @@ type Store struct {
 }
 
 // Override the Set function to capture the ModeSetSync
-func (s *Store) Set(ctx context.Context, mode storage.ModeSet, addrs ...swarm.Address) error {
+func (s *Store) Set(ctx context.Context, mode storage.ModeSet, addrs ...flock.Address) error {
 	s.modeSetMu.Lock()
 	defer s.modeSetMu.Unlock()
 
@@ -75,16 +75,16 @@ func (s *Store) Close() error {
 // as ModeSetSync status.
 func TestSendChunkToSyncWithTag(t *testing.T) {
 	// create a trigger  and a closestpeer
-	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
+	triggerPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
 	key, _ := crypto.GenerateSecp256k1Key()
 	signer := crypto.NewDefaultSigner(key)
 
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   flock.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
 			BlockHash: block,
 		}
@@ -132,16 +132,16 @@ func TestSendChunkToPushSyncWithoutTag(t *testing.T) {
 	chunk := testingc.GenerateTestRandomChunk()
 
 	// create a trigger  and a closestpeer
-	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
+	triggerPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
 	key, _ := crypto.GenerateSecp256k1Key()
 	signer := crypto.NewDefaultSigner(key)
 
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   flock.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
 			BlockHash: block,
 		}
@@ -179,10 +179,10 @@ func TestSendChunkAndReceiveInvalidReceipt(t *testing.T) {
 	chunk := testingc.GenerateTestRandomChunk()
 
 	// create a trigger  and a closestpeer
-	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
+	triggerPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		return nil, errors.New("invalid receipt")
 	})
 
@@ -217,17 +217,17 @@ func TestSendChunkAndTimeoutinReceivingReceipt(t *testing.T) {
 	chunk := testingc.GenerateTestRandomChunk()
 
 	// create a trigger  and a closestpeer
-	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
+	triggerPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
 	key, _ := crypto.GenerateSecp256k1Key()
 	signer := crypto.NewDefaultSigner(key)
 
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		time.Sleep(1 * time.Second)
 		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   flock.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
 			BlockHash: block,
 		}
@@ -267,17 +267,17 @@ func TestPusherRetryShallow(t *testing.T) {
 	*pusher.RetryCount = 3
 
 	var (
-		pivotPeer   = swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-		closestPeer = swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
+		pivotPeer   = flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+		closestPeer = flock.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 		key, _      = crypto.GenerateSecp256k1Key()
 		signer      = crypto.NewDefaultSigner(key)
 		callCount   = int32(0)
 	)
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		atomic.AddInt32(&callCount, 1)
 		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   flock.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
 			BlockHash: block,
 		}
@@ -317,23 +317,23 @@ func TestPusherRetryShallow(t *testing.T) {
 // TestChunkWithInvalidVouchSkipped tests that chunks with invalid vouches are skipped in pusher
 func TestChunkWithInvalidVouchSkipped(t *testing.T) {
 	// create a trigger  and a closestpeer
-	triggerPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
+	triggerPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("f000000000000000000000000000000000000000000000000000000000000000")
 
 	key, _ := crypto.GenerateSecp256k1Key()
 	signer := crypto.NewDefaultSigner(key)
 
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		signature, _ := signer.Sign(chunk.Address().Bytes())
 		receipt := &pushsync.Receipt{
-			Address:   swarm.NewAddress(chunk.Address().Bytes()),
+			Address:   flock.NewAddress(chunk.Address().Bytes()),
 			Signature: signature,
 			BlockHash: block,
 		}
 		return receipt, nil
 	})
 
-	validVouch := func(ch swarm.Chunk, vouch []byte) (swarm.Chunk, error) {
+	validVouch := func(ch flock.Chunk, vouch []byte) (flock.Chunk, error) {
 		return nil, errors.New("valid vouch error")
 	}
 
@@ -363,7 +363,7 @@ func TestChunkWithInvalidVouchSkipped(t *testing.T) {
 	}
 }
 
-func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.PushSyncer, validVouch postage.ValidVouchFn, mockOpts ...mock.Option) (*tags.Tags, *pusher.Service, *Store) {
+func createPusher(t *testing.T, addr flock.Address, pushSyncService pushsync.PushSyncer, validVouch postage.ValidVouchFn, mockOpts ...mock.Option) (*tags.Tags, *pusher.Service, *Store) {
 	t.Helper()
 	logger := logging.New(io.Discard, 0)
 	storer, err := localstore.New("", addr.Bytes(), nil, nil, logger)
@@ -385,7 +385,7 @@ func createPusher(t *testing.T, addr swarm.Address, pushSyncService pushsync.Pus
 	return mtags, pusherService, pusherStorer
 }
 
-func checkIfModeSet(addr swarm.Address, mode storage.ModeSet, storer *Store) error {
+func checkIfModeSet(addr flock.Address, mode storage.ModeSet, storer *Store) error {
 	var found bool
 	storer.modeSetMu.Lock()
 	defer storer.modeSetMu.Unlock()

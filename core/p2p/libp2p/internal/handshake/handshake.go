@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/pb"
 	"github.com/redesblock/mop/core/p2p/protobuf"
-	"github.com/redesblock/mop/core/swarm"
 
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
@@ -59,7 +59,7 @@ type AdvertisableAddressResolver interface {
 }
 
 type SenderMatcher interface {
-	Matches(ctx context.Context, tx []byte, networkID uint64, senderOverlay swarm.Address, ignoreGreylist bool) ([]byte, error)
+	Matches(ctx context.Context, tx []byte, networkID uint64, senderOverlay flock.Address, ignoreGreylist bool) ([]byte, error)
 }
 
 // Service can perform initiate or handle a handshake between peers.
@@ -67,7 +67,7 @@ type Service struct {
 	signer                crypto.Signer
 	advertisableAddresser AdvertisableAddressResolver
 	senderMatcher         SenderMatcher
-	overlay               swarm.Address
+	overlay               flock.Address
 	fullNode              bool
 	transaction           []byte
 	networkID             uint64
@@ -96,7 +96,7 @@ func (i *Info) LightString() string {
 }
 
 // New creates a new handshake Service.
-func New(signer crypto.Signer, advertisableAddresser AdvertisableAddressResolver, isSender SenderMatcher, overlay swarm.Address, networkID uint64, fullNode bool, transaction []byte, welcomeMessage string, ownPeerID libp2ppeer.ID, logger logging.Logger) (*Service, error) {
+func New(signer crypto.Signer, advertisableAddresser AdvertisableAddressResolver, isSender SenderMatcher, overlay flock.Address, networkID uint64, fullNode bool, transaction []byte, welcomeMessage string, ownPeerID libp2ppeer.ID, logger logging.Logger) (*Service, error) {
 	if len(welcomeMessage) > MaxWelcomeMessageLength {
 		return nil, ErrWelcomeMessageLength
 	}
@@ -181,7 +181,7 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, err
 	}
 
-	overlay := swarm.NewAddress(resp.Ack.Address.Overlay)
+	overlay := flock.NewAddress(resp.Ack.Address.Overlay)
 
 	if resp.Ack.NetworkID != s.networkID {
 		return nil, ErrNetworkIDIncompatible
@@ -309,7 +309,7 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 		return nil, ErrNetworkIDIncompatible
 	}
 
-	overlay := swarm.NewAddress(ack.Address.Overlay)
+	overlay := flock.NewAddress(ack.Address.Overlay)
 
 	if s.picker != nil {
 		if !s.picker.Pick(p2p.Peer{Address: overlay, FullNode: ack.FullNode}) {

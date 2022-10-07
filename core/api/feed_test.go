@@ -15,6 +15,7 @@ import (
 	"github.com/redesblock/mop/core/api"
 	"github.com/redesblock/mop/core/feeds"
 	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
@@ -24,13 +25,12 @@ import (
 	testingsoc "github.com/redesblock/mop/core/soc/testing"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
 const ownerString = "8d3766440f0d7b949a5e32995d09619a7f86e632"
 
-var expReference = swarm.MustParseHexAddress("891a1d1c8436c792d02fc2e8883fef7ab387eaeaacd25aa9f518be7be7856d54")
+var expReference = flock.MustParseHexAddress("1f0699834a5265a45cc81126bf8d3da5874c02dfeaeb20adf5add9c844e22170")
 
 func TestFeed_Get(t *testing.T) {
 	var (
@@ -95,9 +95,9 @@ func TestFeed_Get(t *testing.T) {
 			jsonhttptest.WithExpectedJSONResponse(api.FeedReferenceResponse{Reference: expReference}),
 		)
 
-		h := respHeaders[api.SwarmFeedIndexHeader]
+		h := respHeaders[api.FlockFeedIndexHeader]
 		if len(h) == 0 {
-			t.Fatal("expected swarm feed index header to be set")
+			t.Fatal("expected flock feed index header to be set")
 		}
 		b, err := hex.DecodeString(h[0])
 		if err != nil {
@@ -127,7 +127,7 @@ func TestFeed_Get(t *testing.T) {
 			jsonhttptest.WithExpectedJSONResponse(api.FeedReferenceResponse{Reference: expReference}),
 		)
 
-		if h := respHeaders[api.SwarmFeedIndexHeader]; len(h) > 0 {
+		if h := respHeaders[api.FlockFeedIndexHeader]; len(h) > 0 {
 			b, err := hex.DecodeString(h[0])
 			if err != nil {
 				t.Fatal(err)
@@ -136,7 +136,7 @@ func TestFeed_Get(t *testing.T) {
 				t.Fatalf("feed index header mismatch. got %v want %v", b, idBytes)
 			}
 		} else {
-			t.Fatal("expected swarm feed index header to be set")
+			t.Fatal("expected flock feed index header to be set")
 		}
 	})
 }
@@ -163,7 +163,7 @@ func TestFeed_Post(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithExpectedJSONResponse(api.FeedReferenceResponse{
 				Reference: expReference,
 			}),
@@ -194,7 +194,7 @@ func TestFeed_Post(t *testing.T) {
 		t.Run("err - bad batch", func(t *testing.T) {
 			hexbatch := hex.EncodeToString(batchInvalid)
 			jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusBadRequest,
-				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 				jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 					Message: "invalid postage batch id",
 					Code:    http.StatusBadRequest,
@@ -204,13 +204,13 @@ func TestFeed_Post(t *testing.T) {
 		t.Run("ok - batch zeros", func(t *testing.T) {
 			hexbatch := hex.EncodeToString(batchOk)
 			jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusCreated,
-				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 			)
 		})
 		t.Run("bad request - batch empty", func(t *testing.T) {
 			hexbatch := hex.EncodeToString(batchEmpty)
 			jsonhttptest.Request(t, client, http.MethodPost, url, http.StatusBadRequest,
-				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 			)
 		})
 	})
@@ -241,16 +241,16 @@ func (f *factoryMock) NewLookup(t feeds.Type, feed *feeds.Feed) (feeds.Lookup, e
 
 type mockLookup struct {
 	at, after int64
-	chunk     swarm.Chunk
+	chunk     flock.Chunk
 	err       error
 	cur, next feeds.Index
 }
 
-func newMockLookup(at, after int64, ch swarm.Chunk, err error, cur, next feeds.Index) *mockLookup {
+func newMockLookup(at, after int64, ch flock.Chunk, err error, cur, next feeds.Index) *mockLookup {
 	return &mockLookup{at: at, after: after, chunk: ch, err: err, cur: cur, next: next}
 }
 
-func (l *mockLookup) At(_ context.Context, at, after int64) (swarm.Chunk, feeds.Index, feeds.Index, error) {
+func (l *mockLookup) At(_ context.Context, at, after int64) (flock.Chunk, feeds.Index, feeds.Index, error) {
 	if l.at == -1 {
 		// shortcut to ignore the value in the call since time.Now() is a moving target
 		return l.chunk, l.cur, l.next, nil
@@ -261,7 +261,7 @@ func (l *mockLookup) At(_ context.Context, at, after int64) (swarm.Chunk, feeds.
 	return nil, nil, nil, errors.New("no feed update found")
 }
 
-func toChunk(t *testing.T, at uint64, payload []byte) swarm.Chunk {
+func toChunk(t *testing.T, at uint64, payload []byte) flock.Chunk {
 	ts := make([]byte, 8)
 	binary.BigEndian.PutUint64(ts, at)
 	content := append(ts, payload...)

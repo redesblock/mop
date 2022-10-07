@@ -16,11 +16,11 @@ func (c *command) initExportPrivateCmd() error {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			keystore := filekeystore.New(filepath.Join(c.config.GetString(optionNameDataDir), "keys"))
-			swarmPrivateKey, _, err := keystore.Key("swarm", args[0])
+			flockPrivateKey, _, err := keystore.Key("flock", args[0])
 			if err != nil {
-				return fmt.Errorf("swarm key: %w", err)
+				return fmt.Errorf("flock key: %w", err)
 			}
-			keyBytes := math.PaddedBigBytes(swarmPrivateKey.D, 32)
+			keyBytes := math.PaddedBigBytes(flockPrivateKey.D, 32)
 			fmt.Println("private key:", hex.EncodeToString(keyBytes))
 			return nil
 		},

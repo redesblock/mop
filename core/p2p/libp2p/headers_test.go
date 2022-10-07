@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/libp2p"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestHeaders(t *testing.T) {
@@ -144,7 +144,7 @@ func TestHeadler(t *testing.T) {
 				Handler: func(_ context.Context, _ p2p.Peer, stream p2p.Stream) error {
 					return nil
 				},
-				Headler: func(headers p2p.Headers, address swarm.Address) p2p.Headers {
+				Headler: func(headers p2p.Headers, address flock.Address) p2p.Headers {
 					defer close(handled)
 					gotReceivedHeaders = headers
 					return sentHeaders

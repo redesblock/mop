@@ -21,6 +21,7 @@ import (
 	"github.com/redesblock/mop/core/feeds"
 	"github.com/redesblock/mop/core/file/pipeline"
 	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/pinning"
@@ -34,7 +35,6 @@ import (
 	"github.com/redesblock/mop/core/steward"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/traversal"
 	"resenje.org/web"
@@ -168,7 +168,7 @@ func TestParseName(t *testing.T) {
 		name       string
 		res        resolver.Interface
 		noResolver bool
-		wantAdr    swarm.Address
+		wantAdr    flock.Address
 		wantErr    error
 	}{
 		{
@@ -179,13 +179,13 @@ func TestParseName(t *testing.T) {
 		{
 			desc:    "mop hash",
 			name:    mopHash,
-			wantAdr: swarm.MustParseHexAddress(mopHash),
+			wantAdr: flock.MustParseHexAddress(mopHash),
 		},
 		{
 			desc:       "no resolver connected with mop hash",
 			name:       mopHash,
 			noResolver: true,
-			wantAdr:    swarm.MustParseHexAddress(mopHash),
+			wantAdr:    flock.MustParseHexAddress(mopHash),
 		},
 		{
 			desc:       "no resolver connected with name",
@@ -197,8 +197,8 @@ func TestParseName(t *testing.T) {
 			desc: "name not resolved",
 			name: "not.good",
 			res: resolverMock.NewResolver(
-				resolverMock.WithResolveFunc(func(string) (swarm.Address, error) {
-					return swarm.ZeroAddress, errors.New("failed to resolve")
+				resolverMock.WithResolveFunc(func(string) (flock.Address, error) {
+					return flock.ZeroAddress, errors.New("failed to resolve")
 				}),
 			),
 			wantErr: api.ErrInvalidNameOrAddress,
@@ -206,13 +206,13 @@ func TestParseName(t *testing.T) {
 		{
 			desc:    "name resolved",
 			name:    "everything.okay",
-			wantAdr: swarm.MustParseHexAddress("89c17d0d8018a19057314aa035e61c9d23c47581a61dd3a79a7839692c617e4d"),
+			wantAdr: flock.MustParseHexAddress("89c17d0d8018a19057314aa035e61c9d23c47581a61dd3a79a7839692c617e4d"),
 		},
 	}
 	for _, tC := range testCases {
 		if tC.res == nil && !tC.noResolver {
 			tC.res = resolverMock.NewResolver(
-				resolverMock.WithResolveFunc(func(string) (swarm.Address, error) {
+				resolverMock.WithResolveFunc(func(string) (flock.Address, error) {
 					return tC.wantAdr, nil
 				}))
 		}
@@ -298,7 +298,7 @@ func TestPostageHeaderError(t *testing.T) {
 			hexbatch := hex.EncodeToString(batchEmpty)
 			expCode := http.StatusBadRequest
 			jsonhttptest.Request(t, client, http.MethodPost, "/"+endpoint, expCode,
-				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 				jsonhttptest.WithRequestHeader(api.ContentTypeHeader, "application/octet-stream"),
 				jsonhttptest.WithRequestBody(bytes.NewReader(content)),
 			)
@@ -307,7 +307,7 @@ func TestPostageHeaderError(t *testing.T) {
 			hexbatch := hex.EncodeToString(batchOk)
 			expCode := http.StatusCreated
 			jsonhttptest.Request(t, client, http.MethodPost, "/"+endpoint, expCode,
-				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 				jsonhttptest.WithRequestHeader(api.ContentTypeHeader, "application/octet-stream"),
 				jsonhttptest.WithRequestBody(bytes.NewReader(content)),
 			)
@@ -316,7 +316,7 @@ func TestPostageHeaderError(t *testing.T) {
 			hexbatch := hex.EncodeToString(batchInvalid)
 			expCode := http.StatusBadRequest
 			jsonhttptest.Request(t, client, http.MethodPost, "/"+endpoint, expCode,
-				jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+				jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 				jsonhttptest.WithRequestHeader(api.ContentTypeHeader, "application/octet-stream"),
 				jsonhttptest.WithRequestBody(bytes.NewReader(content)),
 			)

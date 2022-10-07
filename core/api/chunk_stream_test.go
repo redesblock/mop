@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	pinning "github.com/redesblock/mop/core/pinning/mock"
 	mockpost "github.com/redesblock/mop/core/postage/mock"
@@ -17,7 +18,6 @@ import (
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
@@ -25,7 +25,7 @@ func TestChunkUploadStream(t *testing.T) {
 
 	wsHeaders := http.Header{}
 	wsHeaders.Set("Content-Type", "application/octet-stream")
-	wsHeaders.Set("Swarm-Postage-Batch-Id", batchOkStr)
+	wsHeaders.Set(api.FlockPostageBatchIdHeader, batchOkStr)
 
 	var (
 		statestoreMock = statestore.NewStateStore()
@@ -44,7 +44,7 @@ func TestChunkUploadStream(t *testing.T) {
 	)
 
 	t.Run("upload and verify", func(t *testing.T) {
-		chsToGet := []swarm.Chunk{}
+		chsToGet := []flock.Chunk{}
 		for i := 0; i < 5; i++ {
 			ch := testingc.GenerateTestRandomChunk()
 

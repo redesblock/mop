@@ -14,6 +14,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/redesblock/mop/core/accounting"
 	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
@@ -22,7 +23,6 @@ import (
 	pb "github.com/redesblock/mop/core/retrieval/pb"
 	"github.com/redesblock/mop/core/soc"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/tracing"
 	"resenje.org/singleflight"
@@ -39,18 +39,18 @@ const (
 var _ Interface = (*Service)(nil)
 
 type Interface interface {
-	RetrieveChunk(ctx context.Context, addr swarm.Address, origin bool) (chunk swarm.Chunk, err error)
+	RetrieveChunk(ctx context.Context, addr flock.Address, origin bool) (chunk flock.Chunk, err error)
 }
 
 type retrievalResult struct {
-	chunk     swarm.Chunk
-	peer      swarm.Address
+	chunk     flock.Chunk
+	peer      flock.Address
 	err       error
 	retrieved bool
 }
 
 type Service struct {
-	addr          swarm.Address
+	addr          flock.Address
 	streamer      p2p.Streamer
 	peerSuggester topology.EachPeerer
 	storer        storage.Storer
@@ -64,7 +64,7 @@ type Service struct {
 	validVouch    postage.ValidVouchFn
 }
 
-func New(addr swarm.Address, storer storage.Storer, streamer p2p.Streamer, chunkPeerer topology.EachPeerer, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, tracer *tracing.Tracer, forwarderCaching bool, validVouch postage.ValidVouchFn) *Service {
+func New(addr flock.Address, storer storage.Storer, streamer p2p.Streamer, chunkPeerer topology.EachPeerer, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, tracer *tracing.Tracer, forwarderCaching bool, validVouch postage.ValidVouchFn) *Service {
 	return &Service{
 		addr:          addr,
 		streamer:      streamer,
@@ -101,7 +101,7 @@ const (
 	originSuffix                  = "_origin"
 )
 
-func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address, origin bool) (swarm.Chunk, error) {
+func (s *Service) RetrieveChunk(ctx context.Context, addr flock.Address, origin bool) (flock.Chunk, error) {
 	s.metrics.RequestCounter.Inc()
 
 	flightRoute := addr.String()
@@ -242,19 +242,19 @@ func (s *Service) RetrieveChunk(ctx context.Context, addr swarm.Address, origin 
 		return nil, err
 	}
 
-	return v.(swarm.Chunk), nil
+	return v.(flock.Chunk), nil
 }
 
-func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *skipPeers, originated bool) (chunk swarm.Chunk, peer swarm.Address, requested bool, err error) {
+func (s *Service) retrieveChunk(ctx context.Context, addr flock.Address, sp *skipPeers, originated bool) (chunk flock.Chunk, peer flock.Address, requested bool, err error) {
 	startTimer := time.Now()
 	v := ctx.Value(requestSourceContextKey{})
-	sourcePeerAddr := swarm.Address{}
+	sourcePeerAddr := flock.Address{}
 	// allow upstream requests if this node is the source of the request
 	// i.e. the request was not forwarded, to improve retrieval
 	// if this node is the closest to he chunk but still does not contain it
 	allowUpstream := true
 	if src, ok := v.(string); ok {
-		sourcePeerAddr, err = swarm.ParseHexAddress(src)
+		sourcePeerAddr, err = flock.ParseHexAddress(src)
 		if err == nil {
 			sp.Add(sourcePeerAddr)
 		}
@@ -270,12 +270,12 @@ func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *ski
 		return nil, peer, false, fmt.Errorf("get closest for address %s, allow upstream %v: %w", addr.String(), allowUpstream, err)
 	}
 
-	peerPO := swarm.Proximity(s.addr.Bytes(), peer.Bytes())
+	peerPO := flock.Proximity(s.addr.Bytes(), peer.Bytes())
 
 	if !sourcePeerAddr.IsZero() {
 		// is forwarded request
-		sourceAddrPO := swarm.Proximity(sourcePeerAddr.Bytes(), addr.Bytes())
-		addrPO := swarm.Proximity(peer.Bytes(), addr.Bytes())
+		sourceAddrPO := flock.Proximity(sourcePeerAddr.Bytes(), addr.Bytes())
+		addrPO := flock.Proximity(peer.Bytes(), addr.Bytes())
 
 		poGain := int(addrPO) - int(sourceAddrPO)
 
@@ -336,12 +336,12 @@ func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *ski
 	if err != nil {
 		return nil, peer, true, fmt.Errorf("vouch unmarshal: %w", err)
 	}
-	chunk = swarm.NewChunk(addr, d.Data).WithVouch(vouch)
+	chunk = flock.NewChunk(addr, d.Data).WithVouch(vouch)
 	if !cac.Valid(chunk) {
 		if !soc.Valid(chunk) {
 			s.metrics.InvalidChunkRetrieved.Inc()
 			s.metrics.TotalErrors.Inc()
-			return nil, peer, true, swarm.ErrInvalidChunk
+			return nil, peer, true, flock.ErrInvalidChunk
 		}
 	}
 
@@ -359,9 +359,9 @@ func (s *Service) retrieveChunk(ctx context.Context, addr swarm.Address, sp *ski
 // provided in skipPeers and if allowUpstream is true, peers that are further of
 // the chunk than this node is, could also be returned, allowing the upstream
 // retrieve request.
-func (s *Service) closestPeer(addr swarm.Address, skipPeers []swarm.Address, allowUpstream bool) (swarm.Address, error) {
-	closest := swarm.Address{}
-	err := s.peerSuggester.EachPeerRev(func(peer swarm.Address, po uint8) (bool, bool, error) {
+func (s *Service) closestPeer(addr flock.Address, skipPeers []flock.Address, allowUpstream bool) (flock.Address, error) {
+	closest := flock.Address{}
+	err := s.peerSuggester.EachPeerRev(func(peer flock.Address, po uint8) (bool, bool, error) {
 		for _, a := range skipPeers {
 			if a.Equal(peer) {
 				return false, false, nil
@@ -381,12 +381,12 @@ func (s *Service) closestPeer(addr swarm.Address, skipPeers []swarm.Address, all
 		return false, false, nil
 	}, topology.Filter{Reachable: true})
 	if err != nil {
-		return swarm.Address{}, err
+		return flock.Address{}, err
 	}
 
 	// check if found
 	if closest.IsZero() {
-		return swarm.Address{}, topology.ErrNotFound
+		return flock.Address{}, topology.ErrNotFound
 	}
 	if allowUpstream {
 		return closest, nil
@@ -394,10 +394,10 @@ func (s *Service) closestPeer(addr swarm.Address, skipPeers []swarm.Address, all
 
 	closer, err := closest.Closer(addr, s.addr)
 	if err != nil {
-		return swarm.Address{}, fmt.Errorf("distance compare addr %s closest %s base address %s: %w", addr.String(), closest.String(), s.addr.String(), err)
+		return flock.Address{}, fmt.Errorf("distance compare addr %s closest %s base address %s: %w", addr.String(), closest.String(), s.addr.String(), err)
 	}
 	if closer {
-		return swarm.Address{}, topology.ErrNotFound
+		return flock.Address{}, topology.ErrNotFound
 	}
 
 	return closest, nil
@@ -417,11 +417,11 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 		return fmt.Errorf("read request: %w peer %s", err, p.Address.String())
 	}
 
-	span, _, ctx := s.tracer.StartSpanFromContext(ctx, "handle-retrieve-chunk", s.logger, opentracing.Tag{Key: "address", Value: swarm.NewAddress(req.Addr).String()})
+	span, _, ctx := s.tracer.StartSpanFromContext(ctx, "handle-retrieve-chunk", s.logger, opentracing.Tag{Key: "address", Value: flock.NewAddress(req.Addr).String()})
 	defer span.Finish()
 
 	ctx = context.WithValue(ctx, requestSourceContextKey{}, p.Address.String())
-	addr := swarm.NewAddress(req.Addr)
+	addr := flock.NewAddress(req.Addr)
 
 	forwarded := false
 	chunk, err := s.storer.Get(ctx, storage.ModeGetRequest, addr)

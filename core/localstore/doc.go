@@ -1,6 +1,6 @@
 /*
-Package localstore provides disk storage layer for Swarm Chunk persistence.
-It uses swarm/shed abstractions.
+Package localstore provides disk storage layer for Flock Chunk persistence.
+It uses flock/shed abstractions.
 
 The main type is DB which manages the storage by providing methods to
 access and add Chunks and to manage their status.

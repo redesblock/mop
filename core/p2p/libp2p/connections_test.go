@@ -17,17 +17,17 @@ import (
 	"github.com/libp2p/go-libp2p-core/mux"
 	"github.com/libp2p/go-libp2p-core/network"
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
-	swarmt "github.com/libp2p/go-libp2p-swarm/testing"
+	flockt "github.com/libp2p/go-libp2p-swarm/testing"
 	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/flock"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/libp2p"
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
 	"github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
-	"github.com/redesblock/mop/core/swarm/test"
 	"github.com/redesblock/mop/core/topology/lightnode"
 )
 
@@ -566,13 +566,13 @@ func TestTopologyAnnounce(t *testing.T) {
 		announceCalled   = false
 		announceToCalled = false
 
-		n1a = func(context.Context, swarm.Address, bool) error {
+		n1a = func(context.Context, flock.Address, bool) error {
 			mtx.Lock()
 			announceCalled = true
 			mtx.Unlock()
 			return nil
 		}
-		n1at = func(context.Context, swarm.Address, swarm.Address, bool) error {
+		n1at = func(context.Context, flock.Address, flock.Address, bool) error {
 			mtx.Lock()
 			announceToCalled = true
 			mtx.Unlock()
@@ -867,7 +867,7 @@ func TestReachabilityUpdate(t *testing.T) {
 	s1, _ := newService(t, 1, libp2pServiceOpts{
 		libp2pOpts: libp2p.WithHostFactory(
 			func(ctx context.Context, _ ...libp2pm.Option) (host.Host, error) {
-				return bhost.NewHost(context.TODO(), swarmt.GenSwarm(t, context.TODO()), &bhost.HostOpts{})
+				return bhost.NewHost(context.TODO(), flockt.GenSwarm(t, context.TODO()), &bhost.HostOpts{})
 			},
 		),
 	})
@@ -1004,16 +1004,16 @@ func expectFullNode(t *testing.T, p p2p.Peer) {
 	}
 }
 
-func expectZeroAddress(t *testing.T, addrs ...swarm.Address) {
+func expectZeroAddress(t *testing.T, addrs ...flock.Address) {
 	t.Helper()
 	for i, a := range addrs {
-		if !a.Equal(swarm.ZeroAddress) {
+		if !a.Equal(flock.ZeroAddress) {
 			t.Fatalf("address did not equal zero address. index %d", i)
 		}
 	}
 }
 
-func waitAddrSet(t *testing.T, addr *swarm.Address, mtx *sync.Mutex, exp swarm.Address) {
+func waitAddrSet(t *testing.T, addr *flock.Address, mtx *sync.Mutex, exp flock.Address) {
 	t.Helper()
 	for i := 0; i < 20; i++ {
 		mtx.Lock()
@@ -1027,7 +1027,7 @@ func waitAddrSet(t *testing.T, addr *swarm.Address, mtx *sync.Mutex, exp swarm.A
 	t.Fatal("timed out waiting for address to be set")
 }
 
-func checkAddressbook(t *testing.T, ab addressbook.Getter, overlay swarm.Address, underlay ma.Multiaddr) {
+func checkAddressbook(t *testing.T, ab addressbook.Getter, overlay flock.Address, underlay ma.Multiaddr) {
 	t.Helper()
 	addr, err := ab.Get(overlay)
 	if err != nil {
@@ -1064,11 +1064,11 @@ func (n *notifiee) Pick(p2p.Peer) bool {
 	return n.pick
 }
 
-func (n *notifiee) Announce(ctx context.Context, a swarm.Address, full bool) error {
+func (n *notifiee) Announce(ctx context.Context, a flock.Address, full bool) error {
 	return n.announce(ctx, a, full)
 }
 
-func (n *notifiee) AnnounceTo(ctx context.Context, a, b swarm.Address, full bool) error {
+func (n *notifiee) AnnounceTo(ctx context.Context, a, b flock.Address, full bool) error {
 	return n.announceTo(ctx, a, b, full)
 }
 
@@ -1076,7 +1076,7 @@ func (n *notifiee) UpdateReachability(status p2p.ReachabilityStatus) {
 	n.updateReachability(status)
 }
 
-func (n *notifiee) Reachable(addr swarm.Address, status p2p.ReachabilityStatus) {
+func (n *notifiee) Reachable(addr flock.Address, status p2p.ReachabilityStatus) {
 	n.reachable(addr, status)
 }
 
@@ -1119,15 +1119,15 @@ func mockReachabilityNotifier(r reachabilityFunc) p2p.PickyNotifier {
 type (
 	cFunc            func(context.Context, p2p.Peer, bool) error
 	dFunc            func(p2p.Peer)
-	announceFunc     func(context.Context, swarm.Address, bool) error
-	announceToFunc   func(context.Context, swarm.Address, swarm.Address, bool) error
+	announceFunc     func(context.Context, flock.Address, bool) error
+	announceToFunc   func(context.Context, flock.Address, flock.Address, bool) error
 	reachabilityFunc func(p2p.ReachabilityStatus)
-	reachableFunc    func(swarm.Address, p2p.ReachabilityStatus)
+	reachableFunc    func(flock.Address, p2p.ReachabilityStatus)
 )
 
 var noopCf = func(context.Context, p2p.Peer, bool) error { return nil }
 var noopDf = func(p2p.Peer) {}
-var noopAnnounce = func(context.Context, swarm.Address, bool) error { return nil }
-var noopAnnounceTo = func(context.Context, swarm.Address, swarm.Address, bool) error { return nil }
+var noopAnnounce = func(context.Context, flock.Address, bool) error { return nil }
+var noopAnnounceTo = func(context.Context, flock.Address, flock.Address, bool) error { return nil }
 var noopReachability = func(p2p.ReachabilityStatus) {}
-var noopReachable = func(swarm.Address, p2p.ReachabilityStatus) {}
+var noopReachable = func(flock.Address, p2p.ReachabilityStatus) {}

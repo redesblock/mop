@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -16,7 +16,7 @@ import (
 // chunks represented by provided addresses.
 // Set is required to implement chunk.Store
 // interface.
-func (db *DB) Set(ctx context.Context, mode storage.ModeSet, addrs ...swarm.Address) (err error) {
+func (db *DB) Set(ctx context.Context, mode storage.ModeSet, addrs ...flock.Address) (err error) {
 	db.metrics.ModeSet.Inc()
 	defer totalTimeMetric(db.metrics.TotalTimeSet, time.Now())
 	err = db.set(mode, addrs...)
@@ -28,7 +28,7 @@ func (db *DB) Set(ctx context.Context, mode storage.ModeSet, addrs ...swarm.Addr
 
 // set updates database indexes for
 // chunks represented by provided addresses.
-func (db *DB) set(mode storage.ModeSet, addrs ...swarm.Address) (err error) {
+func (db *DB) set(mode storage.ModeSet, addrs ...flock.Address) (err error) {
 	// protect parallel updates
 	db.batchMu.Lock()
 	defer db.batchMu.Unlock()
@@ -106,7 +106,7 @@ func (db *DB) set(mode storage.ModeSet, addrs ...swarm.Address) (err error) {
 //   - update to gc index happens given item does not exist in pin index
 //
 // Provided batch is updated.
-func (db *DB) setSync(batch *leveldb.Batch, addr swarm.Address) (gcSizeChange int64, err error) {
+func (db *DB) setSync(batch *leveldb.Batch, addr flock.Address) (gcSizeChange int64, err error) {
 	item := addressToItem(addr)
 
 	// need to get access timestamp here as it is not
@@ -295,7 +295,7 @@ func (db *DB) setPin(batch *leveldb.Batch, item shed.Item) (gcSizeChange int64, 
 
 // setUnpin decrements pin counter for the chunk by updating pin index.
 // Provided batch is updated.
-func (db *DB) setUnpin(batch *leveldb.Batch, addr swarm.Address) (gcSizeChange int64, err error) {
+func (db *DB) setUnpin(batch *leveldb.Batch, addr flock.Address) (gcSizeChange int64, err error) {
 	item := addressToItem(addr)
 
 	// Get the existing pin counter of the chunk

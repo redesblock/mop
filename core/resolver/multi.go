@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 // Ensure MultiResolver implements Resolver interface.
@@ -109,7 +109,7 @@ func (mr *MultiResolver) Resolve(name string) (Address, error) {
 		chain = mr.resolvers[""]
 	}
 
-	addr := swarm.ZeroAddress
+	addr := flock.ZeroAddress
 	var err error
 	for _, res := range chain {
 		addr, err = res.Resolve(name)

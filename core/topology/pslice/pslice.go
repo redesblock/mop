@@ -3,29 +3,29 @@ package pslice
 import (
 	"sync"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/topology"
 )
 
 // PSlice maintains a list of addresses, indexing them by their different proximity orders.
 type PSlice struct {
-	peers     [][]swarm.Address // the slice of peers
+	peers     [][]flock.Address // the slice of peers
 	baseBytes []byte
 	mu        sync.RWMutex
 	maxBins   int
 }
 
 // New creates a new PSlice.
-func New(maxBins int, base swarm.Address) *PSlice {
+func New(maxBins int, base flock.Address) *PSlice {
 	return &PSlice{
-		peers:     make([][]swarm.Address, maxBins),
+		peers:     make([][]flock.Address, maxBins),
 		baseBytes: base.Bytes(),
 		maxBins:   maxBins,
 	}
 }
 
 // Add a peer at a certain PO.
-func (s *PSlice) Add(addrs ...swarm.Address) {
+func (s *PSlice) Add(addrs ...flock.Address) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -57,7 +57,7 @@ func (s *PSlice) Add(addrs ...swarm.Address) {
 	for i, count := range binChange {
 		peers := s.peers[i]
 		if count > 0 && cap(peers) < len(peers)+count {
-			newPeers := make([]swarm.Address, len(peers), len(peers)+count)
+			newPeers := make([]flock.Address, len(peers), len(peers)+count)
 			copy(newPeers, peers)
 			s.peers[i] = newPeers
 		}
@@ -137,7 +137,7 @@ func (s *PSlice) BinSize(bin uint8) int {
 	return len(s.peers[bin])
 }
 
-func (s *PSlice) BinPeers(bin uint8) []swarm.Address {
+func (s *PSlice) BinPeers(bin uint8) []flock.Address {
 
 	if int(bin) >= s.maxBins {
 		return nil
@@ -146,7 +146,7 @@ func (s *PSlice) BinPeers(bin uint8) []swarm.Address {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	ret := make([]swarm.Address, len(s.peers[bin]))
+	ret := make([]flock.Address, len(s.peers[bin]))
 	copy(ret, s.peers[bin])
 
 	return ret
@@ -184,7 +184,7 @@ func (s *PSlice) ShallowestEmpty() (uint8, bool) {
 }
 
 // Exists checks if a peer exists.
-func (s *PSlice) Exists(addr swarm.Address) bool {
+func (s *PSlice) Exists(addr flock.Address) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -193,7 +193,7 @@ func (s *PSlice) Exists(addr swarm.Address) bool {
 }
 
 // Remove a peer at a certain PO.
-func (s *PSlice) Remove(addr swarm.Address) {
+func (s *PSlice) Remove(addr flock.Address) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -210,7 +210,7 @@ func (s *PSlice) Remove(addr swarm.Address) {
 
 	// make copy of the bin slice with one fewer element
 	newLength := len(s.peers[po]) - 1
-	cpy := make([]swarm.Address, newLength)
+	cpy := make([]flock.Address, newLength)
 	copy(cpy, s.peers[po][:newLength])
 
 	// if the index is the last element, then assign slice and return early
@@ -228,7 +228,7 @@ func (s *PSlice) Remove(addr swarm.Address) {
 }
 
 func (s *PSlice) po(peer []byte) uint8 {
-	po := swarm.Proximity(s.baseBytes, peer)
+	po := flock.Proximity(s.baseBytes, peer)
 	if int(po) >= s.maxBins {
 		return uint8(s.maxBins) - 1
 	}
@@ -236,7 +236,7 @@ func (s *PSlice) po(peer []byte) uint8 {
 }
 
 // index returns if a peer exists and the index in the slice.
-func (s *PSlice) index(addr swarm.Address, po uint8) (bool, int) {
+func (s *PSlice) index(addr flock.Address, po uint8) (bool, int) {
 
 	for i, peer := range s.peers[po] {
 		if peer.Equal(addr) {

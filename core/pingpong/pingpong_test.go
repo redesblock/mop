@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
@@ -43,7 +43,7 @@ func TestPing(t *testing.T) {
 	client := pingpong.New(recorder, logger, nil)
 
 	// ping
-	addr := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	addr := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	greetings := []string{"hey", "there", "fella"}
 	rtt, err := client.Ping(context.Background(), addr, greetings...)
 	if err != nil {

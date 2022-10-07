@@ -5,19 +5,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/inmemstore"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestStorePutGet(t *testing.T) {
 	s := inmemstore.New()
 
-	keyFound, err := swarm.ParseHexAddress("aabbcc")
+	keyFound, err := flock.ParseHexAddress("aabbcc")
 	if err != nil {
 		t.Fatal(err)
 	}
-	keyNotFound, err := swarm.ParseHexAddress("bbccdd")
+	keyNotFound, err := flock.ParseHexAddress("bbccdd")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestStorePutGet(t *testing.T) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 
-	if _, err := s.Put(ctx, storage.ModePutUpload, swarm.NewChunk(keyFound, valueFound)); err != nil {
+	if _, err := s.Put(ctx, storage.ModePutUpload, flock.NewChunk(keyFound, valueFound)); err != nil {
 		t.Fatalf("expected not error but got: %v", err)
 	}
 

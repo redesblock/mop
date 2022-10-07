@@ -6,15 +6,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/resolver"
 	"github.com/redesblock/mop/core/resolver/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
-type Address = swarm.Address
+type Address = flock.Address
 
 func newAddr(s string) Address {
-	return swarm.NewAddress([]byte(s))
+	return flock.NewAddress([]byte(s))
 }
 
 func TestWithForceDefault(t *testing.T) {
@@ -112,14 +112,14 @@ func TestResolve(t *testing.T) {
 		return mock.NewResolver(
 			mock.WithResolveFunc(func(name string) (Address, error) {
 				err := fmt.Errorf("name resolution failed for %q", name)
-				return swarm.ZeroAddress, err
+				return flock.ZeroAddress, err
 			}),
 		)
 	}
 	newUnregisteredNameResolver := func() resolver.Interface {
 		return mock.NewResolver(
 			mock.WithResolveFunc(func(name string) (Address, error) {
-				return swarm.ZeroAddress, errUnregisteredName
+				return flock.ZeroAddress, errUnregisteredName
 			}),
 		)
 	}
@@ -208,7 +208,7 @@ func TestResolve(t *testing.T) {
 		// },
 		{
 			name:    "iam.unregistered",
-			wantAdr: swarm.ZeroAddress,
+			wantAdr: flock.ZeroAddress,
 			wantErr: errUnregisteredName,
 		},
 	}

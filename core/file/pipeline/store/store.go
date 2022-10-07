@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/sctx"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
@@ -31,15 +31,15 @@ func (w *storeWriter) ChainWrite(p *pipeline.PipeWriteArgs) error {
 		return errInvalidData
 	}
 	tag := sctx.GetTag(w.ctx)
-	var c swarm.Chunk
+	var c flock.Chunk
 	if tag != nil {
 		err := tag.Inc(tags.StateSplit)
 		if err != nil {
 			return err
 		}
-		c = swarm.NewChunk(swarm.NewAddress(p.Ref), p.Data).WithTagID(tag.Uid)
+		c = flock.NewChunk(flock.NewAddress(p.Ref), p.Data).WithTagID(tag.Uid)
 	} else {
-		c = swarm.NewChunk(swarm.NewAddress(p.Ref), p.Data)
+		c = flock.NewChunk(flock.NewAddress(p.Ref), p.Data)
 	}
 	seen, err := w.l.Put(w.ctx, w.mode, c)
 	if err != nil {

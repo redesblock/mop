@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/mop/core/chainsyncer"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology/mock"
 	"github.com/redesblock/mop/core/transaction/backendmock"
 )
@@ -30,13 +30,13 @@ func TestChainsyncer(t *testing.T) {
 		})
 
 		backend        = backendmock.New(headerByNum, blockNumber)
-		topology       = mock.NewTopologyDriver(mock.WithPeers(swarm.NewAddress([]byte{0, 1, 2, 3})))
+		topology       = mock.NewTopologyDriver(mock.WithPeers(flock.NewAddress([]byte{0, 1, 2, 3})))
 		proofBlockHash = make([]byte, 32)
 		proofError     = errors.New("error")
-		p              = &prover{f: func(_ swarm.Address, _ uint64) ([]byte, error) {
+		p              = &prover{f: func(_ flock.Address, _ uint64) ([]byte, error) {
 			return proofBlockHash, proofError
 		}}
-		d = &m{f: func(_ swarm.Address, _ time.Duration) {
+		d = &m{f: func(_ flock.Address, _ time.Duration) {
 			select {
 			case blockC <- struct{}{}:
 			default:
@@ -88,21 +88,21 @@ func TestChainsyncer(t *testing.T) {
 }
 
 type prover struct {
-	f func(swarm.Address, uint64) ([]byte, error)
+	f func(flock.Address, uint64) ([]byte, error)
 }
 
-func (p *prover) Prove(_ context.Context, a swarm.Address, b uint64) ([]byte, error) {
+func (p *prover) Prove(_ context.Context, a flock.Address, b uint64) ([]byte, error) {
 	return p.f(a, b)
 }
 
 type m struct {
-	f func(swarm.Address, time.Duration)
+	f func(flock.Address, time.Duration)
 }
 
-func (m *m) Disconnect(overlay swarm.Address, reason string) error {
+func (m *m) Disconnect(overlay flock.Address, reason string) error {
 	panic("not implemented")
 }
-func (m *m) Blocklist(overlay swarm.Address, duration time.Duration, reason string) error {
+func (m *m) Blocklist(overlay flock.Address, duration time.Duration, reason string) error {
 	m.f(overlay, duration)
 	return nil
 }

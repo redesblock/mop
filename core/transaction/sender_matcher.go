@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type Matcher struct {
@@ -26,7 +26,7 @@ const (
 	overlayPrefix = "verified_overlay_"
 )
 
-func peerOverlayKey(peer swarm.Address, txHash common.Hash) string {
+func peerOverlayKey(peer flock.Address, txHash common.Hash) string {
 	return fmt.Sprintf("%s%s_%s", overlayPrefix, peer.ByteString(), txHash.String())
 }
 
@@ -54,7 +54,7 @@ func NewMatcher(backend Backend, signer types.Signer, storage storage.StateStore
 	}
 }
 
-func (m *Matcher) greylist(senderOverlay swarm.Address, incomingTx common.Hash, err error) error {
+func (m *Matcher) greylist(senderOverlay flock.Address, incomingTx common.Hash, err error) error {
 	err2 := m.storage.Put(peerOverlayKey(senderOverlay, incomingTx), &overlayVerification{
 		TimeStamp: m.timeNow(),
 		Verified:  false,
@@ -65,7 +65,7 @@ func (m *Matcher) greylist(senderOverlay swarm.Address, incomingTx common.Hash, 
 	return err
 }
 
-func (m *Matcher) Matches(ctx context.Context, tx []byte, networkID uint64, senderOverlay swarm.Address, ignoreGreylist bool) ([]byte, error) {
+func (m *Matcher) Matches(ctx context.Context, tx []byte, networkID uint64, senderOverlay flock.Address, ignoreGreylist bool) ([]byte, error) {
 	incomingTx := common.BytesToHash(tx)
 
 	var val overlayVerification

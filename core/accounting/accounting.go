@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/pricing"
 	"github.com/redesblock/mop/core/settlement/pseudosettle"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -33,17 +33,17 @@ var (
 // Interface is the Accounting interface.
 type Interface interface {
 	// Credit action to prevent overspending in case of concurrent requests.
-	PrepareCredit(peer swarm.Address, price uint64, originated bool) (Action, error)
+	PrepareCredit(peer flock.Address, price uint64, originated bool) (Action, error)
 	// PrepareDebit returns an accounting Action for the later debit to be executed on and to implement shadowing a possibly credited part of reserve on the other side.
-	PrepareDebit(peer swarm.Address, price uint64) (Action, error)
+	PrepareDebit(peer flock.Address, price uint64) (Action, error)
 	// Balance returns the current balance for the given peer.
-	Balance(peer swarm.Address) (*big.Int, error)
+	Balance(peer flock.Address) (*big.Int, error)
 	// SurplusBalance returns the current surplus balance for the given peer.
-	SurplusBalance(peer swarm.Address) (*big.Int, error)
+	SurplusBalance(peer flock.Address) (*big.Int, error)
 	// Balances returns balances for all known peers.
 	Balances() (map[string]*big.Int, error)
 	// CompensatedBalance returns the current balance deducted by current surplus balance for the given peer.
-	CompensatedBalance(peer swarm.Address) (*big.Int, error)
+	CompensatedBalance(peer flock.Address) (*big.Int, error)
 	// CompensatedBalances returns the compensated balances for all known peers.
 	CompensatedBalances() (map[string]*big.Int, error)
 }
@@ -60,7 +60,7 @@ type Action interface {
 type debitAction struct {
 	accounting     *Accounting
 	price          *big.Int
-	peer           swarm.Address
+	peer           flock.Address
 	accountingPeer *accountingPeer
 	applied        bool
 }
@@ -69,17 +69,17 @@ type debitAction struct {
 type creditAction struct {
 	accounting     *Accounting
 	price          *big.Int
-	peer           swarm.Address
+	peer           flock.Address
 	accountingPeer *accountingPeer
 	originated     bool
 	applied        bool
 }
 
 // PayFunc is the function used for async monetary settlement
-type PayFunc func(context.Context, swarm.Address, *big.Int)
+type PayFunc func(context.Context, flock.Address, *big.Int)
 
 // RefreshFunc is the function used for sync time-based settlement
-type RefreshFunc func(context.Context, swarm.Address, *big.Int, *big.Int) (*big.Int, int64, error)
+type RefreshFunc func(context.Context, flock.Address, *big.Int, *big.Int) (*big.Int, int64, error)
 
 // accountingPeer holds all in-memory accounting information for one peer.
 type accountingPeer struct {
@@ -166,7 +166,7 @@ func NewAccounting(
 	}, nil
 }
 
-func (a *Accounting) getIncreasedExpectedDebt(peer swarm.Address, accountingPeer *accountingPeer, bigPrice *big.Int) (*big.Int, *big.Int, error) {
+func (a *Accounting) getIncreasedExpectedDebt(peer flock.Address, accountingPeer *accountingPeer, bigPrice *big.Int) (*big.Int, *big.Int, error) {
 	nextReserved := new(big.Int).Add(accountingPeer.reservedBalance, bigPrice)
 
 	currentBalance, err := a.Balance(peer)
@@ -191,7 +191,7 @@ func (a *Accounting) getIncreasedExpectedDebt(peer swarm.Address, accountingPeer
 	return new(big.Int).Add(expectedDebt, additionalDebt), currentBalance, nil
 }
 
-func (a *Accounting) PrepareCredit(peer swarm.Address, price uint64, originated bool) (Action, error) {
+func (a *Accounting) PrepareCredit(peer flock.Address, price uint64, originated bool) (Action, error) {
 	accountingPeer := a.getAccountingPeer(peer)
 
 	accountingPeer.lock.Lock()
@@ -335,7 +335,7 @@ func (c *creditAction) Cleanup() {
 
 // Settle all debt with a peer. The lock on the accountingPeer must be held when
 // called.
-func (a *Accounting) settle(peer swarm.Address, balance *accountingPeer) error {
+func (a *Accounting) settle(peer flock.Address, balance *accountingPeer) error {
 	now := a.timeNow().Unix()
 	timeElapsed := now - balance.refreshTimestamp
 
@@ -428,7 +428,7 @@ func (a *Accounting) settle(peer swarm.Address, balance *accountingPeer) error {
 }
 
 // Balance returns the current balance for the given peer.
-func (a *Accounting) Balance(peer swarm.Address) (balance *big.Int, err error) {
+func (a *Accounting) Balance(peer flock.Address) (balance *big.Int, err error) {
 	err = a.store.Get(peerBalanceKey(peer), &balance)
 
 	if err != nil {
@@ -442,7 +442,7 @@ func (a *Accounting) Balance(peer swarm.Address) (balance *big.Int, err error) {
 }
 
 // Balance returns the current balance for the given peer.
-func (a *Accounting) OriginatedBalance(peer swarm.Address) (balance *big.Int, err error) {
+func (a *Accounting) OriginatedBalance(peer flock.Address) (balance *big.Int, err error) {
 	err = a.store.Get(originatedBalanceKey(peer), &balance)
 
 	if err != nil {
@@ -456,7 +456,7 @@ func (a *Accounting) OriginatedBalance(peer swarm.Address) (balance *big.Int, er
 }
 
 // SurplusBalance returns the current balance for the given peer.
-func (a *Accounting) SurplusBalance(peer swarm.Address) (balance *big.Int, err error) {
+func (a *Accounting) SurplusBalance(peer flock.Address) (balance *big.Int, err error) {
 	err = a.store.Get(peerSurplusBalanceKey(peer), &balance)
 
 	if err != nil {
@@ -474,7 +474,7 @@ func (a *Accounting) SurplusBalance(peer swarm.Address) (balance *big.Int, err e
 }
 
 // CompensatedBalance returns balance decreased by surplus balance
-func (a *Accounting) CompensatedBalance(peer swarm.Address) (compensated *big.Int, err error) {
+func (a *Accounting) CompensatedBalance(peer flock.Address) (compensated *big.Int, err error) {
 	surplus, err := a.SurplusBalance(peer)
 	if err != nil {
 		return nil, err
@@ -498,22 +498,22 @@ func (a *Accounting) CompensatedBalance(peer swarm.Address) (compensated *big.In
 }
 
 // peerBalanceKey returns the balance storage key for the given peer.
-func peerBalanceKey(peer swarm.Address) string {
+func peerBalanceKey(peer flock.Address) string {
 	return fmt.Sprintf("%s%s", balancesPrefix, peer.String())
 }
 
 // peerSurplusBalanceKey returns the surplus balance storage key for the given peer
-func peerSurplusBalanceKey(peer swarm.Address) string {
+func peerSurplusBalanceKey(peer flock.Address) string {
 	return fmt.Sprintf("%s%s", balancesSurplusPrefix, peer.String())
 }
 
-func originatedBalanceKey(peer swarm.Address) string {
+func originatedBalanceKey(peer flock.Address) string {
 	return fmt.Sprintf("%s%s", balancesOriginatedPrefix, peer.String())
 }
 
-// getAccountingPeer returns the accountingPeer for a given swarm address.
+// getAccountingPeer returns the accountingPeer for a given flock address.
 // If not found in memory it will initialize it.
-func (a *Accounting) getAccountingPeer(peer swarm.Address) *accountingPeer {
+func (a *Accounting) getAccountingPeer(peer flock.Address) *accountingPeer {
 	a.accountingPeersMu.Lock()
 	defer a.accountingPeersMu.Unlock()
 
@@ -614,40 +614,40 @@ func (a *Accounting) CompensatedBalances() (map[string]*big.Int, error) {
 }
 
 // balanceKeyPeer returns the embedded peer from the balance storage key.
-func balanceKeyPeer(key []byte) (swarm.Address, error) {
+func balanceKeyPeer(key []byte) (flock.Address, error) {
 	k := string(key)
 
 	split := strings.SplitAfter(k, balancesPrefix)
 	if len(split) != 2 {
-		return swarm.ZeroAddress, errors.New("no peer in key")
+		return flock.ZeroAddress, errors.New("no peer in key")
 	}
 
-	addr, err := swarm.ParseHexAddress(split[1])
+	addr, err := flock.ParseHexAddress(split[1])
 	if err != nil {
-		return swarm.ZeroAddress, err
+		return flock.ZeroAddress, err
 	}
 
 	return addr, nil
 }
 
-func surplusBalanceKeyPeer(key []byte) (swarm.Address, error) {
+func surplusBalanceKeyPeer(key []byte) (flock.Address, error) {
 	k := string(key)
 
 	split := strings.SplitAfter(k, balancesSurplusPrefix)
 	if len(split) != 2 {
-		return swarm.ZeroAddress, errors.New("no peer in key")
+		return flock.ZeroAddress, errors.New("no peer in key")
 	}
 
-	addr, err := swarm.ParseHexAddress(split[1])
+	addr, err := flock.ParseHexAddress(split[1])
 	if err != nil {
-		return swarm.ZeroAddress, err
+		return flock.ZeroAddress, err
 	}
 
 	return addr, nil
 }
 
 // PeerDebt returns the positive part of the sum of the outstanding balance and the shadow reserve
-func (a *Accounting) PeerDebt(peer swarm.Address) (*big.Int, error) {
+func (a *Accounting) PeerDebt(peer flock.Address) (*big.Int, error) {
 
 	accountingPeer := a.getAccountingPeer(peer)
 	accountingPeer.lock.Lock()
@@ -674,7 +674,7 @@ func (a *Accounting) PeerDebt(peer swarm.Address) (*big.Int, error) {
 }
 
 // peerLatentDebt returns the sum of the positive part of the outstanding balance, shadow reserve and the ghost balance
-func (a *Accounting) peerLatentDebt(peer swarm.Address) (*big.Int, error) {
+func (a *Accounting) peerLatentDebt(peer flock.Address) (*big.Int, error) {
 
 	accountingPeer := a.getAccountingPeer(peer)
 
@@ -705,7 +705,7 @@ func (a *Accounting) peerLatentDebt(peer swarm.Address) (*big.Int, error) {
 
 // shadowBalance returns the current debt reduced by any potentially debitable amount stored in shadowReservedBalance
 // this represents how much less our debt could potentially be seen by the other party if it's ahead with processing credits corresponding to our shadow reserve
-func (a *Accounting) shadowBalance(peer swarm.Address) (shadowBalance *big.Int, err error) {
+func (a *Accounting) shadowBalance(peer flock.Address) (shadowBalance *big.Int, err error) {
 	accountingPeer := a.getAccountingPeer(peer)
 	balance := new(big.Int)
 	zero := big.NewInt(0)
@@ -741,7 +741,7 @@ func (a *Accounting) shadowBalance(peer swarm.Address) (shadowBalance *big.Int, 
 }
 
 // NotifyPaymentSent is triggered by async monetary settlement to update our balance and remove it's price from the shadow reserve
-func (a *Accounting) NotifyPaymentSent(peer swarm.Address, amount *big.Int, receivedError error) {
+func (a *Accounting) NotifyPaymentSent(peer flock.Address, amount *big.Int, receivedError error) {
 	defer a.wg.Done()
 	accountingPeer := a.getAccountingPeer(peer)
 
@@ -785,7 +785,7 @@ func (a *Accounting) NotifyPaymentSent(peer swarm.Address, amount *big.Int, rece
 }
 
 // NotifyPaymentThreshold should be called to notify accounting of changes in the payment threshold
-func (a *Accounting) NotifyPaymentThreshold(peer swarm.Address, paymentThreshold *big.Int) error {
+func (a *Accounting) NotifyPaymentThreshold(peer flock.Address, paymentThreshold *big.Int) error {
 	accountingPeer := a.getAccountingPeer(peer)
 
 	accountingPeer.lock.Lock()
@@ -797,7 +797,7 @@ func (a *Accounting) NotifyPaymentThreshold(peer swarm.Address, paymentThreshold
 }
 
 // NotifyPayment is called by Settlement when we receive a payment.
-func (a *Accounting) NotifyPaymentReceived(peer swarm.Address, amount *big.Int) error {
+func (a *Accounting) NotifyPaymentReceived(peer flock.Address, amount *big.Int) error {
 	accountingPeer := a.getAccountingPeer(peer)
 
 	accountingPeer.lock.Lock()
@@ -870,7 +870,7 @@ func (a *Accounting) NotifyPaymentReceived(peer swarm.Address, amount *big.Int) 
 }
 
 // NotifyRefreshmentReceived is called by pseudosettle when we receive a time based settlement.
-func (a *Accounting) NotifyRefreshmentReceived(peer swarm.Address, amount *big.Int) error {
+func (a *Accounting) NotifyRefreshmentReceived(peer flock.Address, amount *big.Int) error {
 	accountingPeer := a.getAccountingPeer(peer)
 
 	accountingPeer.lock.Lock()
@@ -898,7 +898,7 @@ func (a *Accounting) NotifyRefreshmentReceived(peer swarm.Address, amount *big.I
 }
 
 // PrepareDebit prepares a debit operation by increasing the shadowReservedBalance
-func (a *Accounting) PrepareDebit(peer swarm.Address, price uint64) (Action, error) {
+func (a *Accounting) PrepareDebit(peer flock.Address, price uint64) (Action, error) {
 	accountingPeer := a.getAccountingPeer(peer)
 
 	accountingPeer.lock.Lock()
@@ -921,7 +921,7 @@ func (a *Accounting) PrepareDebit(peer swarm.Address, price uint64) (Action, err
 	}, nil
 }
 
-func (a *Accounting) increaseBalance(peer swarm.Address, accountingPeer *accountingPeer, price *big.Int) (*big.Int, error) {
+func (a *Accounting) increaseBalance(peer flock.Address, accountingPeer *accountingPeer, price *big.Int) (*big.Int, error) {
 	cost := new(big.Int).Set(price)
 	// see if peer has surplus balance to deduct this transaction of
 
@@ -1044,7 +1044,7 @@ func (d *debitAction) Cleanup() {
 	}
 }
 
-func (a *Accounting) blocklistUntil(peer swarm.Address, multiplier int64) (int64, error) {
+func (a *Accounting) blocklistUntil(peer flock.Address, multiplier int64) (int64, error) {
 
 	debt, err := a.peerLatentDebt(peer)
 	if err != nil {
@@ -1066,7 +1066,7 @@ func (a *Accounting) blocklistUntil(peer swarm.Address, multiplier int64) (int64
 	return kInt, nil
 }
 
-func (a *Accounting) blocklist(peer swarm.Address, multiplier int64, reason string) error {
+func (a *Accounting) blocklist(peer flock.Address, multiplier int64, reason string) error {
 
 	disconnectFor, err := a.blocklistUntil(peer, multiplier)
 	if err != nil {
@@ -1076,7 +1076,7 @@ func (a *Accounting) blocklist(peer swarm.Address, multiplier int64, reason stri
 	return a.p2p.Blocklist(peer, time.Duration(disconnectFor)*time.Second, reason)
 }
 
-func (a *Accounting) Connect(peer swarm.Address) {
+func (a *Accounting) Connect(peer flock.Address) {
 	accountingPeer := a.getAccountingPeer(peer)
 	zero := big.NewInt(0)
 
@@ -1100,7 +1100,7 @@ func (a *Accounting) Connect(peer swarm.Address) {
 }
 
 // decreaseOriginatedBalanceTo decreases the originated balance to provided limit or 0 if limit is positive
-func (a *Accounting) decreaseOriginatedBalanceTo(peer swarm.Address, limit *big.Int) error {
+func (a *Accounting) decreaseOriginatedBalanceTo(peer flock.Address, limit *big.Int) error {
 
 	zero := big.NewInt(0)
 
@@ -1128,7 +1128,7 @@ func (a *Accounting) decreaseOriginatedBalanceTo(peer swarm.Address, limit *big.
 }
 
 // decreaseOriginatedBalanceTo decreases the originated balance by provided amount even below 0
-func (a *Accounting) decreaseOriginatedBalanceBy(peer swarm.Address, amount *big.Int) error {
+func (a *Accounting) decreaseOriginatedBalanceBy(peer flock.Address, amount *big.Int) error {
 
 	originatedBalance, err := a.OriginatedBalance(peer)
 	if err != nil && !errors.Is(err, ErrPeerNoBalance) {
@@ -1147,7 +1147,7 @@ func (a *Accounting) decreaseOriginatedBalanceBy(peer swarm.Address, amount *big
 	return nil
 }
 
-func (a *Accounting) Disconnect(peer swarm.Address) {
+func (a *Accounting) Disconnect(peer flock.Address) {
 	accountingPeer := a.getAccountingPeer(peer)
 
 	accountingPeer.lock.Lock()

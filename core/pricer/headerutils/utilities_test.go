@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/pricer/headerutils"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestMakePricingHeaders(t *testing.T) {
 
-	addr := swarm.MustParseHexAddress("010101e1010101")
+	addr := flock.MustParseHexAddress("010101e1010101")
 
 	makeHeaders, err := headerutils.MakePricingHeaders(uint64(5348), addr)
 	if err != nil {
@@ -32,7 +32,7 @@ func TestMakePricingHeaders(t *testing.T) {
 
 func TestMakePricingResponseHeaders(t *testing.T) {
 
-	addr := swarm.MustParseHexAddress("010101e1010101")
+	addr := flock.MustParseHexAddress("010101e1010101")
 
 	makeHeaders, err := headerutils.MakePricingResponseHeaders(uint64(5348), addr, uint8(11))
 	if err != nil {
@@ -63,7 +63,7 @@ func TestParsePricingHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addr := swarm.MustParseHexAddress("010101e1010101")
+	addr := flock.MustParseHexAddress("010101e1010101")
 
 	if parsedPrice != uint64(5348) {
 		t.Fatalf("Price mismatch, got %v, want %v", parsedPrice, 5348)
@@ -87,7 +87,7 @@ func TestParsePricingResponseHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addr := swarm.MustParseHexAddress("010101e1010101")
+	addr := flock.MustParseHexAddress("010101e1010101")
 
 	if parsedPrice != uint64(5348) {
 		t.Fatalf("Price mismatch, got %v, want %v", parsedPrice, 5348)
@@ -129,7 +129,7 @@ func TestParseTargetHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addr := swarm.MustParseHexAddress("010101e1010101")
+	addr := flock.MustParseHexAddress("010101e1010101")
 
 	if !parsedTarget.Equal(addr) {
 		t.Fatalf("Target mismatch, got %v, want %v", parsedTarget, addr)

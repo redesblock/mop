@@ -3,7 +3,7 @@ package testing
 import (
 	"testing"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	mockbytes "gitlab.com/nolash/go-mockbytes"
 )
 
@@ -16,21 +16,21 @@ var (
 		63,                           // 3
 		64,                           // 4
 		65,                           // 5
-		swarm.ChunkSize,              // 6
-		swarm.ChunkSize + 31,         // 7
-		swarm.ChunkSize + 32,         // 8
-		swarm.ChunkSize + 63,         // 9
-		swarm.ChunkSize + 64,         // 10
-		swarm.ChunkSize * 2,          // 11
-		swarm.ChunkSize*2 + 32,       // 12
-		swarm.ChunkSize * 128,        // 13
-		swarm.ChunkSize*128 + 31,     // 14
-		swarm.ChunkSize*128 + 32,     // 15
-		swarm.ChunkSize*128 + 64,     // 16
-		swarm.ChunkSize * 129,        // 17
-		swarm.ChunkSize * 130,        // 18
-		swarm.ChunkSize * 128 * 128,  // 19
-		swarm.ChunkSize*128*128 + 32, // 20
+		flock.ChunkSize,              // 6
+		flock.ChunkSize + 31,         // 7
+		flock.ChunkSize + 32,         // 8
+		flock.ChunkSize + 63,         // 9
+		flock.ChunkSize + 64,         // 10
+		flock.ChunkSize * 2,          // 11
+		flock.ChunkSize*2 + 32,       // 12
+		flock.ChunkSize * 128,        // 13
+		flock.ChunkSize*128 + 31,     // 14
+		flock.ChunkSize*128 + 32,     // 15
+		flock.ChunkSize*128 + 64,     // 16
+		flock.ChunkSize * 129,        // 17
+		flock.ChunkSize * 130,        // 18
+		flock.ChunkSize * 128 * 128,  // 19
+		flock.ChunkSize*128*128 + 32, // 20
 	}
 	fileExpectHashHex = []string{
 		"ece86edb20669cc60d142789d464d57bdf5e33cb789d443f608cbd81cfa5697d", // 0
@@ -59,7 +59,7 @@ var (
 
 // GetVector returns test data corresponding to the test vector index,
 // and the expected result address.
-func GetVector(t *testing.T, idx int) ([]byte, swarm.Address) {
+func GetVector(t *testing.T, idx int) ([]byte, flock.Address) {
 	t.Helper()
 	if idx > fileLengths[idx] {
 		t.Fatalf("idx %d out of bound for count %d", idx, GetVectorCount())
@@ -69,7 +69,7 @@ func GetVector(t *testing.T, idx int) ([]byte, swarm.Address) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return data, swarm.MustParseHexAddress(fileExpectHashHex[idx])
+	return data, flock.MustParseHexAddress(fileExpectHashHex[idx])
 }
 
 // GetVectorCount returns the number of available test vectors.

@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/settlement"
 	pb "github.com/redesblock/mop/core/settlement/pseudosettle/pb"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -115,23 +115,23 @@ func (s *Service) terminate(p p2p.Peer) error {
 	return nil
 }
 
-func totalKey(peer swarm.Address, prefix string) string {
+func totalKey(peer flock.Address, prefix string) string {
 	return fmt.Sprintf("%v%v", prefix, peer.String())
 }
 
-func totalKeyPeer(key []byte, prefix string) (peer swarm.Address, err error) {
+func totalKeyPeer(key []byte, prefix string) (peer flock.Address, err error) {
 	k := string(key)
 
 	split := strings.SplitAfter(k, prefix)
 	if len(split) != 2 {
-		return swarm.ZeroAddress, errors.New("no peer in key")
+		return flock.ZeroAddress, errors.New("no peer in key")
 	}
-	return swarm.ParseHexAddress(split[1])
+	return flock.ParseHexAddress(split[1])
 }
 
 // peerAllowance computes the maximum incoming payment value we accept
 // this is the time based allowance or the peers actual debt, whichever is less
-func (s *Service) peerAllowance(peer swarm.Address, fullNode bool) (limit *big.Int, vouch int64, err error) {
+func (s *Service) peerAllowance(peer flock.Address, fullNode bool) (limit *big.Int, vouch int64, err error) {
 	var lastTime lastPayment
 	err = s.store.Get(totalKey(peer, SettlementReceivedPrefix), &lastTime)
 	if err != nil {
@@ -245,7 +245,7 @@ func (s *Service) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (e
 }
 
 // Pay initiates a payment to the given peer
-func (s *Service) Pay(ctx context.Context, peer swarm.Address, amount, checkAllowance *big.Int) (*big.Int, int64, error) {
+func (s *Service) Pay(ctx context.Context, peer flock.Address, amount, checkAllowance *big.Int) (*big.Int, int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -368,7 +368,7 @@ func (s *Service) SetAccounting(accounting settlement.Accounting) {
 }
 
 // TotalSent returns the total amount sent to a peer
-func (s *Service) TotalSent(peer swarm.Address) (totalSent *big.Int, err error) {
+func (s *Service) TotalSent(peer flock.Address) (totalSent *big.Int, err error) {
 	var lastTime lastPayment
 
 	err = s.store.Get(totalKey(peer, SettlementSentPrefix), &lastTime)
@@ -383,7 +383,7 @@ func (s *Service) TotalSent(peer swarm.Address) (totalSent *big.Int, err error) 
 }
 
 // TotalReceived returns the total amount received from a peer
-func (s *Service) TotalReceived(peer swarm.Address) (totalReceived *big.Int, err error) {
+func (s *Service) TotalReceived(peer flock.Address) (totalReceived *big.Int, err error) {
 	var lastTime lastPayment
 
 	err = s.store.Get(totalKey(peer, SettlementReceivedPrefix), &lastTime)

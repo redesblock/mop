@@ -28,7 +28,7 @@ type Saver interface {
 }
 
 // LoadSaver is a composite interface of Loader and Saver
-// it is meant to be implemented as thin wrappers around persistent storage like Swarm
+// it is meant to be implemented as thin wrappers around persistent storage like Flock
 type LoadSaver interface {
 	Loader
 	Saver

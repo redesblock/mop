@@ -17,6 +17,8 @@ import (
 
 	ab "github.com/redesblock/mop/core/addressbook"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/hive"
 	"github.com/redesblock/mop/core/hive/pb"
 	"github.com/redesblock/mop/core/logging"
@@ -24,8 +26,6 @@ import (
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/p2p/streamtest"
 	"github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
-	"github.com/redesblock/mop/core/swarm/test"
 )
 
 var (
@@ -55,7 +55,7 @@ func TestHandlerRateLimit(t *testing.T) {
 		streamtest.WithBaseAddr(serverAddress),
 	)
 
-	peers := make([]swarm.Address, hive.LimitBurst+1)
+	peers := make([]flock.Address, hive.LimitBurst+1)
 	for i := range peers {
 
 		underlay, err := ma.NewMultiaddr("/ip4/127.0.0.1/udp/" + strconv.Itoa(i))
@@ -112,7 +112,7 @@ func TestBroadcastPeers(t *testing.T) {
 	// populate all expected and needed random resources for 2 full batches
 	// tests cases that uses fewer resources can use sub-slices of this data
 	var mopAddresses []mop.Address
-	var overlays []swarm.Address
+	var overlays []flock.Address
 	var wantMsgs []pb.Peers
 
 	for i := 0; i < 2; i++ {
@@ -158,24 +158,24 @@ func TestBroadcastPeers(t *testing.T) {
 	}
 
 	testCases := map[string]struct {
-		addresee          swarm.Address
-		peers             []swarm.Address
+		addresee          flock.Address
+		peers             []flock.Address
 		wantMsgs          []pb.Peers
-		wantOverlays      []swarm.Address
+		wantOverlays      []flock.Address
 		wantMopAddresses  []mop.Address
 		allowPrivateCIDRs bool
 		pingErr           func(addr ma.Multiaddr) (time.Duration, error)
 	}{
 		"OK - single record": {
-			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
-			peers:             []swarm.Address{overlays[0]},
+			addresee:          flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			peers:             []flock.Address{overlays[0]},
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:1]}},
-			wantOverlays:      []swarm.Address{overlays[0]},
+			wantOverlays:      []flock.Address{overlays[0]},
 			wantMopAddresses:  []mop.Address{mopAddresses[0]},
 			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - multiple records": {
-			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			addresee:          flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:             overlays[:15],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
 			wantOverlays:      overlays[:15],
@@ -183,7 +183,7 @@ func TestBroadcastPeers(t *testing.T) {
 			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - max number of records": {
-			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			addresee:          flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:             overlays[:hive.MaxBatchSize],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:hive.MaxBatchSize]}},
 			wantOverlays:      overlays[:hive.MaxBatchSize],
@@ -191,7 +191,7 @@ func TestBroadcastPeers(t *testing.T) {
 			allowPrivateCIDRs: true,
 		},
 		"OK - multiple batches": {
-			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			addresee:          flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:             overlays[:hive.MaxBatchSize+10],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers[:10]}},
 			wantOverlays:      overlays[:hive.MaxBatchSize+10],
@@ -199,7 +199,7 @@ func TestBroadcastPeers(t *testing.T) {
 			allowPrivateCIDRs: true,
 		},
 		"OK - multiple batches - max number of records": {
-			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			addresee:          flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:             overlays[:2*hive.MaxBatchSize],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers}, {Peers: wantMsgs[1].Peers}},
 			wantOverlays:      overlays[:2*hive.MaxBatchSize],
@@ -207,7 +207,7 @@ func TestBroadcastPeers(t *testing.T) {
 			allowPrivateCIDRs: true,
 		},
 		"OK - single batch - skip ping failures": {
-			addresee:          swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
+			addresee:          flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c"),
 			peers:             overlays[:15],
 			wantMsgs:          []pb.Peers{{Peers: wantMsgs[0].Peers[:15]}},
 			wantOverlays:      overlays[:10],
@@ -284,11 +284,11 @@ func TestBroadcastPeers(t *testing.T) {
 	}
 }
 
-func expectOverlaysEventually(t *testing.T, exporter ab.Interface, wantOverlays []swarm.Address) {
+func expectOverlaysEventually(t *testing.T, exporter ab.Interface, wantOverlays []flock.Address) {
 	var (
-		overlays []swarm.Address
+		overlays []flock.Address
 		err      error
-		isIn     = func(a swarm.Address, addrs []swarm.Address) bool {
+		isIn     = func(a flock.Address, addrs []flock.Address) bool {
 			for _, v := range addrs {
 				if a.Equal(v) {
 					return true

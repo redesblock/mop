@@ -11,16 +11,16 @@ import (
 
 	"github.com/redesblock/mop/core/file/joiner"
 	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/manifest"
 	"github.com/redesblock/mop/core/manifest/mantaray"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // Traverser represents service which traverse through address dependent chunks.
 type Traverser interface {
 	// Traverse iterates through each address related to the supplied one, if possible.
-	Traverse(context.Context, swarm.Address, swarm.AddressIterFunc) error
+	Traverse(context.Context, flock.Address, flock.AddressIterFunc) error
 }
 
 type PutGetter interface {
@@ -39,8 +39,8 @@ type service struct {
 }
 
 // Traverse implements Traverser.Traverse method.
-func (s *service) Traverse(ctx context.Context, addr swarm.Address, iterFn swarm.AddressIterFunc) error {
-	processBytes := func(ref swarm.Address) error {
+func (s *service) Traverse(ctx context.Context, addr flock.Address, iterFn flock.AddressIterFunc) error {
+	processBytes := func(ref flock.Address) error {
 		j, _, err := joiner.New(ctx, s.store, ref)
 		if err != nil {
 			return fmt.Errorf("traversal: joiner error on %q: %w", ref, err)

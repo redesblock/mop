@@ -1,11 +1,11 @@
-package crowd
+package flock
 
 import (
 	"errors"
 	"math/big"
 )
 
-// Distance returns the distance between address x and address y as a (comparable) big integer using the distance metric defined in the crowd specification.
+// Distance returns the distance between address x and address y as a (comparable) big integer using the distance metric defined in the flock specification.
 // Fails if not all addresses are of equal length.
 func Distance(x, y []byte) (*big.Int, error) {
 	distanceBytes, err := DistanceRaw(x, y)
@@ -17,7 +17,7 @@ func Distance(x, y []byte) (*big.Int, error) {
 	return r, nil
 }
 
-// DistanceRaw returns the distance between address x and address y in big-endian binary format using the distance metric defined in the crowd specification.
+// DistanceRaw returns the distance between address x and address y in big-endian binary format using the distance metric defined in the flock specification.
 // Fails if not all addresses are of equal length.
 func DistanceRaw(x, y []byte) ([]byte, error) {
 	if len(x) != len(y) {
@@ -30,7 +30,7 @@ func DistanceRaw(x, y []byte) ([]byte, error) {
 	return c, nil
 }
 
-// DistanceCmp compares x and y to a in terms of the distance metric defined in the crowd specification.
+// DistanceCmp compares x and y to a in terms of the distance metric defined in the flock specification.
 // it returns:
 //
 //	1 if x is closer to a than y

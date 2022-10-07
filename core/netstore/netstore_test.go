@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/netstore"
 	"github.com/redesblock/mop/core/postage"
@@ -19,7 +20,6 @@ import (
 	"github.com/redesblock/mop/core/sctx"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var chunkData = []byte("mockdata")
@@ -29,7 +29,7 @@ var chunkVouch = postagetesting.MustNewVouch()
 // it is not found locally
 func TestNetstoreRetrieval(t *testing.T) {
 	retrieve, store, nstore := newRetrievingNetstore(t, nil, noopvalidVouch)
-	addr := swarm.MustParseHexAddress("000001")
+	addr := flock.MustParseHexAddress("000001")
 	_, err := nstore.Get(context.Background(), storage.ModeGetRequest, addr)
 	if err != nil {
 		t.Fatal(err)
@@ -70,10 +70,10 @@ func TestNetstoreRetrieval(t *testing.T) {
 // whenever it is found locally.
 func TestNetstoreNoRetrieval(t *testing.T) {
 	retrieve, store, nstore := newRetrievingNetstore(t, nil, noopvalidVouch)
-	addr := swarm.MustParseHexAddress("000001")
+	addr := flock.MustParseHexAddress("000001")
 
 	// store should have the chunk in advance
-	_, err := store.Put(context.Background(), storage.ModePutUpload, swarm.NewChunk(addr, chunkData))
+	_, err := store.Put(context.Background(), storage.ModePutUpload, flock.NewChunk(addr, chunkData))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestRecovery(t *testing.T) {
 	}
 
 	retrieve, _, nstore := newRetrievingNetstore(t, rec.recovery, noopvalidVouch)
-	addr := swarm.MustParseHexAddress("deadbeef")
+	addr := flock.MustParseHexAddress("deadbeef")
 	retrieve.failure = true
 	ctx := context.Background()
 	ctx = sctx.SetTargets(ctx, "be, cd")
@@ -120,7 +120,7 @@ func TestRecovery(t *testing.T) {
 
 func TestInvalidRecoveryFunction(t *testing.T) {
 	retrieve, _, nstore := newRetrievingNetstore(t, nil, noopvalidVouch)
-	addr := swarm.MustParseHexAddress("deadbeef")
+	addr := flock.MustParseHexAddress("deadbeef")
 	retrieve.failure = true
 	ctx := context.Background()
 	ctx = sctx.SetTargets(ctx, "be, cd")
@@ -132,11 +132,11 @@ func TestInvalidRecoveryFunction(t *testing.T) {
 }
 
 func TestInvalidPostageVouch(t *testing.T) {
-	f := func(c swarm.Chunk, _ []byte) (swarm.Chunk, error) {
+	f := func(c flock.Chunk, _ []byte) (flock.Chunk, error) {
 		return nil, errors.New("invalid postage vouch")
 	}
 	retrieve, store, nstore := newRetrievingNetstore(t, nil, f)
-	addr := swarm.MustParseHexAddress("000001")
+	addr := flock.MustParseHexAddress("000001")
 	_, err := nstore.Get(context.Background(), storage.ModeGetRequest, addr)
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +176,7 @@ func TestInvalidPostageVouch(t *testing.T) {
 	}
 }
 
-func waitAndGetChunk(t *testing.T, store storage.Storer, addr swarm.Address, mode storage.ModeGet) swarm.Chunk {
+func waitAndGetChunk(t *testing.T, store storage.Storer, addr flock.Address, mode storage.ModeGet) flock.Chunk {
 	t.Helper()
 
 	start := time.Now()
@@ -213,17 +213,17 @@ type retrievalMock struct {
 	called    bool
 	callCount int32
 	failure   bool
-	addr      swarm.Address
+	addr      flock.Address
 }
 
-func (r *retrievalMock) RetrieveChunk(ctx context.Context, addr swarm.Address, orig bool) (chunk swarm.Chunk, err error) {
+func (r *retrievalMock) RetrieveChunk(ctx context.Context, addr flock.Address, orig bool) (chunk flock.Chunk, err error) {
 	if r.failure {
 		return nil, fmt.Errorf("chunk not found")
 	}
 	r.called = true
 	atomic.AddInt32(&r.callCount, 1)
 	r.addr = addr
-	return swarm.NewChunk(addr, chunkData).WithVouch(chunkVouch), nil
+	return flock.NewChunk(addr, chunkData).WithVouch(chunkVouch), nil
 }
 
 type mockRecovery struct {
@@ -231,14 +231,14 @@ type mockRecovery struct {
 }
 
 // Send mocks the pss Send function
-func (mr *mockRecovery) recovery(chunkAddress swarm.Address, targets pss.Targets) {
+func (mr *mockRecovery) recovery(chunkAddress flock.Address, targets pss.Targets) {
 	mr.callbackC <- true
 }
 
-func (r *mockRecovery) RetrieveChunk(ctx context.Context, addr swarm.Address, orig bool) (chunk swarm.Chunk, err error) {
+func (r *mockRecovery) RetrieveChunk(ctx context.Context, addr flock.Address, orig bool) (chunk flock.Chunk, err error) {
 	return nil, fmt.Errorf("chunk not found")
 }
 
-var noopvalidVouch = func(c swarm.Chunk, _ []byte) (swarm.Chunk, error) {
+var noopvalidVouch = func(c flock.Chunk, _ []byte) (flock.Chunk, error) {
 	return c, nil
 }

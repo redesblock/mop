@@ -5,8 +5,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestExportImport constructs two databases, one to put and export
@@ -54,7 +54,7 @@ func TestExportImport(t *testing.T) {
 	}
 
 	for a, want := range chunks {
-		addr := swarm.MustParseHexAddress(a)
+		addr := flock.MustParseHexAddress(a)
 		ch, err := db2.Get(context.Background(), storage.ModeGetRequest, addr)
 		if err != nil {
 			t.Fatal(err)

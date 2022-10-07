@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology/kademlia/internal/metrics"
 )
 
-func snapshot(t *testing.T, mc *metrics.Collector, sst time.Time, addr swarm.Address) *metrics.Snapshot {
+func snapshot(t *testing.T, mc *metrics.Collector, sst time.Time, addr flock.Address) *metrics.Snapshot {
 	t.Helper()
 
 	ss := mc.Snapshot(sst, addr)
@@ -42,7 +42,7 @@ func TestPeerMetricsCollector(t *testing.T) {
 	}
 
 	var (
-		addr = swarm.MustParseHexAddress("0123456789")
+		addr = flock.MustParseHexAddress("0123456789")
 
 		t1 = time.Now()               // Login time.
 		t2 = t1.Add(10 * time.Second) // Snapshot time.

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var keyPrefix = "blocklist-"
@@ -27,7 +27,7 @@ type entry struct {
 	Duration  string    `json:"duration"` // Duration is string because the time.Duration does not implement MarshalJSON/UnmarshalJSON methods.
 }
 
-func (b *Blocklist) Exists(overlay swarm.Address) (bool, error) {
+func (b *Blocklist) Exists(overlay flock.Address) (bool, error) {
 	key := generateKey(overlay)
 	timestamp, duration, err := b.get(key)
 	if err != nil {
@@ -47,7 +47,7 @@ func (b *Blocklist) Exists(overlay swarm.Address) (bool, error) {
 	return true, nil
 }
 
-func (b *Blocklist) Add(overlay swarm.Address, duration time.Duration) (err error) {
+func (b *Blocklist) Add(overlay flock.Address, duration time.Duration) (err error) {
 	key := generateKey(overlay)
 	_, d, err := b.get(key)
 	if err != nil {
@@ -113,11 +113,11 @@ func (b *Blocklist) get(key string) (timestamp time.Time, duration time.Duration
 	return e.Timestamp, duration, nil
 }
 
-func generateKey(overlay swarm.Address) string {
+func generateKey(overlay flock.Address) string {
 	return keyPrefix + overlay.String()
 }
 
-func unmarshalKey(s string) (swarm.Address, error) {
+func unmarshalKey(s string) (flock.Address, error) {
 	addr := strings.TrimPrefix(s, keyPrefix)
-	return swarm.ParseHexAddress(addr)
+	return flock.ParseHexAddress(addr)
 }

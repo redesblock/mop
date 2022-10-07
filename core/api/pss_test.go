@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/mop/core/api"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
@@ -26,7 +27,6 @@ import (
 	"github.com/redesblock/mop/core/pss"
 	"github.com/redesblock/mop/core/pushsync"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -50,7 +50,7 @@ func TestPssWebsocketSingleHandler(t *testing.T) {
 		p, publicKey, cl, _ = newPssTest(t, opts{})
 
 		msgContent = make([]byte, len(payload))
-		tc         swarm.Chunk
+		tc         flock.Chunk
 		mtx        sync.Mutex
 		done       = make(chan struct{})
 	)
@@ -61,7 +61,7 @@ func TestPssWebsocketSingleHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl.SetReadLimit(swarm.ChunkSize)
+	cl.SetReadLimit(flock.ChunkSize)
 
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
@@ -84,7 +84,7 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 		p, publicKey, cl, _ = newPssTest(t, opts{})
 
 		msgContent = make([]byte, len(payload))
-		tc         swarm.Chunk
+		tc         flock.Chunk
 		mtx        sync.Mutex
 		done       = make(chan struct{})
 	)
@@ -94,7 +94,7 @@ func TestPssWebsocketSingleHandlerDeregister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl.SetReadLimit(swarm.ChunkSize)
+	cl.SetReadLimit(flock.ChunkSize)
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
 
@@ -123,7 +123,7 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 
 		msgContent  = make([]byte, len(payload))
 		msgContent2 = make([]byte, len(payload))
-		tc          swarm.Chunk
+		tc          flock.Chunk
 		mtx         sync.Mutex
 		done        = make(chan struct{})
 	)
@@ -135,7 +135,7 @@ func TestPssWebsocketMultiHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl.SetReadLimit(swarm.ChunkSize)
+	cl.SetReadLimit(flock.ChunkSize)
 
 	defer close(done)
 	go waitReadMessage(t, &mtx, cl, msgContent, done)
@@ -172,7 +172,7 @@ func TestPssSend(t *testing.T) {
 		privk, _       = crypto.GenerateSecp256k1Key()
 		publicKeyBytes = (*btcec.PublicKey)(&privk.PublicKey).SerializeCompressed()
 
-		sendFn = func(ctx context.Context, targets pss.Targets, chunk swarm.Chunk) error {
+		sendFn = func(ctx context.Context, targets pss.Targets, chunk flock.Chunk) error {
 			mtx.Lock()
 			topic, msg, err := pss.Unwrap(ctx, privk, chunk, []pss.Topic{topic})
 			receivedTopic = topic
@@ -194,7 +194,7 @@ func TestPssSend(t *testing.T) {
 		recipient = hex.EncodeToString(publicKeyBytes)
 		targets   = fmt.Sprintf("[[%d]]", 0x12)
 		topic     = "testtopic"
-		hasher    = swarm.NewHasher()
+		hasher    = flock.NewHasher()
 		_, err    = hasher.Write([]byte(topic))
 		topicHash = hasher.Sum(nil)
 	)
@@ -225,7 +225,7 @@ func TestPssSend(t *testing.T) {
 	t.Run("err - bad batch", func(t *testing.T) {
 		hexbatch := hex.EncodeToString(batchInvalid)
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/to/12", http.StatusBadRequest,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "invalid postage batch id",
@@ -237,21 +237,21 @@ func TestPssSend(t *testing.T) {
 	t.Run("ok batch", func(t *testing.T) {
 		hexbatch := hex.EncodeToString(batchOk)
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/to/12", http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 		)
 	})
 	t.Run("bad request - batch empty", func(t *testing.T) {
 		hexbatch := hex.EncodeToString(batchEmpty)
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/to/12", http.StatusBadRequest,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, hexbatch),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, hexbatch),
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 		)
 	})
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/testtopic/12?recipient="+recipient, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "Created",
@@ -272,7 +272,7 @@ func TestPssSend(t *testing.T) {
 
 	t.Run("without recipient", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, "/pss/send/testtopic/12", http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(payload)),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "Created",
@@ -300,13 +300,13 @@ func TestPssPingPong(t *testing.T) {
 		p, publicKey, cl, _ = newPssTest(t, opts{pingPeriod: 90 * time.Millisecond})
 
 		msgContent = make([]byte, len(payload))
-		tc         swarm.Chunk
+		tc         flock.Chunk
 		mtx        sync.Mutex
 		pongWait   = 1 * time.Millisecond
 		done       = make(chan struct{})
 	)
 
-	cl.SetReadLimit(swarm.ChunkSize)
+	cl.SetReadLimit(flock.ChunkSize)
 	err := cl.SetReadDeadline(time.Now().Add(pongWait))
 	if err != nil {
 		t.Fatal(err)
@@ -421,7 +421,7 @@ func newPssTest(t *testing.T, o opts) (pss.Interface, *ecdsa.PublicKey, *websock
 	return pss, &privkey.PublicKey, cl, listener
 }
 
-type pssSendFn func(context.Context, pss.Targets, swarm.Chunk) error
+type pssSendFn func(context.Context, pss.Targets, flock.Chunk) error
 type mpss struct {
 	f pssSendFn
 }
@@ -445,7 +445,7 @@ func (m *mpss) Register(_ pss.Topic, _ pss.Handler) func() {
 }
 
 // TryUnwrap tries to unwrap a wrapped trojan message.
-func (m *mpss) TryUnwrap(_ swarm.Chunk) {
+func (m *mpss) TryUnwrap(_ flock.Chunk) {
 	panic("not implemented") // TODO: Implement
 }
 

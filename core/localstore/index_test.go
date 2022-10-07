@@ -6,9 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestDB_pullIndex validates the ordering of keys in pull index.
@@ -41,8 +41,8 @@ func TestDB_pullIndex(t *testing.T) {
 	}
 
 	testItemsOrder(t, db.pullIndex, chunks, func(i, j int) (less bool) {
-		poi := swarm.Proximity(db.baseKey, chunks[i].Address().Bytes())
-		poj := swarm.Proximity(db.baseKey, chunks[j].Address().Bytes())
+		poi := flock.Proximity(db.baseKey, chunks[i].Address().Bytes())
+		poj := flock.Proximity(db.baseKey, chunks[j].Address().Bytes())
 		if poi < poj {
 			return true
 		}

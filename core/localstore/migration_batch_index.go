@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // DBSchemaBatchIndex is the mop schema identifier for batch index.
@@ -71,7 +71,7 @@ func migrateBatchIndex(db *DB) error {
 	pullIndex, err := db.shed.NewIndex("PO|BinID->Hash|Tag", shed.IndexFuncs{
 		EncodeKey: func(fields shed.Item) (key []byte, err error) {
 			key = make([]byte, 41)
-			key[0] = db.po(swarm.NewAddress(fields.Address))
+			key[0] = db.po(flock.NewAddress(fields.Address))
 			binary.BigEndian.PutUint64(key[1:9], fields.BinID)
 			return key, nil
 		},
@@ -211,7 +211,7 @@ func migrateBatchIndex(db *DB) error {
 		return fmt.Errorf("put gcsize: %w", err)
 	}
 
-	for i := 0; i < int(swarm.MaxBins); i++ {
+	for i := 0; i < int(flock.MaxBins); i++ {
 		if err := binIDs.Put(uint64(i), 0); err != nil {
 			return fmt.Errorf("zero binsIDs: %w", err)
 		}

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 type next struct {
@@ -25,7 +25,7 @@ func New() *WaitNext {
 	}
 }
 
-func (r *WaitNext) Set(addr swarm.Address, tryAfter time.Time, attempts int) {
+func (r *WaitNext) Set(addr flock.Address, tryAfter time.Time, attempts int) {
 
 	r.Lock()
 	defer r.Unlock()
@@ -33,7 +33,7 @@ func (r *WaitNext) Set(addr swarm.Address, tryAfter time.Time, attempts int) {
 	r.next[addr.ByteString()] = &next{tryAfter: tryAfter, failedAttempts: attempts}
 }
 
-func (r *WaitNext) SetTryAfter(addr swarm.Address, tryAfter time.Time) {
+func (r *WaitNext) SetTryAfter(addr flock.Address, tryAfter time.Time) {
 
 	r.Lock()
 	defer r.Unlock()
@@ -45,7 +45,7 @@ func (r *WaitNext) SetTryAfter(addr swarm.Address, tryAfter time.Time) {
 	}
 }
 
-func (r *WaitNext) Waiting(addr swarm.Address) bool {
+func (r *WaitNext) Waiting(addr flock.Address) bool {
 
 	r.Lock()
 	defer r.Unlock()
@@ -54,7 +54,7 @@ func (r *WaitNext) Waiting(addr swarm.Address) bool {
 	return ok && time.Now().Before(info.tryAfter)
 }
 
-func (r *WaitNext) Attempts(addr swarm.Address) int {
+func (r *WaitNext) Attempts(addr flock.Address) int {
 
 	r.Lock()
 	defer r.Unlock()
@@ -66,7 +66,7 @@ func (r *WaitNext) Attempts(addr swarm.Address) int {
 	return 0
 }
 
-func (r *WaitNext) Remove(addr swarm.Address) {
+func (r *WaitNext) Remove(addr flock.Address) {
 
 	r.Lock()
 	defer r.Unlock()

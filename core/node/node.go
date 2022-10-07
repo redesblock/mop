@@ -36,6 +36,7 @@ import (
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/debugapi"
 	"github.com/redesblock/mop/core/feeds/factory"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/hive"
 	"github.com/redesblock/mop/core/localstore"
 	"github.com/redesblock/mop/core/logging"
@@ -68,7 +69,6 @@ import (
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/steward"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/topology/kademlia"
@@ -161,7 +161,7 @@ type Options struct {
 	Resync                     bool
 	BlockProfile               bool
 	MutexProfile               bool
-	StaticNodes                []swarm.Address
+	StaticNodes                []flock.Address
 	AllowPrivateCIDRs          bool
 	Restricted                 bool
 	TokenEncryptionKey         string
@@ -378,23 +378,23 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("invalid block hash: %w", err)
 	}
 
-	swarmAddress, err := crypto.NewOverlayAddress(*pubKey, networkID, blockHash)
+	flockAddress, err := crypto.NewOverlayAddress(*pubKey, networkID, blockHash)
 
-	err = CheckOverlayWithStore(swarmAddress, stateStore)
+	err = CheckOverlayWithStore(flockAddress, stateStore)
 	if err != nil {
 		return nil, err
 	}
 
-	lightNodes := lightnode.NewContainer(swarmAddress)
+	lightNodes := lightnode.NewContainer(flockAddress)
 
 	senderMatcher := transaction.NewMatcher(swapBackend, types.NewLondonSigner(big.NewInt(chainID)), stateStore)
 
-	_, err = senderMatcher.Matches(p2pCtx, txHash, networkID, swarmAddress, true)
+	_, err = senderMatcher.Matches(p2pCtx, txHash, networkID, flockAddress, true)
 	if err != nil {
 		return nil, fmt.Errorf("identity transaction verification failed: %w", err)
 	}
 
-	p2ps, err := libp2p.New(p2pCtx, signer, networkID, swarmAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
+	p2ps, err := libp2p.New(p2pCtx, signer, networkID, flockAddress, addr, addressbook, stateStore, lightNodes, senderMatcher, logger, tracer, libp2p.Options{
 		PrivateKey:     libp2pPrivateKey,
 		NATAddr:        o.NATAddr,
 		EnableWS:       o.EnableWS,
@@ -410,7 +410,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	var unreserveFn func([]byte, uint8) (uint64, error)
 	var evictFn = func(b []byte) error {
-		_, err := unreserveFn(b, swarm.MaxPO+1)
+		_, err := unreserveFn(b, flock.MaxPO+1)
 		return err
 	}
 
@@ -436,7 +436,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		DisableSeeksCompaction: o.DBDisableSeeksCompaction,
 	}
 
-	storer, err := localstore.New(path, swarmAddress.Bytes(), stateStore, lo, logger)
+	storer, err := localstore.New(path, flockAddress.Bytes(), stateStore, lo, logger)
 	if err != nil {
 		return nil, fmt.Errorf("localstore: %w", err)
 	}
@@ -579,7 +579,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("unable to create metrics storage for kademlia: %w", err)
 	}
 
-	kad, err := kademlia.New(swarmAddress, addressbook, hive, p2ps, pingPong, metricsDB, logger,
+	kad, err := kademlia.New(flockAddress, addressbook, hive, p2ps, pingPong, metricsDB, logger,
 		kademlia.Options{Bootnodes: bootnodes, BootnodeMode: o.BootnodeMode, StaticNodes: o.StaticNodes})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create kademlia: %w", err)
@@ -614,7 +614,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 		return nil, fmt.Errorf("invalid payment threshold: %s", paymentThreshold)
 	}
 
-	pricer := pricer.NewFixedPricer(swarmAddress, basePrice)
+	pricer := pricer.NewFixedPricer(flockAddress, basePrice)
 
 	if paymentThreshold.Cmp(minThreshold) < 0 {
 		return nil, fmt.Errorf("payment threshold below minimum generally accepted value, need at least %s", minThreshold)
@@ -702,7 +702,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	pricing.SetPaymentThresholdObserver(acc)
 
-	retrieve := retrieval.New(swarmAddress, storer, p2ps, kad, logger, acc, pricer, tracer, o.RetrievalCaching, validVouch)
+	retrieve := retrieval.New(flockAddress, storer, p2ps, kad, logger, acc, pricer, tracer, o.RetrievalCaching, validVouch)
 	tagService := tags.NewTags(stateStore, logger)
 	b.tagsCloser = tagService
 
@@ -723,7 +723,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 
 	pinningService := pinning.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(networkID, swarmAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validVouch, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
+	pushSyncProtocol := pushsync.New(networkID, flockAddress, blockHash, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validVouch, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -883,7 +883,7 @@ func New(addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkI
 			debugAPIService.MustRegisterMetrics(chainSyncer.Metrics()...)
 		}
 		// inject dependencies and configure full debug api http path routes
-		debugAPIService.Configure(swarmAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, pledgeContractService, rewardContractService, traversalService)
+		debugAPIService.Configure(flockAddress, p2ps, pingPong, kad, lightNodes, storer, tagService, acc, pseudosettleService, o.SwapEnable, swapService, chequebookService, batchStore, post, postageContractService, pledgeContractService, rewardContractService, traversalService)
 	}
 
 	if err := kad.Start(p2pCtx); err != nil {

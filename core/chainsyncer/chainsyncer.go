@@ -13,9 +13,9 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/redesblock/mop/core/blocker"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/transaction"
 )
@@ -30,7 +30,7 @@ const (
 )
 
 type prover interface {
-	Prove(context.Context, swarm.Address, uint64) ([]byte, error)
+	Prove(context.Context, flock.Address, uint64) ([]byte, error)
 }
 
 type Options struct {
@@ -78,7 +78,7 @@ func New(backend transaction.Backend, p prover, peerIterator topology.EachPeerer
 		quit:         make(chan struct{}),
 	}
 
-	cb := func(a swarm.Address) {
+	cb := func(a flock.Address) {
 		c.logger.Warningf("chainsyncer: peer %s is unsynced and will be temporarily blocklisted", a.String())
 		c.metrics.UnsyncedPeers.Inc()
 	}
@@ -129,10 +129,10 @@ func (c *ChainSyncer) manage() {
 		start := time.Now()
 		items = 0
 		positives = 0
-		_ = c.peerIterator.EachPeer(func(p swarm.Address, _ uint8) (bool, bool, error) {
+		_ = c.peerIterator.EachPeer(func(p flock.Address, _ uint8) (bool, bool, error) {
 			wg.Add(1)
 			items++
-			go func(p swarm.Address) {
+			go func(p flock.Address) {
 				defer wg.Done()
 				hash, err := c.prove.Prove(ctx, p, blockHeight)
 				if err != nil {

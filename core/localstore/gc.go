@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -151,7 +151,7 @@ func (db *DB) collectGarbage() (collectedCount uint64, done bool, err error) {
 
 	// get rid of dirty entries
 	for _, item := range candidates {
-		if swarm.NewAddress(item.Address).MemberOf(db.dirtyAddresses) {
+		if flock.NewAddress(item.Address).MemberOf(db.dirtyAddresses) {
 			collectedCount--
 			continue
 		}

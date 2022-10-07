@@ -13,6 +13,7 @@ import (
 
 	accountingmock "github.com/redesblock/mop/core/accounting/mock"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
@@ -23,7 +24,6 @@ import (
 	"github.com/redesblock/mop/core/storage"
 	storemock "github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 )
 
@@ -40,8 +40,8 @@ func TestDelivery(t *testing.T) {
 		mockStorer           = storemock.NewStorer()
 		clientMockAccounting = accountingmock.NewAccounting()
 		serverMockAccounting = accountingmock.NewAccounting()
-		clientAddr           = swarm.MustParseHexAddress("9ee7add8")
-		serverAddr           = swarm.MustParseHexAddress("9ee7add7")
+		clientAddr           = flock.MustParseHexAddress("9ee7add8")
+		serverAddr           = flock.MustParseHexAddress("9ee7add7")
 
 		pricerMock = pricermock.NewMockService(defaultPrice, defaultPrice)
 	)
@@ -57,7 +57,7 @@ func TestDelivery(t *testing.T) {
 	}
 
 	// create the server that will handle the request and will serve the response
-	server := retrieval.New(swarm.MustParseHexAddress("0034"), mockStorer, nil, nil, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
+	server := retrieval.New(flock.MustParseHexAddress("0034"), mockStorer, nil, nil, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
 	recorder := streamtest.New(
 		streamtest.WithProtocols(server.Protocol()),
 		streamtest.WithBaseAddr(clientAddr),
@@ -153,8 +153,8 @@ func TestRetrieveChunk(t *testing.T) {
 
 	// requesting a chunk from downstream peer is expected
 	t.Run("downstream", func(t *testing.T) {
-		serverAddress := swarm.MustParseHexAddress("03")
-		clientAddress := swarm.MustParseHexAddress("01")
+		serverAddress := flock.MustParseHexAddress("03")
+		clientAddress := flock.MustParseHexAddress("01")
 		chunk := testingc.FixtureChunk("02c2")
 
 		serverStorer := storemock.NewStorer()
@@ -184,9 +184,9 @@ func TestRetrieveChunk(t *testing.T) {
 	t.Run("forward", func(t *testing.T) {
 		chunk := testingc.FixtureChunk("0025")
 
-		serverAddress := swarm.MustParseHexAddress("0100000000000000000000000000000000000000000000000000000000000000")
-		forwarderAddress := swarm.MustParseHexAddress("0200000000000000000000000000000000000000000000000000000000000000")
-		clientAddress := swarm.MustParseHexAddress("030000000000000000000000000000000000000000000000000000000000000000")
+		serverAddress := flock.MustParseHexAddress("0100000000000000000000000000000000000000000000000000000000000000")
+		forwarderAddress := flock.MustParseHexAddress("0200000000000000000000000000000000000000000000000000000000000000")
+		clientAddress := flock.MustParseHexAddress("030000000000000000000000000000000000000000000000000000000000000000")
 
 		serverStorer := storemock.NewStorer()
 		_, err := serverStorer.Put(context.Background(), storage.ModePutUpload, chunk)
@@ -273,11 +273,11 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 
 	pricerMock := pricermock.NewMockService(defaultPrice, defaultPrice)
 
-	clientAddress := swarm.MustParseHexAddress("1010")
+	clientAddress := flock.MustParseHexAddress("1010")
 
-	serverAddress1 := swarm.MustParseHexAddress("1000000000000000000000000000000000000000000000000000000000000000")
-	serverAddress2 := swarm.MustParseHexAddress("0200000000000000000000000000000000000000000000000000000000000000")
-	peers := []swarm.Address{
+	serverAddress1 := flock.MustParseHexAddress("1000000000000000000000000000000000000000000000000000000000000000")
+	serverAddress2 := flock.MustParseHexAddress("0200000000000000000000000000000000000000000000000000000000000000")
+	peers := []flock.Address{
 		serverAddress1,
 		serverAddress2,
 	}
@@ -297,11 +297,11 @@ func TestRetrievePreemptiveRetry(t *testing.T) {
 	}
 
 	noPeerSuggester := mockPeerSuggester{eachPeerRevFunc: func(f topology.EachPeerFunc) error {
-		_, _, _ = f(swarm.ZeroAddress, 0)
+		_, _, _ = f(flock.ZeroAddress, 0)
 		return nil
 	}}
 
-	peerSuggesterFn := func(peers ...swarm.Address) topology.EachPeerer {
+	peerSuggesterFn := func(peers ...flock.Address) topology.EachPeerer {
 		if len(peers) == 0 {
 			return noPeerSuggester
 		}
@@ -540,6 +540,6 @@ func (s mockPeerSuggester) EachPeerRev(f topology.EachPeerFunc, _ topology.Filte
 	return s.eachPeerRevFunc(f)
 }
 
-var noopVouchValidator = func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error) {
+var noopVouchValidator = func(chunk flock.Chunk, vouchBytes []byte) (flock.Chunk, error) {
 	return chunk, nil
 }

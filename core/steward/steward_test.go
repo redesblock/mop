@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/pushsync"
 	psmock "github.com/redesblock/mop/core/pushsync/mock"
 	"github.com/redesblock/mop/core/steward"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/traversal"
 )
@@ -28,7 +28,7 @@ func TestSteward(t *testing.T) {
 		loggingStorer  = &loggingStore{Storer: store}
 		traversedAddrs = make(map[string]struct{})
 		mu             sync.Mutex
-		fn             = func(_ context.Context, ch swarm.Chunk) (*pushsync.Receipt, error) {
+		fn             = func(_ context.Context, ch flock.Chunk) (*pushsync.Receipt, error) {
 			mu.Lock()
 			traversedAddrs[ch.Address().String()] = struct{}{}
 			mu.Unlock()
@@ -82,7 +82,7 @@ func TestSteward_ErrWantSelf(t *testing.T) {
 		store         = mock.NewStorer()
 		traverser     = traversal.New(store)
 		loggingStorer = &loggingStore{Storer: store}
-		fn            = func(_ context.Context, ch swarm.Chunk) (*pushsync.Receipt, error) {
+		fn            = func(_ context.Context, ch flock.Chunk) (*pushsync.Receipt, error) {
 			return nil, topology.ErrWantSelf
 		}
 		ps = psmock.New(fn)
@@ -110,16 +110,16 @@ func TestSteward_ErrWantSelf(t *testing.T) {
 
 type loggingStore struct {
 	storage.Storer
-	addrs []swarm.Address
+	addrs []flock.Address
 }
 
-func (ls *loggingStore) Put(ctx context.Context, mode storage.ModePut, chs ...swarm.Chunk) (exist []bool, err error) {
+func (ls *loggingStore) Put(ctx context.Context, mode storage.ModePut, chs ...flock.Chunk) (exist []bool, err error) {
 	for _, c := range chs {
 		ls.addrs = append(ls.addrs, c.Address())
 	}
 	return ls.Storer.Put(ctx, mode, chs...)
 }
 
-func (ls *loggingStore) RetrieveChunk(ctx context.Context, addr swarm.Address, _ bool) (chunk swarm.Chunk, err error) {
+func (ls *loggingStore) RetrieveChunk(ctx context.Context, addr flock.Address, _ bool) (chunk flock.Chunk, err error) {
 	return ls.Get(ctx, storage.ModeGetRequest, addr)
 }

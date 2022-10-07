@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -17,7 +17,7 @@ import (
 // All required indexes will be updated required by the
 // Getter Mode. Get is required to implement chunk.Store
 // interface.
-func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address) (ch swarm.Chunk, err error) {
+func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr flock.Address) (ch flock.Chunk, err error) {
 	db.metrics.ModeGet.Inc()
 	defer totalTimeMetric(db.metrics.TotalTimeGet, time.Now())
 
@@ -34,13 +34,13 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address)
 		}
 		return nil, err
 	}
-	return swarm.NewChunk(swarm.NewAddress(out.Address), out.Data).
+	return flock.NewChunk(flock.NewAddress(out.Address), out.Data).
 		WithVouch(postage.NewVouch(out.BatchID, out.Index, out.Timestamp, out.Sig)), nil
 }
 
 // get returns Item from the retrieval index
 // and updates other indexes.
-func (db *DB) get(mode storage.ModeGet, addr swarm.Address) (out shed.Item, err error) {
+func (db *DB) get(mode storage.ModeGet, addr flock.Address) (out shed.Item, err error) {
 	item := addressToItem(addr)
 
 	out, err = db.retrievalDataIndex.Get(item)
@@ -103,7 +103,7 @@ func (db *DB) updateGC(item shed.Item) (err error) {
 	db.batchMu.Lock()
 	defer db.batchMu.Unlock()
 	if db.gcRunning {
-		db.dirtyAddresses = append(db.dirtyAddresses, swarm.NewAddress(item.Address))
+		db.dirtyAddresses = append(db.dirtyAddresses, flock.NewAddress(item.Address))
 	}
 
 	batch := new(leveldb.Batch)

@@ -8,7 +8,7 @@ import (
 	random "math/rand"
 
 	bmtlegacy "github.com/ethersphere/bmt/legacy"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 // Topic is an alias for a 32 byte fixed-size array which contains an encoding of a message topic
@@ -33,7 +33,7 @@ const (
 	// MaxPayloadSize is the maximum allowed payload size for the Message type, in bytes
 	// MaxPayloadSize + Topic + Length + Nonce = Default ChunkSize
 	//    (4030)      +  (32) +   (2)  +  (32) = 4096 Bytes
-	MaxPayloadSize = swarm.ChunkSize - NonceSize - LengthSize - TopicSize
+	MaxPayloadSize = flock.ChunkSize - NonceSize - LengthSize - TopicSize
 	// NonceSize is a hash bit sequence
 	NonceSize = 32
 	// LengthSize is the byte length to represent message
@@ -46,7 +46,7 @@ const (
 // the input string is taken as a byte slice and hashed
 func NewTopic(topic string) Topic {
 	var tpc Topic
-	hasher := swarm.NewHasher()
+	hasher := flock.NewHasher()
 	_, err := hasher.Write([]byte(topic))
 	if err != nil {
 		return tpc
@@ -86,7 +86,7 @@ func NewMessage(topic Topic, payload []byte) (Message, error) {
 // a trojan chunk is a content-addressed chunk made up of span, a nonce, and a payload which contains the Message
 // the chunk address will have one of the targets as its prefix and thus will be forwarded to the neighbourhood of the recipient overlay address the target is derived from
 // this is done by iteratively enumerating different nonces until the BMT hash of the serialization of the trojan chunk fields results in a chunk address that has one of the targets as its prefix
-func (m *Message) Wrap(ctx context.Context, targets Targets) (swarm.Chunk, error) {
+func (m *Message) Wrap(ctx context.Context, targets Targets) (flock.Chunk, error) {
 	if err := checkTargets(targets); err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (m *Message) Wrap(ctx context.Context, targets Targets) (swarm.Chunk, error
 	span := make([]byte, 8)
 	binary.LittleEndian.PutUint64(span, uint64(len(b)+NonceSize))
 	h := hasher(span, b)
-	f := func(nonce []byte) (swarm.Chunk, error) {
+	f := func(nonce []byte) (flock.Chunk, error) {
 		hash, err := h(nonce)
 		if err != nil {
 			return nil, err
@@ -108,7 +108,7 @@ func (m *Message) Wrap(ctx context.Context, targets Targets) (swarm.Chunk, error
 		if !contains(targets, hash[:targetsLen]) {
 			return nil, nil
 		}
-		chunk := swarm.NewChunk(swarm.NewAddress(hash), append(span, append(nonce, b...)...))
+		chunk := flock.NewChunk(flock.NewAddress(hash), append(span, append(nonce, b...)...))
 		return chunk, nil
 	}
 	return mine(ctx, f)
@@ -117,7 +117,7 @@ func (m *Message) Wrap(ctx context.Context, targets Targets) (swarm.Chunk, error
 // Unwrap creates a new trojan message from the given chunk payload
 // this function assumes the chunk has been validated as a content-addressed chunk
 // it will return the resulting message if the unwrapping is successful, and an error otherwise
-func Unwrap(c swarm.Chunk) (*Message, error) {
+func Unwrap(c flock.Chunk) (*Message, error) {
 	d := c.Data()
 
 	// unmarshal chunk payload into message
@@ -129,10 +129,10 @@ func Unwrap(c swarm.Chunk) (*Message, error) {
 }
 
 // IsPotential returns true if the given chunk is a potential trojan
-func IsPotential(c swarm.Chunk) bool {
+func IsPotential(c flock.Chunk) bool {
 	data := c.Data()
 	// check for minimum chunk data length
-	trojanChunkMinDataLen := swarm.SpanSize + NonceSize + TopicSize + LengthSize
+	trojanChunkMinDataLen := flock.SpanSize + NonceSize + TopicSize + LengthSize
 	if len(data) < trojanChunkMinDataLen {
 		return false
 	}
@@ -157,7 +157,7 @@ func checkTargets(targets Targets) error {
 }
 
 func hasher(span, b []byte) func([]byte) ([]byte, error) {
-	hashPool := bmtlegacy.NewTreePool(swarm.NewHasher, swarm.Branches, bmtlegacy.PoolSize)
+	hashPool := bmtlegacy.NewTreePool(flock.NewHasher, flock.Branches, bmtlegacy.PoolSize)
 	return func(nonce []byte) ([]byte, error) {
 		s := append(nonce, b...) // serialize chunk fields
 		hasher := bmtlegacy.New(hashPool)
@@ -210,7 +210,7 @@ func (m *Message) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-func mine(ctx context.Context, f func(nonce []byte) (swarm.Chunk, error)) (swarm.Chunk, error) {
+func mine(ctx context.Context, f func(nonce []byte) (flock.Chunk, error)) (flock.Chunk, error) {
 	seeds := make([]uint32, 8)
 	for i := range seeds {
 		seeds[i] = random.Uint32()
@@ -221,7 +221,7 @@ func mine(ctx context.Context, f func(nonce []byte) (swarm.Chunk, error)) (swarm
 	}
 	quit := make(chan struct{})
 	// make both  errs  and result channels buffered so they never block
-	result := make(chan swarm.Chunk, 8)
+	result := make(chan flock.Chunk, 8)
 	errs := make(chan error, 8)
 	for i := 0; i < 8; i++ {
 		go func(j int) {

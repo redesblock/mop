@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestVoucherVouching tests if the vouch created by the voucher is valid.
@@ -24,14 +24,14 @@ func TestVoucherVouching(t *testing.T) {
 		t.Fatal(err)
 	}
 	signer := crypto.NewDefaultSigner(privKey)
-	createVouch := func(t *testing.T, voucher postage.Voucher) (swarm.Address, *postage.Vouch) {
+	createVouch := func(t *testing.T, voucher postage.Voucher) (flock.Address, *postage.Vouch) {
 		t.Helper()
 		h := make([]byte, 32)
 		_, err = io.ReadFull(crand.Reader, h)
 		if err != nil {
 			t.Fatal(err)
 		}
-		chunkAddr := swarm.NewAddress(h)
+		chunkAddr := flock.NewAddress(h)
 		vouch, err := voucher.Vouch(chunkAddr)
 		if err != nil {
 			t.Fatal(err)
@@ -56,7 +56,7 @@ func TestVoucherVouching(t *testing.T) {
 		chunkAddr, vouch := createVouch(t, voucher)
 		a := chunkAddr.Bytes()
 		a[0] ^= 0xff
-		if err := vouch.Valid(swarm.NewAddress(a), owner, 12, 8, true); !errors.Is(err, postage.ErrBucketMismatch) {
+		if err := vouch.Valid(flock.NewAddress(a), owner, 12, 8, true); !errors.Is(err, postage.ErrBucketMismatch) {
 			t.Fatalf("expected ErrBucketMismatch, got %v", err)
 		}
 	})

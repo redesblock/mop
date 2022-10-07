@@ -15,13 +15,13 @@ components:
       type: object
       properties:
         address:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
 
     Addresses:
       type: object
       properties:
         overlay:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         underlay:
           type: array
           items:
@@ -64,7 +64,7 @@ components:
       type: object
       properties:
         peer:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         balance:
           $ref: "#/components/schemas/BigInt"
 
@@ -80,7 +80,7 @@ components:
       type: object
       properties:
         baseAddr:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         population:
           type: integer
         connected:
@@ -118,7 +118,7 @@ components:
                   type: object
                   properties:
                     address:
-                      $ref: "#/components/schemas/SwarmAddress"
+                      $ref: "#/components/schemas/flockAddress"
                     metrics:
                       $ref: "#/components/schemas/PeerMetricsView"
               connectedPeers:
@@ -127,7 +127,7 @@ components:
                   type: object
                   properties:
                     address:
-                      $ref: "#/components/schemas/SwarmAddress"
+                      $ref: "#/components/schemas/flockAddress"
                     metrics:
                       $ref: "#/components/schemas/PeerMetricsView"
 
@@ -155,7 +155,7 @@ components:
       type: object
       properties:
         peer:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         lastreceived:
           $ref: "#/components/schemas/Cheque"
         lastsent:
@@ -206,7 +206,7 @@ components:
       type: object
       properties:
         hash:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
 
     HexString:
       type: string
@@ -220,7 +220,7 @@ components:
       type: object
       properties:
         address:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
 
     NewTagResponse:
       type: object
@@ -254,7 +254,7 @@ components:
         uid:
           $ref: "#/components/schemas/Uid"
         address:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         startedAt:
           $ref: "#/components/schemas/DateTime"
 
@@ -325,7 +325,7 @@ components:
       type: object
       properties:
         reference:
-          $ref: "#/components/schemas/SwarmReference"
+          $ref: "#/components/schemas/FlockReference"
 
     DebugPostageBatchesResponse:
       type: object
@@ -490,7 +490,7 @@ components:
       type: object
       properties:
         peer:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         received:
           type: integer
         sent:
@@ -509,7 +509,7 @@ components:
           items:
             $ref: "#/components/schemas/Settlement"
 
-    SwarmAddress:
+    flockAddress:
       type: string
       pattern: "^[A-Fa-f0-9]{64}$"
       example: "36b7efd913ca4cf880b8eeac5093fa27b0825906c600685b6abdd6566e6cfe8f"
@@ -519,7 +519,7 @@ components:
       pattern: "^[A-Fa-f0-9]{66}$"
       example: "02ab7473879005929d10ce7d4f626412dad9fe56b0a6622038931d26bd79abf0a4"
 
-    SwarmEncryptedReference:
+    FlockEncryptedReference:
       type: string
       pattern: "^[A-Fa-f0-9]{128}$"
       example: "36b7efd913ca4cf880b8eeac5093fa27b0825906c600685b6abdd6566e6cfe8f2d2810619d29b5dbefd5d74abce25d58b81b251baddb9c3871cf0d6967deaae2"
@@ -527,31 +527,31 @@ components:
     DomainName:
       type: string
       pattern: '^[A-Za-z0-9]+\.[A-Za-z0-9]+$'
-      example: "swarm.eth"
+      example: "flock.eth"
 
     BatchID:
       type: string
       pattern: "^[A-Fa-f0-9]{64}$"
       example: "36b7efd913ca4cf880b8eeac5093fa27b0825906c600685b6abdd6566e6cfe8f"
 
-    SwarmOnlyReference:
+    FlockOnlyReference:
       oneOf:
-        - $ref: "#/components/schemas/SwarmAddress"
-        - $ref: "#/components/schemas/SwarmEncryptedReference"
+        - $ref: "#/components/schemas/flockAddress"
+        - $ref: "#/components/schemas/FlockEncryptedReference"
 
-    SwarmOnlyReferencesList:
+    FlockOnlyReferencesList:
       type: object
       properties:
         references:
           type: array
           nullable: false
           items:
-            $ref: "#/components/schemas/SwarmOnlyReference"
+            $ref: "#/components/schemas/FlockOnlyReference"
 
-    SwarmReference:
+    FlockReference:
       oneOf:
-        - $ref: "#/components/schemas/SwarmAddress"
-        - $ref: "#/components/schemas/SwarmEncryptedReference"
+        - $ref: "#/components/schemas/flockAddress"
+        - $ref: "#/components/schemas/FlockEncryptedReference"
         - $ref: "#/components/schemas/DomainName"
 
     SwapCashoutResult:
@@ -568,7 +568,7 @@ components:
       type: object
       properties:
         peer:
-          $ref: "#/components/schemas/SwarmAddress"
+          $ref: "#/components/schemas/flockAddress"
         lastCashedCheque:
           $ref: "#/components/schemas/Cheque"
         transactionHash:
@@ -713,17 +713,17 @@ components:
           nullable: false
 
   headers:
-    SwarmTag:
+    FlockTag:
       description: "Tag UID"
       schema:
         $ref: "Common.yaml#/components/schemas/Uid"
 
-    SwarmFeedIndex:
+    FlockFeedIndex:
       description: "The index of the found update"
       schema:
         $ref: "#/components/schemas/HexString"
 
-    SwarmFeedIndexNext:
+    FlockFeedIndexNext:
       description: "The index of the next possible update"
       schema:
         $ref: "#/components/schemas/HexString"
@@ -756,17 +756,17 @@ components:
       required: false
       description: "Gas limit for transaction"
 
-    SwarmTagParameter:
+    FlockTagParameter:
       in: header
-      name: swarm-tag
+      name: flock-tag
       schema:
         $ref: "Common.yaml#/components/schemas/Uid"
       required: false
       description: Associate upload with an existing Tag UID
 
-    SwarmPinParameter:
+    FlockPinParameter:
       in: header
-      name: swarm-pin
+      name: flock-pin
       schema:
         type: boolean
       required: false
@@ -775,9 +775,9 @@ components:
 
         Warning! Not available for nodes that run in Gateway mode!
 
-    SwarmEncryptParameter:
+    FlockEncryptParameter:
       in: header
-      name: swarm-encrypt
+      name: flock-encrypt
       schema:
         type: boolean
       required: false
@@ -793,43 +793,43 @@ components:
         type: string
       description: The specified content-type is preserved for download of the asset
 
-    SwarmIndexDocumentParameter:
+    FlockIndexDocumentParameter:
       in: header
-      name: swarm-index-document
+      name: flock-index-document
       schema:
         type: string
         example: index.html
       required: false
       description: Default file to be referenced on path, if exists under that path
 
-    SwarmErrorDocumentParameter:
+    FlockErrorDocumentParameter:
       in: header
-      name: swarm-error-document
+      name: flock-error-document
       schema:
         type: string
         example: error.html
       required: false
       description: Configure custom error document to be returned when a specified path can not be found in collection
 
-    SwarmCollection:
+    FlockCollection:
       in: header
-      name: swarm-collection
+      name: flock-collection
       schema:
         type: boolean
       required: false
       description: Upload file/files as a collection
 
-    SwarmPostageBatchId:
+    FlockPostageBatchId:
       in: header
-      name: swarm-postage-batch-id
+      name: flock-postage-batch-id
       description: "ID of Postage Batch that is used to upload data with"
       required: true
       schema:
-        $ref: "#/components/schemas/SwarmAddress"
+        $ref: "#/components/schemas/flockAddress"
 
-    SwarmDeferredUpload:
+    FlockDeferredUpload:
       in: header
-      name: swarm-deferred-upload
+      name: flock-deferred-upload
       schema:
         type: boolean
         default: "true"

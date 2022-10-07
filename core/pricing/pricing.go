@@ -7,11 +7,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/pricing/pb"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -29,12 +29,12 @@ var _ Interface = (*Service)(nil)
 
 // Interface is the main interface of the pricing protocol
 type Interface interface {
-	AnnouncePaymentThreshold(ctx context.Context, peer swarm.Address, paymentThreshold *big.Int) error
+	AnnouncePaymentThreshold(ctx context.Context, peer flock.Address, paymentThreshold *big.Int) error
 }
 
 // PaymentThresholdObserver is used for being notified of payment threshold updates
 type PaymentThresholdObserver interface {
-	NotifyPaymentThreshold(peer swarm.Address, paymentThreshold *big.Int) error
+	NotifyPaymentThreshold(peer flock.Address, paymentThreshold *big.Int) error
 }
 
 type Service struct {
@@ -108,7 +108,7 @@ func (s *Service) init(ctx context.Context, p p2p.Peer) error {
 }
 
 // AnnouncePaymentThreshold announces the payment threshold to per
-func (s *Service) AnnouncePaymentThreshold(ctx context.Context, peer swarm.Address, paymentThreshold *big.Int) error {
+func (s *Service) AnnouncePaymentThreshold(ctx context.Context, peer flock.Address, paymentThreshold *big.Int) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

@@ -6,9 +6,9 @@ import (
 
 	"github.com/redesblock/mop/core/cac"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/soc"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // Updater is the generic interface f
@@ -53,7 +53,7 @@ func (u *Putter) Put(ctx context.Context, i Index, at int64, payload []byte) err
 	return err
 }
 
-func toChunk(at uint64, payload []byte) (swarm.Chunk, error) {
+func toChunk(at uint64, payload []byte) (flock.Chunk, error) {
 	ts := make([]byte, 8)
 	binary.BigEndian.PutUint64(ts, at)
 	return cac.New(append(ts, payload...))

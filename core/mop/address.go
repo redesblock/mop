@@ -13,19 +13,19 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/mop/core/crypto"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 var ErrInvalidAddress = errors.New("invalid address")
 
-// Address represents the mop address in swarm.
+// Address represents the mop address in flock.
 // It consists of a peers underlay (physical) address, overlay (topology) address and signature.
 // Signature is used to verify the `Overlay/Underlay` pair, as it is based on `underlay|networkID`, signed with the public key of Overlay address
 type Address struct {
 	Underlay        ma.Multiaddr
-	Overlay         swarm.Address
+	Overlay         flock.Address
 	Signature       []byte
 	Transaction     []byte
 	EthereumAddress []byte
@@ -38,7 +38,7 @@ type addressJSON struct {
 	Transaction string `json:"transaction"`
 }
 
-func NewAddress(signer crypto.Signer, underlay ma.Multiaddr, overlay swarm.Address, networkID uint64, trx []byte) (*Address, error) {
+func NewAddress(signer crypto.Signer, underlay ma.Multiaddr, overlay flock.Address, networkID uint64, trx []byte) (*Address, error) {
 	underlayBinary, err := underlay.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func ParseAddress(underlay, overlay, signature, trxHash, blockHash []byte, netwo
 
 	return &Address{
 		Underlay:        multiUnderlay,
-		Overlay:         swarm.NewAddress(overlay),
+		Overlay:         flock.NewAddress(overlay),
 		Signature:       signature,
 		Transaction:     trxHash,
 		EthereumAddress: ethAddress,
@@ -118,7 +118,7 @@ func (a *Address) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	addr, err := swarm.ParseHexAddress(v.Overlay)
+	addr, err := flock.ParseHexAddress(v.Overlay)
 	if err != nil {
 		return err
 	}

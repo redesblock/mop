@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/collection/entry"
-	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/flock/test"
 )
 
 // TestEntrySerialize verifies integrity of serialization.

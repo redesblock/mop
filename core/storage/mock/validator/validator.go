@@ -3,7 +3,7 @@ package validator
 import (
 	"bytes"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 // MockValidator returns true if the data and address passed in the Validate method
@@ -13,7 +13,7 @@ type MockValidator struct {
 }
 
 // NewMockValidator constructs a new MockValidator
-func NewMockValidator(address swarm.Address, data []byte) *MockValidator {
+func NewMockValidator(address flock.Address, data []byte) *MockValidator {
 	mp := &MockValidator{
 		addressDataPair: make(map[string][]byte),
 	}
@@ -22,12 +22,12 @@ func NewMockValidator(address swarm.Address, data []byte) *MockValidator {
 }
 
 // Add a new address/data pair which can be validated
-func (v *MockValidator) AddPair(address swarm.Address, data []byte) {
+func (v *MockValidator) AddPair(address flock.Address, data []byte) {
 	v.addressDataPair[address.String()] = data
 }
 
 // Validate checks the passed chunk for validity
-func (v *MockValidator) Validate(ch swarm.Chunk) (valid bool) {
+func (v *MockValidator) Validate(ch flock.Chunk) (valid bool) {
 	if data, ok := v.addressDataPair[ch.Address().String()]; ok {
 		if bytes.Equal(data, ch.Data()) {
 			return true

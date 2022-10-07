@@ -1,11 +1,11 @@
 package soc
 
 import (
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 // Valid checks if the chunk is a valid single-owner chunk.
-func Valid(ch swarm.Chunk) bool {
+func Valid(ch flock.Chunk) bool {
 	s, err := FromChunk(ch)
 	if err != nil {
 		return false

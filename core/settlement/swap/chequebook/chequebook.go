@@ -352,6 +352,9 @@ func (s *service) Withdraw(ctx context.Context, amount *big.Int) (hash common.Ha
 }
 
 func (s *service) storeTx(ctx context.Context, txHash common.Hash, wait bool) error {
+	if s.store == nil {
+		return nil
+	}
 	if wait {
 		receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
 		if err != nil {

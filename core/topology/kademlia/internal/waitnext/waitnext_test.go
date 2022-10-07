@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/topology/kademlia/internal/waitnext"
 )
 

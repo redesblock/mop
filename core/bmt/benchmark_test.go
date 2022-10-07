@@ -6,7 +6,7 @@ import (
 
 	"github.com/redesblock/mop/core/bmt"
 	"github.com/redesblock/mop/core/bmt/reference"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -76,7 +76,7 @@ func benchmarkBMTBaseline(t *testing.B, n int) {
 func benchmarkBMT(t *testing.B, n int) {
 	testData := randomBytes(t, seed)
 
-	pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, testSegmentCount, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, testSegmentCount, testPoolSize))
 	h := pool.Get()
 	defer pool.Put(h)
 
@@ -93,7 +93,7 @@ func benchmarkBMT(t *testing.B, n int) {
 func benchmarkPool(t *testing.B, poolsize int) {
 	testData := randomBytes(t, seed)
 
-	pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, testSegmentCount, poolsize))
+	pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, testSegmentCount, poolsize))
 	cycles := 100
 
 	t.ReportAllocs()
@@ -118,7 +118,7 @@ func benchmarkPool(t *testing.B, poolsize int) {
 func benchmarkRefHasher(t *testing.B, n int) {
 	testData := randomBytes(t, seed)
 
-	rbmt := reference.NewRefHasher(swarm.NewHasher(), 128)
+	rbmt := reference.NewRefHasher(flock.NewHasher(), 128)
 
 	t.ReportAllocs()
 	t.ResetTimer()

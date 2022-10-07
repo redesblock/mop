@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/mop/core/cac"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/soc"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestNew(t *testing.T) {
@@ -30,14 +30,14 @@ func TestNew(t *testing.T) {
 	}
 
 	chunkData := s.WrappedChunk().Data()
-	spanBytes := make([]byte, swarm.SpanSize)
+	spanBytes := make([]byte, flock.SpanSize)
 	binary.LittleEndian.PutUint64(spanBytes, uint64(len(payload)))
-	if !bytes.Equal(chunkData[:swarm.SpanSize], spanBytes) {
-		t.Fatalf("span mismatch. got %x want %x", chunkData[:swarm.SpanSize], spanBytes)
+	if !bytes.Equal(chunkData[:flock.SpanSize], spanBytes) {
+		t.Fatalf("span mismatch. got %x want %x", chunkData[:flock.SpanSize], spanBytes)
 	}
 
-	if !bytes.Equal(chunkData[swarm.SpanSize:], payload) {
-		t.Fatalf("payload mismatch. got %x want %x", chunkData[swarm.SpanSize:], payload)
+	if !bytes.Equal(chunkData[flock.SpanSize:], payload) {
+		t.Fatalf("payload mismatch. got %x want %x", chunkData[flock.SpanSize:], payload)
 	}
 }
 
@@ -75,14 +75,14 @@ func TestNewSigned(t *testing.T) {
 	}
 
 	chunkData := s.WrappedChunk().Data()
-	spanBytes := make([]byte, swarm.SpanSize)
+	spanBytes := make([]byte, flock.SpanSize)
 	binary.LittleEndian.PutUint64(spanBytes, uint64(len(payload)))
-	if !bytes.Equal(chunkData[:swarm.SpanSize], spanBytes) {
-		t.Fatalf("span mismatch. got %x want %x", chunkData[:swarm.SpanSize], spanBytes)
+	if !bytes.Equal(chunkData[:flock.SpanSize], spanBytes) {
+		t.Fatalf("span mismatch. got %x want %x", chunkData[:flock.SpanSize], spanBytes)
 	}
 
-	if !bytes.Equal(chunkData[swarm.SpanSize:], payload) {
-		t.Fatalf("payload mismatch. got %x want %x", chunkData[swarm.SpanSize:], payload)
+	if !bytes.Equal(chunkData[flock.SpanSize:], payload) {
+		t.Fatalf("payload mismatch. got %x want %x", chunkData[flock.SpanSize:], payload)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestChunk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedSOCAddress := swarm.NewAddress(sum)
+	expectedSOCAddress := flock.NewAddress(sum)
 
 	// creates SOC chunk
 	sch, err := s.Chunk()
@@ -138,12 +138,12 @@ func TestChunk(t *testing.T) {
 	}
 	cursor += soc.SignatureSize
 
-	spanBytes := make([]byte, swarm.SpanSize)
+	spanBytes := make([]byte, flock.SpanSize)
 	binary.LittleEndian.PutUint64(spanBytes, uint64(len(payload)))
-	if !bytes.Equal(chunkData[cursor:cursor+swarm.SpanSize], spanBytes) {
-		t.Fatalf("span mismatch. got %x want %x", chunkData[cursor:cursor+swarm.SpanSize], spanBytes)
+	if !bytes.Equal(chunkData[cursor:cursor+flock.SpanSize], spanBytes) {
+		t.Fatalf("span mismatch. got %x want %x", chunkData[cursor:cursor+flock.SpanSize], spanBytes)
 	}
-	cursor += swarm.SpanSize
+	cursor += flock.SpanSize
 
 	if !bytes.Equal(chunkData[cursor:], payload) {
 		t.Fatalf("payload mismatch. got %x want %x", chunkData[cursor:], payload)
@@ -226,13 +226,13 @@ func TestSign(t *testing.T) {
 // TestFromChunk verifies that valid chunk data deserializes to
 // a fully populated soc object.
 func TestFromChunk(t *testing.T) {
-	socAddress := swarm.MustParseHexAddress("9d453ebb73b2fedaaf44ceddcf7a0aa37f3e3d6453fea5841c31f0ea6d61dc85")
+	socAddress := flock.MustParseHexAddress("9d453ebb73b2fedaaf44ceddcf7a0aa37f3e3d6453fea5841c31f0ea6d61dc85")
 
 	// signed soc chunk of:
 	// id: 0
 	// wrapped chunk of: `foo`
 	// owner: 0x8d3766440f0d7b949a5e32995d09619a7f86e632
-	sch := swarm.NewChunk(socAddress, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90, 205, 56, 79, 235, 193, 51, 183, 178, 69, 229, 221, 198, 45, 130, 210, 205, 237, 145, 130, 210, 113, 97, 38, 205, 136, 68, 80, 154, 246, 90, 5, 61, 235, 65, 130, 8, 2, 127, 84, 142, 62, 136, 52, 58, 246, 248, 74, 135, 114, 251, 60, 235, 192, 161, 131, 58, 14, 167, 236, 12, 19, 72, 49, 27, 3, 0, 0, 0, 0, 0, 0, 0, 102, 111, 111})
+	sch := flock.NewChunk(socAddress, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90, 205, 56, 79, 235, 193, 51, 183, 178, 69, 229, 221, 198, 45, 130, 210, 205, 237, 145, 130, 210, 113, 97, 38, 205, 136, 68, 80, 154, 246, 90, 5, 61, 235, 65, 130, 8, 2, 127, 84, 142, 62, 136, 52, 58, 246, 248, 74, 135, 114, 251, 60, 235, 192, 161, 131, 58, 14, 167, 236, 12, 19, 72, 49, 27, 3, 0, 0, 0, 0, 0, 0, 0, 102, 111, 111})
 
 	cursor := soc.IdSize + soc.SignatureSize
 	data := sch.Data()
@@ -240,8 +240,8 @@ func TestFromChunk(t *testing.T) {
 	sig := data[soc.IdSize:cursor]
 	chunkData := data[cursor:]
 
-	chunkAddress := swarm.MustParseHexAddress("2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48")
-	ch := swarm.NewChunk(chunkAddress, chunkData)
+	chunkAddress := flock.MustParseHexAddress("2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48")
+	ch := flock.NewChunk(chunkAddress, chunkData)
 
 	signedDigest, err := soc.Hash(id, ch.Address().Bytes())
 	if err != nil {
@@ -281,7 +281,7 @@ func TestFromChunk(t *testing.T) {
 func TestCreateAddress(t *testing.T) {
 	id := make([]byte, soc.IdSize)
 	owner := common.HexToAddress("8d3766440f0d7b949a5e32995d09619a7f86e632")
-	socAddress := swarm.MustParseHexAddress("9d453ebb73b2fedaaf44ceddcf7a0aa37f3e3d6453fea5841c31f0ea6d61dc85")
+	socAddress := flock.MustParseHexAddress("9d453ebb73b2fedaaf44ceddcf7a0aa37f3e3d6453fea5841c31f0ea6d61dc85")
 
 	addr, err := soc.CreateAddress(id, owner.Bytes())
 	if err != nil {
@@ -295,7 +295,7 @@ func TestCreateAddress(t *testing.T) {
 func TestRecoverAddress(t *testing.T) {
 	owner := common.HexToAddress("8d3766440f0d7b949a5e32995d09619a7f86e632")
 	id := make([]byte, soc.IdSize)
-	chunkAddress := swarm.MustParseHexAddress("2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48")
+	chunkAddress := flock.MustParseHexAddress("2387e8e7d8a48c2a9339c97c1dc3461a9a7aa07e994c5cb8b38fd7c1b3e6ea48")
 	signedDigest, err := soc.Hash(id, chunkAddress.Bytes())
 	if err != nil {
 		t.Fatal(err)

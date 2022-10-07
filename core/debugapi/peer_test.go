@@ -10,12 +10,12 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestConnect(t *testing.T) {
@@ -99,13 +99,13 @@ func TestConnect(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	address := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
-	unknownAddress := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59e")
-	errorAddress := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59a")
+	address := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	unknownAddress := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59e")
+	errorAddress := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59a")
 	testErr := errors.New("test error")
 
 	testServer := newTestServer(t, testServerOptions{
-		P2P: mock.New(mock.WithDisconnectFunc(func(addr swarm.Address, reason string) error {
+		P2P: mock.New(mock.WithDisconnectFunc(func(addr flock.Address, reason string) error {
 			if reason != "user requested disconnect" {
 				return testErr
 			}
@@ -160,7 +160,7 @@ func TestDisconnect(t *testing.T) {
 }
 
 func TestPeer(t *testing.T) {
-	overlay := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	overlay := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	testServer := newTestServer(t, testServerOptions{
 		P2P: mock.New(mock.WithPeersFunc(func() []p2p.Peer {
 			return []p2p.Peer{{Address: overlay}}
@@ -186,7 +186,7 @@ func TestPeer(t *testing.T) {
 }
 
 func TestBlocklistedPeers(t *testing.T) {
-	overlay := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	overlay := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	testServer := newTestServer(t, testServerOptions{
 		P2P: mock.New(mock.WithBlocklistedPeersFunc(func() ([]p2p.Peer, error) {
 			return []p2p.Peer{{Address: overlay}}, nil
@@ -201,7 +201,7 @@ func TestBlocklistedPeers(t *testing.T) {
 }
 
 func TestBlocklistedPeersErr(t *testing.T) {
-	overlay := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	overlay := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	testServer := newTestServer(t, testServerOptions{
 		P2P: mock.New(mock.WithBlocklistedPeersFunc(func() ([]p2p.Peer, error) {
 			return []p2p.Peer{{Address: overlay}}, errors.New("some error")

@@ -4,12 +4,12 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 // generateCommonBinPrefixes generates the common bin prefixes
 // used by the bin balancer.
-func generateCommonBinPrefixes(base swarm.Address, suffixLength int) [][]swarm.Address {
+func generateCommonBinPrefixes(base flock.Address, suffixLength int) [][]flock.Address {
 	bitCombinationsCount := int(math.Pow(2, float64(suffixLength)))
 	bitSuffixes := make([]uint8, bitCombinationsCount)
 
@@ -17,22 +17,22 @@ func generateCommonBinPrefixes(base swarm.Address, suffixLength int) [][]swarm.A
 		bitSuffixes[i] = uint8(i)
 	}
 
-	addr := swarm.MustParseHexAddress(base.String())
+	addr := flock.MustParseHexAddress(base.String())
 	addrBytes := addr.Bytes()
 	_ = addrBytes
 
-	binPrefixes := make([][]swarm.Address, int(swarm.MaxBins))
+	binPrefixes := make([][]flock.Address, int(flock.MaxBins))
 
 	// copy base address
 	for i := range binPrefixes {
-		binPrefixes[i] = make([]swarm.Address, bitCombinationsCount)
+		binPrefixes[i] = make([]flock.Address, bitCombinationsCount)
 	}
 
 	for i := range binPrefixes {
 		for j := range binPrefixes[i] {
 			pseudoAddrBytes := make([]byte, len(base.Bytes()))
 			copy(pseudoAddrBytes, base.Bytes())
-			binPrefixes[i][j] = swarm.NewAddress(pseudoAddrBytes)
+			binPrefixes[i][j] = flock.NewAddress(pseudoAddrBytes)
 		}
 	}
 

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/statestore/leveldb"
 	"github.com/redesblock/mop/core/statestore/mock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // InitStateStore will initialize the stateStore with the given path to the
@@ -28,7 +28,7 @@ const overlayKey = "overlay"
 const secureOverlayKey = "non-mineable-overlay"
 
 // CheckOverlayWithStore checks the overlay is the same as stored in the statestore
-func CheckOverlayWithStore(overlay swarm.Address, storer storage.StateStorer) error {
+func CheckOverlayWithStore(overlay flock.Address, storer storage.StateStorer) error {
 
 	// migrate overlay key to new key
 	err := storer.Delete(overlayKey)
@@ -36,7 +36,7 @@ func CheckOverlayWithStore(overlay swarm.Address, storer storage.StateStorer) er
 		return err
 	}
 
-	var storedOverlay swarm.Address
+	var storedOverlay flock.Address
 	err = storer.Get(secureOverlayKey, &storedOverlay)
 	if err != nil {
 		if !errors.Is(err, storage.ErrNotFound) {

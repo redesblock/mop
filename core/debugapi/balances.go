@@ -7,8 +7,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/redesblock/mop/core/accounting"
 	"github.com/redesblock/mop/core/bigint"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -51,7 +51,7 @@ func (s *Service) balancesHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) peerBalanceHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["peer"]
-	peer, err := swarm.ParseHexAddress(addr)
+	peer, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: balances peer: invalid peer address %s: %v", addr, err)
 		s.logger.Errorf("debug api: balances peer: invalid peer address %s", addr)
@@ -101,7 +101,7 @@ func (s *Service) compensatedBalancesHandler(w http.ResponseWriter, r *http.Requ
 
 func (s *Service) compensatedPeerBalanceHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["peer"]
-	peer, err := swarm.ParseHexAddress(addr)
+	peer, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: compensated balances peer: invalid peer address %s: %v", addr, err)
 		s.logger.Errorf("debug api: compensated balances peer: invalid peer address %s", addr)

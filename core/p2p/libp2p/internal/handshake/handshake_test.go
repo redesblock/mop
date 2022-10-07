@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
@@ -17,7 +18,6 @@ import (
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/mock"
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/pb"
 	"github.com/redesblock/mop/core/p2p/protobuf"
-	"github.com/redesblock/mop/core/swarm"
 
 	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -808,7 +808,7 @@ type MockSenderMatcher struct {
 	blockHash []byte
 }
 
-func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, swarm.Address, bool) ([]byte, error) {
+func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, flock.Address, bool) ([]byte, error) {
 
 	if m.v {
 		return m.blockHash, nil

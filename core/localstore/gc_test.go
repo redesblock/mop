@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -65,7 +65,7 @@ func testDBCollectGarbageWorker(t *testing.T) {
 	})
 	closed = db.close
 
-	addrs := make([]swarm.Address, chunkCount)
+	addrs := make([]flock.Address, chunkCount)
 	ctx := context.Background()
 	// upload random chunks
 	for i := 0; i < chunkCount; i++ {
@@ -168,8 +168,8 @@ func TestPinGC(t *testing.T) {
 	})
 	closed = db.close
 
-	addrs := make([]swarm.Address, 0)
-	pinAddrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
+	pinAddrs := make([]flock.Address, 0)
 
 	// upload random chunks
 	for i := 0; i < chunkCount; i++ {
@@ -268,7 +268,7 @@ func TestGCAfterPin(t *testing.T) {
 		ReserveCapacity: 100,
 	})
 
-	pinAddrs := make([]swarm.Address, 0)
+	pinAddrs := make([]flock.Address, 0)
 
 	// upload random chunks
 	for i := 0; i < chunkCount; i++ {
@@ -332,7 +332,7 @@ func TestDB_collectGarbageWorker_withRequests(t *testing.T) {
 		Capacity: 100,
 	})
 
-	addrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
 
 	// upload random chunks just up to the capacity
 	for i := 0; i < int(db.cacheCapacity)-1; i++ {
@@ -586,7 +586,7 @@ func TestPinAfterMultiGC(t *testing.T) {
 		ReserveCapacity: 10,
 	})
 
-	pinnedChunks := make([]swarm.Address, 0)
+	pinnedChunks := make([]flock.Address, 0)
 
 	// upload random chunks above cache capacity to see if chunks are still pinned
 	for i := 0; i < 20; i++ {
@@ -650,18 +650,18 @@ func TestPinAfterMultiGC(t *testing.T) {
 		outItem := shed.Item{
 			Address: addr.Bytes(),
 		}
-		gotChunk, err := db.Get(context.Background(), storage.ModeGetRequest, swarm.NewAddress(outItem.Address))
+		gotChunk, err := db.Get(context.Background(), storage.ModeGetRequest, flock.NewAddress(outItem.Address))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !gotChunk.Address().Equal(swarm.NewAddress(addr.Bytes())) {
+		if !gotChunk.Address().Equal(flock.NewAddress(addr.Bytes())) {
 			t.Fatal("Pinned chunk is not equal to got chunk")
 		}
 	}
 
 }
 
-func generateAndPinAChunk(t *testing.T, db *DB) swarm.Chunk {
+func generateAndPinAChunk(t *testing.T, db *DB) flock.Chunk {
 	// Create a chunk and pin it
 	ch := generateTestRandomChunk()
 
@@ -759,8 +759,8 @@ func TestPinSyncAndAccessPutSetChunkMultipleTimes(t *testing.T) {
 
 }
 
-func addRandomChunks(t *testing.T, count int, db *DB, pin bool) []swarm.Chunk {
-	var chunks []swarm.Chunk
+func addRandomChunks(t *testing.T, count int, db *DB, pin bool) []flock.Chunk {
+	var chunks []flock.Chunk
 	for i := 0; i < count; i++ {
 		ch := generateTestRandomChunk()
 		unreserveChunkBatch(t, db, 0, ch)
@@ -831,7 +831,7 @@ func TestGC_NoEvictDirty(t *testing.T) {
 		<-dirtyChan
 	}))
 	defer close(incomingChan)
-	addrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
 	mtx := new(sync.Mutex)
 	online := make(chan struct{})
 	go func() {
@@ -944,7 +944,7 @@ func setTestHookGCIteratorDone(h func()) (reset func()) {
 	return reset
 }
 
-func unreserveChunkBatch(t *testing.T, db *DB, radius uint8, chs ...swarm.Chunk) {
+func unreserveChunkBatch(t *testing.T, db *DB, radius uint8, chs ...flock.Chunk) {
 	t.Helper()
 	for _, ch := range chs {
 		_, err := db.UnreserveBatch(ch.Vouch().BatchID(), radius)
@@ -970,7 +970,7 @@ func TestReserveEvictionWorker(t *testing.T) {
 		chunkCount = 10
 		batchIDs   [][]byte
 		db         *DB
-		addrs      []swarm.Address
+		addrs      []flock.Address
 		closed     chan struct{}
 		mtx        sync.Mutex
 	)
@@ -1039,7 +1039,7 @@ func TestReserveEvictionWorker(t *testing.T) {
 	// insert 10 chunks that fall into the reserve, then
 	// expect first one to be evicted
 	for i := 0; i < chunkCount; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
@@ -1089,7 +1089,7 @@ func TestReserveEvictionWorker(t *testing.T) {
 	})
 
 	for i := 0; i < chunkCount-1; i++ {
-		ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 3).WithBatch(2, 3, 2, false)
+		ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 3).WithBatch(2, 3, 2, false)
 		_, err := db.Put(context.Background(), storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)

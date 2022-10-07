@@ -9,8 +9,8 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/mop"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // ReachabilityStatus represents the node reachability status.
@@ -41,14 +41,14 @@ type Service interface {
 }
 
 type Disconnecter interface {
-	Disconnect(overlay swarm.Address, reason string) error
+	Disconnect(overlay flock.Address, reason string) error
 	Blocklister
 }
 
 type Blocklister interface {
 	// Blocklist will disconnect a peer and put it on a blocklist (blocking in & out connections) for provided duration
 	// Duration 0 is treated as an infinite duration.
-	Blocklist(overlay swarm.Address, duration time.Duration, reason string) error
+	Blocklist(overlay flock.Address, duration time.Duration, reason string) error
 }
 
 type Halter interface {
@@ -69,12 +69,12 @@ type Picker interface {
 }
 
 type ReachableNotifier interface {
-	Reachable(swarm.Address, ReachabilityStatus)
+	Reachable(flock.Address, ReachabilityStatus)
 }
 
 type Reacher interface {
-	Connected(swarm.Address, ma.Multiaddr)
-	Disconnected(swarm.Address)
+	Connected(flock.Address, ma.Multiaddr)
+	Disconnected(flock.Address)
 }
 
 type ReachabilityUpdater interface {
@@ -84,8 +84,8 @@ type ReachabilityUpdater interface {
 type Notifier interface {
 	Connected(context.Context, Peer, bool) error
 	Disconnected(Peer)
-	Announce(ctx context.Context, peer swarm.Address, fullnode bool) error
-	AnnounceTo(ctx context.Context, addressee, peer swarm.Address, fullnode bool) error
+	Announce(ctx context.Context, peer flock.Address, fullnode bool) error
+	AnnounceTo(ctx context.Context, addressee, peer flock.Address, fullnode bool) error
 }
 
 // DebugService extends the Service with method used for debugging.
@@ -97,7 +97,7 @@ type DebugService interface {
 
 // Streamer is able to create a new Stream.
 type Streamer interface {
-	NewStream(ctx context.Context, address swarm.Address, h Headers, protocol, version, stream string) (Stream, error)
+	NewStream(ctx context.Context, address flock.Address, h Headers, protocol, version, stream string) (Stream, error)
 }
 
 type StreamerDisconnecter interface {
@@ -147,7 +147,7 @@ type StreamSpec struct {
 
 // Peer holds information about a Peer.
 type Peer struct {
-	Address         swarm.Address
+	Address         flock.Address
 	FullNode        bool
 	EthereumAddress []byte
 }
@@ -160,7 +160,7 @@ type HandlerMiddleware func(HandlerFunc) HandlerFunc
 
 // HeadlerFunc is returning response headers based on the received request
 // headers.
-type HeadlerFunc func(Headers, swarm.Address) Headers
+type HeadlerFunc func(Headers, flock.Address) Headers
 
 // Headers represents a collection of p2p header key value pairs.
 type Headers map[string][]byte
@@ -170,8 +170,8 @@ const (
 	HeaderNameTracingSpanContext = "tracing-span-context"
 )
 
-// NewSwarmStreamName constructs a libp2p compatible stream name out of
+// NewFlockStreamName constructs a libp2p compatible stream name out of
 // protocol name and version and stream name.
-func NewSwarmStreamName(protocol, version, stream string) string {
-	return "/swarm/" + protocol + "/" + version + "/" + stream
+func NewFlockStreamName(protocol, version, stream string) string {
+	return "/flock/" + protocol + "/" + version + "/" + stream
 }

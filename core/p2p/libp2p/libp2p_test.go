@@ -13,11 +13,11 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/mop/core/addressbook"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/libp2p"
 	"github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology/lightnode"
 )
 
@@ -31,10 +31,10 @@ type libp2pServiceOpts struct {
 }
 
 // newService constructs a new libp2p service.
-func newService(t *testing.T, networkID uint64, o libp2pServiceOpts) (s *libp2p.Service, overlay swarm.Address) {
+func newService(t *testing.T, networkID uint64, o libp2pServiceOpts) (s *libp2p.Service, overlay flock.Address) {
 	t.Helper()
 
-	swarmKey, err := crypto.GenerateSecp256k1Key()
+	flockKey, err := crypto.GenerateSecp256k1Key()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func newService(t *testing.T, networkID uint64, o libp2pServiceOpts) (s *libp2p.
 	trx := common.HexToHash("0x1").Bytes()
 	blockHash := common.HexToHash("0x2").Bytes()
 
-	overlay, err = crypto.NewOverlayAddress(swarmKey.PublicKey, networkID, blockHash)
+	overlay, err = crypto.NewOverlayAddress(flockKey.PublicKey, networkID, blockHash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func newService(t *testing.T, networkID uint64, o libp2pServiceOpts) (s *libp2p.
 		BlockHash: blockHash,
 	}
 
-	s, err = libp2p.New(ctx, crypto.NewDefaultSigner(swarmKey), networkID, overlay, addr, o.Addressbook, statestore, o.lightNodes, senderMatcher, o.Logger, nil, opts)
+	s, err = libp2p.New(ctx, crypto.NewDefaultSigner(flockKey), networkID, overlay, addr, o.Addressbook, statestore, o.lightNodes, senderMatcher, o.Logger, nil, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func newService(t *testing.T, networkID uint64, o libp2pServiceOpts) (s *libp2p.
 }
 
 // expectPeers validates that peers with addresses are connected.
-func expectPeers(t *testing.T, s *libp2p.Service, addrs ...swarm.Address) {
+func expectPeers(t *testing.T, s *libp2p.Service, addrs ...flock.Address) {
 	t.Helper()
 
 	peers := s.Peers()
@@ -120,7 +120,7 @@ func expectPeers(t *testing.T, s *libp2p.Service, addrs ...swarm.Address) {
 // expectPeersEventually validates that peers with addresses are connected with
 // retries. It is supposed to be used to validate asynchronous connecting on the
 // peer that is connected to.
-func expectPeersEventually(t *testing.T, s *libp2p.Service, addrs ...swarm.Address) {
+func expectPeersEventually(t *testing.T, s *libp2p.Service, addrs ...flock.Address) {
 	t.Helper()
 
 	var peers []p2p.Peer
@@ -165,6 +165,6 @@ type MockSenderMatcher struct {
 	BlockHash []byte
 }
 
-func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, swarm.Address, bool) ([]byte, error) {
+func (m MockSenderMatcher) Matches(context.Context, []byte, uint64, flock.Address, bool) ([]byte, error) {
 	return m.BlockHash, nil
 }

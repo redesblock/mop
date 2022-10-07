@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	chunktesting "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/trojan"
 )
 
@@ -73,8 +73,8 @@ func TestWrap(t *testing.T) {
 
 	addr := c.Address()
 	addrLen := len(addr.Bytes())
-	if addrLen != swarm.HashSize {
-		t.Fatalf("chunk has an unexpected address length of %d rather than %d", addrLen, swarm.HashSize)
+	if addrLen != flock.HashSize {
+		t.Fatalf("chunk has an unexpected address length of %d rather than %d", addrLen, flock.HashSize)
 	}
 
 	addrPrefix := addr.Bytes()[:len(testTargets[0])]
@@ -84,7 +84,7 @@ func TestWrap(t *testing.T) {
 
 	data := c.Data()
 	dataSize := len(data)
-	expectedSize := swarm.ChunkWithSpanSize // span + payload
+	expectedSize := flock.ChunkWithSpanSize // span + payload
 	if dataSize != expectedSize {
 		t.Fatalf("chunk data has an unexpected size of %d rather than %d", dataSize, expectedSize)
 	}
@@ -164,7 +164,7 @@ func TestIsPotential(t *testing.T) {
 
 	// valid type, but invalid chunk data length
 	data := make([]byte, 10)
-	c = swarm.NewChunk(swarm.ZeroAddress, data)
+	c = flock.NewChunk(flock.ZeroAddress, data)
 	if trojan.IsPotential(c) {
 		t.Fatal("chunk with invalid data length marked as potential trojan")
 	}

@@ -13,7 +13,7 @@ import (
 )
 
 func TestMethodHandler(t *testing.T) {
-	contentType := "application/swarm"
+	contentType := "application/flock"
 
 	h := jsonhttp.MethodHandler{
 		"POST": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

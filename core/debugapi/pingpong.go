@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type pingpongResponse struct {
@@ -21,7 +21,7 @@ func (s *Service) pingpongHandler(w http.ResponseWriter, r *http.Request) {
 	span, logger, ctx := s.tracer.StartSpanFromContext(ctx, "pingpong-api", s.logger)
 	defer span.Finish()
 
-	address, err := swarm.ParseHexAddress(peerID)
+	address, err := flock.ParseHexAddress(peerID)
 	if err != nil {
 		logger.Debugf("pingpong: parse peer address %s: %v", peerID, err)
 		jsonhttp.BadRequest(w, "invalid peer address")

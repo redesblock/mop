@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -136,7 +136,7 @@ func (ss *Snapshot) HasAtMaxOneConnectionAttempt() bool {
 
 // persistentCounters is a helper struct used for persisting selected counters.
 type persistentCounters struct {
-	PeerAddress       swarm.Address `json:"peerAddress"`
+	PeerAddress       flock.Address `json:"peerAddress"`
 	LastSeenTimestamp int64         `json:"lastSeenTimestamp"`
 	ConnTotalDuration time.Duration `json:"connTotalDuration"`
 }
@@ -148,7 +148,7 @@ type Counters struct {
 
 	// Bookkeeping.
 	isLoggedIn  bool
-	peerAddress swarm.Address
+	peerAddress flock.Address
 
 	// Counters.
 	lastSeenTimestamp    int64
@@ -238,14 +238,14 @@ func NewCollector(db *shed.DB) (*Collector, error) {
 }
 
 // Collector collects various metrics about
-// peers specified be the swarm.Address.
+// peers specified be the flock.Address.
 type Collector struct {
 	counters    sync.Map
 	persistence *shed.StructField
 }
 
 // Record records a set of metrics for peer specified by the given address.
-func (c *Collector) Record(addr swarm.Address, rop ...RecordOp) {
+func (c *Collector) Record(addr flock.Address, rop ...RecordOp) {
 	val, _ := c.counters.LoadOrStore(addr.ByteString(), &Counters{peerAddress: addr})
 	for _, op := range rop {
 		op(val.(*Counters))
@@ -260,7 +260,7 @@ func (c *Collector) Record(addr swarm.Address, rop ...RecordOp) {
 // be evaluated against the last seen time, which equals to the login time. If
 // the peer is logged out, then the session counters will reflect its last
 // session.
-func (c *Collector) Snapshot(t time.Time, addresses ...swarm.Address) map[string]*Snapshot {
+func (c *Collector) Snapshot(t time.Time, addresses ...flock.Address) map[string]*Snapshot {
 	snapshot := make(map[string]*Snapshot)
 
 	for _, addr := range addresses {
@@ -285,7 +285,7 @@ func (c *Collector) Snapshot(t time.Time, addresses ...swarm.Address) map[string
 
 // Inspect allows inspecting current snapshot for the given
 // peer address by executing the inspection function.
-func (c *Collector) Inspect(addr swarm.Address) *Snapshot {
+func (c *Collector) Inspect(addr flock.Address) *Snapshot {
 	snapshots := c.Snapshot(time.Now(), addr)
 	return snapshots[addr.ByteString()]
 }

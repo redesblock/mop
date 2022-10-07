@@ -4,17 +4,17 @@ import (
 	"context"
 	"sync"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var _ storage.Storer = (*MockStorer)(nil)
 
 type MockStorer struct {
-	store           map[string]swarm.Chunk
+	store           map[string]flock.Chunk
 	modePut         map[string]storage.ModePut
 	modeSet         map[string]storage.ModeSet
-	pinnedAddress   []swarm.Address // Stores the pinned address
+	pinnedAddress   []flock.Address // Stores the pinned address
 	pinnedCounter   []uint64        // and its respective counter. These are stored as slices to preserve the order.
 	subpull         []storage.Descriptor
 	partialInterval bool
@@ -35,7 +35,7 @@ func WithSubscribePullChunks(chs ...storage.Descriptor) Option {
 	})
 }
 
-func WithBaseAddress(a swarm.Address) Option {
+func WithBaseAddress(a flock.Address) Option {
 	return optionFunc(func(m *MockStorer) {
 		m.baseAddress = a.Bytes()
 	})
@@ -49,12 +49,12 @@ func WithPartialInterval(v bool) Option {
 
 func NewStorer(opts ...Option) *MockStorer {
 	s := &MockStorer{
-		store:    make(map[string]swarm.Chunk),
+		store:    make(map[string]flock.Chunk),
 		modePut:  make(map[string]storage.ModePut),
 		modeSet:  make(map[string]storage.ModeSet),
 		morePull: make(chan struct{}),
 		quit:     make(chan struct{}),
-		bins:     make([]uint64, swarm.MaxBins),
+		bins:     make([]uint64, flock.MaxBins),
 	}
 
 	for _, v := range opts {
@@ -64,7 +64,7 @@ func NewStorer(opts ...Option) *MockStorer {
 	return s
 }
 
-func (m *MockStorer) Get(_ context.Context, _ storage.ModeGet, addr swarm.Address) (ch swarm.Chunk, err error) {
+func (m *MockStorer) Get(_ context.Context, _ storage.ModeGet, addr flock.Address) (ch flock.Chunk, err error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -75,7 +75,7 @@ func (m *MockStorer) Get(_ context.Context, _ storage.ModeGet, addr swarm.Addres
 	return v, nil
 }
 
-func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...swarm.Chunk) (exist []bool, err error) {
+func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...flock.Chunk) (exist []bool, err error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -86,7 +86,7 @@ func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...swarm
 			return exist, err
 		}
 		if !exist[i] {
-			po := swarm.Proximity(ch.Address().Bytes(), m.baseAddress)
+			po := flock.Proximity(ch.Address().Bytes(), m.baseAddress)
 			m.bins[po]++
 		}
 		// this is needed since the chunk feeder shares memory across calls
@@ -95,9 +95,9 @@ func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...swarm
 		// and copies the data from the call into the in-memory store
 		b := make([]byte, len(ch.Data()))
 		copy(b, ch.Data())
-		addr := swarm.NewAddress(ch.Address().Bytes())
+		addr := flock.NewAddress(ch.Address().Bytes())
 		vouch := ch.Vouch()
-		m.store[ch.Address().String()] = swarm.NewChunk(addr, b).WithVouch(vouch)
+		m.store[ch.Address().String()] = flock.NewChunk(addr, b).WithVouch(vouch)
 		m.modePut[ch.Address().String()] = mode
 
 		// pin chunks if needed
@@ -122,26 +122,26 @@ func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...swarm
 	return exist, nil
 }
 
-func (m *MockStorer) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...swarm.Address) (ch []swarm.Chunk, err error) {
+func (m *MockStorer) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...flock.Address) (ch []flock.Chunk, err error) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (m *MockStorer) has(ctx context.Context, addr swarm.Address) (yes bool, err error) {
+func (m *MockStorer) has(ctx context.Context, addr flock.Address) (yes bool, err error) {
 	_, has := m.store[addr.String()]
 	return has, nil
 }
 
-func (m *MockStorer) Has(ctx context.Context, addr swarm.Address) (yes bool, err error) {
+func (m *MockStorer) Has(ctx context.Context, addr flock.Address) (yes bool, err error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.has(ctx, addr)
 }
 
-func (m *MockStorer) HasMulti(ctx context.Context, addrs ...swarm.Address) (yes []bool, err error) {
+func (m *MockStorer) HasMulti(ctx context.Context, addrs ...flock.Address) (yes []bool, err error) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (m *MockStorer) Set(ctx context.Context, mode storage.ModeSet, addrs ...swarm.Address) (err error) {
+func (m *MockStorer) Set(ctx context.Context, mode storage.ModeSet, addrs ...flock.Address) (err error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	for _, addr := range addrs {
@@ -178,7 +178,7 @@ func (m *MockStorer) Set(ctx context.Context, mode storage.ModeSet, addrs ...swa
 					m.pinnedCounter[i] = m.pinnedCounter[i] - 1
 					if m.pinnedCounter[i] == 0 {
 						copy(m.pinnedAddress[i:], m.pinnedAddress[i+1:])
-						m.pinnedAddress[len(m.pinnedAddress)-1] = swarm.NewAddress([]byte{0})
+						m.pinnedAddress[len(m.pinnedAddress)-1] = flock.NewAddress([]byte{0})
 						m.pinnedAddress = m.pinnedAddress[:len(m.pinnedAddress)-1]
 
 						copy(m.pinnedCounter[i:], m.pinnedCounter[i+1:])
@@ -194,7 +194,7 @@ func (m *MockStorer) Set(ctx context.Context, mode storage.ModeSet, addrs ...swa
 	}
 	return nil
 }
-func (m *MockStorer) GetModePut(addr swarm.Address) (mode storage.ModePut) {
+func (m *MockStorer) GetModePut(addr flock.Address) (mode storage.ModePut) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	if mode, ok := m.modePut[addr.String()]; ok {
@@ -203,7 +203,7 @@ func (m *MockStorer) GetModePut(addr swarm.Address) (mode storage.ModePut) {
 	return mode
 }
 
-func (m *MockStorer) GetModeSet(addr swarm.Address) (mode storage.ModeSet) {
+func (m *MockStorer) GetModeSet(addr flock.Address) (mode storage.ModeSet) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	if mode, ok := m.modeSet[addr.String()]; ok {
@@ -294,7 +294,7 @@ func (m *MockStorer) SubscribePullCalls() int {
 	return m.subPullCalls
 }
 
-func (m *MockStorer) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan swarm.Chunk, repeat, stop func()) {
+func (m *MockStorer) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan flock.Chunk, repeat, stop func()) {
 	panic("not implemented") // TODO: Implement
 }
 

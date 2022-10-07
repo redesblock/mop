@@ -12,9 +12,9 @@ import (
 	"github.com/redesblock/mop/core/file/joiner"
 	"github.com/redesblock/mop/core/file/pipeline/builder"
 	test "github.com/redesblock/mop/core/file/testing"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -64,8 +64,8 @@ func testSplitThenJoin(t *testing.T) {
 
 	// read from joiner
 	var resultData []byte
-	for i := 0; i < len(data); i += swarm.ChunkSize {
-		readData := make([]byte, swarm.ChunkSize)
+	for i := 0; i < len(data); i += flock.ChunkSize {
+		readData := make([]byte, flock.ChunkSize)
 		_, err := r.Read(readData)
 		if err != nil {
 			if err == io.EOF {

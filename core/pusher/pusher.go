@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/pushsync"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/tracing"
@@ -146,7 +146,7 @@ func (s *Service) chunksWorker(warmupTime time.Duration, tracer *tracing.Tracer)
 		ctx, logger := ctxLogger()
 		startTime := time.Now()
 		wg.Add(1)
-		go func(ctx context.Context, ch swarm.Chunk) {
+		go func(ctx context.Context, ch flock.Chunk) {
 			defer func() {
 				wg.Done()
 				<-s.sem
@@ -165,7 +165,7 @@ func (s *Service) chunksWorker(warmupTime time.Duration, tracer *tracing.Tracer)
 	wg.Wait()
 }
 
-func (s *Service) pushChunk(ctx context.Context, ch swarm.Chunk, logger *logrus.Entry) error {
+func (s *Service) pushChunk(ctx context.Context, ch flock.Chunk, logger *logrus.Entry) error {
 	defer s.inflight.delete(ch)
 	var wantSelf bool
 	// Later when we process receipt, get the receipt and process it
@@ -227,7 +227,7 @@ func (s *Service) checkReceipt(receipt *pushsync.Receipt) error {
 		return fmt.Errorf("pusher: receipt storer address: %w", err)
 	}
 
-	po := swarm.Proximity(addr.Bytes(), peer.Bytes())
+	po := flock.Proximity(addr.Bytes(), peer.Bytes())
 	d := s.depther.NeighborhoodDepth()
 	if po < d && s.attempts.try(addr) {
 		s.metrics.ShallowReceiptDepth.WithLabelValues(strconv.Itoa(int(po))).Inc()
@@ -240,7 +240,7 @@ func (s *Service) checkReceipt(receipt *pushsync.Receipt) error {
 
 // valid checks whether the vouch for a chunk is valid before sending
 // it out on the network.
-func (s *Service) valid(ch swarm.Chunk) error {
+func (s *Service) valid(ch flock.Chunk) error {
 	vouchBytes, err := ch.Vouch().MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("pusher: valid vouch marshal: %w", err)

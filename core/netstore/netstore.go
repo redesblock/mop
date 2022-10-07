@@ -1,5 +1,5 @@
 // Package netstore provides an abstraction layer over the
-// Swarm local storage layer that leverages connectivity
+// Flock local storage layer that leverages connectivity
 // with other peers in order to retrieve chunks from the network that cannot
 // be found locally.
 package netstore
@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/recovery"
 	"github.com/redesblock/mop/core/retrieval"
 	"github.com/redesblock/mop/core/sctx"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -52,7 +52,7 @@ func New(s storage.Storer, validVouch postage.ValidVouchFn, rcb recovery.Callbac
 // It will request a chunk from the network whenever it cannot be found locally.
 // If the network path is taken, the method also stores the found chunk into the
 // local-store.
-func (s *store) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address) (ch swarm.Chunk, err error) {
+func (s *store) Get(ctx context.Context, mode storage.ModeGet, addr flock.Address) (ch flock.Chunk, err error) {
 	ch, err = s.Storer.Get(ctx, mode, addr)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -76,7 +76,7 @@ func (s *store) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Addres
 }
 
 // put will store the chunk into storage asynchronously
-func (s *store) put(ch swarm.Chunk, mode storage.ModeGet) {
+func (s *store) put(ch flock.Chunk, mode storage.ModeGet) {
 	go func() {
 		defer s.wg.Done()
 

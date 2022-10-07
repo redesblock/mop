@@ -14,6 +14,7 @@ import (
 	accountingmock "github.com/redesblock/mop/core/accounting/mock"
 	"github.com/redesblock/mop/core/crypto"
 	cryptomock "github.com/redesblock/mop/core/crypto/mock"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
@@ -25,7 +26,6 @@ import (
 	"github.com/redesblock/mop/core/storage"
 	mocks "github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/topology/mock"
@@ -47,7 +47,7 @@ var (
 	defaultSigner = cryptomock.New(cryptomock.WithSignFunc(func([]byte) ([]byte, error) {
 		return nil, nil
 	}))
-	WithinDepthMock = mock.WithIsWithinFunc(func(addr swarm.Address) bool {
+	WithinDepthMock = mock.WithIsWithinFunc(func(addr flock.Address) bool {
 		return true
 	})
 )
@@ -59,8 +59,8 @@ func TestPushClosest(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
-	closestPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110 -> po 1
+	pivotNode := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
+	closestPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110 -> po 1
 
 	// peer is the node responding to the chunk receipt message
 	// mock should return ErrWantSelf since there's no one to forward to
@@ -117,10 +117,10 @@ func TestReplicateBeforeReceipt(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000") // base 0111
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
-	closestPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110
-	secondPeer := swarm.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000")  // binary 0100
-	emptyPeer := swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")   // binary 0101, this peer should not get the chunk
+	pivotNode := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
+	closestPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110
+	secondPeer := flock.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000")  // binary 0100
+	emptyPeer := flock.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")   // binary 0101, this peer should not get the chunk
 
 	// node that is connected to secondPeer
 	// it's address is closer to the chunk than secondPeer but it will not receive the chunk
@@ -214,8 +214,8 @@ func TestPushChunkToClosest(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
-	closestPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110 -> po 1
+	pivotNode := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")   // base is 0000
+	closestPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000") // binary 0110 -> po 1
 	callbackC := make(chan struct{}, 1)
 	// peer is the node responding to the chunk receipt message
 	// mock should return ErrWantSelf since there's no one to forward to
@@ -301,10 +301,10 @@ func TestPushChunkToNextClosest(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
+	pivotNode := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
 
-	peer1 := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	peer2 := swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
+	peer1 := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	peer2 := flock.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
 
 	// peer is the node responding to the chunk receipt message
 	// mock should return ErrWantSelf since there's no one to forward to
@@ -428,12 +428,12 @@ func TestPushChunkToClosestFailedAttemptRetry(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
+	pivotNode := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
 
-	peer1 := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
-	peer2 := swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
-	peer3 := swarm.MustParseHexAddress("9000000000000000000000000000000000000000000000000000000000000000")
-	peer4 := swarm.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000")
+	peer1 := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	peer2 := flock.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
+	peer3 := flock.MustParseHexAddress("9000000000000000000000000000000000000000000000000000000000000000")
+	peer4 := flock.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000")
 
 	// peer is the node responding to the chunk receipt message
 	// mock should return ErrWantSelf since there's no one to forward to
@@ -461,7 +461,7 @@ func TestPushChunkToClosestFailedAttemptRetry(t *testing.T) {
 
 	var pivotAccounting *accountingmock.Service
 	pivotAccounting = accountingmock.NewAccounting(
-		accountingmock.WithPrepareCreditFunc(func(peer swarm.Address, price uint64, originated bool) (accounting.Action, error) {
+		accountingmock.WithPrepareCreditFunc(func(peer flock.Address, price uint64, originated bool) (accounting.Action, error) {
 			if peer.String() == peer4.String() {
 				return pivotAccounting.MakeCreditAction(peer, price), nil
 			}
@@ -532,7 +532,7 @@ func TestPushChunkToClosestFailedAttemptRetry(t *testing.T) {
 	}
 
 	for _, p := range []struct {
-		addr swarm.Address
+		addr flock.Address
 		acct accounting.Interface
 	}{
 		{peer1, peerAccounting1},
@@ -560,9 +560,9 @@ func TestHandler(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	triggerPeer := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")
-	pivotPeer := swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	triggerPeer := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")
+	pivotPeer := flock.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
 
 	// Create the closest peer
 	psClosestPeer, closestStorerPeerDB, _, closestAccounting := createPushSyncNode(t, closestPeer, defaultPrices, nil, nil, defaultSigner, mock.WithClosestPeerErr(topology.ErrWantSelf), WithinDepthMock)
@@ -649,8 +649,8 @@ func TestSignsReceipt(t *testing.T) {
 	}))
 
 	// create a pivot node and a mocked closest node
-	pivotPeer := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")
-	closestPeer := swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
+	pivotPeer := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000")
+	closestPeer := flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000")
 
 	// Create the closest peer
 	psClosestPeer, closestStorerPeerDB, _, _ := createPushSyncNode(t, closestPeer, defaultPrices, nil, nil, signer, mock.WithClosestPeerErr(topology.ErrWantSelf), WithinDepthMock)
@@ -711,11 +711,11 @@ func TestPushChunkToClosestSkipFailed(t *testing.T) {
 	chunk := testingc.FixtureChunk("7000")
 
 	// create a pivot node and a mocked closest node
-	pivotNode := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
+	pivotNode := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
 
-	peer1 := swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
-	peer2 := swarm.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000")
-	peer3 := swarm.MustParseHexAddress("3000000000000000000000000000000000000000000000000000000000000000")
+	peer1 := flock.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000")
+	peer2 := flock.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000")
+	peer3 := flock.MustParseHexAddress("3000000000000000000000000000000000000000000000000000000000000000")
 
 	// peer is the node responding to the chunk receipt message
 	// mock should return ErrWantSelf since there's no one to forward to
@@ -794,14 +794,14 @@ func TestPushChunkToClosestSkipFailed(t *testing.T) {
 	}
 }
 
-func createPushSyncNode(t *testing.T, addr swarm.Address, prices pricerParameters, recorder *streamtest.Recorder, unwrap func(swarm.Chunk), signer crypto.Signer, mockOpts ...mock.Option) (*pushsync.PushSync, *mocks.MockStorer, *tags.Tags, accounting.Interface) {
+func createPushSyncNode(t *testing.T, addr flock.Address, prices pricerParameters, recorder *streamtest.Recorder, unwrap func(flock.Chunk), signer crypto.Signer, mockOpts ...mock.Option) (*pushsync.PushSync, *mocks.MockStorer, *tags.Tags, accounting.Interface) {
 	t.Helper()
 	mockAccounting := accountingmock.NewAccounting()
 	ps, mstorer, ts := createPushSyncNodeWithAccounting(t, addr, prices, recorder, unwrap, signer, mockAccounting, mockOpts...)
 	return ps, mstorer, ts, mockAccounting
 }
 
-func createPushSyncNodeWithAccounting(t *testing.T, addr swarm.Address, prices pricerParameters, recorder *streamtest.Recorder, unwrap func(swarm.Chunk), signer crypto.Signer, acct accounting.Interface, mockOpts ...mock.Option) (*pushsync.PushSync, *mocks.MockStorer, *tags.Tags) {
+func createPushSyncNodeWithAccounting(t *testing.T, addr flock.Address, prices pricerParameters, recorder *streamtest.Recorder, unwrap func(flock.Chunk), signer crypto.Signer, acct accounting.Interface, mockOpts ...mock.Option) (*pushsync.PushSync, *mocks.MockStorer, *tags.Tags) {
 	t.Helper()
 	logger := logging.New(io.Discard, 0)
 	storer := mocks.NewStorer()
@@ -814,17 +814,17 @@ func createPushSyncNodeWithAccounting(t *testing.T, addr swarm.Address, prices p
 
 	recorderDisconnecter := streamtest.NewRecorderDisconnecter(recorder)
 	if unwrap == nil {
-		unwrap = func(swarm.Chunk) {}
+		unwrap = func(flock.Chunk) {}
 	}
 
-	validVouch := func(ch swarm.Chunk, vouch []byte) (swarm.Chunk, error) {
+	validVouch := func(ch flock.Chunk, vouch []byte) (flock.Chunk, error) {
 		return ch, nil
 	}
 
 	return pushsync.New(97, addr, blockHash.Bytes(), recorderDisconnecter, storer, mockTopology, mtag, true, unwrap, validVouch, logger, acct, mockPricer, signer, nil, -1, ""), storer, mtag
 }
 
-func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.Recorder, add swarm.Address, data []byte) {
+func waitOnRecordAndTest(t *testing.T, peer flock.Address, recorder *streamtest.Recorder, add flock.Address, data []byte) {
 	t.Helper()
 	records := recorder.WaitRecords(t, peer, pushsync.ProtocolName, pushsync.ProtocolVersion, pushsync.StreamName, 1, 5)
 
@@ -866,7 +866,7 @@ func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.
 			t.Fatal("too many messages")
 		}
 		receipt := messages[0].(*pb.Receipt)
-		receiptAddress := swarm.NewAddress(receipt.Address)
+		receiptAddress := flock.NewAddress(receipt.Address)
 
 		if !receiptAddress.Equal(add) {
 			t.Fatalf("receipt address mismatch")
@@ -874,8 +874,8 @@ func waitOnRecordAndTest(t *testing.T, peer swarm.Address, recorder *streamtest.
 	}
 }
 
-func chanFunc(c chan<- struct{}) func(swarm.Chunk) {
-	return func(_ swarm.Chunk) {
+func chanFunc(c chan<- struct{}) func(flock.Chunk) {
+	return func(_ flock.Chunk) {
 		c <- struct{}{}
 	}
 }

@@ -18,14 +18,14 @@ import (
 	"github.com/redesblock/mop/core/addressbook"
 	mopCrypto "github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/discovery/mock"
+	"github.com/redesblock/mop/core/flock"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
 	p2pmock "github.com/redesblock/mop/core/p2p/mock"
 	pingpongmock "github.com/redesblock/mop/core/pingpong/mock"
 	mockstate "github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
-	"github.com/redesblock/mop/core/swarm/test"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/topology/kademlia"
 	"github.com/redesblock/mop/core/topology/pslice"
@@ -52,11 +52,11 @@ func TestNeighborhoodDepth(t *testing.T) {
 	var (
 		conns                    int32 // how many connect calls were made to the p2p mock
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
 
-	kad.SetRadius(swarm.MaxPO) // initial tests do not check for radius
+	kad.SetRadius(flock.MaxPO) // initial tests do not check for radius
 
 	if err := kad.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestNeighborhoodDepth(t *testing.T) {
 	// depth is 0
 	kDepth(t, kad, 0)
 
-	var shallowPeers []swarm.Address
+	var shallowPeers []flock.Address
 	// add two first peers (po0,po1)
 	for i := 0; i < 2; i++ {
 		addr := test.RandomAddressAt(base, i)
@@ -124,7 +124,7 @@ func TestNeighborhoodDepth(t *testing.T) {
 	kDepth(t, kad, 6)
 
 	// set the radius to MaxPO again so that intermediate checks can run
-	kad.SetRadius(swarm.MaxPO)
+	kad.SetRadius(flock.MaxPO)
 
 	// expect shallow peers not in depth
 	for _, a := range shallowPeers {
@@ -160,11 +160,11 @@ func TestNeighborhoodDepth(t *testing.T) {
 	kDepth(t, kad, 5)
 
 	// reset radius to MaxPO for the rest of the checks
-	kad.SetRadius(swarm.MaxPO)
+	kad.SetRadius(flock.MaxPO)
 
-	var addrs []swarm.Address
+	var addrs []flock.Address
 	// fill the rest up to the bin before last and check that everything works at the edges
-	for i := 9; i < int(swarm.MaxBins); i++ {
+	for i := 9; i < int(flock.MaxBins); i++ {
 		for j := 0; j < 4; j++ {
 			addr := test.RandomAddressAt(base, i)
 			addOne(t, signer, kad, ab, addr)
@@ -176,7 +176,7 @@ func TestNeighborhoodDepth(t *testing.T) {
 
 	// add a whole bunch of peers in the last bin, expect depth to stay at 31
 	for i := 0; i < 15; i++ {
-		addr = test.RandomAddressAt(base, int(swarm.MaxPO))
+		addr = test.RandomAddressAt(base, int(flock.MaxPO))
 		addOne(t, signer, kad, ab, addr)
 	}
 
@@ -211,7 +211,7 @@ func TestNeighborhoodDepthWithReachability(t *testing.T) {
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{})
 	)
 
-	kad.SetRadius(swarm.MaxPO) // initial tests do not check for radius
+	kad.SetRadius(flock.MaxPO) // initial tests do not check for radius
 
 	if err := kad.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -230,7 +230,7 @@ func TestNeighborhoodDepthWithReachability(t *testing.T) {
 	// depth is 0
 	kDepth(t, kad, 0)
 
-	var shallowPeers []swarm.Address
+	var shallowPeers []flock.Address
 	// add two first peers (po0,po1)
 	for i := 0; i < 2; i++ {
 		addr := test.RandomAddressAt(base, i)
@@ -283,7 +283,7 @@ func TestNeighborhoodDepthWithReachability(t *testing.T) {
 	kDepth(t, kad, 6)
 
 	// set the radius to MaxPO again so that intermediate checks can run
-	kad.SetRadius(swarm.MaxPO)
+	kad.SetRadius(flock.MaxPO)
 
 	// expect shallow peers not in depth
 	for _, a := range shallowPeers {
@@ -322,11 +322,11 @@ func TestNeighborhoodDepthWithReachability(t *testing.T) {
 	kDepth(t, kad, 5)
 
 	// reset radius to MaxPO for the rest of the checks
-	kad.SetRadius(swarm.MaxPO)
+	kad.SetRadius(flock.MaxPO)
 
-	var addrs []swarm.Address
+	var addrs []flock.Address
 	// fill the rest up to the bin before last and check that everything works at the edges
-	for i := 9; i < int(swarm.MaxBins); i++ {
+	for i := 9; i < int(flock.MaxBins); i++ {
 		for j := 0; j < 4; j++ {
 			addr := test.RandomAddressAt(base, i)
 			addOne(t, signer, kad, ab, addr)
@@ -339,7 +339,7 @@ func TestNeighborhoodDepthWithReachability(t *testing.T) {
 
 	// add a whole bunch of peers in the last bin, expect depth to stay at 31
 	for i := 0; i < 15; i++ {
-		addr = test.RandomAddressAt(base, int(swarm.MaxPO))
+		addr = test.RandomAddressAt(base, int(flock.MaxPO))
 		addOne(t, signer, kad, ab, addr)
 		kad.Reachable(addr, p2p.ReachabilityStatusPublic)
 	}
@@ -367,9 +367,9 @@ func TestEachNeighbor(t *testing.T) {
 	var (
 		conns                    int32 // how many connect calls were made to the p2p mock
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
-		peers []swarm.Address
+		peers []flock.Address
 	)
 
 	if err := kad.Start(context.Background()); err != nil {
@@ -387,7 +387,7 @@ func TestEachNeighbor(t *testing.T) {
 
 	var depth uint8 = 15
 
-	err := kad.EachNeighbor(func(adr swarm.Address, po uint8) (stop, jumpToNext bool, err error) {
+	err := kad.EachNeighbor(func(adr flock.Address, po uint8) (stop, jumpToNext bool, err error) {
 
 		if po < depth {
 			depth = po
@@ -403,7 +403,7 @@ func TestEachNeighbor(t *testing.T) {
 	}
 
 	depth = 15
-	err = kad.EachNeighborRev(func(adr swarm.Address, po uint8) (stop, jumpToNext bool, err error) {
+	err = kad.EachNeighborRev(func(adr flock.Address, po uint8) (stop, jumpToNext bool, err error) {
 
 		if po < depth {
 			depth = po
@@ -437,7 +437,7 @@ func TestManage(t *testing.T) {
 		saturation               = *kademlia.QuickSaturationPeers
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
 			BitSuffixLength:  -1,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
 
@@ -491,11 +491,11 @@ func TestManageWithBalancing(t *testing.T) {
 		}
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
 			SaturationFunc: saturationFunc, BitSuffixLength: 2,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
 
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 
 	// implement saturation function (while having access to Kademlia instance)
 	sfImpl := func(bin uint8, peers, connected *pslice.PSlice, _ kademlia.PeerFilterFunc) (bool, bool) {
@@ -517,7 +517,7 @@ func TestManageWithBalancing(t *testing.T) {
 	waitBalanced(t, kad, 0)
 
 	// add peers for other bins, enough to have balanced connections
-	for i := 1; i <= int(swarm.MaxPO); i++ {
+	for i := 1; i <= int(flock.MaxPO); i++ {
 		for j := 0; j < 20; j++ {
 			addr := test.RandomAddressAt(base, i)
 			addOne(t, signer, kad, ab, addr)
@@ -535,7 +535,7 @@ func TestManageWithBalancing(t *testing.T) {
 	// so we could only have balanced connections for up until bin 12, but not bin 13,
 	// as we would be expecting proximity of pseudoaddress-balancedConnection as 16 and get 15 only
 
-	for i := 1; i <= int(swarm.MaxPO); i++ {
+	for i := 1; i <= int(flock.MaxPO); i++ {
 		waitBalanced(t, kad, uint8(i))
 	}
 }
@@ -556,7 +556,7 @@ func TestBinSaturation(t *testing.T) {
 		conns                    int32 // how many connect calls were made to the p2p mock
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
 			BitSuffixLength:  -1,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
 
@@ -610,10 +610,10 @@ func TestOversaturation(t *testing.T) {
 	var (
 		conns                    int32 // how many connect calls were made to the p2p mock
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 
 	if err := kad.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -674,10 +674,10 @@ func TestOversaturationBootnode(t *testing.T) {
 		conns                    int32 // how many connect calls were made to the p2p mock
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
 			BootnodeMode:     true,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 
 	if err := kad.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -738,10 +738,10 @@ func TestBootnodeMaxConnections(t *testing.T) {
 		conns                    int32 // how many connect calls were made to the p2p mock
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
 			BootnodeMode:     true,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 
 	if err := kad.Start(context.Background()); err != nil {
 		t.Fatal(err)
@@ -826,7 +826,7 @@ func TestDiscoveryHooks(t *testing.T) {
 	var (
 		conns                    int32
 		_, kad, ab, disc, signer = newTestKademlia(t, &conns, nil, kademlia.Options{
-			ReachabilityFunc: func(peer swarm.Address) bool { return false },
+			ReachabilityFunc: func(peer flock.Address) bool { return false },
 		})
 		p1, p2, p3 = test.RandomAddress(), test.RandomAddress(), test.RandomAddress()
 	)
@@ -1060,22 +1060,22 @@ func TestClosestPeer(t *testing.T) {
 	t.Skip("disabled due to kademlia inconsistencies hotfix")
 
 	logger := logging.New(io.Discard, 0)
-	base := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
+	base := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
 	connectedPeers := []p2p.Peer{
 		{
-			Address: swarm.MustParseHexAddress("8000000000000000000000000000000000000000000000000000000000000000"), // binary 1000 -> po 0 to base
+			Address: flock.MustParseHexAddress("8000000000000000000000000000000000000000000000000000000000000000"), // binary 1000 -> po 0 to base
 		},
 		{
-			Address: swarm.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000"), // binary 0100 -> po 1 to base
+			Address: flock.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000"), // binary 0100 -> po 1 to base
 		},
 		{
-			Address: swarm.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000"), // binary 0110 -> po 1 to base
+			Address: flock.MustParseHexAddress("6000000000000000000000000000000000000000000000000000000000000000"), // binary 0110 -> po 1 to base
 		},
 	}
 
 	disc := mock.NewDiscovery()
 	ab := addressbook.New(mockstate.NewStateStore())
-	ppm := pingpongmock.New(func(_ context.Context, _ swarm.Address, _ ...string) (time.Duration, error) {
+	ppm := pingpongmock.New(func(_ context.Context, _ flock.Address, _ ...string) (time.Duration, error) {
 		return 0, nil
 	})
 
@@ -1096,47 +1096,47 @@ func TestClosestPeer(t *testing.T) {
 	waitPeers(t, kad, 3)
 
 	for _, tc := range []struct {
-		chunkAddress swarm.Address // chunk address to test
+		chunkAddress flock.Address // chunk address to test
 		expectedPeer int           // points to the index of the connectedPeers slice. -1 means self (baseOverlay)
 		includeSelf  bool
 	}{
 		{
-			chunkAddress: swarm.MustParseHexAddress("7000000000000000000000000000000000000000000000000000000000000000"), // 0111, wants peer 2
+			chunkAddress: flock.MustParseHexAddress("7000000000000000000000000000000000000000000000000000000000000000"), // 0111, wants peer 2
 			expectedPeer: 2,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("c000000000000000000000000000000000000000000000000000000000000000"), // 1100, want peer 0
+			chunkAddress: flock.MustParseHexAddress("c000000000000000000000000000000000000000000000000000000000000000"), // 1100, want peer 0
 			expectedPeer: 0,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("e000000000000000000000000000000000000000000000000000000000000000"), // 1110, want peer 0
+			chunkAddress: flock.MustParseHexAddress("e000000000000000000000000000000000000000000000000000000000000000"), // 1110, want peer 0
 			expectedPeer: 0,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("a000000000000000000000000000000000000000000000000000000000000000"), // 1010, want peer 0
+			chunkAddress: flock.MustParseHexAddress("a000000000000000000000000000000000000000000000000000000000000000"), // 1010, want peer 0
 			expectedPeer: 0,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000"), // 0100, want peer 1
+			chunkAddress: flock.MustParseHexAddress("4000000000000000000000000000000000000000000000000000000000000000"), // 0100, want peer 1
 			expectedPeer: 1,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000"), // 0101, want peer 1
+			chunkAddress: flock.MustParseHexAddress("5000000000000000000000000000000000000000000000000000000000000000"), // 0101, want peer 1
 			expectedPeer: 1,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("0000001000000000000000000000000000000000000000000000000000000000"), // 1000 want self
+			chunkAddress: flock.MustParseHexAddress("0000001000000000000000000000000000000000000000000000000000000000"), // 1000 want self
 			expectedPeer: -1,
 			includeSelf:  true,
 		},
 		{
-			chunkAddress: swarm.MustParseHexAddress("0000001000000000000000000000000000000000000000000000000000000000"), // 1000 want peer 1
+			chunkAddress: flock.MustParseHexAddress("0000001000000000000000000000000000000000000000000000000000000000"), // 1000 want peer 1
 			expectedPeer: 1,                                                                                             // smallest distance: 2894...
 			includeSelf:  false,
 		},
@@ -1296,7 +1296,7 @@ func TestSnapshot(t *testing.T) {
 		t.Errorf("expected population %d but got %d", 1, snap.Population)
 	}
 
-	po := swarm.Proximity(sa.Bytes(), a.Bytes())
+	po := flock.Proximity(sa.Bytes(), a.Bytes())
 
 	if binP := getBinPopulation(&snap.Bins, po); binP != 1 {
 		t.Errorf("expected bin(%d) to have population %d but got %d", po, 1, snap.Population)
@@ -1391,11 +1391,11 @@ func TestOutofDepthPrune(t *testing.T) {
 
 		base, kad, ab, _, signer = newTestKademlia(t, &conns, &failedConns, kademlia.Options{
 			PruneFunc:        pruneFunc,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
 
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 
 	// implement empty prune func
 	pruneMux.Lock()
@@ -1410,7 +1410,7 @@ func TestOutofDepthPrune(t *testing.T) {
 
 	// bin 0,1 balanced, rest not
 	for i := 0; i < 6; i++ {
-		var peers []swarm.Address
+		var peers []flock.Address
 		if i < 2 {
 			peers = mineBin(t, base, i, 20, true)
 		} else {
@@ -1478,14 +1478,14 @@ func TestLatency(t *testing.T) {
 	*kademlia.PeerPingPollTime = 1 * time.Second
 	var (
 		logger = logging.New(io.Discard, 0)
-		base   = swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
+		base   = flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000000") // base is 0000
 		p1     = test.RandomAddress()
 
 		disc  = mock.NewDiscovery()
 		ab    = addressbook.New(mockstate.NewStateStore())
 		doneC = make(chan struct{})
 		once  sync.Once
-		ppm   = pingpongmock.New(func(_ context.Context, _ swarm.Address, _ ...string) (time.Duration, error) {
+		ppm   = pingpongmock.New(func(_ context.Context, _ flock.Address, _ ...string) (time.Duration, error) {
 			once.Do(func() { close(doneC) })
 			return 0, nil
 		})
@@ -1535,7 +1535,7 @@ func TestBootnodeProtectedNodes(t *testing.T) {
 
 	// create base and protected nodes addresses
 	base := test.RandomAddress()
-	protected := make([]swarm.Address, 6)
+	protected := make([]flock.Address, 6)
 	for i := 0; i < 6; i++ {
 		addr := test.RandomAddressAt(base, i)
 		protected[i] = addr
@@ -1546,11 +1546,11 @@ func TestBootnodeProtectedNodes(t *testing.T) {
 		_, kad, ab, _, signer = newTestKademliaWithAddr(t, base, &conns, nil, kademlia.Options{
 			BootnodeMode:     true,
 			StaticNodes:      protected,
-			ReachabilityFunc: func(_ swarm.Address) bool { return false },
+			ReachabilityFunc: func(_ flock.Address) bool { return false },
 		})
 	)
 
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 	// Add maximum accepted number of peers up until bin 5 without problems
 	for i := 0; i < 6; i++ {
 		for j := 0; j < *kademlia.OverSaturationPeers; j++ {
@@ -1600,7 +1600,7 @@ func TestBootnodeProtectedNodes(t *testing.T) {
 	}
 	for _, pn := range protected {
 		found := false
-		_ = kad.EachPeer(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+		_ = kad.EachPeer(func(addr flock.Address, _ uint8) (bool, bool, error) {
 			if addr.Equal(pn) {
 				found = true
 				return true, false, nil
@@ -1619,7 +1619,7 @@ func TestAnnounceBgBroadcast(t *testing.T) {
 		bgDone = make(chan struct{})
 		p1, p2 = test.RandomAddress(), test.RandomAddress()
 		disc   = mock.NewDiscovery(
-			mock.WithBroadcastPeers(func(ctx context.Context, p swarm.Address, _ ...swarm.Address) error {
+			mock.WithBroadcastPeers(func(ctx context.Context, p flock.Address, _ ...flock.Address) error {
 				// For the broadcast back to connected peer return early
 				if p.Equal(p2) {
 					return nil
@@ -1630,7 +1630,7 @@ func TestAnnounceBgBroadcast(t *testing.T) {
 			}),
 		)
 		_, kad, ab, _, signer = newTestKademliaWithDiscovery(t, disc, &conns, nil, kademlia.Options{
-			ReachabilityFunc: func(swarm.Address) bool { return false },
+			ReachabilityFunc: func(flock.Address) bool { return false },
 		})
 	)
 
@@ -1679,7 +1679,7 @@ func TestIteratorOpts(t *testing.T) {
 		randBool                 = &boolgen{src: rand.NewSource(time.Now().UnixNano())}
 	)
 
-	kad.SetRadius(swarm.MaxPO) // don't use radius for checks
+	kad.SetRadius(flock.MaxPO) // don't use radius for checks
 	for i := 0; i < 6; i++ {
 		for j := 0; j < 4; j++ {
 			addr := test.RandomAddressAt(base, i)
@@ -1691,7 +1691,7 @@ func TestIteratorOpts(t *testing.T) {
 	// randomly mark some nodes as reachable
 	totalReachable := 0
 	reachable := make(map[string]struct{})
-	_ = kad.EachPeer(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+	_ = kad.EachPeer(func(addr flock.Address, _ uint8) (bool, bool, error) {
 		if randBool.Bool() {
 			kad.Reachable(addr, p2p.ReachabilityStatusPublic)
 			reachable[addr.ByteString()] = struct{}{}
@@ -1702,7 +1702,7 @@ func TestIteratorOpts(t *testing.T) {
 
 	t.Run("EachPeer reachable", func(t *testing.T) {
 		count := 0
-		err := kad.EachPeer(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+		err := kad.EachPeer(func(addr flock.Address, _ uint8) (bool, bool, error) {
 			if _, exists := reachable[addr.ByteString()]; !exists {
 				t.Fatal("iterator returned incorrect peer")
 			}
@@ -1719,7 +1719,7 @@ func TestIteratorOpts(t *testing.T) {
 
 	t.Run("EachPeerRev reachable", func(t *testing.T) {
 		count := 0
-		err := kad.EachPeerRev(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+		err := kad.EachPeerRev(func(addr flock.Address, _ uint8) (bool, bool, error) {
 			if _, exists := reachable[addr.ByteString()]; !exists {
 				t.Fatal("iterator returned incorrect peer")
 			}
@@ -1753,9 +1753,9 @@ func (b *boolgen) Bool() bool {
 	return result
 }
 
-func mineBin(t *testing.T, base swarm.Address, bin, count int, isBalanced bool) []swarm.Address {
+func mineBin(t *testing.T, base flock.Address, bin, count int, isBalanced bool) []flock.Address {
 
-	var rndAddrs = make([]swarm.Address, count)
+	var rndAddrs = make([]flock.Address, count)
 
 	if count < 8 && isBalanced {
 		t.Fatal("peersCount must be greater than 8 for balanced bins")
@@ -1774,7 +1774,7 @@ func mineBin(t *testing.T, base swarm.Address, bin, count int, isBalanced bool) 
 		for i := range rndAddrs {
 			bytes := rndAddrs[i].Bytes()
 			setBits(bytes, bin+1, 3, 0) // set 3 bits to '000' to mess with balance
-			rndAddrs[i] = swarm.NewAddress(bytes)
+			rndAddrs[i] = flock.NewAddress(bytes)
 		}
 	}
 
@@ -1807,9 +1807,9 @@ func setBits(data []byte, startBit, bitCount int, b int) {
 }
 
 func binSizes(kad *kademlia.Kad) []int {
-	bins := make([]int, swarm.MaxBins)
+	bins := make([]int, flock.MaxBins)
 
-	_ = kad.EachPeer(func(a swarm.Address, u uint8) (stop bool, jumpToNext bool, err error) {
+	_ = kad.EachPeer(func(a flock.Address, u uint8) (stop bool, jumpToNext bool, err error) {
 		bins[u]++
 		return false, false, nil
 	}, topology.Filter{})
@@ -1819,11 +1819,11 @@ func binSizes(kad *kademlia.Kad) []int {
 
 func newTestKademliaWithAddrDiscovery(
 	t *testing.T,
-	base swarm.Address,
+	base flock.Address,
 	disc *mock.Discovery,
 	connCounter, failedConnCounter *int32,
 	kadOpts kademlia.Options,
-) (swarm.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
+) (flock.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
 	t.Helper()
 
 	metricsDB, err := shed.NewDB("", nil)
@@ -1841,7 +1841,7 @@ func newTestKademliaWithAddrDiscovery(
 		ab     = addressbook.New(mockstate.NewStateStore())          // address book
 		p2p    = p2pMock(ab, signer, connCounter, failedConnCounter) // p2p mock
 		logger = logging.New(io.Discard, 0)                          // logger
-		ppm    = pingpongmock.New(func(_ context.Context, _ swarm.Address, _ ...string) (time.Duration, error) {
+		ppm    = pingpongmock.New(func(_ context.Context, _ flock.Address, _ ...string) (time.Duration, error) {
 			return 0, nil
 		})
 	)
@@ -1855,7 +1855,7 @@ func newTestKademliaWithAddrDiscovery(
 	return base, kad, ab, disc, signer
 }
 
-func newTestKademlia(t *testing.T, connCounter, failedConnCounter *int32, kadOpts kademlia.Options) (swarm.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
+func newTestKademlia(t *testing.T, connCounter, failedConnCounter *int32, kadOpts kademlia.Options) (flock.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
 	t.Helper()
 
 	base := test.RandomAddress()
@@ -1863,7 +1863,7 @@ func newTestKademlia(t *testing.T, connCounter, failedConnCounter *int32, kadOpt
 	return newTestKademliaWithAddrDiscovery(t, base, disc, connCounter, failedConnCounter, kadOpts)
 }
 
-func newTestKademliaWithAddr(t *testing.T, base swarm.Address, connCounter, failedConnCounter *int32, kadOpts kademlia.Options) (swarm.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
+func newTestKademliaWithAddr(t *testing.T, base flock.Address, connCounter, failedConnCounter *int32, kadOpts kademlia.Options) (flock.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
 	t.Helper()
 
 	disc := mock.NewDiscovery() // mock discovery protocol
@@ -1875,7 +1875,7 @@ func newTestKademliaWithDiscovery(
 	disc *mock.Discovery,
 	connCounter, failedConnCounter *int32,
 	kadOpts kademlia.Options,
-) (swarm.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
+) (flock.Address, *kademlia.Kad, addressbook.Interface, *mock.Discovery, mopCrypto.Signer) {
 	t.Helper()
 
 	base := test.RandomAddress()
@@ -1916,7 +1916,7 @@ func p2pMock(ab addressbook.Interface, signer mopCrypto.Signer, counter, failedC
 
 			return mopAddr, nil
 		}),
-		p2pmock.WithDisconnectFunc(func(swarm.Address, string) error {
+		p2pmock.WithDisconnectFunc(func(flock.Address, string) error {
 			if counter != nil {
 				_ = atomic.AddInt32(counter, -1)
 			}
@@ -1927,13 +1927,13 @@ func p2pMock(ab addressbook.Interface, signer mopCrypto.Signer, counter, failedC
 	return p2ps
 }
 
-func removeOne(k *kademlia.Kad, peer swarm.Address) {
+func removeOne(k *kademlia.Kad, peer flock.Address) {
 	k.Disconnected(p2p.Peer{Address: peer})
 }
 
 const underlayBase = "/ip4/127.0.0.1/tcp/1634/dns/"
 
-func connectOne(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer swarm.Address, expErr error) {
+func connectOne(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer flock.Address, expErr error) {
 	t.Helper()
 	multiaddr, err := ma.NewMultiaddr(underlayBase + peer.String())
 	if err != nil {
@@ -1954,7 +1954,7 @@ func connectOne(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addre
 	}
 }
 
-func addOne(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer swarm.Address) {
+func addOne(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peer flock.Address) {
 	t.Helper()
 	multiaddr, err := ma.NewMultiaddr(underlayBase + peer.String())
 	if err != nil {
@@ -1970,7 +1970,7 @@ func addOne(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbo
 	k.AddPeers(peer)
 }
 
-func add(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peers []swarm.Address, offset, number int) {
+func add(t *testing.T, signer mopCrypto.Signer, k *kademlia.Kad, ab addressbook.Putter, peers []flock.Address, offset, number int) {
 	t.Helper()
 	for i := offset; i < offset+number; i++ {
 		addOne(t, signer, k, ab, peers[i])
@@ -2025,7 +2025,7 @@ func waitPeers(t *testing.T, k *kademlia.Kad, peers int) {
 		default:
 		}
 		i := 0
-		_ = k.EachPeer(func(_ swarm.Address, _ uint8) (bool, bool, error) {
+		_ = k.EachPeer(func(_ flock.Address, _ uint8) (bool, bool, error) {
 			i++
 			return false, false, nil
 		}, topology.Filter{})
@@ -2037,7 +2037,7 @@ func waitPeers(t *testing.T, k *kademlia.Kad, peers int) {
 }
 
 // wait for discovery BroadcastPeers to happen
-func waitBcast(t *testing.T, d *mock.Discovery, pivot swarm.Address, addrs ...swarm.Address) {
+func waitBcast(t *testing.T, d *mock.Discovery, pivot flock.Address, addrs ...flock.Address) {
 	t.Helper()
 	time.Sleep(50 * time.Millisecond)
 	for i := 0; i < 50; i++ {
@@ -2063,7 +2063,7 @@ func waitBcast(t *testing.T, d *mock.Discovery, pivot swarm.Address, addrs ...sw
 	t.Fatalf("timed out waiting for broadcast to happen")
 }
 
-func isIn(addr swarm.Address, addrs []swarm.Address) bool {
+func isIn(addr flock.Address, addrs []flock.Address) bool {
 	for _, v := range addrs {
 		if v.Equal(addr) {
 			return true

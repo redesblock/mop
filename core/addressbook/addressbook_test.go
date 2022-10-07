@@ -6,9 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redesblock/mop/core/addressbook"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -25,8 +25,8 @@ func TestInMem(t *testing.T) {
 
 func run(t *testing.T, f bookFunc) {
 	store := f(t)
-	addr1 := swarm.NewAddress([]byte{0, 1, 2, 3})
-	addr2 := swarm.NewAddress([]byte{0, 1, 2, 4})
+	addr1 := flock.NewAddress([]byte{0, 1, 2, 3})
+	addr2 := flock.NewAddress([]byte{0, 1, 2, 4})
 	trxHash := common.HexToHash("0x1").Bytes()
 	multiaddr, err := ma.NewMultiaddr("/ip4/1.1.1.1")
 	if err != nil {

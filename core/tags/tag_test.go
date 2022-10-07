@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -207,7 +207,7 @@ func TestMarshallingWithAddr(t *testing.T) {
 	mockStatestore := statestore.NewStateStore()
 	logger := logging.New(io.Discard, 0)
 	tg := NewTag(context.Background(), 111, 10, nil, mockStatestore, logger)
-	tg.Address = swarm.NewAddress([]byte{0, 1, 2, 3, 4, 5, 6})
+	tg.Address = flock.NewAddress([]byte{0, 1, 2, 3, 4, 5, 6})
 
 	for _, f := range allStates {
 		err := tg.Inc(f)

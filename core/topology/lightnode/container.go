@@ -6,21 +6,21 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/topology/pslice"
 )
 
 type Container struct {
-	base              swarm.Address
+	base              flock.Address
 	peerMu            sync.Mutex // peerMu guards connectedPeers and disconnectedPeers.
 	connectedPeers    *pslice.PSlice
 	disconnectedPeers *pslice.PSlice
 	metrics           metrics
 }
 
-func NewContainer(base swarm.Address) *Container {
+func NewContainer(base flock.Address) *Container {
 	return &Container{
 		base:              base,
 		connectedPeers:    pslice.New(1, base),
@@ -59,24 +59,24 @@ func (c *Container) Count() int {
 	return c.connectedPeers.Length()
 }
 
-func (c *Container) RandomPeer(not swarm.Address) (swarm.Address, error) {
+func (c *Container) RandomPeer(not flock.Address) (flock.Address, error) {
 	c.peerMu.Lock()
 	defer c.peerMu.Unlock()
 	var (
 		cnt   = big.NewInt(int64(c.Count()))
-		addr  = swarm.ZeroAddress
+		addr  = flock.ZeroAddress
 		count = int64(0)
 	)
 
 PICKPEER:
 	i, e := rand.Int(rand.Reader, cnt)
 	if e != nil {
-		return swarm.ZeroAddress, e
+		return flock.ZeroAddress, e
 	}
 	i64 := i.Int64()
 
 	count = 0
-	_ = c.connectedPeers.EachBinRev(func(peer swarm.Address, _ uint8) (bool, bool, error) {
+	_ = c.connectedPeers.EachBinRev(func(peer flock.Address, _ uint8) (bool, bool, error) {
 		if count == i64 {
 			addr = peer
 			return true, false, nil
@@ -110,7 +110,7 @@ func peersInfo(s *pslice.PSlice) []*topology.PeerInfo {
 		return nil
 	}
 	peers := make([]*topology.PeerInfo, 0, s.Length())
-	_ = s.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	_ = s.EachBin(func(addr flock.Address, po uint8) (bool, bool, error) {
 		peers = append(peers, &topology.PeerInfo{Address: addr})
 		return false, false, nil
 	})

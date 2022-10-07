@@ -3,11 +3,11 @@ package resolver
 import (
 	"io"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
-// Address is the swarm mop address.
-type Address = swarm.Address
+// Address is the flock mop address.
+type Address = flock.Address
 
 // Interface can resolve an URL into an associated Ethereum address.
 type Interface interface {

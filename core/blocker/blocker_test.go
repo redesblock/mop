@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/logging"
-	"github.com/redesblock/mop/core/swarm"
-	"github.com/redesblock/mop/core/swarm/test"
 
 	"github.com/redesblock/mop/core/blocker"
 )
@@ -18,7 +18,7 @@ func TestBlocksAfterFlagTimeout(t *testing.T) {
 	mu := sync.Mutex{}
 	blocked := make(map[string]time.Duration)
 
-	mock := mockBlockLister(func(a swarm.Address, d time.Duration, r string) error {
+	mock := mockBlockLister(func(a flock.Address, d time.Duration, r string) error {
 		mu.Lock()
 		blocked[a.ByteString()] = d
 		mu.Unlock()
@@ -70,7 +70,7 @@ func TestUnflagBeforeBlock(t *testing.T) {
 	mu := sync.Mutex{}
 	blocked := make(map[string]time.Duration)
 
-	mock := mockBlockLister(func(a swarm.Address, d time.Duration, r string) error {
+	mock := mockBlockLister(func(a flock.Address, d time.Duration, r string) error {
 		mu.Lock()
 		blocked[a.ByteString()] = d
 		mu.Unlock()
@@ -111,15 +111,15 @@ func TestUnflagBeforeBlock(t *testing.T) {
 }
 
 type blocklister struct {
-	blocklistFunc func(swarm.Address, time.Duration, string) error
+	blocklistFunc func(flock.Address, time.Duration, string) error
 }
 
-func mockBlockLister(f func(swarm.Address, time.Duration, string) error) *blocklister {
+func mockBlockLister(f func(flock.Address, time.Duration, string) error) *blocklister {
 	return &blocklister{
 		blocklistFunc: f,
 	}
 }
 
-func (b *blocklister) Blocklist(addr swarm.Address, t time.Duration, r string) error {
+func (b *blocklister) Blocklist(addr flock.Address, t time.Duration, r string) error {
 	return b.blocklistFunc(addr, t, r)
 }

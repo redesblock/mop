@@ -13,23 +13,23 @@ import (
 	"github.com/redesblock/mop/core/netstore"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/sctx"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
 type chunkAddressResponse struct {
-	Reference swarm.Address `json:"reference"`
+	Reference flock.Address `json:"reference"`
 }
 
 func (s *server) processUploadRequest(
 	r *http.Request,
 ) (ctx context.Context, tag *tags.Tag, putter storage.Putter, err error) {
 
-	if h := r.Header.Get(SwarmTagHeader); h != "" {
+	if h := r.Header.Get(FlockTagHeader); h != "" {
 		tag, err = s.getTag(h)
 		if err != nil {
 			s.logger.Debugf("chunk upload: get tag: %v", err)
@@ -94,7 +94,7 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(data) < swarm.SpanSize {
+	if len(data) < flock.SpanSize {
 		s.logger.Debug("chunk upload: not enough data")
 		s.logger.Error("chunk upload: data length")
 		jsonhttp.BadRequest(w, "data length")
@@ -139,10 +139,10 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 			jsonhttp.InternalServerError(w, "increment tag")
 			return
 		}
-		w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
+		w.Header().Set(FlockTagHeader, fmt.Sprint(tag.Uid))
 	}
 
-	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+	if strings.ToLower(r.Header.Get(FlockPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(ctx, chunk.Address(), false); err != nil {
 			s.logger.Debugf("chunk upload: creation of pin for %q failed: %v", chunk.Address(), err)
 			s.logger.Error("chunk upload: creation of pin failed")
@@ -156,7 +156,7 @@ func (s *server) chunkUploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
+	w.Header().Set("Access-Control-Expose-Headers", FlockTagHeader)
 	jsonhttp.Created(w, chunkAddressResponse{Reference: chunk.Address()})
 }
 

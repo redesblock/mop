@@ -7,16 +7,16 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/sctx"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/tracing"
 )
 
 type bytesPostResponse struct {
-	Reference swarm.Address `json:"reference"`
+	Reference flock.Address `json:"reference"`
 }
 
 // bytesUploadHandler handles upload of raw binary data of arbitrary length.
@@ -39,7 +39,7 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagHeader))
+	tag, created, err := s.getOrCreateTag(r.Header.Get(FlockTagHeader))
 	if err != nil {
 		logger.Debugf("bytes upload: get or create tag: %v", err)
 		logger.Error("bytes upload: get or create tag")
@@ -87,7 +87,7 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+	if strings.ToLower(r.Header.Get(FlockPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(ctx, address, false); err != nil {
 			logger.Debugf("bytes upload: creation of pin for %q failed: %v", address, err)
 			logger.Error("bytes upload: creation of pin failed")
@@ -96,8 +96,8 @@ func (s *server) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
-	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
+	w.Header().Set(FlockTagHeader, fmt.Sprint(tag.Uid))
+	w.Header().Set("Access-Control-Expose-Headers", FlockTagHeader)
 	jsonhttp.Created(w, bytesPostResponse{
 		Reference: address,
 	})

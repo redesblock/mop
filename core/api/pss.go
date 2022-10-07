@@ -14,10 +14,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/pss"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -117,8 +117,8 @@ func (s *server) pssPostHandler(w http.ResponseWriter, r *http.Request) {
 func (s *server) pssWsHandler(w http.ResponseWriter, r *http.Request) {
 
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  swarm.ChunkSize,
-		WriteBufferSize: swarm.ChunkSize,
+		ReadBufferSize:  flock.ChunkSize,
+		WriteBufferSize: flock.ChunkSize,
 		CheckOrigin:     s.checkOrigin,
 	}
 

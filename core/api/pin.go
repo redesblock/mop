@@ -5,15 +5,15 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/pinning"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // pinRootHash pins root hash of given reference. This method is idempotent.
 func (s *server) pinRootHash(w http.ResponseWriter, r *http.Request) {
-	ref, err := swarm.ParseHexAddress(mux.Vars(r)["reference"])
+	ref, err := flock.ParseHexAddress(mux.Vars(r)["reference"])
 	if err != nil {
 		s.logger.Debugf("pin root hash: unable to parse reference %q: %v", ref, err)
 		s.logger.Error("pin root hash: unable to parse reference")
@@ -49,7 +49,7 @@ func (s *server) pinRootHash(w http.ResponseWriter, r *http.Request) {
 
 // unpinRootHash unpin's an already pinned root hash. This method is idempotent.
 func (s *server) unpinRootHash(w http.ResponseWriter, r *http.Request) {
-	ref, err := swarm.ParseHexAddress(mux.Vars(r)["reference"])
+	ref, err := flock.ParseHexAddress(mux.Vars(r)["reference"])
 	if err != nil {
 		s.logger.Debugf("unpin root hash: unable to parse reference: %v", err)
 		s.logger.Error("unpin root hash: unable to parse reference")
@@ -86,7 +86,7 @@ func (s *server) unpinRootHash(w http.ResponseWriter, r *http.Request) {
 
 // getPinnedRootHash returns back the given reference if its root hash is pinned.
 func (s *server) getPinnedRootHash(w http.ResponseWriter, r *http.Request) {
-	ref, err := swarm.ParseHexAddress(mux.Vars(r)["reference"])
+	ref, err := flock.ParseHexAddress(mux.Vars(r)["reference"])
 	if err != nil {
 		s.logger.Debugf("pinned root hash: unable to parse reference %q: %v", ref, err)
 		s.logger.Error("pinned root hash: unable to parse reference")
@@ -108,7 +108,7 @@ func (s *server) getPinnedRootHash(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.OK(w, struct {
-		Reference swarm.Address `json:"reference"`
+		Reference flock.Address `json:"reference"`
 	}{
 		Reference: ref,
 	})
@@ -125,7 +125,7 @@ func (s *server) listPinnedRootHashes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonhttp.OK(w, struct {
-		References []swarm.Address `json:"references"`
+		References []flock.Address `json:"references"`
 	}{
 		References: pinned,
 	})

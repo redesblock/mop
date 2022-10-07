@@ -65,7 +65,7 @@ func TestRequest_url(t *testing.T) {
 }
 
 func TestRequest_responseHeader(t *testing.T) {
-	headerName := "Swarm-Header"
+	headerName := "Flock-Header"
 	headerValue := "somevalue"
 	var gotValue string
 
@@ -149,7 +149,7 @@ func TestWithJSONRequestBody(t *testing.T) {
 
 func TestWithMultipartRequest(t *testing.T) {
 	wantBody := []byte("somebody")
-	filename := "swarm.jpg"
+	filename := "flock.jpg"
 	contentType := "image/jpeg"
 	var gotBody []byte
 	var gotContentDisposition, gotContentType string
@@ -197,7 +197,7 @@ func TestWithMultipartRequest(t *testing.T) {
 }
 
 func TestWithRequestHeader(t *testing.T) {
-	headerName := "Swarm-Header"
+	headerName := "Flock-Header"
 	headerValue := "somevalue"
 	var gotValue string
 

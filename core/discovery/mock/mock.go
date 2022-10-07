@@ -4,14 +4,14 @@ import (
 	"context"
 	"sync"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 type Discovery struct {
 	mtx           sync.Mutex
 	ctr           int //how many ops
-	records       map[string][]swarm.Address
-	broadcastFunc func(context.Context, swarm.Address, ...swarm.Address) error
+	records       map[string][]flock.Address
+	broadcastFunc func(context.Context, flock.Address, ...flock.Address) error
 }
 
 type Option interface {
@@ -21,7 +21,7 @@ type optionFunc func(*Discovery)
 
 func (f optionFunc) apply(r *Discovery) { f(r) }
 
-func WithBroadcastPeers(f func(context.Context, swarm.Address, ...swarm.Address) error) optionFunc {
+func WithBroadcastPeers(f func(context.Context, flock.Address, ...flock.Address) error) optionFunc {
 	return optionFunc(func(r *Discovery) {
 		r.broadcastFunc = f
 	})
@@ -29,7 +29,7 @@ func WithBroadcastPeers(f func(context.Context, swarm.Address, ...swarm.Address)
 
 func NewDiscovery(opts ...Option) *Discovery {
 	d := &Discovery{
-		records: make(map[string][]swarm.Address),
+		records: make(map[string][]flock.Address),
 	}
 	for _, opt := range opts {
 		opt.apply(d)
@@ -37,7 +37,7 @@ func NewDiscovery(opts ...Option) *Discovery {
 	return d
 }
 
-func (d *Discovery) BroadcastPeers(ctx context.Context, addressee swarm.Address, peers ...swarm.Address) error {
+func (d *Discovery) BroadcastPeers(ctx context.Context, addressee flock.Address, peers ...flock.Address) error {
 	if d.broadcastFunc != nil {
 		return d.broadcastFunc(ctx, addressee, peers...)
 	}
@@ -58,7 +58,7 @@ func (d *Discovery) Broadcasts() int {
 	return d.ctr
 }
 
-func (d *Discovery) AddresseeRecords(addressee swarm.Address) (peers []swarm.Address, exists bool) {
+func (d *Discovery) AddresseeRecords(addressee flock.Address) (peers []flock.Address, exists bool) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	peers, exists = d.records[addressee.String()]
@@ -69,5 +69,5 @@ func (d *Discovery) Reset() {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	d.ctr = 0
-	d.records = make(map[string][]swarm.Address)
+	d.records = make(map[string][]flock.Address)
 }

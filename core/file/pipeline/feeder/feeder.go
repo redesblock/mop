@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 
 	"github.com/redesblock/mop/core/file/pipeline"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
-const span = swarm.SpanSize
+const span = flock.SpanSize
 
 type chunkFeeder struct {
 	size      int

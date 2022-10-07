@@ -4,14 +4,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type peer struct {
 	blockAfter time.Time // timestamp of the point we've timed-out or got an error from a peer
-	addr       swarm.Address
+	addr       flock.Address
 }
 
 type Blocker struct {
@@ -25,10 +25,10 @@ type Blocker struct {
 	wakeupCh          chan struct{}
 	quit              chan struct{}
 	closeWg           sync.WaitGroup
-	blocklistCallback func(swarm.Address)
+	blocklistCallback func(flock.Address)
 }
 
-func New(dis p2p.Blocklister, flagTimeout, blockDuration, wakeUpTime time.Duration, callback func(swarm.Address), logger logging.Logger) *Blocker {
+func New(dis p2p.Blocklister, flagTimeout, blockDuration, wakeUpTime time.Duration, callback func(flock.Address), logger logging.Logger) *Blocker {
 	b := &Blocker{
 		disconnector:      dis,
 		flagTimeout:       flagTimeout,
@@ -84,7 +84,7 @@ func (b *Blocker) block() {
 	}
 }
 
-func (b *Blocker) Flag(addr swarm.Address) {
+func (b *Blocker) Flag(addr flock.Address) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -96,7 +96,7 @@ func (b *Blocker) Flag(addr swarm.Address) {
 	}
 }
 
-func (b *Blocker) Unflag(addr swarm.Address) {
+func (b *Blocker) Unflag(addr flock.Address) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

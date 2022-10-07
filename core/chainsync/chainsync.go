@@ -12,10 +12,10 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/redesblock/mop/core/chainsync/pb"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/ratelimit"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/transaction"
 )
 
@@ -75,7 +75,7 @@ func New(s p2p.Streamer, backend transaction.Backend) (*ChainSync, error) {
 
 // Prove asks a peer to prove they know a certain block height on the
 // current used eth backend.
-func (s *ChainSync) Prove(ctx context.Context, peer swarm.Address, blockheight uint64) ([]byte, error) {
+func (s *ChainSync) Prove(ctx context.Context, peer flock.Address, blockheight uint64) ([]byte, error) {
 	if !s.outLimiter.Allow(peer.ByteString(), 1) {
 		return nil, errRateLimitExceeded
 	}

@@ -18,19 +18,19 @@ import (
 	"github.com/redesblock/mop/core/file/pipeline/builder"
 	"github.com/redesblock/mop/core/file/splitter"
 	filetest "github.com/redesblock/mop/core/file/testing"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"gitlab.com/nolash/go-mockbytes"
 )
 
 func TestJoiner_ErrReferenceLength(t *testing.T) {
 	store := mock.NewStorer()
-	_, _, err := joiner.New(context.Background(), store, swarm.ZeroAddress)
+	_, _, err := joiner.New(context.Background(), store, flock.ZeroAddress)
 
 	if !errors.Is(err, storage.ErrReferenceLength) {
-		t.Fatalf("expected ErrReferenceLength %x but got %v", swarm.ZeroAddress, err)
+		t.Fatalf("expected ErrReferenceLength %x but got %v", flock.ZeroAddress, err)
 	}
 }
 
@@ -44,11 +44,11 @@ func TestJoinerSingleChunk(t *testing.T) {
 
 	// create the chunk to
 	mockAddrHex := fmt.Sprintf("%064s", "2a")
-	mockAddr := swarm.MustParseHexAddress(mockAddrHex)
+	mockAddr := flock.MustParseHexAddress(mockAddrHex)
 	mockData := []byte("foo")
 	mockDataLengthBytes := make([]byte, 8)
 	mockDataLengthBytes[0] = 0x03
-	mockChunk := swarm.NewChunk(mockAddr, append(mockDataLengthBytes, mockData...))
+	mockChunk := flock.NewChunk(mockAddr, append(mockDataLengthBytes, mockData...))
 	_, err := store.Put(ctx, storage.ModePutUpload, mockChunk)
 	if err != nil {
 		t.Fatal(err)
@@ -82,11 +82,11 @@ func TestJoinerDecryptingStore_NormalChunk(t *testing.T) {
 
 	// create the chunk to
 	mockAddrHex := fmt.Sprintf("%064s", "2a")
-	mockAddr := swarm.MustParseHexAddress(mockAddrHex)
+	mockAddr := flock.MustParseHexAddress(mockAddrHex)
 	mockData := []byte("foo")
 	mockDataLengthBytes := make([]byte, 8)
 	mockDataLengthBytes[0] = 0x03
-	mockChunk := swarm.NewChunk(mockAddr, append(mockDataLengthBytes, mockData...))
+	mockChunk := flock.NewChunk(mockAddr, append(mockDataLengthBytes, mockData...))
 	_, err := st.Put(ctx, storage.ModePutUpload, mockChunk)
 	if err != nil {
 		t.Fatal(err)
@@ -118,21 +118,21 @@ func TestJoinerWithReference(t *testing.T) {
 	defer cancel()
 
 	// create root chunk and two data chunks referenced in the root chunk
-	rootChunk := filetest.GenerateTestRandomFileChunk(swarm.ZeroAddress, swarm.ChunkSize*2, swarm.SectionSize*2)
+	rootChunk := filetest.GenerateTestRandomFileChunk(flock.ZeroAddress, flock.ChunkSize*2, flock.SectionSize*2)
 	_, err := store.Put(ctx, storage.ModePutUpload, rootChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	firstAddress := swarm.NewAddress(rootChunk.Data()[8 : swarm.SectionSize+8])
-	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, swarm.ChunkSize, swarm.ChunkSize)
+	firstAddress := flock.NewAddress(rootChunk.Data()[8 : flock.SectionSize+8])
+	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, firstChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secondAddress := swarm.NewAddress(rootChunk.Data()[swarm.SectionSize+8:])
-	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, swarm.ChunkSize, swarm.ChunkSize)
+	secondAddress := flock.NewAddress(rootChunk.Data()[flock.SectionSize+8:])
+	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, secondChunk)
 	if err != nil {
 		t.Fatal(err)
@@ -143,11 +143,11 @@ func TestJoinerWithReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l != int64(swarm.ChunkSize*2) {
-		t.Fatalf("expected join data length %d, got %d", swarm.ChunkSize*2, l)
+	if l != int64(flock.ChunkSize*2) {
+		t.Fatalf("expected join data length %d, got %d", flock.ChunkSize*2, l)
 	}
 
-	resultBuffer := make([]byte, swarm.ChunkSize)
+	resultBuffer := make([]byte, flock.ChunkSize)
 	n, err := joinReader.Read(resultBuffer)
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +178,7 @@ func TestJoinerMalformed(t *testing.T) {
 
 	// root chunk
 	rootChunkData := make([]byte, 8+64)
-	binary.LittleEndian.PutUint64(rootChunkData[:8], uint64(swarm.ChunkSize*2))
+	binary.LittleEndian.PutUint64(rootChunkData[:8], uint64(flock.ChunkSize*2))
 
 	copy(rootChunkData[8:], c1addr.Bytes())
 	copy(rootChunkData[8+32:], chunk2.Address().Bytes())
@@ -198,7 +198,7 @@ func TestJoinerMalformed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resultBuffer := make([]byte, swarm.ChunkSize)
+	resultBuffer := make([]byte, flock.ChunkSize)
 	_, err = joinReader.Read(resultBuffer)
 	if !errors.Is(err, joiner.ErrMalformedTrie) {
 		t.Fatalf("expected %v, got %v", joiner.ErrMalformedTrie, err)
@@ -245,7 +245,7 @@ func TestEncryptDecrypt(t *testing.T) {
 
 			totalGot := make([]byte, tt.chunkLength)
 			index := 0
-			resultBuffer := make([]byte, swarm.ChunkSize)
+			resultBuffer := make([]byte, flock.ChunkSize)
 
 			for index < tt.chunkLength {
 				n, err := reader.Read(resultBuffer)
@@ -290,19 +290,19 @@ func TestSeek(t *testing.T) {
 		},
 		{
 			name: "one chunk",
-			size: swarm.ChunkSize,
+			size: flock.ChunkSize,
 		},
 		{
 			name: "a few chunks",
-			size: 10 * swarm.ChunkSize,
+			size: 10 * flock.ChunkSize,
 		},
 		{
 			name: "a few chunks and a change",
-			size: 10*swarm.ChunkSize + 84,
+			size: 10*flock.ChunkSize + 84,
 		},
 		{
 			name: "a few chunks more",
-			size: 2*swarm.ChunkSize*swarm.ChunkSize + 1000,
+			size: 2*flock.ChunkSize*flock.ChunkSize + 1000,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -330,7 +330,7 @@ func TestSeek(t *testing.T) {
 			validateRead := func(t *testing.T, name string, i int) {
 				t.Helper()
 
-				got := make([]byte, swarm.ChunkSize)
+				got := make([]byte, flock.ChunkSize)
 				count, err := j.Read(got)
 				if err != nil {
 					t.Fatal(err)
@@ -627,21 +627,21 @@ func TestJoinerReadAt(t *testing.T) {
 	defer cancel()
 
 	// create root chunk with 2 references and the referenced data chunks
-	rootChunk := filetest.GenerateTestRandomFileChunk(swarm.ZeroAddress, swarm.ChunkSize*2, swarm.SectionSize*2)
+	rootChunk := filetest.GenerateTestRandomFileChunk(flock.ZeroAddress, flock.ChunkSize*2, flock.SectionSize*2)
 	_, err := store.Put(ctx, storage.ModePutUpload, rootChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	firstAddress := swarm.NewAddress(rootChunk.Data()[8 : swarm.SectionSize+8])
-	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, swarm.ChunkSize, swarm.ChunkSize)
+	firstAddress := flock.NewAddress(rootChunk.Data()[8 : flock.SectionSize+8])
+	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, firstChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secondAddress := swarm.NewAddress(rootChunk.Data()[swarm.SectionSize+8:])
-	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, swarm.ChunkSize, swarm.ChunkSize)
+	secondAddress := flock.NewAddress(rootChunk.Data()[flock.SectionSize+8:])
+	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, secondChunk)
 	if err != nil {
 		t.Fatal(err)
@@ -652,8 +652,8 @@ func TestJoinerReadAt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b := make([]byte, swarm.ChunkSize)
-	_, err = j.ReadAt(b, swarm.ChunkSize)
+	b := make([]byte, flock.ChunkSize)
+	_, err = j.ReadAt(b, flock.ChunkSize)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -672,21 +672,21 @@ func TestJoinerOneLevel(t *testing.T) {
 	defer cancel()
 
 	// create root chunk with 2 references and the referenced data chunks
-	rootChunk := filetest.GenerateTestRandomFileChunk(swarm.ZeroAddress, swarm.ChunkSize*2, swarm.SectionSize*2)
+	rootChunk := filetest.GenerateTestRandomFileChunk(flock.ZeroAddress, flock.ChunkSize*2, flock.SectionSize*2)
 	_, err := store.Put(ctx, storage.ModePutUpload, rootChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	firstAddress := swarm.NewAddress(rootChunk.Data()[8 : swarm.SectionSize+8])
-	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, swarm.ChunkSize, swarm.ChunkSize)
+	firstAddress := flock.NewAddress(rootChunk.Data()[8 : flock.SectionSize+8])
+	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, firstChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secondAddress := swarm.NewAddress(rootChunk.Data()[swarm.SectionSize+8:])
-	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, swarm.ChunkSize, swarm.ChunkSize)
+	secondAddress := flock.NewAddress(rootChunk.Data()[flock.SectionSize+8:])
+	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, secondChunk)
 	if err != nil {
 		t.Fatal(err)
@@ -698,13 +698,13 @@ func TestJoinerOneLevel(t *testing.T) {
 	}
 
 	// verify first chunk content
-	outBuffer := make([]byte, swarm.ChunkSize)
+	outBuffer := make([]byte, flock.ChunkSize)
 	c, err := j.Read(outBuffer)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c != swarm.ChunkSize {
-		t.Fatalf("expected firstchunk read count %d, got %d", swarm.ChunkSize, c)
+	if c != flock.ChunkSize {
+		t.Fatalf("expected firstchunk read count %d, got %d", flock.ChunkSize, c)
 	}
 	if !bytes.Equal(outBuffer, firstChunk.Data()[8:]) {
 		t.Fatalf("firstchunk data mismatch, expected %x, got %x", outBuffer, firstChunk.Data()[8:])
@@ -715,8 +715,8 @@ func TestJoinerOneLevel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c != swarm.ChunkSize {
-		t.Fatalf("expected secondchunk read count %d, got %d", swarm.ChunkSize, c)
+	if c != flock.ChunkSize {
+		t.Fatalf("expected secondchunk read count %d, got %d", flock.ChunkSize, c)
 	}
 	if !bytes.Equal(outBuffer, secondChunk.Data()[8:]) {
 		t.Fatalf("secondchunk data mismatch, expected %x, got %x", outBuffer, secondChunk.Data()[8:])
@@ -744,21 +744,21 @@ func TestJoinerTwoLevelsAcrossChunk(t *testing.T) {
 	defer cancel()
 
 	// create root chunk with 2 references and two intermediate chunks with references
-	rootChunk := filetest.GenerateTestRandomFileChunk(swarm.ZeroAddress, swarm.ChunkSize*swarm.Branches+42, swarm.SectionSize*2)
+	rootChunk := filetest.GenerateTestRandomFileChunk(flock.ZeroAddress, flock.ChunkSize*flock.Branches+42, flock.SectionSize*2)
 	_, err := store.Put(ctx, storage.ModePutUpload, rootChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	firstAddress := swarm.NewAddress(rootChunk.Data()[8 : swarm.SectionSize+8])
-	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, swarm.ChunkSize*swarm.Branches, swarm.ChunkSize)
+	firstAddress := flock.NewAddress(rootChunk.Data()[8 : flock.SectionSize+8])
+	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, flock.ChunkSize*flock.Branches, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, firstChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secondAddress := swarm.NewAddress(rootChunk.Data()[swarm.SectionSize+8:])
-	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, 42, swarm.SectionSize)
+	secondAddress := flock.NewAddress(rootChunk.Data()[flock.SectionSize+8:])
+	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, 42, flock.SectionSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, secondChunk)
 	if err != nil {
 		t.Fatal(err)
@@ -766,18 +766,18 @@ func TestJoinerTwoLevelsAcrossChunk(t *testing.T) {
 
 	// create 128+1 chunks for all references in the intermediate chunks
 	cursor := 8
-	for i := 0; i < swarm.Branches; i++ {
-		chunkAddressBytes := firstChunk.Data()[cursor : cursor+swarm.SectionSize]
-		chunkAddress := swarm.NewAddress(chunkAddressBytes)
-		ch := filetest.GenerateTestRandomFileChunk(chunkAddress, swarm.ChunkSize, swarm.ChunkSize)
+	for i := 0; i < flock.Branches; i++ {
+		chunkAddressBytes := firstChunk.Data()[cursor : cursor+flock.SectionSize]
+		chunkAddress := flock.NewAddress(chunkAddressBytes)
+		ch := filetest.GenerateTestRandomFileChunk(chunkAddress, flock.ChunkSize, flock.ChunkSize)
 		_, err := store.Put(ctx, storage.ModePutUpload, ch)
 		if err != nil {
 			t.Fatal(err)
 		}
-		cursor += swarm.SectionSize
+		cursor += flock.SectionSize
 	}
 	chunkAddressBytes := secondChunk.Data()[8:]
-	chunkAddress := swarm.NewAddress(chunkAddressBytes)
+	chunkAddress := flock.NewAddress(chunkAddressBytes)
 	ch := filetest.GenerateTestRandomFileChunk(chunkAddress, 42, 42)
 	_, err = store.Put(ctx, storage.ModePutUpload, ch)
 	if err != nil {
@@ -790,14 +790,14 @@ func TestJoinerTwoLevelsAcrossChunk(t *testing.T) {
 	}
 
 	// read back all the chunks and verify
-	b := make([]byte, swarm.ChunkSize)
-	for i := 0; i < swarm.Branches; i++ {
+	b := make([]byte, flock.ChunkSize)
+	for i := 0; i < flock.Branches; i++ {
 		c, err := j.Read(b)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c != swarm.ChunkSize {
-			t.Fatalf("chunk %d expected read %d bytes; got %d", i, swarm.ChunkSize, c)
+		if c != flock.ChunkSize {
+			t.Fatalf("chunk %d expected read %d bytes; got %d", i, flock.ChunkSize, c)
 		}
 	}
 	c, err := j.Read(b)
@@ -816,27 +816,27 @@ func TestJoinerIterateChunkAddresses(t *testing.T) {
 	defer cancel()
 
 	// create root chunk with 2 references and the referenced data chunks
-	rootChunk := filetest.GenerateTestRandomFileChunk(swarm.ZeroAddress, swarm.ChunkSize*2, swarm.SectionSize*2)
+	rootChunk := filetest.GenerateTestRandomFileChunk(flock.ZeroAddress, flock.ChunkSize*2, flock.SectionSize*2)
 	_, err := store.Put(ctx, storage.ModePutUpload, rootChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	firstAddress := swarm.NewAddress(rootChunk.Data()[8 : swarm.SectionSize+8])
-	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, swarm.ChunkSize, swarm.ChunkSize)
+	firstAddress := flock.NewAddress(rootChunk.Data()[8 : flock.SectionSize+8])
+	firstChunk := filetest.GenerateTestRandomFileChunk(firstAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, firstChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	secondAddress := swarm.NewAddress(rootChunk.Data()[swarm.SectionSize+8:])
-	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, swarm.ChunkSize, swarm.ChunkSize)
+	secondAddress := flock.NewAddress(rootChunk.Data()[flock.SectionSize+8:])
+	secondChunk := filetest.GenerateTestRandomFileChunk(secondAddress, flock.ChunkSize, flock.ChunkSize)
 	_, err = store.Put(ctx, storage.ModePutUpload, secondChunk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	createdAddresses := []swarm.Address{rootChunk.Address(), firstAddress, secondAddress}
+	createdAddresses := []flock.Address{rootChunk.Address(), firstAddress, secondAddress}
 
 	j, _, err := joiner.New(ctx, store, rootChunk.Address())
 	if err != nil {
@@ -846,7 +846,7 @@ func TestJoinerIterateChunkAddresses(t *testing.T) {
 	foundAddresses := make(map[string]struct{})
 	var foundAddressesMu sync.Mutex
 
-	err = j.IterateChunkAddresses(func(addr swarm.Address) error {
+	err = j.IterateChunkAddresses(func(addr flock.Address) error {
 		foundAddressesMu.Lock()
 		defer foundAddressesMu.Unlock()
 
@@ -861,7 +861,7 @@ func TestJoinerIterateChunkAddresses(t *testing.T) {
 		t.Fatalf("expected to find %d addresses, got %d", len(createdAddresses), len(foundAddresses))
 	}
 
-	checkAddressFound := func(t *testing.T, foundAddresses map[string]struct{}, address swarm.Address) {
+	checkAddressFound := func(t *testing.T, foundAddresses map[string]struct{}, address flock.Address) {
 		t.Helper()
 
 		if _, ok := foundAddresses[address.String()]; !ok {

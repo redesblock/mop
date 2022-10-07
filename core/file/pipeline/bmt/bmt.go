@@ -5,7 +5,7 @@ import (
 
 	"github.com/redesblock/mop/core/bmtpool"
 	"github.com/redesblock/mop/core/file/pipeline"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var (
@@ -27,12 +27,12 @@ func NewBmtWriter(next pipeline.ChainWriter) pipeline.ChainWriter {
 // ChainWrite writes data in chain. It assumes span has been prepended to the data.
 // The span can be encrypted or unencrypted.
 func (w *bmtWriter) ChainWrite(p *pipeline.PipeWriteArgs) error {
-	if len(p.Data) < swarm.SpanSize {
+	if len(p.Data) < flock.SpanSize {
 		return errInvalidData
 	}
 	hasher := bmtpool.Get()
-	hasher.SetHeader(p.Data[:swarm.SpanSize])
-	_, err := hasher.Write(p.Data[swarm.SpanSize:])
+	hasher.SetHeader(p.Data[:flock.SpanSize])
+	_, err := hasher.Write(p.Data[flock.SpanSize:])
 	if err != nil {
 		bmtpool.Put(hasher)
 		return err

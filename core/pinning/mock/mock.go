@@ -3,8 +3,8 @@ package mock
 import (
 	"context"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/pinning"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var _ pinning.Interface = (*ServiceMock)(nil)
@@ -18,11 +18,11 @@ func NewServiceMock() *ServiceMock {
 // The implementation is not goroutine-safe.
 type ServiceMock struct {
 	index      map[string]int
-	references []swarm.Address
+	references []flock.Address
 }
 
 // CreatePin implements pinning.Interface CreatePin method.
-func (sm *ServiceMock) CreatePin(_ context.Context, ref swarm.Address, _ bool) error {
+func (sm *ServiceMock) CreatePin(_ context.Context, ref flock.Address, _ bool) error {
 	if _, ok := sm.index[ref.String()]; ok {
 		return nil
 	}
@@ -32,7 +32,7 @@ func (sm *ServiceMock) CreatePin(_ context.Context, ref swarm.Address, _ bool) e
 }
 
 // DeletePin implements pinning.Interface DeletePin method.
-func (sm *ServiceMock) DeletePin(_ context.Context, ref swarm.Address) error {
+func (sm *ServiceMock) DeletePin(_ context.Context, ref flock.Address) error {
 	i, ok := sm.index[ref.String()]
 	if !ok {
 		return nil
@@ -43,12 +43,12 @@ func (sm *ServiceMock) DeletePin(_ context.Context, ref swarm.Address) error {
 }
 
 // HasPin implements pinning.Interface HasPin method.
-func (sm *ServiceMock) HasPin(ref swarm.Address) (bool, error) {
+func (sm *ServiceMock) HasPin(ref flock.Address) (bool, error) {
 	_, ok := sm.index[ref.String()]
 	return ok, nil
 }
 
 // Pins implements pinning.Interface Pins method.
-func (sm *ServiceMock) Pins() ([]swarm.Address, error) {
-	return append([]swarm.Address(nil), sm.references...), nil
+func (sm *ServiceMock) Pins() ([]flock.Address, error) {
+	return append([]flock.Address(nil), sm.references...), nil
 }

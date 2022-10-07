@@ -14,23 +14,23 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/redesblock/mop/core/feeds"
 	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/manifest"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/soc"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
-	feedMetadataEntryOwner = "swarm-feed-owner"
-	feedMetadataEntryTopic = "swarm-feed-topic"
-	feedMetadataEntryType  = "swarm-feed-type"
+	feedMetadataEntryOwner = "flock-feed-owner"
+	feedMetadataEntryTopic = "flock-feed-topic"
+	feedMetadataEntryType  = "flock-feed-type"
 )
 
 var errInvalidFeedUpdate = errors.New("invalid feed update")
 
 type feedReferenceResponse struct {
-	Reference swarm.Address `json:"reference"`
+	Reference flock.Address `json:"reference"`
 }
 
 func (s *server) feedGetHandler(w http.ResponseWriter, r *http.Request) {
@@ -113,9 +113,9 @@ func (s *server) feedGetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(SwarmFeedIndexHeader, hex.EncodeToString(curBytes))
-	w.Header().Set(SwarmFeedIndexNextHeader, hex.EncodeToString(nextBytes))
-	w.Header().Set("Access-Control-Expose-Headers", fmt.Sprintf("%s, %s", SwarmFeedIndexHeader, SwarmFeedIndexNextHeader))
+	w.Header().Set(FlockFeedIndexHeader, hex.EncodeToString(curBytes))
+	w.Header().Set(FlockFeedIndexNextHeader, hex.EncodeToString(nextBytes))
+	w.Header().Set("Access-Control-Expose-Headers", fmt.Sprintf("%s, %s", FlockFeedIndexHeader, FlockFeedIndexNextHeader))
 
 	jsonhttp.OK(w, feedReferenceResponse{Reference: ref})
 }
@@ -178,7 +178,7 @@ func (s *server) feedPostHandler(w http.ResponseWriter, r *http.Request) {
 	emptyAddr := make([]byte, 32)
 
 	// a feed manifest stores the metadata at the root "/" path
-	err = feedManifest.Add(r.Context(), "/", manifest.NewEntry(swarm.NewAddress(emptyAddr), meta))
+	err = feedManifest.Add(r.Context(), "/", manifest.NewEntry(flock.NewAddress(emptyAddr), meta))
 	if err != nil {
 		s.logger.Debugf("feed post: add manifest entry: %v", err)
 		s.logger.Error("feed post: add manifest entry")
@@ -198,7 +198,7 @@ func (s *server) feedPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+	if strings.ToLower(r.Header.Get(FlockPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(r.Context(), ref, false); err != nil {
 			s.logger.Debugf("feed post: creation of pin for %q failed: %v", ref, err)
 			s.logger.Error("feed post: creation of pin failed")
@@ -210,10 +210,10 @@ func (s *server) feedPostHandler(w http.ResponseWriter, r *http.Request) {
 	jsonhttp.Created(w, feedReferenceResponse{Reference: ref})
 }
 
-func parseFeedUpdate(ch swarm.Chunk) (swarm.Address, int64, error) {
+func parseFeedUpdate(ch flock.Chunk) (flock.Address, int64, error) {
 	s, err := soc.FromChunk(ch)
 	if err != nil {
-		return swarm.ZeroAddress, 0, fmt.Errorf("soc unmarshal: %w", err)
+		return flock.ZeroAddress, 0, fmt.Errorf("soc unmarshal: %w", err)
 	}
 
 	update := s.WrappedChunk().Data()
@@ -222,9 +222,9 @@ func parseFeedUpdate(ch swarm.Chunk) (swarm.Address, int64, error) {
 	// unencrypted ref: span+timestamp+ref => 8+8+32=48
 	// encrypted ref: span+timestamp+ref+decryptKey => 8+8+64=80
 	if len(update) != 48 && len(update) != 80 {
-		return swarm.ZeroAddress, 0, errInvalidFeedUpdate
+		return flock.ZeroAddress, 0, errInvalidFeedUpdate
 	}
 	ts := binary.BigEndian.Uint64(update[8:16])
-	ref := swarm.NewAddress(update[16:])
+	ref := flock.NewAddress(update[16:])
 	return ref, int64(ts), nil
 }

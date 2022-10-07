@@ -218,6 +218,9 @@ func (s *service) Txs() ([]string, error) {
 }
 
 func (s *service) storeTx(ctx context.Context, txHash common.Hash, wait bool) error {
+	if s.stateStore == nil {
+		return nil
+	}
 	if wait {
 		receipt, err := s.transactionService.WaitForReceipt(ctx, txHash)
 		if err != nil {

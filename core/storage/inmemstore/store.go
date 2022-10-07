@@ -4,25 +4,25 @@ import (
 	"context"
 	"sync"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // Store implements a simple Putter and Getter which can be used to temporarily cache
 // chunks. Currently this is used in the bootstrapping process of new nodes where
-// we sync the postage events from the swarm network.
+// we sync the postage events from the flock network.
 type Store struct {
 	mtx   sync.Mutex
-	store map[string]swarm.Chunk
+	store map[string]flock.Chunk
 }
 
 func New() *Store {
 	return &Store{
-		store: make(map[string]swarm.Chunk),
+		store: make(map[string]flock.Chunk),
 	}
 }
 
-func (s *Store) Get(_ context.Context, _ storage.ModeGet, addr swarm.Address) (ch swarm.Chunk, err error) {
+func (s *Store) Get(_ context.Context, _ storage.ModeGet, addr flock.Address) (ch flock.Chunk, err error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -33,7 +33,7 @@ func (s *Store) Get(_ context.Context, _ storage.ModeGet, addr swarm.Address) (c
 	return nil, storage.ErrNotFound
 }
 
-func (s *Store) Put(_ context.Context, _ storage.ModePut, chs ...swarm.Chunk) (exist []bool, err error) {
+func (s *Store) Put(_ context.Context, _ storage.ModePut, chs ...flock.Chunk) (exist []bool, err error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -46,19 +46,19 @@ func (s *Store) Put(_ context.Context, _ storage.ModePut, chs ...swarm.Chunk) (e
 	return exist, err
 }
 
-func (s *Store) GetMulti(_ context.Context, _ storage.ModeGet, _ ...swarm.Address) (ch []swarm.Chunk, err error) {
+func (s *Store) GetMulti(_ context.Context, _ storage.ModeGet, _ ...flock.Address) (ch []flock.Chunk, err error) {
 	panic("not implemented")
 }
 
-func (s *Store) Has(_ context.Context, _ swarm.Address) (yes bool, err error) {
+func (s *Store) Has(_ context.Context, _ flock.Address) (yes bool, err error) {
 	panic("not implemented")
 }
 
-func (s *Store) HasMulti(_ context.Context, _ ...swarm.Address) (yes []bool, err error) {
+func (s *Store) HasMulti(_ context.Context, _ ...flock.Address) (yes []bool, err error) {
 	panic("not implemented")
 }
 
-func (s *Store) Set(_ context.Context, _ storage.ModeSet, _ ...swarm.Address) (err error) {
+func (s *Store) Set(_ context.Context, _ storage.ModeSet, _ ...flock.Address) (err error) {
 	panic("not implemented")
 }
 
@@ -70,7 +70,7 @@ func (s *Store) SubscribePull(_ context.Context, _ uint8, _ uint64, _ uint64) (c
 	panic("not implemented")
 }
 
-func (s *Store) SubscribePush(_ context.Context, _ func([]byte) bool) (c <-chan swarm.Chunk, repeat func(), stop func()) {
+func (s *Store) SubscribePush(_ context.Context, _ func([]byte) bool) (c <-chan flock.Chunk, repeat func(), stop func()) {
 	panic("not implemented")
 }
 

@@ -11,9 +11,9 @@ import (
 
 	"github.com/redesblock/mop/core/file/pipeline/builder"
 	test "github.com/redesblock/mop/core/file/testing"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestPartialWrites(t *testing.T) {
@@ -26,7 +26,7 @@ func TestPartialWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := swarm.MustParseHexAddress("92672a471f4419b255d7cb0cf313474a6f5856fb347c5ece85fb706d644b630f")
+	exp := flock.MustParseHexAddress("92672a471f4419b255d7cb0cf313474a6f5856fb347c5ece85fb706d644b630f")
 	if !bytes.Equal(exp.Bytes(), sum) {
 		t.Fatalf("expected %s got %s", exp.String(), hex.EncodeToString(sum))
 	}
@@ -46,7 +46,7 @@ func TestHelloWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := swarm.MustParseHexAddress("92672a471f4419b255d7cb0cf313474a6f5856fb347c5ece85fb706d644b630f")
+	exp := flock.MustParseHexAddress("92672a471f4419b255d7cb0cf313474a6f5856fb347c5ece85fb706d644b630f")
 	if !bytes.Equal(exp.Bytes(), sum) {
 		t.Fatalf("expected %s got %s", exp.String(), hex.EncodeToString(sum))
 	}
@@ -67,7 +67,7 @@ func TestEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := swarm.MustParseHexAddress("b34ca8c22b9e982354f9c7f50b470d66db428d880c8a904d5fe4ec9713171526")
+	exp := flock.MustParseHexAddress("b34ca8c22b9e982354f9c7f50b470d66db428d880c8a904d5fe4ec9713171526")
 	if !bytes.Equal(exp.Bytes(), sum) {
 		t.Fatalf("expected %s got %s", exp.String(), hex.EncodeToString(sum))
 	}
@@ -88,7 +88,7 @@ func TestAllVectors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			a := swarm.NewAddress(sum)
+			a := flock.NewAddress(sum)
 			if !a.Equal(expect) {
 				t.Fatalf("failed run %d, expected address %s but got %s", i, expect.String(), a.String())
 			}

@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/manifest/mantaray"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -41,7 +41,7 @@ func NewMantarayManifest(
 
 // NewMantarayManifestReference loads existing mantaray-based manifest.
 func NewMantarayManifestReference(
-	reference swarm.Address,
+	reference flock.Address,
 	ls file.LoadSaver,
 ) (Interface, error) {
 	return &mantarayManifest{
@@ -90,7 +90,7 @@ func (m *mantarayManifest) Lookup(ctx context.Context, path string) (Entry, erro
 		return nil, ErrNotFound
 	}
 
-	address := swarm.NewAddress(node.Entry())
+	address := flock.NewAddress(node.Entry())
 	entry := NewEntry(address, node.Metadata())
 
 	return entry, nil
@@ -102,7 +102,7 @@ func (m *mantarayManifest) HasPrefix(ctx context.Context, prefix string) (bool, 
 	return m.trie.HasPrefix(ctx, p, m.ls)
 }
 
-func (m *mantarayManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFunc) (swarm.Address, error) {
+func (m *mantarayManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFunc) (flock.Address, error) {
 	var ls mantaray.LoadSaver
 	if len(storeSizeFn) > 0 {
 		ls = &mantarayLoadSaver{
@@ -115,22 +115,22 @@ func (m *mantarayManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFu
 
 	err := m.trie.Save(ctx, ls)
 	if err != nil {
-		return swarm.ZeroAddress, fmt.Errorf("manifest save error: %w", err)
+		return flock.ZeroAddress, fmt.Errorf("manifest save error: %w", err)
 	}
 
-	address := swarm.NewAddress(m.trie.Reference())
+	address := flock.NewAddress(m.trie.Reference())
 
 	return address, nil
 }
 
-func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn swarm.AddressIterFunc) error {
-	reference := swarm.NewAddress(m.trie.Reference())
+func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn flock.AddressIterFunc) error {
+	reference := flock.NewAddress(m.trie.Reference())
 
-	if swarm.ZeroAddress.Equal(reference) {
+	if flock.ZeroAddress.Equal(reference) {
 		return ErrMissingReference
 	}
 
-	emptyAddr := swarm.NewAddress([]byte{31: 0})
+	emptyAddr := flock.NewAddress([]byte{31: 0})
 	walker := func(path []byte, node *mantaray.Node, err error) error {
 		if err != nil {
 			return err
@@ -138,7 +138,7 @@ func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn swarm.Addres
 
 		if node != nil {
 			if node.Reference() != nil {
-				ref := swarm.NewAddress(node.Reference())
+				ref := flock.NewAddress(node.Reference())
 
 				err = fn(ref)
 				if err != nil {
@@ -147,7 +147,7 @@ func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn swarm.Addres
 			}
 
 			if node.IsValueType() && len(node.Entry()) > 0 {
-				entry := swarm.NewAddress(node.Entry())
+				entry := flock.NewAddress(node.Entry())
 				// The following comparison to the emptyAddr is
 				// a dirty hack which prevents the walker to
 				// fail when it encounters an empty address

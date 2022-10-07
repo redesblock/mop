@@ -4,24 +4,24 @@ import (
 	"context"
 	"sync"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 )
 
 type mock struct {
-	peers           []swarm.Address
+	peers           []flock.Address
 	depth           uint8
-	closestPeer     swarm.Address
+	closestPeer     flock.Address
 	closestPeerErr  error
 	peersErr        error
 	addPeersErr     error
-	isWithinFunc    func(c swarm.Address) bool
+	isWithinFunc    func(c flock.Address) bool
 	marshalJSONFunc func() ([]byte, error)
 	mtx             sync.Mutex
 }
 
-func WithPeers(peers ...swarm.Address) Option {
+func WithPeers(peers ...flock.Address) Option {
 	return optionFunc(func(d *mock) {
 		d.peers = peers
 	})
@@ -39,7 +39,7 @@ func WithNeighborhoodDepth(dd uint8) Option {
 	})
 }
 
-func WithClosestPeer(addr swarm.Address) Option {
+func WithClosestPeer(addr flock.Address) Option {
 	return optionFunc(func(d *mock) {
 		d.closestPeer = addr
 	})
@@ -57,7 +57,7 @@ func WithMarshalJSONFunc(f func() ([]byte, error)) Option {
 	})
 }
 
-func WithIsWithinFunc(f func(swarm.Address) bool) Option {
+func WithIsWithinFunc(f func(flock.Address) bool) Option {
 	return optionFunc(func(d *mock) {
 		d.isWithinFunc = f
 	})
@@ -71,7 +71,7 @@ func NewTopologyDriver(opts ...Option) topology.Driver {
 	return d
 }
 
-func (d *mock) AddPeers(addrs ...swarm.Address) {
+func (d *mock) AddPeers(addrs ...flock.Address) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -95,24 +95,24 @@ func (d *mock) Disconnected(peer p2p.Peer) {
 	}
 }
 
-func (d *mock) Announce(_ context.Context, _ swarm.Address, _ bool) error {
+func (d *mock) Announce(_ context.Context, _ flock.Address, _ bool) error {
 	return nil
 }
 
-func (d *mock) AnnounceTo(_ context.Context, _, _ swarm.Address, _ bool) error {
+func (d *mock) AnnounceTo(_ context.Context, _, _ flock.Address, _ bool) error {
 	return nil
 }
 
-func (d *mock) Peers() []swarm.Address {
+func (d *mock) Peers() []flock.Address {
 	return d.peers
 }
 
-func (d *mock) ClosestPeer(addr swarm.Address, wantSelf bool, _ topology.Filter, skipPeers ...swarm.Address) (peerAddr swarm.Address, err error) {
+func (d *mock) ClosestPeer(addr flock.Address, wantSelf bool, _ topology.Filter, skipPeers ...flock.Address) (peerAddr flock.Address, err error) {
 	if len(skipPeers) == 0 {
 		if d.closestPeerErr != nil {
 			return d.closestPeer, d.closestPeerErr
 		}
-		if !d.closestPeer.Equal(swarm.ZeroAddress) {
+		if !d.closestPeer.Equal(flock.ZeroAddress) {
 			return d.closestPeer, nil
 		}
 	}
@@ -141,7 +141,7 @@ func (d *mock) ClosestPeer(addr swarm.Address, wantSelf bool, _ topology.Filter,
 			peerAddr = p
 		}
 
-		if cmp, _ := swarm.DistanceCmp(addr.Bytes(), p.Bytes(), peerAddr.Bytes()); cmp == 1 {
+		if cmp, _ := flock.DistanceCmp(addr.Bytes(), p.Bytes(), peerAddr.Bytes()); cmp == 1 {
 			peerAddr = p
 		}
 	}
@@ -165,7 +165,7 @@ func (m *mock) NeighborhoodDepth() uint8 {
 	return m.depth
 }
 
-func (m *mock) IsWithinDepth(addr swarm.Address) bool {
+func (m *mock) IsWithinDepth(addr flock.Address) bool {
 	if m.isWithinFunc != nil {
 		return m.isWithinFunc(addr)
 	}

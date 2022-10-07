@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
 	"github.com/redesblock/mop/core/steward/mock"
 	smock "github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
@@ -23,7 +23,7 @@ func TestStewardship(t *testing.T) {
 		statestoreMock = statestore.NewStateStore()
 		stewardMock    = &mock.Steward{}
 		storer         = smock.NewStorer()
-		addr           = swarm.NewAddress([]byte{31: 128})
+		addr           = flock.NewAddress([]byte{31: 128})
 	)
 	client, _, _ := newTestServer(t, testServerOptions{
 		Storer:  storer,

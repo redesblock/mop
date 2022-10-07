@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
-	"github.com/redesblock/mop/core/swarm/test"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/topology/lightnode"
 )
@@ -30,8 +30,8 @@ func TestContainer(t *testing.T) {
 	t.Run("can add peers to container", func(t *testing.T) {
 		c := lightnode.NewContainer(base)
 
-		p1 := swarm.NewAddress([]byte("123"))
-		p2 := swarm.NewAddress([]byte("456"))
+		p1 := flock.NewAddress([]byte("123"))
+		p2 := flock.NewAddress([]byte("456"))
 		c.Connected(context.Background(), p2p.Peer{Address: p1})
 		c.Connected(context.Background(), p2p.Peer{Address: p2})
 
@@ -61,8 +61,8 @@ func TestContainer(t *testing.T) {
 		}
 
 		i := 0
-		peers := []swarm.Address{p1, p2}
-		if err = c.EachPeer(func(p swarm.Address, _ uint8) (bool, bool, error) {
+		peers := []flock.Address{p1, p2}
+		if err = c.EachPeer(func(p flock.Address, _ uint8) (bool, bool, error) {
 			if !p.Equal(peers[i]) {
 				return false, false, errors.New("peer not in order")
 			}
@@ -75,7 +75,7 @@ func TestContainer(t *testing.T) {
 	t.Run("empty container after peer disconnect", func(t *testing.T) {
 		c := lightnode.NewContainer(base)
 
-		peer := p2p.Peer{Address: swarm.NewAddress([]byte("123"))}
+		peer := p2p.Peer{Address: flock.NewAddress([]byte("123"))}
 
 		c.Connected(context.Background(), peer)
 		c.Disconnected(peer)

@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"hash"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var _ Hash = (*Hasher)(nil)
@@ -261,7 +261,7 @@ func (h *Hasher) writeFinalNode(level int, n *node, isLeft bool, s []byte) {
 
 // calculates the Keccak256 SHA3 hash of the data
 func sha3hash(data ...[]byte) ([]byte, error) {
-	return doHash(swarm.NewHasher(), data...)
+	return doHash(flock.NewHasher(), data...)
 }
 
 // calculates Hash of the data

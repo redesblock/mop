@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -52,9 +52,9 @@ func TestModeSetRemove_WithSync(t *testing.T) {
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			db := newTestDB(t, nil)
-			var chs []swarm.Chunk
+			var chs []flock.Chunk
 			for i := 0; i < tc.count; i++ {
-				ch := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
+				ch := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2).WithBatch(2, 3, 2, false)
 				_, err := db.UnreserveBatch(ch.Vouch().BatchID(), 2)
 				if err != nil {
 					t.Fatal(err)

@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/redesblock/mop/core/swarm"
-	"github.com/redesblock/mop/core/swarm/test"
+	"github.com/redesblock/mop/core/flock"
+	"github.com/redesblock/mop/core/flock/test"
 	"github.com/redesblock/mop/core/topology/pslice"
 )
 
@@ -15,7 +15,7 @@ func TestShallowestEmpty(t *testing.T) {
 	var (
 		base  = test.RandomAddress()
 		ps    = pslice.New(16, base)
-		peers = make([][]swarm.Address, 16)
+		peers = make([][]flock.Address, 16)
 	)
 
 	for i := 0; i < 16; i++ {
@@ -106,7 +106,7 @@ func TestAddRemove(t *testing.T) {
 	var (
 		base  = test.RandomAddress()
 		ps    = pslice.New(4, base)
-		peers = make([]swarm.Address, 8)
+		peers = make([]flock.Address, 8)
 	)
 
 	// 2 peers per bin
@@ -152,23 +152,23 @@ func TestAddRemove(t *testing.T) {
 	ps.Remove(peers[1])
 	chkLen(t, ps, 3)
 	chkExists(t, ps, peers[0], peers[2], peers[3])
-	chkNotExists(t, ps, append([]swarm.Address{peers[1]}, peers[4:]...)...)
+	chkNotExists(t, ps, append([]flock.Address{peers[1]}, peers[4:]...)...)
 
 	// this should not move the last cursor
 	ps.Add(peers[7])
 	chkLen(t, ps, 4)
 	chkExists(t, ps, peers[0], peers[2], peers[3], peers[7])
-	chkNotExists(t, ps, append([]swarm.Address{peers[1]}, peers[4:7]...)...)
+	chkNotExists(t, ps, append([]flock.Address{peers[1]}, peers[4:7]...)...)
 
 	ps.Add(peers[5])
 	chkLen(t, ps, 5)
 	chkExists(t, ps, peers[0], peers[2], peers[3], peers[5], peers[7])
-	chkNotExists(t, ps, []swarm.Address{peers[1], peers[4], peers[6]}...)
+	chkNotExists(t, ps, []flock.Address{peers[1], peers[4], peers[6]}...)
 
 	ps.Remove(peers[2])
 	chkLen(t, ps, 4)
 	chkExists(t, ps, peers[0], peers[3], peers[5], peers[7])
-	chkNotExists(t, ps, []swarm.Address{peers[1], peers[2], peers[4], peers[6]}...)
+	chkNotExists(t, ps, []flock.Address{peers[1], peers[2], peers[4], peers[6]}...)
 
 	p := uint8(0)
 	for i := 0; i < 8; i += 2 {
@@ -193,7 +193,7 @@ func TestIteratorError(t *testing.T) {
 
 	ps.Add(a)
 
-	f := func(p swarm.Address, _ uint8) (stop, jumpToNext bool, err error) {
+	f := func(p flock.Address, _ uint8) (stop, jumpToNext bool, err error) {
 		return false, false, e
 	}
 
@@ -210,37 +210,37 @@ func TestIterators(t *testing.T) {
 
 	ps := pslice.New(4, base)
 
-	peers := make([]swarm.Address, 4)
+	peers := make([]flock.Address, 4)
 	for i := 0; i < 4; i++ {
 		a := test.RandomAddressAt(base, i)
 		peers[i] = a
 	}
 
-	testIterator(t, ps, false, false, 0, []swarm.Address{})
-	testIteratorRev(t, ps, false, false, 0, []swarm.Address{})
+	testIterator(t, ps, false, false, 0, []flock.Address{})
+	testIteratorRev(t, ps, false, false, 0, []flock.Address{})
 
 	for _, v := range peers {
 		ps.Add(v)
 	}
 
-	testIterator(t, ps, false, false, 4, []swarm.Address{peers[3], peers[2], peers[1], peers[0]})
+	testIterator(t, ps, false, false, 4, []flock.Address{peers[3], peers[2], peers[1], peers[0]})
 	testIteratorRev(t, ps, false, false, 4, peers)
 
 	ps.Remove(peers[2])
-	testIterator(t, ps, false, false, 3, []swarm.Address{peers[3], peers[1], peers[0]})
-	testIteratorRev(t, ps, false, false, 3, []swarm.Address{peers[0], peers[1], peers[3]})
+	testIterator(t, ps, false, false, 3, []flock.Address{peers[3], peers[1], peers[0]})
+	testIteratorRev(t, ps, false, false, 3, []flock.Address{peers[0], peers[1], peers[3]})
 
 	ps.Remove(peers[0])
-	testIterator(t, ps, false, false, 2, []swarm.Address{peers[3], peers[1]})
-	testIteratorRev(t, ps, false, false, 2, []swarm.Address{peers[1], peers[3]})
+	testIterator(t, ps, false, false, 2, []flock.Address{peers[3], peers[1]})
+	testIteratorRev(t, ps, false, false, 2, []flock.Address{peers[1], peers[3]})
 
 	ps.Remove(peers[3])
-	testIterator(t, ps, false, false, 1, []swarm.Address{peers[1]})
-	testIteratorRev(t, ps, false, false, 1, []swarm.Address{peers[1]})
+	testIterator(t, ps, false, false, 1, []flock.Address{peers[1]})
+	testIteratorRev(t, ps, false, false, 1, []flock.Address{peers[1]})
 
 	ps.Remove(peers[1])
-	testIterator(t, ps, false, false, 0, []swarm.Address{})
-	testIteratorRev(t, ps, false, false, 0, []swarm.Address{})
+	testIterator(t, ps, false, false, 0, []flock.Address{})
+	testIteratorRev(t, ps, false, false, 0, []flock.Address{})
 }
 
 func TestBinPeers(t *testing.T) {
@@ -271,7 +271,7 @@ func TestBinPeers(t *testing.T) {
 
 			base := test.RandomAddress()
 
-			binPeers := make([][]swarm.Address, len(tc.peersCount))
+			binPeers := make([][]flock.Address, len(tc.peersCount))
 
 			// prepare slice
 			ps := pslice.New(len(tc.peersCount), base)
@@ -302,7 +302,7 @@ func TestBinPeers(t *testing.T) {
 	}
 }
 
-func isEqual(a, b []swarm.Address) bool {
+func isEqual(a, b []flock.Address) bool {
 
 	if len(a) != len(b) {
 		return false
@@ -330,7 +330,7 @@ func TestIteratorsJumpStop(t *testing.T) {
 	base := test.RandomAddress()
 	ps := pslice.New(4, base)
 
-	peers := make([]swarm.Address, 12)
+	peers := make([]flock.Address, 12)
 	j := 0
 	for i := 0; i < 4; i++ {
 		for ii := 0; ii < 3; ii++ {
@@ -342,19 +342,19 @@ func TestIteratorsJumpStop(t *testing.T) {
 	}
 
 	// check that jump to next bin works as expected
-	testIterator(t, ps, true, false, 4, []swarm.Address{peers[9], peers[6], peers[3], peers[0]})
-	testIteratorRev(t, ps, true, false, 4, []swarm.Address{peers[0], peers[3], peers[6], peers[9]})
+	testIterator(t, ps, true, false, 4, []flock.Address{peers[9], peers[6], peers[3], peers[0]})
+	testIteratorRev(t, ps, true, false, 4, []flock.Address{peers[0], peers[3], peers[6], peers[9]})
 
 	// // check that the stop functionality works correctly
-	testIterator(t, ps, true, true, 1, []swarm.Address{peers[9]})
-	testIteratorRev(t, ps, true, true, 1, []swarm.Address{peers[0]})
+	testIterator(t, ps, true, true, 1, []flock.Address{peers[9]})
+	testIteratorRev(t, ps, true, true, 1, []flock.Address{peers[0]})
 
 }
 
-func testIteratorRev(t *testing.T, ps *pslice.PSlice, skipNext, stop bool, iterations int, peerseq []swarm.Address) {
+func testIteratorRev(t *testing.T, ps *pslice.PSlice, skipNext, stop bool, iterations int, peerseq []flock.Address) {
 	t.Helper()
 	i := 0
-	f := func(p swarm.Address, po uint8) (bool, bool, error) {
+	f := func(p flock.Address, po uint8) (bool, bool, error) {
 		if i == iterations {
 			t.Fatal("too many iterations!")
 		}
@@ -371,10 +371,10 @@ func testIteratorRev(t *testing.T, ps *pslice.PSlice, skipNext, stop bool, itera
 	}
 }
 
-func testIterator(t *testing.T, ps *pslice.PSlice, skipNext, stop bool, iterations int, peerseq []swarm.Address) {
+func testIterator(t *testing.T, ps *pslice.PSlice, skipNext, stop bool, iterations int, peerseq []flock.Address) {
 	t.Helper()
 	i := 0
-	f := func(p swarm.Address, po uint8) (bool, bool, error) {
+	f := func(p flock.Address, po uint8) (bool, bool, error) {
 		if i == iterations {
 			t.Fatal("too many iterations!")
 		}
@@ -398,7 +398,7 @@ func chkLen(t *testing.T, ps *pslice.PSlice, l int) {
 	}
 }
 
-func chkExists(t *testing.T, ps *pslice.PSlice, addrs ...swarm.Address) {
+func chkExists(t *testing.T, ps *pslice.PSlice, addrs ...flock.Address) {
 	t.Helper()
 	for _, a := range addrs {
 		if !ps.Exists(a) {
@@ -407,7 +407,7 @@ func chkExists(t *testing.T, ps *pslice.PSlice, addrs ...swarm.Address) {
 	}
 }
 
-func chkNotExists(t *testing.T, ps *pslice.PSlice, addrs ...swarm.Address) {
+func chkNotExists(t *testing.T, ps *pslice.PSlice, addrs ...flock.Address) {
 	t.Helper()
 	for _, a := range addrs {
 		if ps.Exists(a) {
@@ -418,14 +418,14 @@ func chkNotExists(t *testing.T, ps *pslice.PSlice, addrs ...swarm.Address) {
 
 var (
 	base   = test.RandomAddress()
-	bins   = int(swarm.MaxBins)
+	bins   = int(flock.MaxBins)
 	perBin = 1000
 )
 
 func BenchmarkAdd(b *testing.B) {
 	ps := pslice.New(bins, base)
 
-	var addrs []swarm.Address
+	var addrs []flock.Address
 
 	for i := 0; i < bins*perBin; i++ {
 		addrs = append(addrs, test.RandomAddress())
@@ -443,7 +443,7 @@ func BenchmarkAdd(b *testing.B) {
 func BenchmarkAddBatch(b *testing.B) {
 	ps := pslice.New(bins, base)
 
-	var addrs []swarm.Address
+	var addrs []flock.Address
 
 	for i := 0; i < bins*perBin; i++ {
 		addrs = append(addrs, test.RandomAddress())
@@ -459,7 +459,7 @@ func BenchmarkAddBatch(b *testing.B) {
 func BenchmarkRemove(b *testing.B) {
 	ps := pslice.New(bins, base)
 
-	var addrs []swarm.Address
+	var addrs []flock.Address
 
 	for i := 0; i < bins*perBin; i++ {
 		addr := test.RandomAddress()
@@ -486,7 +486,7 @@ func BenchmarkEachBin(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		_ = ps.EachBin(func(a swarm.Address, u uint8) (stop bool, jumpToNext bool, err error) {
+		_ = ps.EachBin(func(a flock.Address, u uint8) (stop bool, jumpToNext bool, err error) {
 			return false, false, nil
 		})
 	}
@@ -502,7 +502,7 @@ func BenchmarkEachBinRev(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		_ = ps.EachBinRev(func(a swarm.Address, u uint8) (stop bool, jumpToNext bool, err error) {
+		_ = ps.EachBinRev(func(a flock.Address, u uint8) (stop bool, jumpToNext bool, err error) {
 			return false, false, nil
 		})
 	}

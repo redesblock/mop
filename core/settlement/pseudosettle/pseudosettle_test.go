@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	mockp2p "github.com/redesblock/mop/core/p2p/mock"
@@ -17,7 +18,6 @@ import (
 	"github.com/redesblock/mop/core/settlement/pseudosettle"
 	"github.com/redesblock/mop/core/settlement/pseudosettle/pb"
 	"github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type testObserver struct {
@@ -27,12 +27,12 @@ type testObserver struct {
 }
 
 type notifyPaymentReceivedCall struct {
-	peer   swarm.Address
+	peer   flock.Address
 	amount *big.Int
 }
 
 type notifyPaymentSentCall struct {
-	peer   swarm.Address
+	peer   flock.Address
 	amount *big.Int
 	err    error
 }
@@ -45,11 +45,11 @@ func newTestObserver(debtAmounts, shadowBalanceAmounts map[string]*big.Int) *tes
 	}
 }
 
-func (t *testObserver) setPeerDebt(peer swarm.Address, debt *big.Int) {
+func (t *testObserver) setPeerDebt(peer flock.Address, debt *big.Int) {
 	t.peerDebts[peer.String()] = debt
 }
 
-func (t *testObserver) PeerDebt(peer swarm.Address) (*big.Int, error) {
+func (t *testObserver) PeerDebt(peer flock.Address) (*big.Int, error) {
 	if debt, ok := t.peerDebts[peer.String()]; ok {
 		return debt, nil
 	}
@@ -57,15 +57,15 @@ func (t *testObserver) PeerDebt(peer swarm.Address) (*big.Int, error) {
 	return nil, errors.New("Peer not listed")
 }
 
-func (t *testObserver) Connect(peer swarm.Address) {
+func (t *testObserver) Connect(peer flock.Address) {
 
 }
 
-func (t *testObserver) Disconnect(peer swarm.Address) {
+func (t *testObserver) Disconnect(peer flock.Address) {
 
 }
 
-func (t *testObserver) NotifyRefreshmentReceived(peer swarm.Address, amount *big.Int) error {
+func (t *testObserver) NotifyRefreshmentReceived(peer flock.Address, amount *big.Int) error {
 	t.receivedCalled <- notifyPaymentReceivedCall{
 		peer:   peer,
 		amount: amount,
@@ -73,11 +73,11 @@ func (t *testObserver) NotifyRefreshmentReceived(peer swarm.Address, amount *big
 	return nil
 }
 
-func (t *testObserver) NotifyPaymentReceived(peer swarm.Address, amount *big.Int) error {
+func (t *testObserver) NotifyPaymentReceived(peer flock.Address, amount *big.Int) error {
 	return nil
 }
 
-func (t *testObserver) NotifyPaymentSent(peer swarm.Address, amount *big.Int, err error) {
+func (t *testObserver) NotifyPaymentSent(peer flock.Address, amount *big.Int, err error) {
 	t.sentCalled <- notifyPaymentSentCall{
 		peer:   peer,
 		amount: amount,
@@ -85,17 +85,17 @@ func (t *testObserver) NotifyPaymentSent(peer swarm.Address, amount *big.Int, er
 	}
 }
 
-func (t *testObserver) Reserve(ctx context.Context, peer swarm.Address, amount uint64) error {
+func (t *testObserver) Reserve(ctx context.Context, peer flock.Address, amount uint64) error {
 	return nil
 }
 
-func (t *testObserver) Release(peer swarm.Address, amount uint64) {
+func (t *testObserver) Release(peer flock.Address, amount uint64) {
 }
 
 var testRefreshRate = int64(10000)
 var testRefreshRateLight = int64(1000)
 
-func testCaseNotAccepted(t *testing.T, recorder *streamtest.Recorder, observer *testObserver, payer, recipient *pseudosettle.Service, peerID swarm.Address, payerTime, recipientTime int64, recordsLength int, debtAmount, amount *big.Int, expectedError error) {
+func testCaseNotAccepted(t *testing.T, recorder *streamtest.Recorder, observer *testObserver, payer, recipient *pseudosettle.Service, peerID flock.Address, payerTime, recipientTime int64, recordsLength int, debtAmount, amount *big.Int, expectedError error) {
 
 	payer.SetTime(payerTime)
 	recipient.SetTime(recipientTime)
@@ -124,7 +124,7 @@ func testCaseNotAccepted(t *testing.T, recorder *streamtest.Recorder, observer *
 	}
 }
 
-func testCaseAccepted(t *testing.T, recorder *streamtest.Recorder, observer *testObserver, payer, recipient *pseudosettle.Service, peerID swarm.Address, payerTime, recipientTime int64, recordsLength, msgLength, recMsgLength int, debtAmount, amount, accepted, totalAmount *big.Int) {
+func testCaseAccepted(t *testing.T, recorder *streamtest.Recorder, observer *testObserver, payer, recipient *pseudosettle.Service, peerID flock.Address, payerTime, recipientTime int64, recordsLength, msgLength, recMsgLength int, debtAmount, amount, accepted, totalAmount *big.Int) {
 
 	payer.SetTime(payerTime)
 	recipient.SetTime(recipientTime)
@@ -225,7 +225,7 @@ func TestPayment(t *testing.T) {
 	storeRecipient := mock.NewStateStore()
 	defer storeRecipient.Close()
 
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	peer := p2p.Peer{Address: peerID, FullNode: true}
 
 	debt := int64(10000)
@@ -259,7 +259,7 @@ func TestTimeLimitedPayment(t *testing.T) {
 	storeRecipient := mock.NewStateStore()
 	defer storeRecipient.Close()
 
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	peer := p2p.Peer{Address: peerID, FullNode: true}
 
 	debt := testRefreshRate
@@ -316,7 +316,7 @@ func TestTimeLimitedPaymentLight(t *testing.T) {
 	storeRecipient := mock.NewStateStore()
 	defer storeRecipient.Close()
 
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	peer := p2p.Peer{Address: peerID, FullNode: false}
 
 	debt := testRefreshRate

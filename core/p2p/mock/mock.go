@@ -6,23 +6,23 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // Service is the mock of a P2P Service
 type Service struct {
 	addProtocolFunc       func(p2p.ProtocolSpec) error
 	connectFunc           func(ctx context.Context, addr ma.Multiaddr) (address *mop.Address, err error)
-	disconnectFunc        func(overlay swarm.Address, reason string) error
+	disconnectFunc        func(overlay flock.Address, reason string) error
 	peersFunc             func() []p2p.Peer
 	blocklistedPeersFunc  func() ([]p2p.Peer, error)
 	addressesFunc         func() ([]ma.Multiaddr, error)
 	notifierFunc          p2p.PickyNotifier
 	setWelcomeMessageFunc func(string) error
 	getWelcomeMessageFunc func() string
-	blocklistFunc         func(swarm.Address, time.Duration, string) error
+	blocklistFunc         func(flock.Address, time.Duration, string) error
 	welcomeMessage        string
 }
 
@@ -41,7 +41,7 @@ func WithConnectFunc(f func(ctx context.Context, addr ma.Multiaddr) (address *mo
 }
 
 // WithDisconnectFunc sets the mock implementation of the Disconnect function
-func WithDisconnectFunc(f func(overlay swarm.Address, reason string) error) Option {
+func WithDisconnectFunc(f func(overlay flock.Address, reason string) error) Option {
 	return optionFunc(func(s *Service) {
 		s.disconnectFunc = f
 	})
@@ -82,7 +82,7 @@ func WithSetWelcomeMessageFunc(f func(string) error) Option {
 	})
 }
 
-func WithBlocklistFunc(f func(swarm.Address, time.Duration, string) error) Option {
+func WithBlocklistFunc(f func(flock.Address, time.Duration, string) error) Option {
 	return optionFunc(func(s *Service) {
 		s.blocklistFunc = f
 	})
@@ -111,7 +111,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *mop.
 	return s.connectFunc(ctx, addr)
 }
 
-func (s *Service) Disconnect(overlay swarm.Address, reason string) error {
+func (s *Service) Disconnect(overlay flock.Address, reason string) error {
 	if s.disconnectFunc == nil {
 		return errors.New("function Disconnect not configured")
 	}
@@ -162,7 +162,7 @@ func (s *Service) GetWelcomeMessage() string {
 
 func (s *Service) Halt() {}
 
-func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration, reason string) error {
+func (s *Service) Blocklist(overlay flock.Address, duration time.Duration, reason string) error {
 	if s.blocklistFunc == nil {
 		return errors.New("function blocklist not configured")
 	}

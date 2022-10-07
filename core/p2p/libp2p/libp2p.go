@@ -31,6 +31,7 @@ import (
 	"github.com/multiformats/go-multistream"
 	"github.com/redesblock/mop/core/addressbook"
 	mopCrypto "github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
@@ -39,7 +40,6 @@ import (
 	handshake "github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/reacher"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/topology/lightnode"
 	"github.com/redesblock/mop/core/tracing"
@@ -90,7 +90,7 @@ type lightnodes interface {
 	Connected(context.Context, p2p.Peer)
 	Disconnected(p2p.Peer)
 	Count() int
-	RandomPeer(swarm.Address) (swarm.Address, error)
+	RandomPeer(flock.Address) (flock.Address, error)
 	EachPeer(pf topology.EachPeerFunc) error
 }
 
@@ -105,7 +105,7 @@ type Options struct {
 	hostFactory    func(context.Context, ...libp2p.Option) (host.Host, error)
 }
 
-func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay swarm.Address, addr string, ab addressbook.Putter, storer storage.StateStorer, lightNodes *lightnode.Container, swapBackend handshake.SenderMatcher, logger logging.Logger, tracer *tracing.Tracer, o Options) (*Service, error) {
+func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay flock.Address, addr string, ab addressbook.Putter, storer storage.StateStorer, lightNodes *lightnode.Container, swapBackend handshake.SenderMatcher, logger logging.Logger, tracer *tracing.Tracer, o Options) (*Service, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("address: %w", err)
@@ -276,7 +276,7 @@ func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay
 	}
 
 	// Construct protocols.
-	id := protocol.ID(p2p.NewSwarmStreamName(handshake.ProtocolName, handshake.ProtocolVersion, handshake.StreamName))
+	id := protocol.ID(p2p.NewFlockStreamName(handshake.ProtocolName, handshake.ProtocolVersion, handshake.StreamName))
 	matcher, err := s.protocolSemverMatcher(id)
 	if err != nil {
 		return nil, fmt.Errorf("protocol version match %s: %w", id, err)
@@ -447,8 +447,8 @@ func (s *Service) handleIncoming(stream network.Stream) {
 			// when a full node connects, we gossip about it to the
 			// light nodes so that they can also have a chance at building
 			// a solid topology.
-			_ = s.lightNodes.EachPeer(func(addr swarm.Address, _ uint8) (bool, bool, error) {
-				go func(addressee, peer swarm.Address, fullnode bool) {
+			_ = s.lightNodes.EachPeer(func(addr flock.Address, _ uint8) (bool, bool, error) {
+				go func(addressee, peer flock.Address, fullnode bool) {
 					if err := s.notifier.AnnounceTo(s.ctx, addressee, peer, fullnode); err != nil {
 						s.logger.Debugf("stream handler: notifier.Announce to light node %s %s: %v", addressee.String(), peer.String(), err)
 					}
@@ -484,7 +484,7 @@ func (s *Service) SetPickyNotifier(n p2p.PickyNotifier) {
 func (s *Service) AddProtocol(p p2p.ProtocolSpec) (err error) {
 	for _, ss := range p.StreamSpecs {
 		ss := ss
-		id := protocol.ID(p2p.NewSwarmStreamName(p.Name, p.Version, ss.Name))
+		id := protocol.ID(p2p.NewFlockStreamName(p.Name, p.Version, ss.Name))
 		matcher, err := s.protocolSemverMatcher(id)
 		if err != nil {
 			return fmt.Errorf("protocol version match %s: %w", id, err)
@@ -591,7 +591,7 @@ func (s *Service) NATManager() basichost.NATManager {
 	return s.natManager
 }
 
-func (s *Service) Blocklist(overlay swarm.Address, duration time.Duration, reason string) error {
+func (s *Service) Blocklist(overlay flock.Address, duration time.Duration, reason string) error {
 	if err := s.blocklist.Add(overlay, duration); err != nil {
 		s.metrics.BlocklistedPeerErrCount.Inc()
 		_ = s.Disconnect(overlay, "failed blocklisting peer")
@@ -738,7 +738,7 @@ func (s *Service) Connect(ctx context.Context, addr ma.Multiaddr) (address *mop.
 	return i.MopAddress, nil
 }
 
-func (s *Service) Disconnect(overlay swarm.Address, reason string) error {
+func (s *Service) Disconnect(overlay flock.Address, reason string) error {
 	s.metrics.DisconnectCount.Inc()
 
 	s.logger.Debugf("libp2p disconnect: disconnecting peer %s reason: %s", overlay, reason)
@@ -779,7 +779,7 @@ func (s *Service) Disconnect(overlay swarm.Address, reason string) error {
 }
 
 // disconnected is a registered peer registry event
-func (s *Service) disconnected(address swarm.Address) {
+func (s *Service) disconnected(address flock.Address) {
 	peer := p2p.Peer{Address: address}
 	peerID, found := s.peers.peerID(address)
 	if found {
@@ -819,7 +819,7 @@ func (s *Service) BlocklistedPeers() ([]p2p.Peer, error) {
 	return s.blocklist.Peers()
 }
 
-func (s *Service) NewStream(ctx context.Context, overlay swarm.Address, headers p2p.Headers, protocolName, protocolVersion, streamName string) (p2p.Stream, error) {
+func (s *Service) NewStream(ctx context.Context, overlay flock.Address, headers p2p.Headers, protocolName, protocolVersion, streamName string) (p2p.Stream, error) {
 	peerID, found := s.peers.peerID(overlay)
 	if !found {
 		return nil, p2p.ErrPeerNotFound
@@ -850,8 +850,8 @@ func (s *Service) NewStream(ctx context.Context, overlay swarm.Address, headers 
 }
 
 func (s *Service) newStreamForPeerID(ctx context.Context, peerID libp2ppeer.ID, protocolName, protocolVersion, streamName string) (network.Stream, error) {
-	swarmStreamName := p2p.NewSwarmStreamName(protocolName, protocolVersion, streamName)
-	st, err := s.host.NewStream(ctx, peerID, protocol.ID(swarmStreamName))
+	flockStreamName := p2p.NewFlockStreamName(protocolName, protocolVersion, streamName)
+	st, err := s.host.NewStream(ctx, peerID, protocol.ID(flockStreamName))
 	if err != nil {
 		if st != nil {
 			s.logger.Debug("stream experienced unexpected early close")
@@ -860,7 +860,7 @@ func (s *Service) newStreamForPeerID(ctx context.Context, peerID libp2ppeer.ID, 
 		if err == multistream.ErrNotSupported || err == multistream.ErrIncorrectVersion {
 			return nil, p2p.NewIncompatibleStreamError(err)
 		}
-		return nil, fmt.Errorf("create stream %q to %q: %w", swarmStreamName, peerID, err)
+		return nil, fmt.Errorf("create stream %q to %q: %w", flockStreamName, peerID, err)
 	}
 	s.metrics.CreatedStreamCount.Inc()
 	return st, nil

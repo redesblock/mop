@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/postage"
 	postagetesting "github.com/redesblock/mop/core/postage/testing"
 	"github.com/redesblock/mop/core/pss"
 	"github.com/redesblock/mop/core/pushsync"
 	pushsyncmock "github.com/redesblock/mop/core/pushsync/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestSend creates a trojan chunk and sends it using push sync
@@ -23,8 +23,8 @@ func TestSend(t *testing.T) {
 	ctx := context.Background()
 
 	// create a mock pushsync service to push the chunk to its destination
-	var storedChunk swarm.Chunk
-	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+	var storedChunk flock.Chunk
+	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 		storedChunk = chunk
 		return nil, nil
 	})
@@ -230,6 +230,6 @@ func ensureCalls(t *testing.T, calls *int, exp int) {
 
 type voucher struct{}
 
-func (s *voucher) Vouch(_ swarm.Address) (*postage.Vouch, error) {
+func (s *voucher) Vouch(_ flock.Address) (*postage.Vouch, error) {
 	return postagetesting.MustNewVouch(), nil
 }

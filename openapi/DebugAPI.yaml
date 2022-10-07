@@ -63,9 +63,9 @@ paths:
         - in: path
           name: address
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       responses:
         "200":
           description: Balance with the specific peer
@@ -123,9 +123,9 @@ paths:
         - in: path
           name: address
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       responses:
         "200":
           description: Past-due consumption balance with the specific peer
@@ -196,9 +196,9 @@ paths:
         - in: path
           name: address
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of chunk
+          description: Flock address of chunk
       responses:
         "200":
           description: Chunk exists
@@ -220,9 +220,9 @@ paths:
         - in: path
           name: address
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of chunk
+          description: Flock address of chunk
       responses:
         "200":
           description: Chunk exists
@@ -362,9 +362,9 @@ paths:
         - in: path
           name: address
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       responses:
         "200":
           description: Disconnected peer
@@ -388,9 +388,9 @@ paths:
         - in: path
           name: peer-id
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       responses:
         "200":
           description: Returns round trip time for given peer
@@ -431,9 +431,9 @@ paths:
         - in: path
           name: address
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       responses:
         "200":
           description: Amount of sent or received from settlements with a peer
@@ -489,7 +489,7 @@ paths:
         - Connectivity
       responses:
         "200":
-          description: Swarm topology of the bee node
+          description: Flock topology of the bee node
           content:
             application/json:
               schema:
@@ -541,9 +541,9 @@ paths:
         - in: path
           name: peer-id
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       tags:
         - Chequebook
       responses:
@@ -565,9 +565,9 @@ paths:
         - in: path
           name: peer-id
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
         - $ref: "Common.yaml#/components/parameters/GasPriceParameter"
         - $ref: "Common.yaml#/components/parameters/GasLimitParameter"
       tags:
@@ -595,9 +595,9 @@ paths:
         - in: path
           name: peer-id
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmAddress"
+            $ref: "Common.yaml#/components/schemas/flockAddress"
           required: true
-          description: Swarm address of peer
+          description: Flock address of peer
       tags:
         - Chequebook
       responses:
@@ -845,7 +845,7 @@ paths:
         schema:
           $ref: "Common.yaml#/components/schemas/BatchID"
         required: true
-        description: Swarm address of the vouch
+        description: Flock address of the vouch
     get:
       summary: Get an individual postage batch status
       tags:
@@ -869,7 +869,7 @@ paths:
         schema:
           $ref: "Common.yaml#/components/schemas/BatchID"
         required: true
-        description: Swarm address of the vouch
+        description: Flock address of the vouch
     get:
       summary: Get extended bucket data of a batch
       tags:

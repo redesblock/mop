@@ -8,22 +8,22 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/p2p/streamtest"
 	"github.com/redesblock/mop/core/pricing"
 	"github.com/redesblock/mop/core/pricing/pb"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type testThresholdObserver struct {
 	called           bool
-	peer             swarm.Address
+	peer             flock.Address
 	paymentThreshold *big.Int
 }
 
-func (t *testThresholdObserver) NotifyPaymentThreshold(peerAddr swarm.Address, paymentThreshold *big.Int) error {
+func (t *testThresholdObserver) NotifyPaymentThreshold(peerAddr flock.Address, paymentThreshold *big.Int) error {
 	t.called = true
 	t.peer = peerAddr
 	t.paymentThreshold = paymentThreshold
@@ -38,7 +38,7 @@ func TestAnnouncePaymentThreshold(t *testing.T) {
 	recipient := pricing.New(nil, logger, testThreshold, big.NewInt(1000))
 	recipient.SetPaymentThresholdObserver(observer)
 
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 
 	recorder := streamtest.New(
 		streamtest.WithProtocols(recipient.Protocol()),
@@ -105,7 +105,7 @@ func TestAnnouncePaymentWithInsufficientThreshold(t *testing.T) {
 	recipient := pricing.New(nil, logger, testThreshold, minThreshold)
 	recipient.SetPaymentThresholdObserver(observer)
 
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 
 	recorder := streamtest.New(
 		streamtest.WithProtocols(recipient.Protocol()),

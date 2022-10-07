@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // VouchSize is the number of bytes in the serialisation of a vouch
@@ -28,7 +28,7 @@ var (
 	ErrBucketMismatch = errors.New("bucket mismatch")
 )
 
-var _ swarm.Vouch = (*Vouch)(nil)
+var _ flock.Vouch = (*Vouch)(nil)
 
 // Vouch represents a postage vouch as attached to a chunk.
 type Vouch struct {
@@ -89,7 +89,7 @@ func (s *Vouch) UnmarshalBinary(buf []byte) error {
 // toSignDigest creates a digest to represent the vouch which is to be signed by
 // the owner.
 func toSignDigest(addr, batchId, index, timestamp []byte) ([]byte, error) {
-	h := swarm.NewHasher()
+	h := flock.NewHasher()
 	_, err := h.Write(addr)
 	if err != nil {
 		return nil, err
@@ -109,11 +109,11 @@ func toSignDigest(addr, batchId, index, timestamp []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-type ValidVouchFn func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error)
+type ValidVouchFn func(chunk flock.Chunk, vouchBytes []byte) (flock.Chunk, error)
 
 // ValidVouch returns a vouchvalidator function passed to protocols with chunk entrypoints.
 func ValidVouch(batchStore Storer) ValidVouchFn {
-	return func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error) {
+	return func(chunk flock.Chunk, vouchBytes []byte) (flock.Chunk, error) {
 		vouch := new(Vouch)
 		err := vouch.UnmarshalBinary(vouchBytes)
 		if err != nil {
@@ -138,7 +138,7 @@ func ValidVouch(batchStore Storer) ValidVouchFn {
 // - authorisation - the batch owner is the vouch signer
 // the validity  check is only meaningful in its association of a chunk
 // this chunk address needs to be given as argument
-func (s *Vouch) Valid(chunkAddr swarm.Address, ownerAddr []byte, depth, bucketDepth uint8, immutable bool) error {
+func (s *Vouch) Valid(chunkAddr flock.Address, ownerAddr []byte, depth, bucketDepth uint8, immutable bool) error {
 	toSign, err := toSignDigest(chunkAddr.Bytes(), s.batchID, s.index, s.timestamp)
 	if err != nil {
 		return err

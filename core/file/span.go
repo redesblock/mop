@@ -3,13 +3,13 @@ package file
 import (
 	"math"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var Spans []int64
 
 func init() {
-	Spans = GenerateSpanSizes(9, swarm.Branches)
+	Spans = GenerateSpanSizes(9, flock.Branches)
 }
 
 // GenerateSpanSizes generates a dictionary of maximum span lengths per level represented by one SectionSize() of data

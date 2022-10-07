@@ -3,7 +3,7 @@ package pusher
 import (
 	"sync"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 type inflight struct {
@@ -17,7 +17,7 @@ func newInflight() *inflight {
 	}
 }
 
-func (i *inflight) delete(ch swarm.Chunk) {
+func (i *inflight) delete(ch flock.Chunk) {
 	i.mtx.Lock()
 	delete(i.inflight, ch.Address().ByteString())
 	i.mtx.Unlock()
@@ -42,7 +42,7 @@ type attempts struct {
 
 // try to log a chunk sync attempt. returns false when
 // maximum amount of attempts have been reached.
-func (a *attempts) try(ch swarm.Address) bool {
+func (a *attempts) try(ch flock.Address) bool {
 	key := ch.ByteString()
 	a.mtx.Lock()
 	defer a.mtx.Unlock()

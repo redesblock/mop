@@ -12,7 +12,7 @@ import (
 
 	"github.com/redesblock/mop/core/bmt"
 	"github.com/redesblock/mop/core/bmt/reference"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -27,12 +27,12 @@ const (
 
 var (
 	testSegmentCounts = []int{1, 2, 3, 4, 5, 8, 9, 15, 16, 17, 32, 37, 42, 53, 63, 64, 65, 111, 127, 128}
-	hashSize          = swarm.NewHasher().Size()
+	hashSize          = flock.NewHasher().Size()
 	seed              = time.Now().Unix()
 )
 
 func refHash(count int, data []byte) ([]byte, error) {
-	rbmt := reference.NewRefHasher(swarm.NewHasher(), count)
+	rbmt := reference.NewRefHasher(flock.NewHasher(), count)
 	refNoMetaHash, err := rbmt.Hash(data)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func TestHasherEmptyData(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, count, 1))
+			pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, count, 1))
 			h := pool.Get()
 			resHash, err := syncHash(h, nil)
 			if err != nil {
@@ -82,7 +82,7 @@ func TestSyncHasherCorrectness(t *testing.T) {
 			max := count * hashSize
 			var incr int
 			capacity := 1
-			pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, count, capacity))
+			pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, count, capacity))
 			for n := 0; n <= max; n += incr {
 				h := pool.Get()
 				incr = 1 + rand.Intn(5)
@@ -108,7 +108,7 @@ func TestHasherReuse(t *testing.T) {
 
 // tests if bmt reuse is not corrupting result
 func testHasherReuse(t *testing.T, poolsize int) {
-	pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, testSegmentCount, poolsize))
+	pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, testSegmentCount, poolsize))
 	h := pool.Get()
 	defer pool.Put(h)
 
@@ -126,7 +126,7 @@ func testHasherReuse(t *testing.T, poolsize int) {
 // tests if pool can be cleanly reused even in concurrent use by several hashers
 func TestBMTConcurrentUse(t *testing.T) {
 	testData := randomBytes(t, seed)
-	pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, testSegmentCount, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, testSegmentCount, testPoolSize))
 	cycles := 100
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -155,7 +155,7 @@ func TestBMTConcurrentUse(t *testing.T) {
 func TestBMTWriterBuffers(t *testing.T) {
 	for i, count := range testSegmentCounts {
 		t.Run(fmt.Sprintf("%d_segments", count), func(t *testing.T) {
-			pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, count, testPoolSize))
+			pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, count, testPoolSize))
 			h := pool.Get()
 			defer pool.Put(h)
 
@@ -250,7 +250,7 @@ func testHasherCorrectness(h *bmt.Hasher, data []byte, n, count int) (err error)
 
 // verifies that the bmt.Hasher can be used with the hash.Hash interface
 func TestUseSyncAsOrdinaryHasher(t *testing.T) {
-	pool := bmt.NewPool(bmt.NewConf(swarm.NewHasher, testSegmentCount, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(flock.NewHasher, testSegmentCount, testPoolSize))
 	h := pool.Get()
 	defer pool.Put(h)
 	data := []byte("moodbytesmoodbytesmoodbytesmoodbytes")

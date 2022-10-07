@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestDB_SubscribePush uploads some chunks before and after
@@ -19,7 +19,7 @@ import (
 func TestDB_SubscribePush(t *testing.T) {
 	db := newTestDB(t, nil)
 
-	chunks := make([]swarm.Chunk, 0)
+	chunks := make([]flock.Chunk, 0)
 	var chunksMu sync.Mutex
 
 	chunkProcessedTimes := make([]int, 0)
@@ -131,7 +131,7 @@ func TestDB_SubscribePush(t *testing.T) {
 func TestDB_SubscribePush_multiple(t *testing.T) {
 	db := newTestDB(t, nil)
 
-	addrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
 	var addrsMu sync.Mutex
 
 	uploadRandomChunks := func(count int) {
@@ -222,7 +222,7 @@ func TestDB_SubscribePush_multiple(t *testing.T) {
 func TestDB_SubscribePush_iterator_restart(t *testing.T) {
 	db := newTestDB(t, nil)
 
-	addrs := make([]swarm.Address, 0)
+	addrs := make([]flock.Address, 0)
 	var addrsMu sync.Mutex
 
 	uploadRandomChunks := func(count int) {

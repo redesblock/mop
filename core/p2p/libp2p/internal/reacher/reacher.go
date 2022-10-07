@@ -8,8 +8,8 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 )
 
 type peer struct {
-	overlay    swarm.Address
+	overlay    flock.Address
 	addr       ma.Multiaddr
 	retryAfter time.Time
 	attempts   int
@@ -234,7 +234,7 @@ func (r *reacher) deletePeer(p *peer) {
 }
 
 // Connected adds a new peer to the queue for testing reachability.
-func (r *reacher) Connected(overlay swarm.Address, addr ma.Multiaddr) {
+func (r *reacher) Connected(overlay flock.Address, addr ma.Multiaddr) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -246,7 +246,7 @@ func (r *reacher) Connected(overlay swarm.Address, addr ma.Multiaddr) {
 }
 
 // Disconnected removes a peer from the queue.
-func (r *reacher) Disconnected(overlay swarm.Address) {
+func (r *reacher) Disconnected(overlay flock.Address) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

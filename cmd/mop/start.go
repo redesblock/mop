@@ -22,18 +22,18 @@ import (
 	"github.com/kardianos/service"
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/crypto/clef"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/keystore"
 	filekeystore "github.com/redesblock/mop/core/keystore/file"
 	memkeystore "github.com/redesblock/mop/core/keystore/mem"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/node"
 	"github.com/redesblock/mop/core/resolver/multiresolver"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/spf13/cobra"
 )
 
 const (
-	serviceName = "SwarmMopSvc"
+	serviceName = "FlockMopSvc"
 )
 
 //go:embed welcome-message.txt
@@ -43,7 +43,7 @@ func (c *command) initStartCmd() (err error) {
 
 	cmd := &cobra.Command{
 		Use:   "start",
-		Short: "Start a Swarm node",
+		Short: "Start a Flock node",
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			if len(args) > 0 {
 				return cmd.Help()
@@ -132,12 +132,12 @@ func (c *command) initStartCmd() (err error) {
 				tracingEndpoint = strings.Join([]string{c.config.GetString(optionNameTracingHost), c.config.GetString(optionNameTracingPort)}, ":")
 			}
 
-			var staticNodes []swarm.Address
+			var staticNodes []flock.Address
 
 			for _, p := range c.config.GetStringSlice(optionNameStaticNodes) {
-				addr, err := swarm.ParseHexAddress(p)
+				addr, err := flock.ParseHexAddress(p)
 				if err != nil {
-					return fmt.Errorf("invalid swarm address %q configured for static node", p)
+					return fmt.Errorf("invalid flock address %q configured for static node", p)
 				}
 
 				staticNodes = append(staticNodes, addr)
@@ -244,7 +244,7 @@ func (c *command) initStartCmd() (err error) {
 				s, err := service.New(p, &service.Config{
 					Name:        serviceName,
 					DisplayName: "Mop",
-					Description: "Swarm client.",
+					Description: "Flock client.",
 				})
 				if err != nil {
 					return err
@@ -389,12 +389,12 @@ func (c *command) configureSigner(cmd *cobra.Command, logger logging.Logger) (co
 		}
 	} else {
 		logger.Warning("clef is not enabled; portability and security of your keys is sub optimal")
-		swarmPrivateKey, _, err := keystore.Key("swarm", password)
+		flockPrivateKey, _, err := keystore.Key("flock", password)
 		if err != nil {
-			return nil, fmt.Errorf("swarm key: %w", err)
+			return nil, fmt.Errorf("flock key: %w", err)
 		}
-		signer = crypto.NewDefaultSigner(swarmPrivateKey)
-		publicKey = &swarmPrivateKey.PublicKey
+		signer = crypto.NewDefaultSigner(flockPrivateKey)
+		publicKey = &flockPrivateKey.PublicKey
 	}
 
 	logger.Infof("public key %x", crypto.EncodeSecp256k1PublicKey(publicKey))
@@ -448,7 +448,7 @@ func getConfigByNetworkID(networkID uint64, defaultBlockTime uint64) *networkCon
 	}
 	switch networkID {
 	case 1:
-		config.bootNodes = []string{"/dnsaddr/mainnet.ethswarm.org"}
+		config.bootNodes = []string{"/dnsaddr/mainnet.bnbflock.org"}
 		config.blockTime = 5
 		config.chainID = 100
 	case 5: //staging

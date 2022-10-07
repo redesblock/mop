@@ -9,6 +9,7 @@ import (
 	"time"
 
 	accountingmock "github.com/redesblock/mop/core/accounting/mock"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/netstore"
 	"github.com/redesblock/mop/core/p2p/streamtest"
@@ -24,7 +25,6 @@ import (
 	"github.com/redesblock/mop/core/storage/mock"
 	storemock "github.com/redesblock/mop/core/storage/mock"
 	chunktesting "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 )
 
@@ -127,9 +127,9 @@ func TestNewRepairHandler(t *testing.T) {
 
 		// create a mock pushsync service to push the chunk to its destination
 		var receipt *pushsync.Receipt
-		pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+		pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 			receipt = &pushsync.Receipt{
-				Address: swarm.NewAddress(chunk.Address().Bytes()),
+				Address: flock.NewAddress(chunk.Address().Bytes()),
 			}
 			return receipt, nil
 		})
@@ -161,7 +161,7 @@ func TestNewRepairHandler(t *testing.T) {
 
 		// create a mock pushsync service
 		pushServiceCalled := false
-		pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+		pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 			pushServiceCalled = true
 			return nil, nil
 		})
@@ -191,7 +191,7 @@ func TestNewRepairHandler(t *testing.T) {
 
 		// create a mock pushsync service
 		var receiptError error
-		pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
+		pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk flock.Chunk) (*pushsync.Receipt, error) {
 			receiptError = errors.New("invalid receipt")
 			return nil, receiptError
 		})
@@ -218,7 +218,7 @@ func newTestNetStore(t *testing.T, recoveryFunc recovery.Callback) storage.Store
 	serverMockAccounting := accountingmock.NewAccounting()
 
 	pricerMock := pricermock.NewMockService(10, 10)
-	peerID := swarm.MustParseHexAddress("deadbeef")
+	peerID := flock.MustParseHexAddress("deadbeef")
 	ps := mockPeerSuggester{eachPeerRevFunc: func(f topology.EachPeerFunc) error {
 		_, _, _ = f(peerID, 0)
 		return nil
@@ -229,13 +229,13 @@ func newTestNetStore(t *testing.T, recoveryFunc recovery.Callback) storage.Store
 		return nil
 	}}
 
-	server := retrieval.New(swarm.ZeroAddress, mockStorer, nil, ps0, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
+	server := retrieval.New(flock.ZeroAddress, mockStorer, nil, ps0, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
 	recorder := streamtest.New(
 		streamtest.WithProtocols(server.Protocol()),
 		streamtest.WithBaseAddr(peerID),
 	)
-	retrieve := retrieval.New(swarm.ZeroAddress, mockStorer, recorder, ps, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
-	validVouch := func(ch swarm.Chunk, vouch []byte) (swarm.Chunk, error) {
+	retrieve := retrieval.New(flock.ZeroAddress, mockStorer, recorder, ps, logger, serverMockAccounting, pricerMock, nil, false, noopVouchValidator)
+	validVouch := func(ch flock.Chunk, vouch []byte) (flock.Chunk, error) {
 		return ch.WithVouch(postage.NewVouch(nil, nil, nil, nil)), nil
 	}
 
@@ -264,6 +264,6 @@ func (mp *mockPssSender) Send(ctx context.Context, topic pss.Topic, payload []by
 	return nil
 }
 
-var noopVouchValidator = func(chunk swarm.Chunk, vouchBytes []byte) (swarm.Chunk, error) {
+var noopVouchValidator = func(chunk flock.Chunk, vouchBytes []byte) (flock.Chunk, error) {
 	return chunk, nil
 }

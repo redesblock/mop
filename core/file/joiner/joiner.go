@@ -11,13 +11,13 @@ import (
 
 	"github.com/redesblock/mop/core/encryption/store"
 	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"golang.org/x/sync/errgroup"
 )
 
 type joiner struct {
-	addr      swarm.Address
+	addr      flock.Address
 	rootData  []byte
 	span      int64
 	off       int64
@@ -28,7 +28,7 @@ type joiner struct {
 }
 
 // New creates a new Joiner. A Joiner provides Read, Seek and Size functionalities.
-func New(ctx context.Context, getter storage.Getter, address swarm.Address) (file.Joiner, int64, error) {
+func New(ctx context.Context, getter storage.Getter, address flock.Address) (file.Joiner, int64, error) {
 	getter = store.New(getter)
 	// retrieve the root chunk to read the total data length the be retrieved
 	rootChunk, err := getter.Get(ctx, storage.ModeGetRequest, address)
@@ -38,7 +38,7 @@ func New(ctx context.Context, getter storage.Getter, address swarm.Address) (fil
 
 	var chunkData = rootChunk.Data()
 
-	span := int64(binary.LittleEndian.Uint64(chunkData[:swarm.SpanSize]))
+	span := int64(binary.LittleEndian.Uint64(chunkData[:flock.SpanSize]))
 
 	j := &joiner{
 		addr:      rootChunk.Address(),
@@ -46,7 +46,7 @@ func New(ctx context.Context, getter storage.Getter, address swarm.Address) (fil
 		ctx:       ctx,
 		getter:    getter,
 		span:      span,
-		rootData:  chunkData[swarm.SpanSize:],
+		rootData:  chunkData[flock.SpanSize:],
 	}
 
 	return j, span, nil
@@ -65,7 +65,7 @@ func (j *joiner) Read(b []byte) (n int, err error) {
 }
 
 func (j *joiner) ReadAt(buffer []byte, off int64) (read int, err error) {
-	// since offset is int64 and swarm spans are uint64 it means we cannot seek beyond int64 max value
+	// since offset is int64 and flock spans are uint64 it means we cannot seek beyond int64 max value
 	if off >= j.span {
 		return 0, io.EOF
 	}
@@ -117,7 +117,7 @@ func (j *joiner) readAtOffset(b, data []byte, cur, subTrieSize, off, bufferOffse
 		}
 
 		// if we are here it means that we are within the bounds of the data we need to read
-		address := swarm.NewAddress(data[cursor : cursor+j.refLength])
+		address := flock.NewAddress(data[cursor : cursor+j.refLength])
 
 		subtrieSpan := sec
 		subtrieSpanLimit := sec
@@ -132,7 +132,7 @@ func (j *joiner) readAtOffset(b, data []byte, cur, subTrieSize, off, bufferOffse
 			currentReadSize = subtrieSpan
 		}
 
-		func(address swarm.Address, b []byte, cur, subTrieSize, off, bufferOffset, bytesToRead, subtrieSpanLimit int64) {
+		func(address flock.Address, b []byte, cur, subTrieSize, off, bufferOffset, bytesToRead, subtrieSpanLimit int64) {
 			eg.Go(func() error {
 				ch, err := j.getter.Get(j.ctx, storage.ModeGetRequest, address)
 				if err != nil {
@@ -217,7 +217,7 @@ func (j *joiner) Seek(offset int64, whence int) (int64, error) {
 
 }
 
-func (j *joiner) IterateChunkAddresses(fn swarm.AddressIterFunc) error {
+func (j *joiner) IterateChunkAddresses(fn flock.AddressIterFunc) error {
 	// report root address
 	err := fn(j.addr)
 	if err != nil {
@@ -227,7 +227,7 @@ func (j *joiner) IterateChunkAddresses(fn swarm.AddressIterFunc) error {
 	return j.processChunkAddresses(j.ctx, fn, j.rootData, j.span)
 }
 
-func (j *joiner) processChunkAddresses(ctx context.Context, fn swarm.AddressIterFunc, data []byte, subTrieSize int64) error {
+func (j *joiner) processChunkAddresses(ctx context.Context, fn flock.AddressIterFunc, data []byte, subTrieSize int64) error {
 	// we are at a leaf data chunk
 	if subTrieSize <= int64(len(data)) {
 		return nil
@@ -245,7 +245,7 @@ func (j *joiner) processChunkAddresses(ctx context.Context, fn swarm.AddressIter
 
 	for cursor := 0; cursor < len(data); cursor += j.refLength {
 
-		address := swarm.NewAddress(data[cursor : cursor+j.refLength])
+		address := flock.NewAddress(data[cursor : cursor+j.refLength])
 
 		if err := fn(address); err != nil {
 			return err
@@ -256,7 +256,7 @@ func (j *joiner) processChunkAddresses(ctx context.Context, fn swarm.AddressIter
 			continue
 		}
 
-		func(address swarm.Address, eg *errgroup.Group) {
+		func(address flock.Address, eg *errgroup.Group) {
 			wg.Add(1)
 
 			eg.Go(func() error {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
@@ -15,7 +16,6 @@ import (
 	mockpost "github.com/redesblock/mop/core/postage/mock"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"gitlab.com/nolash/go-mockbytes"
 )
@@ -43,15 +43,15 @@ func TestBytes(t *testing.T) {
 	)
 
 	g := mockbytes.New(0, mockbytes.MockTypeStandard).WithModulus(255)
-	content, err := g.SequentialBytes(swarm.ChunkSize * 2)
+	content, err := g.SequentialBytes(flock.ChunkSize * 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("upload", func(t *testing.T) {
-		chunkAddr := swarm.MustParseHexAddress(expHash)
+		chunkAddr := flock.MustParseHexAddress(expHash)
 		jsonhttptest.Request(t, client, http.MethodPost, resource, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(content)),
 			jsonhttptest.WithExpectedJSONResponse(api.BytesPostResponse{
 				Reference: chunkAddr,
@@ -78,9 +78,9 @@ func TestBytes(t *testing.T) {
 	t.Run("upload-with-pinning", func(t *testing.T) {
 		var res api.BytesPostResponse
 		jsonhttptest.Request(t, client, http.MethodPost, resource, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(content)),
-			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "true"),
+			jsonhttptest.WithRequestHeader(api.FlockPinHeader, "true"),
 			jsonhttptest.WithUnmarshalJSONResponse(&res),
 		)
 		reference := res.Reference

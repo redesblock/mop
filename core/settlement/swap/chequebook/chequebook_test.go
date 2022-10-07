@@ -65,6 +65,8 @@ func TestChequebookBalance(t *testing.T) {
 }
 
 func TestChequebookDeposit(t *testing.T) {
+	t.Parallel()
+
 	address := common.HexToAddress("0xabcd")
 	ownerAdress := common.HexToAddress("0xfff")
 	balance := big.NewInt(30)

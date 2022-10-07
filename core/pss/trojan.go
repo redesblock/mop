@@ -16,7 +16,7 @@ import (
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/encryption"
 	"github.com/redesblock/mop/core/encryption/elgamal"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -50,7 +50,7 @@ type Targets []Target
 
 const (
 	// MaxPayloadSize is the maximum allowed payload size for the Message type, in bytes
-	MaxPayloadSize = swarm.ChunkSize - 3*swarm.HashSize
+	MaxPayloadSize = flock.ChunkSize - 3*flock.HashSize
 )
 
 // Wrap creates a new serialised message with the given topic, payload and recipient public key used
@@ -64,7 +64,7 @@ const (
 // - plaintext length encoding
 // - integrity protection
 // message:
-func Wrap(ctx context.Context, topic Topic, msg []byte, recipient *ecdsa.PublicKey, targets Targets) (swarm.Chunk, error) {
+func Wrap(ctx context.Context, topic Topic, msg []byte, recipient *ecdsa.PublicKey, targets Targets) (flock.Chunk, error) {
 	if len(msg) > MaxPayloadSize {
 		return nil, ErrPayloadTooBig
 	}
@@ -79,7 +79,7 @@ func Wrap(ctx context.Context, topic Topic, msg []byte, recipient *ecdsa.PublicK
 	// integrity segment prepended to msg
 	plaintext := append(integrity, msg...)
 	// use el-Gamal with ECDH on an ephemeral key, recipient public key and topic as salt
-	enc, ephpub, err := elgamal.NewEncryptor(recipient, topic[:], 4032, swarm.NewHasher)
+	enc, ephpub, err := elgamal.NewEncryptor(recipient, topic[:], 4032, flock.NewHasher)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func Wrap(ctx context.Context, topic Topic, msg []byte, recipient *ecdsa.PublicK
 	// f is evaluating the mined nonce
 	// it accepts the nonce if it has the parity required by the ephemeral public key  AND
 	// the chunk hashes to an address matching one of the targets
-	f := func(nonce []byte) (swarm.Chunk, error) {
+	f := func(nonce []byte) (flock.Chunk, error) {
 		hash, err := h(nonce)
 		if err != nil {
 			return nil, err
@@ -120,7 +120,7 @@ func Wrap(ctx context.Context, topic Topic, msg []byte, recipient *ecdsa.PublicK
 		if !contains(targets, hash[:targetsLen]) {
 			return nil, nil
 		}
-		chunk := swarm.NewChunk(swarm.NewAddress(hash), append(hint, append(nonce, payload...)...))
+		chunk := flock.NewChunk(flock.NewAddress(hash), append(hint, append(nonce, payload...)...))
 		return chunk, nil
 	}
 	return mine(ctx, odd, f)
@@ -128,7 +128,7 @@ func Wrap(ctx context.Context, topic Topic, msg []byte, recipient *ecdsa.PublicK
 
 // Unwrap takes a chunk, a topic and a private key, and tries to decrypt the payload
 // using the private key, the prepended ephemeral public key for el-Gamal using the topic as salt
-func Unwrap(ctx context.Context, key *ecdsa.PrivateKey, chunk swarm.Chunk, topics []Topic) (topic Topic, msg []byte, err error) {
+func Unwrap(ctx context.Context, key *ecdsa.PrivateKey, chunk flock.Chunk, topics []Topic) (topic Topic, msg []byte, err error) {
 	chunkData := chunk.Data()
 	pubkey, err := extractPublicKey(chunkData)
 	if err != nil {
@@ -197,7 +197,7 @@ func contains(col Targets, elem []byte) bool {
 }
 
 // mine iteratively enumerates different nonces until the address (BMT hash) of the chunkhas one of the targets as its prefix
-func mine(ctx context.Context, odd bool, f func(nonce []byte) (swarm.Chunk, error)) (swarm.Chunk, error) {
+func mine(ctx context.Context, odd bool, f func(nonce []byte) (flock.Chunk, error)) (flock.Chunk, error) {
 	initnonce := make([]byte, 32)
 	if _, err := io.ReadFull(random.Reader, initnonce); err != nil {
 		return nil, err
@@ -210,7 +210,7 @@ func mine(ctx context.Context, odd bool, f func(nonce []byte) (swarm.Chunk, erro
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	eg, ctx := errgroup.WithContext(ctx)
-	result := make(chan swarm.Chunk, 8)
+	result := make(chan flock.Chunk, 8)
 	for i := 0; i < 8; i++ {
 		eg.Go(func() error {
 			nonce := make([]byte, 32)
@@ -264,7 +264,7 @@ func extractPublicKey(chunkData []byte) (*ecdsa.PublicKey, error) {
 // proper integrity check will disambiguate any potential collisions (false positives)
 // if the topic matches the hint, it returns the el-Gamal decryptor, otherwise an error
 func matchTopic(key *ecdsa.PrivateKey, pubkey *ecdsa.PublicKey, hint, topic []byte) (encryption.Decrypter, error) {
-	dec, err := elgamal.NewDecrypter(key, pubkey, topic, swarm.NewHasher)
+	dec, err := elgamal.NewDecrypter(key, pubkey, topic, flock.NewHasher)
 	if err != nil {
 		return nil, err
 	}

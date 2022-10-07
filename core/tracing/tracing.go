@@ -34,10 +34,10 @@ const LogField = "traceID"
 
 const (
 	// TraceContextHeaderName is the http header name used to propagate tracing context.
-	TraceContextHeaderName = "swarm-trace-id"
+	TraceContextHeaderName = "flock-trace-id"
 
 	// TraceBaggageHeaderPrefix is the prefix for http headers used to propagate baggage.
-	TraceBaggageHeaderPrefix = "swarmctx-"
+	TraceBaggageHeaderPrefix = "flockctx-"
 )
 
 // Tracer connect to a tracing server and handles tracing spans and contexts

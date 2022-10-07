@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/pss"
 	"github.com/redesblock/mop/core/pushsync"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -22,13 +22,13 @@ var (
 )
 
 // Callback defines code to be executed upon failing to retrieve chunks.
-type Callback func(chunkAddress swarm.Address, targets pss.Targets)
+type Callback func(chunkAddress flock.Address, targets pss.Targets)
 
 // NewsCallback returns a new Callback with the sender function defined.
 func NewCallback(pssSender pss.Sender) Callback {
 	privk := crypto.Secp256k1PrivateKeyFromBytes([]byte(TopicText))
 	recipient := privk.PublicKey
-	return func(chunkAddress swarm.Address, targets pss.Targets) {
+	return func(chunkAddress flock.Address, targets pss.Targets) {
 		payload := chunkAddress
 		ctx := context.Background()
 		_ = pssSender.Send(ctx, Topic, payload.Bytes(), nil, &recipient, targets)
@@ -42,7 +42,7 @@ func NewRepairHandler(s storage.Storer, logger logging.Logger, pushSyncer pushsy
 
 		// check if the chunk exists in the local store and proceed.
 		// otherwise the Get will trigger a unnecessary network retrieve
-		exists, err := s.Has(ctx, swarm.NewAddress(chAddr))
+		exists, err := s.Has(ctx, flock.NewAddress(chAddr))
 		if err != nil {
 			return
 		}
@@ -51,7 +51,7 @@ func NewRepairHandler(s storage.Storer, logger logging.Logger, pushSyncer pushsy
 		}
 
 		// retrieve the chunk from the local store
-		ch, err := s.Get(ctx, storage.ModeGetRequest, swarm.NewAddress(chAddr))
+		ch, err := s.Get(ctx, storage.ModeGetRequest, flock.NewAddress(chAddr))
 		if err != nil {
 			logger.Tracef("chunk repair: error while getting chunk for repairing: %v", err)
 			return

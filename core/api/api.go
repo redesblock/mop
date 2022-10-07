@@ -23,6 +23,7 @@ import (
 	"github.com/redesblock/mop/core/feeds"
 	"github.com/redesblock/mop/core/file/pipeline"
 	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/logging"
 	m "github.com/redesblock/mop/core/metrics"
@@ -33,22 +34,21 @@ import (
 	"github.com/redesblock/mop/core/resolver"
 	"github.com/redesblock/mop/core/steward"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/tracing"
 	"github.com/redesblock/mop/core/traversal"
 )
 
 const (
-	SwarmPinHeader            = "Swarm-Pin"
-	SwarmTagHeader            = "Swarm-Tag"
-	SwarmEncryptHeader        = "Swarm-Encrypt"
-	SwarmIndexDocumentHeader  = "Swarm-Index-Document"
-	SwarmErrorDocumentHeader  = "Swarm-Error-Document"
-	SwarmFeedIndexHeader      = "Swarm-Feed-Index"
-	SwarmFeedIndexNextHeader  = "Swarm-Feed-Index-Next"
-	SwarmCollectionHeader     = "Swarm-Collection"
-	SwarmPostageBatchIdHeader = "Swarm-Postage-Batch-Id"
+	FlockPinHeader            = "Flock-Pin"
+	FlockTagHeader            = "Flock-Tag"
+	FlockEncryptHeader        = "Flock-Encrypt"
+	FlockIndexDocumentHeader  = "Flock-Index-Document"
+	FlockErrorDocumentHeader  = "Flock-Error-Document"
+	FlockFeedIndexHeader      = "Flock-Feed-Index"
+	FlockFeedIndexNextHeader  = "Flock-Feed-Index-Next"
+	FlockCollectionHeader     = "Flock-Collection"
+	FlockPostageBatchIdHeader = "Flock-Postage-Batch-Id"
 )
 
 // The size of buffer used for prefetching content with Langos.
@@ -125,7 +125,7 @@ type Options struct {
 
 const (
 	// TargetsRecoveryHeader defines the Header for Recovery targets in Global Pinning
-	TargetsRecoveryHeader = "swarm-recovery-targets"
+	TargetsRecoveryHeader = "flock-recovery-targets"
 )
 
 // New will create a and initialize a new API service.
@@ -198,11 +198,11 @@ func (s *server) getTag(tagUid string) (*tags.Tag, error) {
 	return s.tags.Get(uint32(uid))
 }
 
-func (s *server) resolveNameOrAddress(str string) (swarm.Address, error) {
+func (s *server) resolveNameOrAddress(str string) (flock.Address, error) {
 	log := s.logger
 
 	// Try and parse the name as a mop address.
-	addr, err := swarm.ParseHexAddress(str)
+	addr, err := flock.ParseHexAddress(str)
 	if err == nil {
 		log.Tracef("name resolve: valid mop address %q", str)
 		return addr, nil
@@ -210,7 +210,7 @@ func (s *server) resolveNameOrAddress(str string) (swarm.Address, error) {
 
 	// If no resolver is not available, return an error.
 	if s.resolver == nil {
-		return swarm.ZeroAddress, errNoResolver
+		return flock.ZeroAddress, errNoResolver
 	}
 
 	// Try and resolve the name using the provided resolver.
@@ -221,23 +221,23 @@ func (s *server) resolveNameOrAddress(str string) (swarm.Address, error) {
 		return addr, nil
 	}
 
-	return swarm.ZeroAddress, fmt.Errorf("%w: %v", errInvalidNameOrAddress, err)
+	return flock.ZeroAddress, fmt.Errorf("%w: %v", errInvalidNameOrAddress, err)
 }
 
 // requestModePut returns the desired storage.ModePut for this request based on the request headers.
 func requestModePut(r *http.Request) storage.ModePut {
-	if h := strings.ToLower(r.Header.Get(SwarmPinHeader)); h == "true" {
+	if h := strings.ToLower(r.Header.Get(FlockPinHeader)); h == "true" {
 		return storage.ModePutUploadPin
 	}
 	return storage.ModePutUpload
 }
 
 func requestEncrypt(r *http.Request) bool {
-	return strings.ToLower(r.Header.Get(SwarmEncryptHeader)) == "true"
+	return strings.ToLower(r.Header.Get(FlockEncryptHeader)) == "true"
 }
 
 func requestPostageBatchId(r *http.Request) ([]byte, error) {
-	if h := strings.ToLower(r.Header.Get(SwarmPostageBatchIdHeader)); h != "" {
+	if h := strings.ToLower(r.Header.Get(FlockPostageBatchIdHeader)); h != "" {
 		if len(h) != 64 {
 			return nil, errInvalidPostageBatch
 		}
@@ -477,9 +477,9 @@ func newVoucherPutter(s storage.Storer, post postage.Service, signer crypto.Sign
 	return &voucherPutter{Storer: s, voucher: voucher}, nil
 }
 
-func (p *voucherPutter) Put(ctx context.Context, mode storage.ModePut, chs ...swarm.Chunk) (exists []bool, err error) {
+func (p *voucherPutter) Put(ctx context.Context, mode storage.ModePut, chs ...flock.Chunk) (exists []bool, err error) {
 	var (
-		ctp []swarm.Chunk
+		ctp []flock.Chunk
 		idx []int
 	)
 	exists = make([]bool, len(chs))
@@ -512,11 +512,11 @@ func (p *voucherPutter) Put(ctx context.Context, mode storage.ModePut, chs ...sw
 	return exists, nil
 }
 
-type pipelineFunc func(context.Context, io.Reader) (swarm.Address, error)
+type pipelineFunc func(context.Context, io.Reader) (flock.Address, error)
 
 func requestPipelineFn(s storage.Putter, r *http.Request) pipelineFunc {
 	mode, encrypt := requestModePut(r), requestEncrypt(r)
-	return func(ctx context.Context, r io.Reader) (swarm.Address, error) {
+	return func(ctx context.Context, r io.Reader) (flock.Address, error) {
 		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
 		return builder.FeedPipeline(ctx, pipe, r)
 	}
@@ -532,15 +532,15 @@ func requestPipelineFactory(ctx context.Context, s storage.Putter, r *http.Reque
 // calculateNumberOfChunks calculates the number of chunks in an arbitrary
 // content length.
 func calculateNumberOfChunks(contentLength int64, isEncrypted bool) int64 {
-	if contentLength <= swarm.ChunkSize {
+	if contentLength <= flock.ChunkSize {
 		return 1
 	}
-	branchingFactor := swarm.Branches
+	branchingFactor := flock.Branches
 	if isEncrypted {
-		branchingFactor = swarm.EncryptedBranches
+		branchingFactor = flock.EncryptedBranches
 	}
 
-	dataChunks := math.Ceil(float64(contentLength) / float64(swarm.ChunkSize))
+	dataChunks := math.Ceil(float64(contentLength) / float64(flock.ChunkSize))
 	totalChunks := dataChunks
 	intermediate := dataChunks / float64(branchingFactor)
 
@@ -561,7 +561,7 @@ func requestCalculateNumberOfChunks(r *http.Request) int64 {
 
 // containsChunk returns true if the chunk with a specific address
 // is present in the provided chunk slice.
-func containsChunk(addr swarm.Address, chs ...swarm.Chunk) bool {
+func containsChunk(addr flock.Address, chs ...flock.Chunk) bool {
 	for _, c := range chs {
 		if addr.Equal(c.Address()) {
 			return true

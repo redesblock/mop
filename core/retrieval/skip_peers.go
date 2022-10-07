@@ -3,12 +3,12 @@ package retrieval
 import (
 	"sync"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 type skipPeers struct {
-	overdraftAddresses []swarm.Address
-	addresses          []swarm.Address
+	overdraftAddresses []flock.Address
+	addresses          []flock.Address
 	mu                 sync.Mutex
 }
 
@@ -16,7 +16,7 @@ func newSkipPeers() *skipPeers {
 	return &skipPeers{}
 }
 
-func (s *skipPeers) All() []swarm.Address {
+func (s *skipPeers) All() []flock.Address {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -26,10 +26,10 @@ func (s *skipPeers) All() []swarm.Address {
 func (s *skipPeers) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.overdraftAddresses = []swarm.Address{}
+	s.overdraftAddresses = []flock.Address{}
 }
 
-func (s *skipPeers) Add(address swarm.Address) {
+func (s *skipPeers) Add(address flock.Address) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -42,7 +42,7 @@ func (s *skipPeers) Add(address swarm.Address) {
 	s.addresses = append(s.addresses, address)
 }
 
-func (s *skipPeers) AddOverdraft(address swarm.Address) {
+func (s *skipPeers) AddOverdraft(address flock.Address) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

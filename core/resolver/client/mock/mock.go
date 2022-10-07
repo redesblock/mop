@@ -1,8 +1,8 @@
 package mock
 
 import (
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/resolver/client"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // Ensure mock Client implements the Client interface.
@@ -12,8 +12,8 @@ var _ client.Interface = (*Client)(nil)
 type Client struct {
 	isConnected    bool
 	endpoint       string
-	defaultAddress swarm.Address
-	resolveFn      func(string) (swarm.Address, error)
+	defaultAddress flock.Address
+	resolveFn      func(string) (flock.Address, error)
 }
 
 // Option is a function that applies an option to a Client.
@@ -39,14 +39,14 @@ func WithEndpoint(endpoint string) Option {
 }
 
 // WitResolveAddress will set the address returned by Resolve.
-func WitResolveAddress(addr swarm.Address) Option {
+func WitResolveAddress(addr flock.Address) Option {
 	return func(cl *Client) {
 		cl.defaultAddress = addr
 	}
 }
 
 // WithResolveFunc will set the Resolve function implementation.
-func WithResolveFunc(fn func(string) (swarm.Address, error)) Option {
+func WithResolveFunc(fn func(string) (flock.Address, error)) Option {
 	return func(cl *Client) {
 		cl.resolveFn = fn
 	}
@@ -63,7 +63,7 @@ func (cl *Client) Endpoint() string {
 }
 
 // Resolve is the mock Resolve implementation
-func (cl *Client) Resolve(name string) (swarm.Address, error) {
+func (cl *Client) Resolve(name string) (flock.Address, error) {
 	if cl.resolveFn == nil {
 		return cl.defaultAddress, nil
 	}

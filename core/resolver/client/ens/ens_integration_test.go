@@ -7,21 +7,21 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/resolver/client/ens"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestENSIntegration(t *testing.T) {
 	// TODO: consider using a stable gateway instead of INFURA.
 	defaultEndpoint := "https://goerli.infura.io/v3/59d83a5a4be74f86b9851190c802297b"
-	defaultAddr := swarm.MustParseHexAddress("00cb23598c2e520b6a6aae3ddc94fed4435a2909690bdd709bf9d9e7c2aadfad")
+	defaultAddr := flock.MustParseHexAddress("00cb23598c2e520b6a6aae3ddc94fed4435a2909690bdd709bf9d9e7c2aadfad")
 
 	testCases := []struct {
 		desc            string
 		endpoint        string
 		contractAddress string
 		name            string
-		wantAdr         swarm.Address
+		wantAdr         flock.Address
 		wantErr         error
 	}{
 		// TODO: add a test targeting a resolver with an invalid contenthash
@@ -43,23 +43,23 @@ func TestENSIntegration(t *testing.T) {
 		},
 		{
 			desc:    "not registered",
-			name:    "unused.test.swarm.eth",
+			name:    "unused.test.flock.eth",
 			wantErr: ens.ErrResolveFailed,
 		},
 		{
 			desc:    "no content hash",
-			name:    "nocontent.resolver.test.swarm.eth",
+			name:    "nocontent.resolver.test.flock.eth",
 			wantErr: ens.ErrResolveFailed,
 		},
 		{
 			desc:            "invalid contract address",
 			contractAddress: "0xFFFFFFFF",
-			name:            "example.resolver.test.swarm.eth",
+			name:            "example.resolver.test.flock.eth",
 			wantErr:         ens.ErrFailedToConnect,
 		},
 		{
 			desc:    "ok",
-			name:    "example.resolver.test.swarm.eth",
+			name:    "example.resolver.test.flock.eth",
 			wantAdr: defaultAddr,
 		},
 	}

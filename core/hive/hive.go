@@ -20,13 +20,13 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/redesblock/mop/core/addressbook"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/hive/pb"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 	"github.com/redesblock/mop/core/ratelimit"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -39,11 +39,11 @@ const (
 	batchValidationTimeout = 5 * time.Minute // prevent lock contention on peer validation
 	cacheSize              = 100000
 	bitsPerByte            = 8
-	cachePrefix            = swarm.MaxBins / bitsPerByte // enough bytes (32 bits) to uniquely identify a peer
+	cachePrefix            = flock.MaxBins / bitsPerByte // enough bytes (32 bits) to uniquely identify a peer
 )
 
 var (
-	limitBurst = 4 * int(swarm.MaxBins)
+	limitBurst = 4 * int(flock.MaxBins)
 	limitRate  = time.Minute
 
 	ErrRateLimitExceeded = errors.New("rate limit exceeded")
@@ -52,7 +52,7 @@ var (
 type Service struct {
 	streamer          p2p.StreamerPinger
 	addressBook       addressbook.GetPutter
-	addPeersHandler   func(...swarm.Address)
+	addPeersHandler   func(...flock.Address)
 	networkID         uint64
 	logger            logging.Logger
 	metrics           metrics
@@ -112,7 +112,7 @@ func (s *Service) Protocol() p2p.ProtocolSpec {
 	}
 }
 
-func (s *Service) BroadcastPeers(ctx context.Context, addressee swarm.Address, peers ...swarm.Address) error {
+func (s *Service) BroadcastPeers(ctx context.Context, addressee flock.Address, peers ...flock.Address) error {
 	max := maxBatchSize
 	s.metrics.BroadcastPeers.Inc()
 	s.metrics.BroadcastPeersPeers.Add(float64(len(peers)))
@@ -137,7 +137,7 @@ func (s *Service) BroadcastPeers(ctx context.Context, addressee swarm.Address, p
 	return nil
 }
 
-func (s *Service) SetAddPeersHandler(h func(addr ...swarm.Address)) {
+func (s *Service) SetAddPeersHandler(h func(addr ...flock.Address)) {
 	s.addPeersHandler = h
 }
 
@@ -158,7 +158,7 @@ func (s *Service) Close() error {
 	}
 }
 
-func (s *Service) sendPeers(ctx context.Context, peer swarm.Address, peers []swarm.Address) (err error) {
+func (s *Service) sendPeers(ctx context.Context, peer flock.Address, peers []flock.Address) (err error) {
 	addr, err := s.addressBook.Get(peer)
 	if err != nil && !errors.Is(err, addressbook.ErrNotFound) {
 		return err
@@ -288,13 +288,13 @@ func (s *Service) startCheckPeersHandler() {
 
 func (s *Service) checkAndAddPeers(ctx context.Context, peers pb.Peers) {
 
-	var peersToAdd []swarm.Address
+	var peersToAdd []flock.Address
 	mtx := sync.Mutex{}
 	wg := sync.WaitGroup{}
 
 	for _, p := range peers.Peers {
 
-		overlay := swarm.NewAddress(p.Overlay)
+		overlay := flock.NewAddress(p.Overlay)
 		cacheOverlay := overlay.ByteString()[:cachePrefix]
 
 		// cached peer, skip
@@ -349,7 +349,7 @@ func (s *Service) checkAndAddPeers(ctx context.Context, peers pb.Peers) {
 			s.metrics.ReachablePeers.Inc()
 
 			mopAddress := mop.Address{
-				Overlay:     swarm.NewAddress(newPeer.Overlay),
+				Overlay:     flock.NewAddress(newPeer.Overlay),
 				Underlay:    multiUnderlay,
 				Signature:   newPeer.Signature,
 				Transaction: newPeer.Transaction,

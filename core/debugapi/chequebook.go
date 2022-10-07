@@ -13,7 +13,7 @@ import (
 	"github.com/redesblock/mop/core/settlement/swap/chequebook"
 
 	"github.com/gorilla/mux"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 const (
@@ -88,7 +88,7 @@ func (s *Service) chequebookAddressHandler(w http.ResponseWriter, r *http.Reques
 
 func (s *Service) chequebookLastPeerHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["peer"]
-	peer, err := swarm.ParseHexAddress(addr)
+	peer, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: chequebook cheque peer: invalid peer address %s: %v", addr, err)
 		s.logger.Errorf("debug api: chequebook cheque peer: invalid peer address %s", addr)
@@ -201,7 +201,7 @@ type swapCashoutResponse struct {
 
 func (s *Service) swapCashoutHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["peer"]
-	peer, err := swarm.ParseHexAddress(addr)
+	peer, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: cashout peer: invalid peer address %s: %v", addr, err)
 		s.logger.Errorf("debug api: cashout peer: invalid peer address %s", addr)
@@ -257,7 +257,7 @@ type swapCashoutStatusResult struct {
 }
 
 type swapCashoutStatusResponse struct {
-	Peer            swarm.Address                     `json:"peer"`
+	Peer            flock.Address                     `json:"peer"`
 	Cheque          *chequebookLastChequePeerResponse `json:"lastCashedCheque"`
 	TransactionHash *common.Hash                      `json:"transactionHash"`
 	Result          *swapCashoutStatusResult          `json:"result"`
@@ -266,7 +266,7 @@ type swapCashoutStatusResponse struct {
 
 func (s *Service) swapCashoutStatusHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["peer"]
-	peer, err := swarm.ParseHexAddress(addr)
+	peer, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: cashout status peer: invalid peer address %s: %v", addr, err)
 		s.logger.Errorf("debug api: cashout status peer: invalid peer address %s", addr)

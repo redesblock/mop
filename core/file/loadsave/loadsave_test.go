@@ -10,9 +10,9 @@ import (
 	"github.com/redesblock/mop/core/file/loadsave"
 	"github.com/redesblock/mop/core/file/pipeline"
 	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -54,7 +54,7 @@ func TestReadonlyLoadSave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := ls.Load(context.Background(), swarm.MustParseHexAddress(expHash).Bytes())
+	b, err := ls.Load(context.Background(), flock.MustParseHexAddress(expHash).Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}

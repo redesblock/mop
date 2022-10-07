@@ -12,20 +12,20 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/file"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var (
 	dataWrites = [][]int{
-		{swarm.ChunkSize - 2},                         // short
-		{swarm.ChunkSize - 2, 4},                      // short, over
-		{swarm.ChunkSize - 2, 4, swarm.ChunkSize - 6}, // short, over, short
-		{swarm.ChunkSize - 2, 4, swarm.ChunkSize - 4}, // short, over, onononon
-		{swarm.ChunkSize, 2, swarm.ChunkSize - 4},     // on, short, short
-		{swarm.ChunkSize, 2, swarm.ChunkSize - 2},     // on, short, on
-		{swarm.ChunkSize, 2, swarm.ChunkSize},         // on, short, over
-		{swarm.ChunkSize, 2, swarm.ChunkSize - 2, 4},  // on, short, on, short
-		{swarm.ChunkSize, swarm.ChunkSize},            // on, on
+		{flock.ChunkSize - 2},                         // short
+		{flock.ChunkSize - 2, 4},                      // short, over
+		{flock.ChunkSize - 2, 4, flock.ChunkSize - 6}, // short, over, short
+		{flock.ChunkSize - 2, 4, flock.ChunkSize - 4}, // short, over, onononon
+		{flock.ChunkSize, 2, flock.ChunkSize - 4},     // on, short, short
+		{flock.ChunkSize, 2, flock.ChunkSize - 2},     // on, short, on
+		{flock.ChunkSize, 2, flock.ChunkSize},         // on, short, over
+		{flock.ChunkSize, 2, flock.ChunkSize - 2, 4},  // on, short, on, short
+		{flock.ChunkSize, flock.ChunkSize},            // on, on
 	}
 )
 
@@ -48,7 +48,7 @@ func testChunkPipe(t *testing.T) {
 	sizeC := make(chan int, 255)
 	errC := make(chan error, 1)
 	go func() {
-		data := make([]byte, swarm.ChunkSize)
+		data := make([]byte, flock.ChunkSize)
 		for {
 			// get buffered chunkpipe read
 			c, err := buf.Read(data)
@@ -60,7 +60,7 @@ func testChunkPipe(t *testing.T) {
 			}
 
 			// only the last read should be smaller than chunk size
-			if c < swarm.ChunkSize {
+			if c < flock.ChunkSize {
 				close(sizeC)
 				errC <- nil
 				return
@@ -117,21 +117,21 @@ func TestCopyBuffer(t *testing.T) {
 	readBufferSizes := []int{
 		64,
 		1024,
-		swarm.ChunkSize,
+		flock.ChunkSize,
 	}
 	dataSizes := []int{
 		1,
 		64,
 		1024,
-		swarm.ChunkSize - 1,
-		swarm.ChunkSize,
-		swarm.ChunkSize + 1,
-		swarm.ChunkSize * 2,
-		swarm.ChunkSize*2 + 3,
-		swarm.ChunkSize * 5,
-		swarm.ChunkSize*5 + 3,
-		swarm.ChunkSize * 17,
-		swarm.ChunkSize*17 + 3,
+		flock.ChunkSize - 1,
+		flock.ChunkSize,
+		flock.ChunkSize + 1,
+		flock.ChunkSize * 2,
+		flock.ChunkSize*2 + 3,
+		flock.ChunkSize * 5,
+		flock.ChunkSize*5 + 3,
+		flock.ChunkSize * 17,
+		flock.ChunkSize*17 + 3,
 	}
 
 	testCases := []struct {
@@ -170,7 +170,7 @@ func TestCopyBuffer(t *testing.T) {
 			go func() {
 				src := bytes.NewReader(srcBytes)
 
-				buf := make([]byte, swarm.ChunkSize)
+				buf := make([]byte, flock.ChunkSize)
 				c, err := io.CopyBuffer(chunkPipe, src, buf)
 				if err != nil {
 					errC <- err

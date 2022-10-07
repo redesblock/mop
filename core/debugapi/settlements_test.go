@@ -9,11 +9,11 @@ import (
 
 	"github.com/redesblock/mop/core/bigint"
 	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/settlement"
 	"github.com/redesblock/mop/core/settlement/swap/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestSettlements(t *testing.T) {
@@ -94,7 +94,7 @@ func TestSettlementsError(t *testing.T) {
 
 func TestSettlementsPeers(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
-	settlementSentFunc := func(swarm.Address) (*big.Int, error) {
+	settlementSentFunc := func(flock.Address) (*big.Int, error) {
 		return big.NewInt(1000000000000000000), nil
 	}
 	testServer := newTestServer(t, testServerOptions{
@@ -112,10 +112,10 @@ func TestSettlementsPeers(t *testing.T) {
 
 func TestSettlementsPeersNoSettlements(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
-	noErrFunc := func(swarm.Address) (*big.Int, error) {
+	noErrFunc := func(flock.Address) (*big.Int, error) {
 		return big.NewInt(1000000000000000000), nil
 	}
-	errFunc := func(swarm.Address) (*big.Int, error) {
+	errFunc := func(flock.Address) (*big.Int, error) {
 		return nil, settlement.ErrPeerNoSettlements
 	}
 
@@ -157,7 +157,7 @@ func TestSettlementsPeersNoSettlements(t *testing.T) {
 func TestSettlementsPeersError(t *testing.T) {
 	peer := "bff2c89e85e78c38bd89fca1acc996afb876c21bf5a8482ad798ce15f1c223fa"
 	wantErr := errors.New("Error")
-	settlementSentFunc := func(swarm.Address) (*big.Int, error) {
+	settlementSentFunc := func(flock.Address) (*big.Int, error) {
 		return nil, wantErr
 	}
 	testServer := newTestServer(t, testServerOptions{

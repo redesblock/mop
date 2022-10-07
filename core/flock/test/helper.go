@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/redesblock/mop/core/crowd"
+	"github.com/redesblock/mop/core/flock"
 )
 
 // RandomAddressAt generates a random address
 // at proximity order prox relative to address.
-func RandomAddressAt(self crowd.Address, prox int) crowd.Address {
+func RandomAddressAt(self flock.Address, prox int) flock.Address {
 	addr := make([]byte, len(self.Bytes()))
 	copy(addr, self.Bytes())
 	pos := -1
@@ -30,7 +30,7 @@ func RandomAddressAt(self crowd.Address, prox int) crowd.Address {
 		addr[i] = byte(rand.Intn(255))
 	}
 
-	a := crowd.NewAddress(addr)
+	a := flock.NewAddress(addr)
 	if a.Equal(self) {
 		panic(fmt.Sprint(a.String(), self.String()))
 	}
@@ -38,7 +38,7 @@ func RandomAddressAt(self crowd.Address, prox int) crowd.Address {
 }
 
 // RandomAddress generates a random address.
-func RandomAddress() crowd.Address {
+func RandomAddress() flock.Address {
 	b := make([]byte, 32)
-	return RandomAddressAt(crowd.NewAddress(b), -1)
+	return RandomAddressAt(flock.NewAddress(b), -1)
 }

@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/redesblock/mop/core/file"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/manifest/simple"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -19,7 +19,7 @@ const (
 type simpleManifest struct {
 	manifest simple.Manifest
 
-	reference swarm.Address
+	reference flock.Address
 	ls        file.LoadSaver
 }
 
@@ -32,7 +32,7 @@ func NewSimpleManifest(ls file.LoadSaver) (Interface, error) {
 }
 
 // NewSimpleManifestReference loads existing simple manifest.
-func NewSimpleManifestReference(ref swarm.Address, l file.LoadSaver) (Interface, error) {
+func NewSimpleManifestReference(ref flock.Address, l file.LoadSaver) (Interface, error) {
 	m := &simpleManifest{
 		manifest:  simple.NewManifest(),
 		reference: ref,
@@ -70,9 +70,9 @@ func (m *simpleManifest) Lookup(_ context.Context, path string) (Entry, error) {
 		return nil, ErrNotFound
 	}
 
-	address, err := swarm.ParseHexAddress(n.Reference())
+	address, err := flock.ParseHexAddress(n.Reference())
 	if err != nil {
-		return nil, fmt.Errorf("parse swarm address: %w", err)
+		return nil, fmt.Errorf("parse flock address: %w", err)
 	}
 
 	entry := NewEntry(address, n.Metadata())
@@ -84,10 +84,10 @@ func (m *simpleManifest) HasPrefix(_ context.Context, prefix string) (bool, erro
 	return m.manifest.HasPrefix(prefix), nil
 }
 
-func (m *simpleManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFunc) (swarm.Address, error) {
+func (m *simpleManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFunc) (flock.Address, error) {
 	data, err := m.manifest.MarshalBinary()
 	if err != nil {
-		return swarm.ZeroAddress, fmt.Errorf("manifest marshal error: %w", err)
+		return flock.ZeroAddress, fmt.Errorf("manifest marshal error: %w", err)
 	}
 
 	if len(storeSizeFn) > 0 {
@@ -95,21 +95,21 @@ func (m *simpleManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFunc
 		for i := range storeSizeFn {
 			err = storeSizeFn[i](dataLen)
 			if err != nil {
-				return swarm.ZeroAddress, fmt.Errorf("manifest store size func: %w", err)
+				return flock.ZeroAddress, fmt.Errorf("manifest store size func: %w", err)
 			}
 		}
 	}
 
 	ref, err := m.ls.Save(ctx, data)
 	if err != nil {
-		return swarm.ZeroAddress, fmt.Errorf("manifest save error: %w", err)
+		return flock.ZeroAddress, fmt.Errorf("manifest save error: %w", err)
 	}
-	m.reference = swarm.NewAddress(ref)
+	m.reference = flock.NewAddress(ref)
 	return m.reference, nil
 }
 
-func (m *simpleManifest) IterateAddresses(ctx context.Context, fn swarm.AddressIterFunc) error {
-	if swarm.ZeroAddress.Equal(m.reference) {
+func (m *simpleManifest) IterateAddresses(ctx context.Context, fn flock.AddressIterFunc) error {
+	if flock.ZeroAddress.Equal(m.reference) {
 		return ErrMissingReference
 	}
 
@@ -124,7 +124,7 @@ func (m *simpleManifest) IterateAddresses(ctx context.Context, fn swarm.AddressI
 			return err
 		}
 
-		ref, err := swarm.ParseHexAddress(entry.Reference())
+		ref, err := flock.ParseHexAddress(entry.Reference())
 		if err != nil {
 			return err
 		}
@@ -140,7 +140,7 @@ func (m *simpleManifest) IterateAddresses(ctx context.Context, fn swarm.AddressI
 	return nil
 }
 
-func (m *simpleManifest) load(ctx context.Context, reference swarm.Address) error {
+func (m *simpleManifest) load(ctx context.Context, reference flock.Address) error {
 	buf, err := m.ls.Load(ctx, reference.Bytes())
 	if err != nil {
 		return fmt.Errorf("manifest load error: %w", err)

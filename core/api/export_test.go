@@ -1,6 +1,6 @@
 package api
 
-import "github.com/redesblock/mop/core/swarm"
+import "github.com/redesblock/mop/core/flock"
 
 type Server = server
 
@@ -47,7 +47,7 @@ var (
 	ToFileSizeBucket      = toFileSizeBucket
 )
 
-func (s *Server) ResolveNameOrAddress(str string) (swarm.Address, error) {
+func (s *Server) ResolveNameOrAddress(str string) (flock.Address, error) {
 	return s.resolveNameOrAddress(str)
 }
 

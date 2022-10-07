@@ -11,8 +11,8 @@ import (
 	"github.com/redesblock/mop/core/file/joiner"
 	"github.com/redesblock/mop/core/file/pipeline"
 	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var readonlyLoadsaveError = errors.New("readonly manifest loadsaver")
@@ -48,7 +48,7 @@ func NewReadonly(storer PutGetter) file.LoadSaver {
 }
 
 func (ls *loadSave) Load(ctx context.Context, ref []byte) ([]byte, error) {
-	j, _, err := joiner.New(ctx, ls.storer, swarm.NewAddress(ref))
+	j, _, err := joiner.New(ctx, ls.storer, flock.NewAddress(ref))
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (ls *loadSave) Save(ctx context.Context, data []byte) ([]byte, error) {
 	pipe := ls.pipelineFn()
 	address, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data))
 	if err != nil {
-		return swarm.ZeroAddress.Bytes(), err
+		return flock.ZeroAddress.Bytes(), err
 	}
 
 	return address.Bytes(), nil

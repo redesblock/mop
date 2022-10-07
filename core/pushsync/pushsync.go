@@ -17,6 +17,7 @@ import (
 	"github.com/redesblock/mop/core/accounting"
 	"github.com/redesblock/mop/core/cac"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
@@ -25,7 +26,6 @@ import (
 	"github.com/redesblock/mop/core/pushsync/pb"
 	"github.com/redesblock/mop/core/soc"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/tracing"
@@ -58,24 +58,24 @@ var (
 )
 
 type PushSyncer interface {
-	PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Receipt, error)
+	PushChunkToClosest(ctx context.Context, ch flock.Chunk) (*Receipt, error)
 }
 
 type Receipt struct {
-	Address   swarm.Address
+	Address   flock.Address
 	Signature []byte
 	BlockHash []byte
 }
 
 type PushSync struct {
 	networkID       uint64
-	address         swarm.Address
+	address         flock.Address
 	blockHash       []byte
 	streamer        p2p.StreamerDisconnecter
 	storer          storage.Putter
 	topologyDriver  topology.Driver
 	tagger          *tags.Tags
-	unwrap          func(swarm.Chunk)
+	unwrap          func(flock.Chunk)
 	logger          logging.Logger
 	accounting      accounting.Interface
 	pricer          pricer.Interface
@@ -91,13 +91,13 @@ type PushSync struct {
 
 type receiptResult struct {
 	pushTime  time.Time
-	peer      swarm.Address
+	peer      flock.Address
 	receipt   *pb.Receipt
 	attempted bool
 	err       error
 }
 
-func New(networkID uint64, address swarm.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(swarm.Chunk), validVouch postage.ValidVouchFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
+func New(networkID uint64, address flock.Address, blockHash []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(flock.Chunk), validVouch postage.ValidVouchFn, logger logging.Logger, accounting accounting.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracing.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
 	ps := &PushSync{
 		networkID:       networkID,
 		address:         address,
@@ -158,7 +158,7 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 	}
 	ps.metrics.TotalReceived.Inc()
 
-	chunk := swarm.NewChunk(swarm.NewAddress(ch.Address), ch.Data)
+	chunk := flock.NewChunk(flock.NewAddress(ch.Address), ch.Data)
 	chunkAddress := chunk.Address()
 
 	span, _, ctx := ps.tracer.StartSpanFromContext(ctx, "pushsync-handler", ps.logger, opentracing.Tag{Key: "address", Value: chunkAddress.String()})
@@ -177,7 +177,7 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 			go ps.unwrap(chunk)
 		}
 	} else if !soc.Valid(chunk) {
-		return swarm.ErrInvalidChunk
+		return flock.ErrInvalidChunk
 	}
 
 	price := ps.pricer.Price(chunkAddress)
@@ -331,20 +331,20 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 // PushChunkToClosest sends chunk to the closest peer by opening a stream. It then waits for
 // a receipt from that peer and returns error or nil based on the receiving and
 // the validity of the receipt.
-func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch swarm.Chunk) (*Receipt, error) {
+func (ps *PushSync) PushChunkToClosest(ctx context.Context, ch flock.Chunk) (*Receipt, error) {
 	ps.metrics.TotalOutgoing.Inc()
-	r, err := ps.pushToClosest(ctx, ch, true, swarm.ZeroAddress)
+	r, err := ps.pushToClosest(ctx, ch, true, flock.ZeroAddress)
 	if err != nil {
 		ps.metrics.TotalOutgoingErrors.Inc()
 		return nil, err
 	}
 	return &Receipt{
-		Address:   swarm.NewAddress(r.Address),
+		Address:   flock.NewAddress(r.Address),
 		Signature: r.Signature,
 		BlockHash: r.BlockHash}, nil
 }
 
-func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bool, originAddr swarm.Address) (*pb.Receipt, error) {
+func (ps *PushSync) pushToClosest(ctx context.Context, ch flock.Chunk, origin bool, originAddr flock.Address) (*pb.Receipt, error) {
 	span, logger, ctx := ps.tracer.StartSpanFromContext(ctx, "push-closest", ps.logger, opentracing.Tag{Key: "address", Value: ch.Address().String()})
 	defer span.Finish()
 	defer ps.skipList.PruneExpired()
@@ -362,7 +362,7 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bo
 
 	var (
 		includeSelf = ps.isFullNode
-		skipPeers   []swarm.Address
+		skipPeers   []flock.Address
 	)
 
 	resultChan := make(chan receiptResult, 1)
@@ -371,7 +371,7 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bo
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 
-	nextPeer := func() (swarm.Address, error) {
+	nextPeer := func() (flock.Address, error) {
 
 		fullSkipList := append(ps.skipList.ChunkSkipPeers(ch.Address()), skipPeers...)
 
@@ -383,18 +383,18 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bo
 			if errors.Is(err, topology.ErrWantSelf) {
 
 				if !ps.warmedUp() {
-					return swarm.ZeroAddress, ErrWarmup
+					return flock.ZeroAddress, ErrWarmup
 				}
 
 				if !ps.topologyDriver.IsWithinDepth(ch.Address()) {
-					return swarm.ZeroAddress, ErrOutOfDepthStoring
+					return flock.ZeroAddress, ErrOutOfDepthStoring
 				}
 
 				ps.pushToNeighbourhood(ctx, fullSkipList, ch, origin, originAddr)
-				return swarm.ZeroAddress, err
+				return flock.ZeroAddress, err
 			}
 
-			return swarm.ZeroAddress, fmt.Errorf("closest peer: %w", err)
+			return flock.ZeroAddress, fmt.Errorf("closest peer: %w", err)
 		}
 
 		return peer, nil
@@ -442,11 +442,11 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch swarm.Chunk, origin bo
 					bts, _ := json.Marshal(result.receipt)
 					resp, err := http.Post(ps.receiptEndPoint+"/api/receipt", "application/json", strings.NewReader(string(bts)))
 					if err != nil {
-						logger.Errorf("pushsync: push receipt %s error: %s", swarm.NewAddress(result.receipt.Address), err)
+						logger.Errorf("pushsync: push receipt %s error: %s", flock.NewAddress(result.receipt.Address), err)
 					} else {
 						defer resp.Body.Close()
 					}
-					logger.Debugf("pushsync: push receipt %s to peer %s, duration %v", swarm.NewAddress(result.receipt.Address), result.peer, time.Now().Sub(t))
+					logger.Debugf("pushsync: push receipt %s to peer %s, duration %v", flock.NewAddress(result.receipt.Address), result.peer, time.Now().Sub(t))
 				}
 
 				return result.receipt, nil
@@ -486,7 +486,7 @@ func (ps *PushSync) measurePushPeer(t time.Time, err error) {
 	ps.metrics.PushToPeerTime.WithLabelValues(status).Observe(time.Since(t).Seconds())
 }
 
-func (ps *PushSync) pushPeer(ctx context.Context, resultChan chan<- receiptResult, doneChan <-chan struct{}, peer swarm.Address, ch swarm.Chunk, origin bool) {
+func (ps *PushSync) pushPeer(ctx context.Context, resultChan chan<- receiptResult, doneChan <-chan struct{}, peer flock.Address, ch flock.Chunk, origin bool) {
 
 	var (
 		err       error
@@ -559,7 +559,7 @@ func (ps *PushSync) pushPeer(ctx context.Context, resultChan chan<- receiptResul
 		return
 	}
 
-	if !ch.Address().Equal(swarm.NewAddress(receipt.Address)) {
+	if !ch.Address().Equal(flock.NewAddress(receipt.Address)) {
 		// if the receipt is invalid, try to push to the next peer
 		err = fmt.Errorf("invalid receipt. chunk %s, peer %s", ch.Address(), peer)
 		return
@@ -568,11 +568,11 @@ func (ps *PushSync) pushPeer(ctx context.Context, resultChan chan<- receiptResul
 	err = creditAction.Apply()
 }
 
-func (ps *PushSync) pushToNeighbourhood(ctx context.Context, skiplist []swarm.Address, ch swarm.Chunk, origin bool, originAddr swarm.Address) {
+func (ps *PushSync) pushToNeighbourhood(ctx context.Context, skiplist []flock.Address, ch flock.Chunk, origin bool, originAddr flock.Address) {
 	count := 0
 	// Push the chunk to some peers in the neighborhood in parallel for replication.
 	// Any errors here should NOT impact the rest of the handler.
-	_ = ps.topologyDriver.EachPeer(func(peer swarm.Address, po uint8) (bool, bool, error) {
+	_ = ps.topologyDriver.EachPeer(func(peer flock.Address, po uint8) (bool, bool, error) {
 		// skip forwarding peer
 		if peer.Equal(originAddr) {
 			return false, false, nil
@@ -601,7 +601,7 @@ func (ps *PushSync) pushToNeighbourhood(ctx context.Context, skiplist []swarm.Ad
 }
 
 // pushToNeighbour handles in-neighborhood replication for a single peer.
-func (ps *PushSync) pushToNeighbour(ctx context.Context, peer swarm.Address, ch swarm.Chunk, origin bool) {
+func (ps *PushSync) pushToNeighbour(ctx context.Context, peer flock.Address, ch flock.Chunk, origin bool) {
 	var err error
 	ps.metrics.TotalReplicatedAttempts.Inc()
 	defer func() {
@@ -666,7 +666,7 @@ func (ps *PushSync) pushToNeighbour(ctx context.Context, peer swarm.Address, ch 
 		return
 	}
 
-	if !ch.Address().Equal(swarm.NewAddress(receipt.Address)) {
+	if !ch.Address().Equal(flock.NewAddress(receipt.Address)) {
 		// if the receipt is invalid, give up
 		return
 	}
@@ -693,7 +693,7 @@ func newPeerSkipList() *peerSkipList {
 	}
 }
 
-func (l *peerSkipList) Add(chunk, peer swarm.Address, expire time.Duration) {
+func (l *peerSkipList) Add(chunk, peer flock.Address, expire time.Duration) {
 	l.Lock()
 	defer l.Unlock()
 
@@ -703,14 +703,14 @@ func (l *peerSkipList) Add(chunk, peer swarm.Address, expire time.Duration) {
 	l.skip[chunk.ByteString()][peer.ByteString()] = time.Now().Add(expire)
 }
 
-func (l *peerSkipList) ChunkSkipPeers(ch swarm.Address) (peers []swarm.Address) {
+func (l *peerSkipList) ChunkSkipPeers(ch flock.Address) (peers []flock.Address) {
 	l.Lock()
 	defer l.Unlock()
 
 	if p, ok := l.skip[ch.ByteString()]; ok {
 		for peer, exp := range p {
 			if time.Now().Before(exp) {
-				peers = append(peers, swarm.NewAddress([]byte(peer)))
+				peers = append(peers, flock.NewAddress([]byte(peer)))
 			}
 		}
 	}

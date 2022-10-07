@@ -10,7 +10,7 @@ import (
 
 	libp2pm "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
-	swarmt "github.com/libp2p/go-libp2p-swarm/testing"
+	flockt "github.com/libp2p/go-libp2p-swarm/testing"
 	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/multiformats/go-multistream"
 	"github.com/redesblock/mop/core/p2p"
@@ -385,7 +385,7 @@ func TestPing(t *testing.T) {
 	s1, _ := newService(t, 1, libp2pServiceOpts{
 		libp2pOpts: libp2p.WithHostFactory(
 			func(ctx context.Context, _ ...libp2pm.Option) (host.Host, error) {
-				return bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), &bhost.HostOpts{EnablePing: true})
+				return bhost.NewHost(ctx, flockt.GenSwarm(t, ctx), &bhost.HostOpts{EnablePing: true})
 			},
 		),
 	})
@@ -394,7 +394,7 @@ func TestPing(t *testing.T) {
 	s2, _ := newService(t, 1, libp2pServiceOpts{
 		libp2pOpts: libp2p.WithHostFactory(
 			func(ctx context.Context, _ ...libp2pm.Option) (host.Host, error) {
-				return bhost.NewHost(ctx, swarmt.GenSwarm(t, ctx), &bhost.HostOpts{EnablePing: true})
+				return bhost.NewHost(ctx, flockt.GenSwarm(t, ctx), &bhost.HostOpts{EnablePing: true})
 			},
 		),
 	})

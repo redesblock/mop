@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/streamtest"
@@ -13,15 +14,14 @@ import (
 	"github.com/redesblock/mop/core/pullsync"
 	"github.com/redesblock/mop/core/pullsync/pullstorage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
-	addrs  []swarm.Address
-	chunks []swarm.Chunk
+	addrs  []flock.Address
+	chunks []flock.Chunk
 )
 
-func someChunks(i ...int) (c []swarm.Chunk) {
+func someChunks(i ...int) (c []flock.Chunk) {
 	for _, v := range i {
 		c = append(c, chunks[v])
 	}
@@ -30,8 +30,8 @@ func someChunks(i ...int) (c []swarm.Chunk) {
 
 func init() {
 	n := 5
-	chunks = make([]swarm.Chunk, n)
-	addrs = make([]swarm.Address, n)
+	chunks = make([]flock.Chunk, n)
+	addrs = make([]flock.Address, n)
 	for i := 0; i < n; i++ {
 		chunks[i] = testingc.GenerateTestRandomChunk()
 		addrs[i] = chunks[i].Address()
@@ -46,12 +46,12 @@ func init() {
 func TestIncoming_WantEmptyInterval(t *testing.T) {
 	var (
 		mockTopmost        = uint64(5)
-		ps, _              = newPullSync(nil, mock.WithIntervalsResp([]swarm.Address{}, mockTopmost, nil))
+		ps, _              = newPullSync(nil, mock.WithIntervalsResp([]flock.Address{}, mockTopmost, nil))
 		recorder           = streamtest.New(streamtest.WithProtocols(ps.Protocol()))
 		psClient, clientDb = newPullSync(recorder)
 	)
 
-	topmost, _, err := psClient.SyncInterval(context.Background(), swarm.ZeroAddress, 1, 0, 5)
+	topmost, _, err := psClient.SyncInterval(context.Background(), flock.ZeroAddress, 1, 0, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestIncoming_WantNone(t *testing.T) {
 		psClient, clientDb = newPullSync(recorder, mock.WithChunks(chunks...))
 	)
 
-	topmost, _, err := psClient.SyncInterval(context.Background(), swarm.ZeroAddress, 0, 0, 5)
+	topmost, _, err := psClient.SyncInterval(context.Background(), flock.ZeroAddress, 0, 0, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestIncoming_WantOne(t *testing.T) {
 		psClient, clientDb = newPullSync(recorder, mock.WithChunks(someChunks(1, 2, 3, 4)...))
 	)
 
-	topmost, _, err := psClient.SyncInterval(context.Background(), swarm.ZeroAddress, 0, 0, 5)
+	topmost, _, err := psClient.SyncInterval(context.Background(), flock.ZeroAddress, 0, 0, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestIncoming_WantAll(t *testing.T) {
 		psClient, clientDb = newPullSync(recorder)
 	)
 
-	topmost, _, err := psClient.SyncInterval(context.Background(), swarm.ZeroAddress, 0, 0, 5)
+	topmost, _, err := psClient.SyncInterval(context.Background(), flock.ZeroAddress, 0, 0, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,10 +135,10 @@ func TestIncoming_WantAll(t *testing.T) {
 }
 
 func TestIncoming_UnsolicitedChunk(t *testing.T) {
-	evilAddr := swarm.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000666")
+	evilAddr := flock.MustParseHexAddress("0000000000000000000000000000000000000000000000000000000000000666")
 	evilData := []byte{0x66, 0x66, 0x66}
 	vouch := postagetesting.MustNewVouch()
-	evil := swarm.NewChunk(evilAddr, evilData).WithVouch(vouch)
+	evil := flock.NewChunk(evilAddr, evilData).WithVouch(vouch)
 
 	var (
 		mockTopmost = uint64(5)
@@ -147,7 +147,7 @@ func TestIncoming_UnsolicitedChunk(t *testing.T) {
 		psClient, _ = newPullSync(recorder)
 	)
 
-	_, _, err := psClient.SyncInterval(context.Background(), swarm.ZeroAddress, 0, 0, 5)
+	_, _, err := psClient.SyncInterval(context.Background(), flock.ZeroAddress, 0, 0, 5)
 	if !errors.Is(err, pullsync.ErrUnsolicitedChunk) {
 		t.Fatalf("expected ErrUnsolicitedChunk but got %v", err)
 	}
@@ -161,7 +161,7 @@ func TestGetCursors(t *testing.T) {
 		psClient, _ = newPullSync(recorder)
 	)
 
-	curs, err := psClient.GetCursors(context.Background(), swarm.ZeroAddress)
+	curs, err := psClient.GetCursors(context.Background(), flock.ZeroAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestGetCursorsError(t *testing.T) {
 		psClient, _ = newPullSync(recorder)
 	)
 
-	_, err := psClient.GetCursors(context.Background(), swarm.ZeroAddress)
+	_, err := psClient.GetCursors(context.Background(), flock.ZeroAddress)
 	if err == nil {
 		t.Fatal("expected error but got none")
 	}
@@ -194,7 +194,7 @@ func TestGetCursorsError(t *testing.T) {
 	}
 }
 
-func haveChunks(t *testing.T, s *mock.PullStorage, addrs ...swarm.Address) {
+func haveChunks(t *testing.T, s *mock.PullStorage, addrs ...flock.Address) {
 	t.Helper()
 	for _, a := range addrs {
 		have, err := s.Has(context.Background(), a)
@@ -210,7 +210,7 @@ func haveChunks(t *testing.T, s *mock.PullStorage, addrs ...swarm.Address) {
 func newPullSync(s p2p.Streamer, o ...mock.Option) (*pullsync.Syncer, *mock.PullStorage) {
 	storage := mock.NewPullStorage(o...)
 	logger := logging.New(io.Discard, 0)
-	unwrap := func(swarm.Chunk) {}
-	validVouch := func(ch swarm.Chunk, _ []byte) (swarm.Chunk, error) { return ch, nil }
+	unwrap := func(flock.Chunk) {}
+	validVouch := func(ch flock.Chunk, _ []byte) (flock.Chunk, error) { return ch, nil }
 	return pullsync.New(s, storage, unwrap, validVouch, logger), storage
 }

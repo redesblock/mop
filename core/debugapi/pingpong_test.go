@@ -8,21 +8,21 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/p2p"
 	pingpongmock "github.com/redesblock/mop/core/pingpong/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestPingpong(t *testing.T) {
 	rtt := time.Minute
-	peerID := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
-	unknownPeerID := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59e")
-	errorPeerID := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59a")
+	peerID := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	unknownPeerID := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59e")
+	errorPeerID := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59a")
 	testErr := errors.New("test error")
 
-	pingpongService := pingpongmock.New(func(ctx context.Context, address swarm.Address, msgs ...string) (time.Duration, error) {
+	pingpongService := pingpongmock.New(func(ctx context.Context, address flock.Address, msgs ...string) (time.Duration, error) {
 		if address.Equal(errorPeerID) {
 			return 0, testErr
 		}

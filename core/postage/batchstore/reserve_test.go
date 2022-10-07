@@ -10,13 +10,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/postage/batchstore"
 	postagetest "github.com/redesblock/mop/core/postage/testing"
 	"github.com/redesblock/mop/core/statestore/leveldb"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func setupBatchStore(t *testing.T) (postage.Storer, map[string]uint8) {
@@ -51,7 +51,7 @@ func setupBatchStore(t *testing.T) (postage.Storer, map[string]uint8) {
 	}
 
 	evictFn := func(b []byte) error {
-		return unreserveFunc(b, swarm.MaxPO+1)
+		return unreserveFunc(b, flock.MaxPO+1)
 	}
 
 	bStore, _ := batchstore.New(stateStore, evictFn, logger)
@@ -590,7 +590,7 @@ func TestBatchStore_EvictExpired(t *testing.T) {
 	}
 
 	// expect the 5 to be preserved and the rest to be unreserved
-	checkUnreserved(t, unreserved, batches[:3], swarm.MaxPO+1)
+	checkUnreserved(t, unreserved, batches[:3], flock.MaxPO+1)
 	checkUnreserved(t, unreserved, batches[3:], 4)
 
 	// check that the batches is actually deleted from
@@ -762,7 +762,7 @@ func TestUnreserveItemSequence(t *testing.T) {
 		return nil
 	}
 	evictFn := func(b []byte) error {
-		return unreserveFunc(b, swarm.MaxPO+1)
+		return unreserveFunc(b, flock.MaxPO+1)
 	}
 	bStore, _ := batchstore.New(stateStore, evictFn, logger)
 	bStore.SetRadiusSetter(noopRadiusSetter{})

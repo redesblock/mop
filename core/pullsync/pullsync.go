@@ -14,6 +14,7 @@ import (
 
 	"github.com/redesblock/mop/core/bitvector"
 	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
@@ -22,7 +23,6 @@ import (
 	"github.com/redesblock/mop/core/pullsync/pullstorage"
 	"github.com/redesblock/mop/core/soc"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
@@ -50,12 +50,12 @@ type Interface interface {
 	// It returns the BinID of highest chunk that was synced from the given
 	// interval. If the requested interval is too large, the downstream peer
 	// has the liberty to provide less chunks than requested.
-	SyncInterval(ctx context.Context, peer swarm.Address, bin uint8, from, to uint64) (topmost uint64, ruid uint32, err error)
+	SyncInterval(ctx context.Context, peer flock.Address, bin uint8, from, to uint64) (topmost uint64, ruid uint32, err error)
 	// GetCursors retrieves all cursors from a downstream peer.
-	GetCursors(ctx context.Context, peer swarm.Address) ([]uint64, error)
+	GetCursors(ctx context.Context, peer flock.Address) ([]uint64, error)
 	// CancelRuid cancels active pullsync operation identified by ruid on
 	// a downstream peer.
-	CancelRuid(ctx context.Context, peer swarm.Address, ruid uint32) error
+	CancelRuid(ctx context.Context, peer flock.Address, ruid uint32) error
 }
 
 type Syncer struct {
@@ -65,7 +65,7 @@ type Syncer struct {
 	storage    pullstorage.Storer
 	quit       chan struct{}
 	wg         sync.WaitGroup
-	unwrap     func(swarm.Chunk)
+	unwrap     func(flock.Chunk)
 	validVouch postage.ValidVouchFn
 
 	ruidMtx sync.Mutex
@@ -75,7 +75,7 @@ type Syncer struct {
 	io.Closer
 }
 
-func New(streamer p2p.Streamer, storage pullstorage.Storer, unwrap func(swarm.Chunk), validVouch postage.ValidVouchFn, logger logging.Logger) *Syncer {
+func New(streamer p2p.Streamer, storage pullstorage.Storer, unwrap func(flock.Chunk), validVouch postage.ValidVouchFn, logger logging.Logger) *Syncer {
 	return &Syncer{
 		streamer:   streamer,
 		storage:    storage,
@@ -114,7 +114,7 @@ func (s *Syncer) Protocol() p2p.ProtocolSpec {
 // It returns the BinID of highest chunk that was synced from the given interval.
 // If the requested interval is too large, the downstream peer has the liberty to
 // provide less chunks than requested.
-func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8, from, to uint64) (topmost uint64, ruid uint32, err error) {
+func (s *Syncer) SyncInterval(ctx context.Context, peer flock.Address, bin uint8, from, to uint64) (topmost uint64, ruid uint32, err error) {
 	var ru pb.Ruid
 	stream, err := s.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, streamName)
 	if err != nil {
@@ -158,7 +158,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 		return 0, ru.Ruid, fmt.Errorf("read offer: %w", err)
 	}
 
-	if len(offer.Hashes)%swarm.HashSize != 0 {
+	if len(offer.Hashes)%flock.HashSize != 0 {
 		return 0, ru.Ruid, fmt.Errorf("inconsistent hash length")
 	}
 
@@ -169,7 +169,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 	}
 
 	var (
-		bvLen      = len(offer.Hashes) / swarm.HashSize
+		bvLen      = len(offer.Hashes) / flock.HashSize
 		wantChunks = make(map[string]struct{})
 		ctr        = 0
 	)
@@ -179,9 +179,9 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 		return 0, ru.Ruid, fmt.Errorf("new bitvector: %w", err)
 	}
 
-	for i := 0; i < len(offer.Hashes); i += swarm.HashSize {
-		a := swarm.NewAddress(offer.Hashes[i : i+swarm.HashSize])
-		if a.Equal(swarm.ZeroAddress) {
+	for i := 0; i < len(offer.Hashes); i += flock.HashSize {
+		a := flock.NewAddress(offer.Hashes[i : i+flock.HashSize])
+		if a.Equal(flock.ZeroAddress) {
 			// i'd like to have this around to see we don't see any of these in the logs
 			s.logger.Errorf("syncer got a zero address hash on offer")
 			return 0, ru.Ruid, fmt.Errorf("zero address on offer")
@@ -196,7 +196,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 			wantChunks[a.String()] = struct{}{}
 			ctr++
 			s.metrics.Wanted.Inc()
-			bv.Set(i / swarm.HashSize)
+			bv.Set(i / flock.HashSize)
 		}
 	}
 
@@ -210,7 +210,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 	// returns immediately with the topmost value on the offer, which
 	// will seal the interval and request the next one
 	err = nil
-	var chunksToPut []swarm.Chunk
+	var chunksToPut []flock.Chunk
 
 	for ; ctr > 0; ctr-- {
 		var delivery pb.Delivery
@@ -221,7 +221,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 			break
 		}
 
-		addr := swarm.NewAddress(delivery.Address)
+		addr := flock.NewAddress(delivery.Address)
 		if _, ok := wantChunks[addr.String()]; !ok {
 			// this is fatal for the entire batch, return the
 			// error and don't write the partial batch.
@@ -231,7 +231,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 		delete(wantChunks, addr.String())
 		s.metrics.Delivered.Inc()
 
-		chunk := swarm.NewChunk(addr, delivery.Data)
+		chunk := flock.NewChunk(addr, delivery.Data)
 		if chunk, err = s.validVouch(chunk, delivery.Vouch); err != nil {
 			s.logger.Debugf("pullsync: unverified vouch: %v", err)
 			continue
@@ -242,7 +242,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer swarm.Address, bin uint8
 		} else if !soc.Valid(chunk) {
 			// this is fatal for the entire batch, return the
 			// error and don't write the partial batch.
-			return 0, ru.Ruid, swarm.ErrInvalidChunk
+			return 0, ru.Ruid, flock.ErrInvalidChunk
 		}
 		chunksToPut = append(chunksToPut, chunk)
 	}
@@ -371,7 +371,7 @@ func (s *Syncer) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) (er
 }
 
 // makeOffer tries to assemble an offer for a given requested interval.
-func (s *Syncer) makeOffer(ctx context.Context, rn pb.GetRange) (o *pb.Offer, addrs []swarm.Address, err error) {
+func (s *Syncer) makeOffer(ctx context.Context, rn pb.GetRange) (o *pb.Offer, addrs []flock.Address, err error) {
 	chs, top, err := s.storage.IntervalChunks(ctx, uint8(rn.Bin), rn.From, rn.To, maxPage)
 	if err != nil {
 		return o, nil, err
@@ -387,17 +387,17 @@ func (s *Syncer) makeOffer(ctx context.Context, rn pb.GetRange) (o *pb.Offer, ad
 
 // processWant compares a received Want to a sent Offer and returns
 // the appropriate chunks from the local store.
-func (s *Syncer) processWant(ctx context.Context, o *pb.Offer, w *pb.Want) ([]swarm.Chunk, error) {
-	l := len(o.Hashes) / swarm.HashSize
+func (s *Syncer) processWant(ctx context.Context, o *pb.Offer, w *pb.Want) ([]flock.Chunk, error) {
+	l := len(o.Hashes) / flock.HashSize
 	bv, err := bitvector.NewFromBytes(w.BitVector, l)
 	if err != nil {
 		return nil, err
 	}
 
-	var addrs []swarm.Address
-	for i := 0; i < len(o.Hashes); i += swarm.HashSize {
-		if bv.Get(i / swarm.HashSize) {
-			a := swarm.NewAddress(o.Hashes[i : i+swarm.HashSize])
+	var addrs []flock.Address
+	for i := 0; i < len(o.Hashes); i += flock.HashSize {
+		if bv.Get(i / flock.HashSize) {
+			a := flock.NewAddress(o.Hashes[i : i+flock.HashSize])
 			addrs = append(addrs, a)
 		}
 	}
@@ -405,7 +405,7 @@ func (s *Syncer) processWant(ctx context.Context, o *pb.Offer, w *pb.Want) ([]sw
 	return s.storage.Get(ctx, storage.ModeGetSync, addrs...)
 }
 
-func (s *Syncer) GetCursors(ctx context.Context, peer swarm.Address) (retr []uint64, err error) {
+func (s *Syncer) GetCursors(ctx context.Context, peer flock.Address) (retr []uint64, err error) {
 	stream, err := s.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, cursorStreamName)
 	if err != nil {
 		return nil, fmt.Errorf("new stream: %w", err)
@@ -475,7 +475,7 @@ func (s *Syncer) cursorHandler(ctx context.Context, p p2p.Peer, stream p2p.Strea
 	return nil
 }
 
-func (s *Syncer) CancelRuid(ctx context.Context, peer swarm.Address, ruid uint32) (err error) {
+func (s *Syncer) CancelRuid(ctx context.Context, peer flock.Address, ruid uint32) (err error) {
 	stream, err := s.streamer.NewStream(ctx, peer, nil, protocolName, protocolVersion, cancelStreamName)
 	if err != nil {
 		return fmt.Errorf("new stream: %w", err)

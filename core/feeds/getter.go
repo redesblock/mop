@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/soc"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // Lookup is the interface for time based feed lookup
 type Lookup interface {
-	At(ctx context.Context, at, after int64) (chunk swarm.Chunk, currentIndex, nextIndex Index, err error)
+	At(ctx context.Context, at, after int64) (chunk flock.Chunk, currentIndex, nextIndex Index, err error)
 }
 
 // Getter encapsulates a chunk Getter getter and a feed and provides
@@ -31,14 +31,14 @@ func NewGetter(getter storage.Getter, feed *Feed) *Getter {
 
 // Latest looks up the latest update of the feed
 // after is a unix time hint of the latest known update
-func Latest(ctx context.Context, l Lookup, after int64) (swarm.Chunk, error) {
+func Latest(ctx context.Context, l Lookup, after int64) (flock.Chunk, error) {
 	c, _, _, err := l.At(ctx, time.Now().Unix(), after)
 	return c, err
 }
 
 // Get creates an update of the underlying feed at the given epoch
 // and looks it up in the chunk Getter based on its address
-func (f *Getter) Get(ctx context.Context, i Index) (swarm.Chunk, error) {
+func (f *Getter) Get(ctx context.Context, i Index) (flock.Chunk, error) {
 	addr, err := f.Feed.Update(i).Address()
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (f *Getter) Get(ctx context.Context, i Index) (swarm.Chunk, error) {
 }
 
 // FromChunk parses out the timestamp and the payload
-func FromChunk(ch swarm.Chunk) (uint64, []byte, error) {
+func FromChunk(ch flock.Chunk) (uint64, []byte, error) {
 	s, err := soc.FromChunk(ch)
 	if err != nil {
 		return 0, nil, err
@@ -62,7 +62,7 @@ func FromChunk(ch swarm.Chunk) (uint64, []byte, error) {
 }
 
 // UpdatedAt extracts the time of feed other than update
-func UpdatedAt(ch swarm.Chunk) (uint64, error) {
+func UpdatedAt(ch flock.Chunk) (uint64, error) {
 	d := ch.Data()
 	if len(d) < 113 {
 		return 0, fmt.Errorf("too short: %d", len(d))

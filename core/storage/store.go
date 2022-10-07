@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -119,7 +119,7 @@ const (
 // Descriptor holds information required for Pull syncing. This struct
 // is provided by subscribing to pull index.
 type Descriptor struct {
-	Address swarm.Address
+	Address flock.Address
 	BinID   uint64
 }
 
@@ -133,30 +133,30 @@ func (d *Descriptor) String() string {
 type Storer interface {
 	Getter
 	Putter
-	GetMulti(ctx context.Context, mode ModeGet, addrs ...swarm.Address) (ch []swarm.Chunk, err error)
+	GetMulti(ctx context.Context, mode ModeGet, addrs ...flock.Address) (ch []flock.Chunk, err error)
 	Hasser
 	Setter
 	LastPullSubscriptionBinID(bin uint8) (id uint64, err error)
 	PullSubscriber
-	SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan swarm.Chunk, repeat, stop func())
+	SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan flock.Chunk, repeat, stop func())
 	io.Closer
 }
 
 type Putter interface {
-	Put(ctx context.Context, mode ModePut, chs ...swarm.Chunk) (exist []bool, err error)
+	Put(ctx context.Context, mode ModePut, chs ...flock.Chunk) (exist []bool, err error)
 }
 
 type Getter interface {
-	Get(ctx context.Context, mode ModeGet, addr swarm.Address) (ch swarm.Chunk, err error)
+	Get(ctx context.Context, mode ModeGet, addr flock.Address) (ch flock.Chunk, err error)
 }
 
 type Setter interface {
-	Set(ctx context.Context, mode ModeSet, addrs ...swarm.Address) (err error)
+	Set(ctx context.Context, mode ModeSet, addrs ...flock.Address) (err error)
 }
 
 type Hasser interface {
-	Has(ctx context.Context, addr swarm.Address) (yes bool, err error)
-	HasMulti(ctx context.Context, addrs ...swarm.Address) (yes []bool, err error)
+	Has(ctx context.Context, addr flock.Address) (yes bool, err error)
+	HasMulti(ctx context.Context, addrs ...flock.Address) (yes []bool, err error)
 }
 
 type PullSubscriber interface {

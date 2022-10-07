@@ -7,9 +7,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/mop/core/bigint"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/settlement"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -87,7 +87,7 @@ func (s *Service) settlementsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) peerSettlementsHandler(w http.ResponseWriter, r *http.Request) {
 	addr := mux.Vars(r)["peer"]
-	peer, err := swarm.ParseHexAddress(addr)
+	peer, err := flock.ParseHexAddress(addr)
 	if err != nil {
 		s.logger.Debugf("debug api: settlements peer: invalid peer address %s: %v", addr, err)
 		s.logger.Errorf("debug api: settlements peer: invalid peer address %s", addr)

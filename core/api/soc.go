@@ -9,16 +9,16 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/redesblock/mop/core/cac"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/soc"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var errBadRequestParams = errors.New("owner, id or span is not well formed")
 
 type socPostResponse struct {
-	Reference swarm.Address `json:"reference"`
+	Reference flock.Address `json:"reference"`
 }
 
 func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,15 +64,15 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(data) < swarm.SpanSize {
+	if len(data) < flock.SpanSize {
 		s.logger.Debugf("soc upload: chunk data too short")
 		s.logger.Error("soc upload: %v", errBadRequestParams)
 		jsonhttp.BadRequest(w, "short chunk data")
 		return
 	}
 
-	if len(data) > swarm.ChunkSize+swarm.SpanSize {
-		s.logger.Debugf("soc upload: chunk data exceeds %d bytes", swarm.ChunkSize+swarm.SpanSize)
+	if len(data) > flock.ChunkSize+flock.SpanSize {
+		s.logger.Debugf("soc upload: chunk data exceeds %d bytes", flock.ChunkSize+flock.SpanSize)
 		s.logger.Error("soc upload: chunk data error")
 		jsonhttp.RequestEntityTooLarge(w, "payload too large")
 		return
@@ -167,7 +167,7 @@ func (s *server) socUploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+	if strings.ToLower(r.Header.Get(FlockPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(ctx, sch.Address(), false); err != nil {
 			s.logger.Debugf("soc upload: creation of pin for %q failed: %v", sch.Address(), err)
 			s.logger.Error("soc upload: creation of pin failed")

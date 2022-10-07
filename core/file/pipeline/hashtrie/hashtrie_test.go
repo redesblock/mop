@@ -10,13 +10,13 @@ import (
 	"github.com/redesblock/mop/core/file/pipeline/bmt"
 	"github.com/redesblock/mop/core/file/pipeline/hashtrie"
 	"github.com/redesblock/mop/core/file/pipeline/store"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
-	addr swarm.Address
+	addr flock.Address
 	span []byte
 	ctx  = context.Background()
 	mode = storage.ModePutUpload
@@ -25,7 +25,7 @@ var (
 func init() {
 	b := make([]byte, 32)
 	b[31] = 0x01
-	addr = swarm.NewAddress(b)
+	addr = flock.NewAddress(b)
 
 	span = make([]byte, 8)
 	binary.LittleEndian.PutUint64(span, 1)
@@ -106,13 +106,13 @@ func TestLevels(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			rootch, err := s.Get(ctx, storage.ModeGetRequest, swarm.NewAddress(ref))
+			rootch, err := s.Get(ctx, storage.ModeGetRequest, flock.NewAddress(ref))
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			//check the span. since write spans are 1 value 1, then expected span == tc.writes
-			sp := binary.LittleEndian.Uint64(rootch.Data()[:swarm.SpanSize])
+			sp := binary.LittleEndian.Uint64(rootch.Data()[:flock.SpanSize])
 			if sp != uint64(tc.writes) {
 				t.Fatalf("want span %d got %d", tc.writes, sp)
 			}
@@ -190,12 +190,12 @@ func TestRegression(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rootch, err := s.Get(ctx, storage.ModeGetRequest, swarm.NewAddress(ref))
+	rootch, err := s.Get(ctx, storage.ModeGetRequest, flock.NewAddress(ref))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sp := binary.LittleEndian.Uint64(rootch.Data()[:swarm.SpanSize])
+	sp := binary.LittleEndian.Uint64(rootch.Data()[:flock.SpanSize])
 	if sp != uint64(writes*4096) {
 		t.Fatalf("want span %d got %d", writes*4096, sp)
 	}

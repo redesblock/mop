@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var (
@@ -14,9 +14,9 @@ var (
 // Interface is the interface used by Accounting to trigger settlement
 type Interface interface {
 	// TotalSent returns the total amount sent to a peer
-	TotalSent(peer swarm.Address) (totalSent *big.Int, err error)
+	TotalSent(peer flock.Address) (totalSent *big.Int, err error)
 	// TotalReceived returns the total amount received from a peer
-	TotalReceived(peer swarm.Address) (totalSent *big.Int, err error)
+	TotalReceived(peer flock.Address) (totalSent *big.Int, err error)
 	// SettlementsSent returns sent settlements for each individual known peer
 	SettlementsSent() (map[string]*big.Int, error)
 	// SettlementsReceived returns received settlements for each individual known peer
@@ -24,10 +24,10 @@ type Interface interface {
 }
 
 type Accounting interface {
-	PeerDebt(peer swarm.Address) (*big.Int, error)
-	NotifyPaymentReceived(peer swarm.Address, amount *big.Int) error
-	NotifyPaymentSent(peer swarm.Address, amount *big.Int, receivedError error)
-	NotifyRefreshmentReceived(peer swarm.Address, amount *big.Int) error
-	Connect(peer swarm.Address)
-	Disconnect(peer swarm.Address)
+	PeerDebt(peer flock.Address) (*big.Int, error)
+	NotifyPaymentReceived(peer flock.Address, amount *big.Int) error
+	NotifyPaymentSent(peer flock.Address, amount *big.Int, receivedError error)
+	NotifyRefreshmentReceived(peer flock.Address, amount *big.Int) error
+	Connect(peer flock.Address)
+	Disconnect(peer flock.Address)
 }

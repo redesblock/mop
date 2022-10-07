@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/blocklist"
 	"github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestExist(t *testing.T) {
-	addr1 := swarm.NewAddress([]byte{0, 1, 2, 3})
-	addr2 := swarm.NewAddress([]byte{4, 5, 6, 7})
+	addr1 := flock.NewAddress([]byte{0, 1, 2, 3})
+	addr2 := flock.NewAddress([]byte{4, 5, 6, 7})
 
 	bl := blocklist.NewBlocklist(mock.NewStateStore())
 
@@ -58,8 +58,8 @@ func TestExist(t *testing.T) {
 }
 
 func TestPeers(t *testing.T) {
-	addr1 := swarm.NewAddress([]byte{0, 1, 2, 3})
-	addr2 := swarm.NewAddress([]byte{4, 5, 6, 7})
+	addr1 := flock.NewAddress([]byte{0, 1, 2, 3})
+	addr2 := flock.NewAddress([]byte{4, 5, 6, 7})
 
 	bl := blocklist.NewBlocklist(mock.NewStateStore())
 
@@ -102,7 +102,7 @@ func TestPeers(t *testing.T) {
 	}
 }
 
-func isIn(p swarm.Address, peers []p2p.Peer) bool {
+func isIn(p flock.Address, peers []p2p.Peer) bool {
 	for _, v := range peers {
 		if v.Address.Equal(p) {
 			return true

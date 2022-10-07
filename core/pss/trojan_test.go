@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/pss"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestWrap(t *testing.T) {
@@ -31,8 +31,8 @@ func TestWrap(t *testing.T) {
 		t.Fatal("trojan address was expected to match one of the targets with prefix")
 	}
 
-	if len(chunk.Data()) != swarm.ChunkWithSpanSize {
-		t.Fatalf("expected trojan data size to be %d, was %d", swarm.ChunkWithSpanSize, len(chunk.Data()))
+	if len(chunk.Data()) != flock.ChunkWithSpanSize {
+		t.Fatalf("expected trojan data size to be %d, was %d", flock.ChunkWithSpanSize, len(chunk.Data()))
 	}
 }
 

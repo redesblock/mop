@@ -1,5 +1,5 @@
-// Package crowd contains most basic and general Swarm concepts.
-package crowd
+// Package flock contains most basic and general Flock concepts.
+package flock
 
 import (
 	"bytes"
@@ -34,7 +34,7 @@ var (
 	ErrInvalidChunk = errors.New("invalid chunk")
 )
 
-// Address represents an address in Swarm metric space of
+// Address represents an address in Flock metric space of
 // Node and Chunk addresses.
 type Address struct {
 	b []byte

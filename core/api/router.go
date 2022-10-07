@@ -8,9 +8,9 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/redesblock/mop/core/auth"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/logging/httpaccess"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/sirupsen/logrus"
 	"resenje.org/web"
 )
@@ -35,7 +35,7 @@ func (s *server) setupRouting() {
 	router.NotFoundHandler = http.HandlerFunc(jsonhttp.NotFoundHandler)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "MOP Swarm")
+		fmt.Fprintln(w, "MOP Flock")
 	})
 
 	router.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +76,7 @@ func (s *server) setupRouting() {
 
 	handle("/chunks", jsonhttp.MethodHandler{
 		"POST": web.ChainHandlers(
-			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
+			jsonhttp.NewMaxBodyBytesHandler(flock.ChunkWithSpanSize),
 			web.FinalHandlerFunc(s.chunkUploadHandler),
 		),
 	})
@@ -92,7 +92,7 @@ func (s *server) setupRouting() {
 
 	handle("/soc/{owner}/{id}", jsonhttp.MethodHandler{
 		"POST": web.ChainHandlers(
-			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
+			jsonhttp.NewMaxBodyBytesHandler(flock.ChunkWithSpanSize),
 			web.FinalHandlerFunc(s.socUploadHandler),
 		),
 	})
@@ -100,7 +100,7 @@ func (s *server) setupRouting() {
 	handle("/feeds/{owner}/{topic}", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.feedGetHandler),
 		"POST": web.ChainHandlers(
-			jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkWithSpanSize),
+			jsonhttp.NewMaxBodyBytesHandler(flock.ChunkWithSpanSize),
 			web.FinalHandlerFunc(s.feedPostHandler),
 		),
 	})
@@ -133,7 +133,7 @@ func (s *server) setupRouting() {
 		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"POST": web.ChainHandlers(
-				jsonhttp.NewMaxBodyBytesHandler(swarm.ChunkSize),
+				jsonhttp.NewMaxBodyBytesHandler(flock.ChunkSize),
 				web.FinalHandlerFunc(s.pssPostHandler),
 			),
 		})),
@@ -203,7 +203,7 @@ func (s *server) setupRouting() {
 				if o := r.Header.Get("Origin"); o != "" && s.checkOrigin(r) {
 					w.Header().Set("Access-Control-Allow-Credentials", "true")
 					w.Header().Set("Access-Control-Allow-Origin", o)
-					w.Header().Set("Access-Control-Allow-Headers", "User-Agent, Origin, Accept, Authorization, Content-Type, X-Requested-With, Access-Control-Request-Headers, Access-Control-Request-Method, Swarm-Tag, Swarm-Pin, Swarm-Encrypt, Swarm-Index-Document, Swarm-Error-Document, Swarm-Collection, Swarm-Postage-Batch-Id, Gas-Price")
+					w.Header().Set("Access-Control-Allow-Headers", "User-Agent, Origin, Accept, Authorization, Content-Type, X-Requested-With, Access-Control-Request-Headers, Access-Control-Request-Method, Flock-Tag, Flock-Pin, Flock-Encrypt, Flock-Index-Document, Flock-Error-Document, Flock-Collection, Flock-Postage-Batch-Id, Gas-Price")
 					w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST, PUT, DELETE")
 					w.Header().Set("Access-Control-Max-Age", "3600")
 				}
@@ -229,12 +229,12 @@ func (s *server) gatewayModeForbidEndpointHandler(h http.Handler) http.Handler {
 func (s *server) gatewayModeForbidHeadersHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.GatewayMode {
-			if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+			if strings.ToLower(r.Header.Get(FlockPinHeader)) == "true" {
 				s.logger.Tracef("gateway mode: forbidden pinning %s", r.URL.String())
 				jsonhttp.Forbidden(w, "pinning is disabled")
 				return
 			}
-			if strings.ToLower(r.Header.Get(SwarmEncryptHeader)) == "true" {
+			if strings.ToLower(r.Header.Get(FlockEncryptHeader)) == "true" {
 				s.logger.Tracef("gateway mode: forbidden encryption %s", r.URL.String())
 				jsonhttp.Forbidden(w, "encryption is disabled")
 				return

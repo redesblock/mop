@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   version: 3.0.1
   title: API
-  description: "A list of the currently provided Interfaces to interact with the swarm, implementing file operations and sending messages"
+  description: "A list of the currently provided Interfaces to interact with the flock, implementing file operations and sending messages"
 
 security:
   - {}
@@ -94,11 +94,11 @@ paths:
       tags:
         - Bytes
       parameters:
-        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmEncryptParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
-        - $ref: "Common.yaml#/components/parameters/SwarmDeferredUpload"
+        - $ref: "Common.yaml#/components/parameters/FlockTagParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPinParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockEncryptParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/FlockDeferredUpload"
       requestBody:
         content:
           application/octet-stream:
@@ -109,8 +109,8 @@ paths:
         "201":
           description: Ok
           headers:
-            "swarm-tag":
-              $ref: "Common.yaml#/components/headers/SwarmTag"
+            "flock-tag":
+              $ref: "Common.yaml#/components/headers/FlockTag"
           content:
             application/json:
               schema:
@@ -135,9 +135,9 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
-          description: Swarm address reference to content
+          description: Flock address reference to content
       responses:
         "200":
           description: Retrieved content specified by reference
@@ -160,9 +160,9 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
-          description: Swarm address of chunk
+          description: Flock address of chunk
       responses:
         "200":
           description: Retrieved chunk content
@@ -186,10 +186,10 @@ paths:
       tags:
         - Chunk
       parameters:
-        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
-        - $ref: "Common.yaml#/components/parameters/SwarmDeferredUpload"
+        - $ref: "Common.yaml#/components/parameters/FlockTagParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPinParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/FlockDeferredUpload"
       requestBody:
         description: Chunk binary data that has to have at least 8 bytes.
         content:
@@ -201,8 +201,8 @@ paths:
         "201":
           description: Ok
           headers:
-            "swarm-tag":
-              description: Tag UID if it was passed to the request `swarm-tag` header.
+            "flock-tag":
+              description: Tag UID if it was passed to the request `flock-tag` header.
               schema:
                 $ref: "Common.yaml#/components/schemas/Uid"
           content:
@@ -226,9 +226,9 @@ paths:
       tags:
         - Chunk
       parameters:
-        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/FlockTagParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPinParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPostageBatchId"
       responses:
         "200":
           description: "Returns a Websocket connection on which stream of chunks can be uploaded. Each chunk sent is acknowledged using a binary response `0` which serves as confirmation of upload of single chunk. Chunks should be packaged as binary messages for uploading."
@@ -240,10 +240,10 @@ paths:
     post:
       summary: "Upload file or a collection of files"
       description: "In order to upload a collection, user can send a multipart request with all the files populated in the form data with appropriate headers.\n\n
-        User can also upload a tar file along with the swarm-collection header. This will upload the tar file after extracting the entire directory structure.\n\n
-        If the swarm-collection header is absent, all requests (including tar files) are considered as single file uploads.\n\n
-        A multipart request is treated as a collection regardless of whether the swarm-collection header is present. This means in order to serve single files
-        uploaded as a multipart request, the swarm-index-document header should be used with the name of the file."
+        User can also upload a tar file along with the flock-collection header. This will upload the tar file after extracting the entire directory structure.\n\n
+        If the flock-collection header is absent, all requests (including tar files) are considered as single file uploads.\n\n
+        A multipart request is treated as a collection regardless of whether the flock-collection header is present. This means in order to serve single files
+        uploaded as a multipart request, the flock-index-document header should be used with the name of the file."
       tags:
         - MOP
       parameters:
@@ -253,15 +253,15 @@ paths:
             $ref: "Common.yaml#/components/schemas/FileName"
           required: false
           description: Filename when uploading single file
-        - $ref: "Common.yaml#/components/parameters/SwarmTagParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmEncryptParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockTagParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPinParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockEncryptParameter"
         - $ref: "Common.yaml#/components/parameters/ContentTypePreserved"
-        - $ref: "Common.yaml#/components/parameters/SwarmCollection"
-        - $ref: "Common.yaml#/components/parameters/SwarmIndexDocumentParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmErrorDocumentParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
-        - $ref: "Common.yaml#/components/parameters/SwarmDeferredUpload"
+        - $ref: "Common.yaml#/components/parameters/FlockCollection"
+        - $ref: "Common.yaml#/components/parameters/FlockIndexDocumentParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockErrorDocumentParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/FlockDeferredUpload"
       requestBody:
         content:
           multipart/form-data:
@@ -284,8 +284,8 @@ paths:
         "201":
           description: Ok
           headers:
-            "swarm-tag":
-              $ref: "Common.yaml#/components/headers/SwarmTag"
+            "flock-tag":
+              $ref: "Common.yaml#/components/headers/FlockTag"
             "etag":
               $ref: "Common.yaml#/components/headers/ETag"
           content:
@@ -313,7 +313,7 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
           description: "Root hash of content (can be of any type: collection, file, chunk)"
       responses:
@@ -331,14 +331,14 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
-          description: Swarm address of content
+          description: Flock address of content
       responses:
         "200":
           description: Ok
-          # "swarm-feed-index":
-          #   $ref: "Common.yaml#/components/headers/SwarmFeedIndex"
+          # "flock-feed-index":
+          #   $ref: "Common.yaml#/components/headers/FlockFeedIndex"
           content:
             application/octet-stream:
               schema:
@@ -362,9 +362,9 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
-          description: Swarm address of content
+          description: Flock address of content
         - in: path
           name: path
           schema:
@@ -503,7 +503,7 @@ paths:
         default:
           description: Default response
     patch:
-      summary: "Update Total Count and swarm hash for a tag of an input stream of unknown size using Uid"
+      summary: "Update Total Count and flock hash for a tag of an input stream of unknown size using Uid"
       tags:
         - Tag
       parameters:
@@ -514,7 +514,7 @@ paths:
           required: true
           description: Uid
       requestBody:
-        description: Can contain swarm hash to use for the tag
+        description: Can contain flock hash to use for the tag
         required: false
         content:
           application/json:
@@ -541,9 +541,9 @@ paths:
       - in: path
         name: reference
         schema:
-          $ref: "Common.yaml#/components/schemas/SwarmOnlyReference"
+          $ref: "Common.yaml#/components/schemas/FlockOnlyReference"
         required: true
-        description: Swarm reference of the root hash
+        description: Flock reference of the root hash
     post:
       summary: Pin the root hash with the given reference
       tags:
@@ -600,7 +600,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "Common.yaml#/components/schemas/SwarmOnlyReference"
+                $ref: "Common.yaml#/components/schemas/FlockOnlyReference"
         "400":
           $ref: "Common.yaml#/components/responses/400"
         "403":
@@ -623,7 +623,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "Common.yaml#/components/schemas/SwarmOnlyReferencesList"
+                $ref: "Common.yaml#/components/schemas/FlockOnlyReferencesList"
         "403":
           $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
@@ -633,9 +633,9 @@ paths:
 
   "/pss/send/{topic}/{targets}":
     post:
-      summary: Send to recipient or target with Postal Service for Swarm
+      summary: Send to recipient or target with Postal Service for Flock
       tags:
-        - Postal Service for Swarm
+        - Postal Service for Flock
       parameters:
         - in: path
           name: topic
@@ -655,7 +655,7 @@ paths:
             $ref: "Common.yaml#/components/schemas/PssRecipient"
           required: false
           description: Recipient publickey
-        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/FlockPostageBatchId"
       responses:
         "201":
           description: Subscribed to topic
@@ -674,7 +674,7 @@ paths:
     get:
       summary: Subscribe for messages on the given topic.
       tags:
-        - Postal Service for Swarm
+        - Postal Service for Flock
       parameters:
         - in: path
           name: topic
@@ -716,7 +716,7 @@ paths:
             $ref: "Common.yaml#/components/schemas/HexString"
           required: true
           description: Signature
-        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPinParameter"
       responses:
         "201":
           description: Created
@@ -761,8 +761,8 @@ paths:
             $ref: "Common.yaml#/components/schemas/FeedType"
           required: false
           description: "Feed indexing scheme (default: sequence)"
-        - $ref: "Common.yaml#/components/parameters/SwarmPinParameter"
-        - $ref: "Common.yaml#/components/parameters/SwarmPostageBatchId"
+        - $ref: "Common.yaml#/components/parameters/FlockPinParameter"
+        - $ref: "Common.yaml#/components/parameters/FlockPostageBatchId"
       responses:
         "201":
           description: Created
@@ -815,10 +815,10 @@ paths:
         "200":
           description: Latest feed update
           headers:
-            "swarm-feed-index":
-              $ref: "Common.yaml#/components/headers/SwarmFeedIndex"
-            "swarm-feed-index-next":
-              $ref: "Common.yaml#/components/headers/SwarmFeedIndexNext"
+            "flock-feed-index":
+              $ref: "Common.yaml#/components/headers/FlockFeedIndex"
+            "flock-feed-index-next":
+              $ref: "Common.yaml#/components/headers/FlockFeedIndexNext"
           content:
             application/json:
               schema:
@@ -841,7 +841,7 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
           description: "Root hash of content (can be of any type: collection, file, chunk)"
       responses:
@@ -865,7 +865,7 @@ paths:
         - in: path
           name: reference
           schema:
-            $ref: "Common.yaml#/components/schemas/SwarmReference"
+            $ref: "Common.yaml#/components/schemas/FlockReference"
           required: true
           description: "Root hash of content (can be of any type: collection, file, chunk)"
       responses:

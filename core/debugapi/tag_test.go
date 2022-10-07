@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
@@ -59,7 +59,7 @@ func TestTags(t *testing.T) {
 	})
 }
 
-func tagValueTest(t *testing.T, id uint32, split, stored, seen, sent, synced, total int64, address swarm.Address, client *http.Client) {
+func tagValueTest(t *testing.T, id uint32, split, stored, seen, sent, synced, total int64, address flock.Address, client *http.Client) {
 	t.Helper()
 
 	tag := debugapi.TagResponse{}

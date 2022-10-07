@@ -15,12 +15,12 @@ import (
 	"github.com/redesblock/mop/core/tags"
 
 	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // TestChunkUploadDownload uploads a chunk to an API that verifies the chunk according
@@ -30,8 +30,8 @@ func TestChunkUploadDownload(t *testing.T) {
 	var (
 		targets         = "0x222"
 		chunksEndpoint  = "/chunks"
-		chunksResource  = func(a swarm.Address) string { return "/chunks/" + a.String() }
-		resourceTargets = func(addr swarm.Address) string { return "/chunks/" + addr.String() + "?targets=" + targets }
+		chunksResource  = func(a flock.Address) string { return "/chunks/" + a.String() }
+		resourceTargets = func(addr flock.Address) string { return "/chunks/" + addr.String() + "?targets=" + targets }
 		chunk           = testingc.GenerateTestRandomChunk()
 		statestoreMock  = statestore.NewStateStore()
 		logger          = logging.New(io.Discard, 0)
@@ -48,7 +48,7 @@ func TestChunkUploadDownload(t *testing.T) {
 
 	t.Run("empty chunk", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, chunksEndpoint, http.StatusBadRequest,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithExpectedJSONResponse(jsonhttp.StatusResponse{
 				Message: "data length",
 				Code:    http.StatusBadRequest,
@@ -58,7 +58,7 @@ func TestChunkUploadDownload(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, chunksEndpoint, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
 		)
@@ -77,10 +77,10 @@ func TestChunkUploadDownload(t *testing.T) {
 
 	t.Run("pin-invalid-value", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, chunksEndpoint, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
-			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "invalid-pin"),
+			jsonhttptest.WithRequestHeader(api.FlockPinHeader, "invalid-pin"),
 		)
 
 		// Also check if the chunk is NOT pinned
@@ -90,7 +90,7 @@ func TestChunkUploadDownload(t *testing.T) {
 	})
 	t.Run("pin-header-missing", func(t *testing.T) {
 		jsonhttptest.Request(t, client, http.MethodPost, chunksEndpoint, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: chunk.Address()}),
 		)
@@ -103,10 +103,10 @@ func TestChunkUploadDownload(t *testing.T) {
 	t.Run("pin-ok", func(t *testing.T) {
 		reference := chunk.Address()
 		jsonhttptest.Request(t, client, http.MethodPost, chunksEndpoint, http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{Reference: reference}),
-			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "True"),
+			jsonhttptest.WithRequestHeader(api.FlockPinHeader, "True"),
 		)
 
 		has, err := storerMock.Has(context.Background(), reference)

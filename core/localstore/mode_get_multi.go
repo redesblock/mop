@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -16,7 +16,7 @@ import (
 // storage.ErrNotFound will be returned. All required indexes will be updated
 // required by the Getter Mode. GetMulti is required to implement chunk.Store
 // interface.
-func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...swarm.Address) (chunks []swarm.Chunk, err error) {
+func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...flock.Address) (chunks []flock.Chunk, err error) {
 	db.metrics.ModeGetMulti.Inc()
 	db.metrics.ModeGetMultiChunks.Add(float64(len(addrs)))
 	defer totalTimeMetric(db.metrics.TotalTimeGetMulti, time.Now())
@@ -34,9 +34,9 @@ func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...swarm
 		}
 		return nil, err
 	}
-	chunks = make([]swarm.Chunk, len(out))
+	chunks = make([]flock.Chunk, len(out))
 	for i, ch := range out {
-		chunks[i] = swarm.NewChunk(swarm.NewAddress(ch.Address), ch.Data).
+		chunks[i] = flock.NewChunk(flock.NewAddress(ch.Address), ch.Data).
 			WithVouch(postage.NewVouch(ch.BatchID, ch.Index, ch.Timestamp, ch.Sig))
 	}
 	return chunks, nil
@@ -44,7 +44,7 @@ func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...swarm
 
 // getMulti returns Items from the retrieval index
 // and updates other indexes.
-func (db *DB) getMulti(mode storage.ModeGet, addrs ...swarm.Address) (out []shed.Item, err error) {
+func (db *DB) getMulti(mode storage.ModeGet, addrs ...flock.Address) (out []shed.Item, err error) {
 	out = make([]shed.Item, len(addrs))
 	for i, addr := range addrs {
 		out[i].Address = addr.Bytes()

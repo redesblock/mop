@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/flock"
 	statestore "github.com/redesblock/mop/core/statestore/mock"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/transaction"
 	"github.com/redesblock/mop/core/transaction/backendmock"
 )
@@ -40,7 +40,7 @@ func TestMatchesSender(t *testing.T) {
 
 		matcher := transaction.NewMatcher(backendmock.New(txByHash), nil, statestore.NewStateStore())
 
-		_, err := matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err := matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrTransactionNotFound) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionNotFound, err)
 		}
@@ -53,7 +53,7 @@ func TestMatchesSender(t *testing.T) {
 
 		matcher := transaction.NewMatcher(backendmock.New(txByHash), nil, statestore.NewStateStore())
 
-		_, err := matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err := matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrTransactionPending) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionPending, err)
 		}
@@ -69,7 +69,7 @@ func TestMatchesSender(t *testing.T) {
 		}
 		matcher := transaction.NewMatcher(backendmock.New(txByHash), signer, statestore.NewStateStore())
 
-		_, err := matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err := matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrTransactionSenderInvalid) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionSenderInvalid, err)
 		}
@@ -103,7 +103,7 @@ func TestMatchesSender(t *testing.T) {
 
 		matcher := transaction.NewMatcher(backendmock.New(txByHash, trxReceipt, headerByNum), signer, statestore.NewStateStore())
 
-		_, err := matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err := matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if err == nil {
 			t.Fatalf("expected no match")
 		}
@@ -249,12 +249,12 @@ func TestMatchesSender(t *testing.T) {
 		matcher := transaction.NewMatcher(backendmock.New(txByHash), nil, statestore.NewStateStore())
 		matcher.SetTime(0)
 
-		_, err := matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err := matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrTransactionNotFound) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionNotFound, err)
 		}
 
-		_, err = matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err = matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrGreylisted) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrGreylisted, err)
 		}
@@ -262,7 +262,7 @@ func TestMatchesSender(t *testing.T) {
 		// greylist expires
 		matcher.SetTime(5 * 60)
 
-		_, err = matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err = matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrTransactionNotFound) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionNotFound, err)
 		}
@@ -276,12 +276,12 @@ func TestMatchesSender(t *testing.T) {
 		matcher := transaction.NewMatcher(backendmock.New(txByHash), nil, statestore.NewStateStore())
 		matcher.SetTime(0)
 
-		_, err := matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), false)
+		_, err := matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), false)
 		if !errors.Is(err, transaction.ErrTransactionNotFound) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionNotFound, err)
 		}
 
-		_, err = matcher.Matches(context.Background(), trx, 0, swarm.NewAddress([]byte{}), true)
+		_, err = matcher.Matches(context.Background(), trx, 0, flock.NewAddress([]byte{}), true)
 		if !errors.Is(err, transaction.ErrTransactionNotFound) {
 			t.Fatalf("bad error type, want %v, got %v", transaction.ErrTransactionNotFound, err)
 		}

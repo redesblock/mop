@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/flipflop"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -82,7 +82,7 @@ func (db *DB) SubscribePull(ctx context.Context, bin uint8, since, until uint64)
 					}
 					select {
 					case chunkDescriptors <- storage.Descriptor{
-						Address: swarm.NewAddress(item.Address),
+						Address: flock.NewAddress(item.Address),
 						BinID:   item.BinID,
 					}:
 						if until > 0 && item.BinID == until {
@@ -204,9 +204,9 @@ func (db *DB) triggerPullSubscriptions(bin uint8) {
 
 // addressInBin returns an address that is in a specific
 // proximity order bin from database base key.
-func (db *DB) addressInBin(bin uint8) swarm.Address {
+func (db *DB) addressInBin(bin uint8) flock.Address {
 	addr := append([]byte(nil), db.baseKey...)
 	b := bin / 8
 	addr[b] = addr[b] ^ (1 << (7 - bin%8))
-	return swarm.NewAddress(addr)
+	return flock.NewAddress(addr)
 }

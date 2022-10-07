@@ -6,24 +6,24 @@ import (
 
 	"github.com/redesblock/mop/core/collection"
 	"github.com/redesblock/mop/core/encryption"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var (
 	_                           = collection.Entry(&Entry{})
-	serializedDataSize          = swarm.SectionSize * 2
+	serializedDataSize          = flock.SectionSize * 2
 	encryptedSerializedDataSize = encryption.ReferenceSize * 2
 )
 
 // Entry provides addition of metadata to a data reference.
 // Implements collection.Entry.
 type Entry struct {
-	reference swarm.Address
-	metadata  swarm.Address
+	reference flock.Address
+	metadata  flock.Address
 }
 
 // New creates a new Entry.
-func New(reference, metadata swarm.Address) *Entry {
+func New(reference, metadata flock.Address) *Entry {
 	return &Entry{
 		reference: reference,
 		metadata:  metadata,
@@ -43,12 +43,12 @@ func CanUnmarshal(size int64) bool {
 }
 
 // Reference implements collection.Entry
-func (e *Entry) Reference() swarm.Address {
+func (e *Entry) Reference() flock.Address {
 	return e.reference
 }
 
 // Metadata implements collection.Entry
-func (e *Entry) Metadata() swarm.Address {
+func (e *Entry) Metadata() flock.Address {
 	return e.metadata
 }
 
@@ -70,7 +70,7 @@ func (e *Entry) UnmarshalBinary(b []byte) error {
 	} else {
 		return errors.New("invalid data length")
 	}
-	e.reference = swarm.NewAddress(b[:size/2])
-	e.metadata = swarm.NewAddress(b[size/2:])
+	e.reference = flock.NewAddress(b[:size/2])
+	e.metadata = flock.NewAddress(b[size/2:])
 	return nil
 }

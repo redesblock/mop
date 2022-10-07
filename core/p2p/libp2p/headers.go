@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/headers/pb"
 	"github.com/redesblock/mop/core/p2p/protobuf"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var sendHeadersTimeout = 10 * time.Second
@@ -33,7 +33,7 @@ func sendHeaders(ctx context.Context, headers p2p.Headers, stream *stream) error
 	return nil
 }
 
-func handleHeaders(headler p2p.HeadlerFunc, stream *stream, peerAddress swarm.Address) error {
+func handleHeaders(headler p2p.HeadlerFunc, stream *stream, peerAddress flock.Address) error {
 	w, r := protobuf.NewWriterAndReader(stream)
 
 	ctx, cancel := context.WithTimeout(context.Background(), sendHeadersTimeout)

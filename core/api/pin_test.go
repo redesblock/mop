@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/redesblock/mop/core/api"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
@@ -16,7 +17,6 @@ import (
 	statestore "github.com/redesblock/mop/core/statestore/mock"
 	"github.com/redesblock/mop/core/storage/mock"
 	testingc "github.com/redesblock/mop/core/storage/testing"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/traversal"
 )
@@ -52,17 +52,17 @@ func checkPinHandlers(t *testing.T, client *http.Client, rootHash string, create
 
 	jsonhttptest.Request(t, client, http.MethodGet, pinsReferencePath, http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(struct {
-			Reference swarm.Address `json:"reference"`
+			Reference flock.Address `json:"reference"`
 		}{
-			Reference: swarm.MustParseHexAddress(rootHash),
+			Reference: flock.MustParseHexAddress(rootHash),
 		}),
 	)
 
 	jsonhttptest.Request(t, client, http.MethodGet, pinsBasePath, http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(struct {
-			References []swarm.Address `json:"references"`
+			References []flock.Address `json:"references"`
 		}{
-			References: []swarm.Address{swarm.MustParseHexAddress(rootHash)},
+			References: []flock.Address{flock.MustParseHexAddress(rootHash)},
 		}),
 	)
 
@@ -92,10 +92,10 @@ func TestPinHandlers(t *testing.T) {
 	t.Run("bytes", func(t *testing.T) {
 		const rootHash = "838d0a193ecd1152d1bb1432d5ecc02398533b2494889e23b8bd5ace30ac2aeb"
 		jsonhttptest.Request(t, client, http.MethodPost, "/bytes", http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(strings.NewReader("this is a simple text")),
 			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
-				Reference: swarm.MustParseHexAddress(rootHash),
+				Reference: flock.MustParseHexAddress(rootHash),
 			}),
 		)
 		checkPinHandlers(t, client, rootHash, true)
@@ -103,28 +103,28 @@ func TestPinHandlers(t *testing.T) {
 
 	t.Run("mop", func(t *testing.T) {
 		tarReader := tarFiles(t, []f{{
-			data: []byte("<h1>Swarm"),
+			data: []byte("<h1>Flock"),
 			name: "index.html",
 			dir:  "",
 		}})
-		rootHash := "9e178dbd1ed4b748379e25144e28dfb29c07a4b5114896ef454480115a56b237"
+		rootHash := "350dd938021b8c68d6de9e23003e57219301061b6c0bb1a3c9ea537a8b246e4c"
 		jsonhttptest.Request(t, client, http.MethodPost, "/mop", http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(tarReader),
 			jsonhttptest.WithRequestHeader("Content-Type", api.ContentTypeTar),
-			jsonhttptest.WithRequestHeader(api.SwarmCollectionHeader, "true"),
-			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "true"),
+			jsonhttptest.WithRequestHeader(api.FlockCollectionHeader, "true"),
+			jsonhttptest.WithRequestHeader(api.FlockPinHeader, "true"),
 			jsonhttptest.WithExpectedJSONResponse(api.MopUploadResponse{
-				Reference: swarm.MustParseHexAddress(rootHash),
+				Reference: flock.MustParseHexAddress(rootHash),
 			}),
 		)
 		checkPinHandlers(t, client, rootHash, false)
 
 		header := jsonhttptest.Request(t, client, http.MethodPost, "/mop?name=somefile.txt", http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestHeader("Content-Type", "text/plain"),
-			jsonhttptest.WithRequestHeader(api.SwarmEncryptHeader, "true"),
-			jsonhttptest.WithRequestHeader(api.SwarmPinHeader, "true"),
+			jsonhttptest.WithRequestHeader(api.FlockEncryptHeader, "true"),
+			jsonhttptest.WithRequestHeader(api.FlockPinHeader, "true"),
 			jsonhttptest.WithRequestBody(strings.NewReader("this is a simple text")),
 		)
 
@@ -138,7 +138,7 @@ func TestPinHandlers(t *testing.T) {
 			rootHash = chunk.Address().String()
 		)
 		jsonhttptest.Request(t, client, http.MethodPost, "/chunks", http.StatusCreated,
-			jsonhttptest.WithRequestHeader(api.SwarmPostageBatchIdHeader, batchOkStr),
+			jsonhttptest.WithRequestHeader(api.FlockPostageBatchIdHeader, batchOkStr),
 			jsonhttptest.WithRequestBody(bytes.NewReader(chunk.Data())),
 			jsonhttptest.WithExpectedJSONResponse(api.ChunkAddressResponse{
 				Reference: chunk.Address(),

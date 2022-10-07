@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/redesblock/mop/core/crypto"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 // Voucher can issue vouches from the given address.
 type Voucher interface {
-	Vouch(swarm.Address) (*Vouch, error)
+	Vouch(flock.Address) (*Vouch, error)
 }
 
 // voucher connects a vouchIssuer with a signer.
@@ -33,7 +33,7 @@ func NewVoucher(st *VouchIssuer, signer crypto.Signer) Voucher {
 
 // Vouch takes chunk, see if the chunk can included in the batch and
 // signs it with the owner of the batch of this Vouch issuer.
-func (st *voucher) Vouch(addr swarm.Address) (*Vouch, error) {
+func (st *voucher) Vouch(addr flock.Address) (*Vouch, error) {
 	index, err := st.issuer.inc(addr)
 	if err != nil {
 		return nil, err

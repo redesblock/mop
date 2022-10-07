@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/mop"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const keyPrefix = "addressbook_entry_"
@@ -21,9 +21,9 @@ type Interface interface {
 	GetPutter
 	Remover
 	// Overlays returns a list of all overlay addresses saved in addressbook.
-	Overlays() ([]swarm.Address, error)
+	Overlays() ([]flock.Address, error)
 	// IterateOverlays exposes overlays in a form of an iterator.
-	IterateOverlays(func(swarm.Address) (bool, error)) error
+	IterateOverlays(func(flock.Address) (bool, error)) error
 	// Addresses returns a list of all mop.Address-es saved in addressbook.
 	Addresses() ([]mop.Address, error)
 }
@@ -35,17 +35,17 @@ type GetPutter interface {
 
 type Getter interface {
 	// Get returns pointer to saved mop.Address for requested overlay address.
-	Get(overlay swarm.Address) (addr *mop.Address, err error)
+	Get(overlay flock.Address) (addr *mop.Address, err error)
 }
 
 type Putter interface {
 	// Put saves relation between peer overlay address and mop.Address address.
-	Put(overlay swarm.Address, addr mop.Address) (err error)
+	Put(overlay flock.Address, addr mop.Address) (err error)
 }
 
 type Remover interface {
 	// Remove removes overlay address.
-	Remove(overlay swarm.Address) error
+	Remove(overlay flock.Address) error
 }
 
 type store struct {
@@ -59,7 +59,7 @@ func New(storer storage.StateStorer) Interface {
 	}
 }
 
-func (s *store) Get(overlay swarm.Address) (*mop.Address, error) {
+func (s *store) Get(overlay flock.Address) (*mop.Address, error) {
 	key := keyPrefix + overlay.String()
 	v := &mop.Address{}
 	err := s.store.Get(key, &v)
@@ -73,16 +73,16 @@ func (s *store) Get(overlay swarm.Address) (*mop.Address, error) {
 	return v, nil
 }
 
-func (s *store) Put(overlay swarm.Address, addr mop.Address) (err error) {
+func (s *store) Put(overlay flock.Address, addr mop.Address) (err error) {
 	key := keyPrefix + overlay.String()
 	return s.store.Put(key, &addr)
 }
 
-func (s *store) Remove(overlay swarm.Address) error {
+func (s *store) Remove(overlay flock.Address) error {
 	return s.store.Delete(keyPrefix + overlay.String())
 }
 
-func (s *store) IterateOverlays(cb func(swarm.Address) (bool, error)) error {
+func (s *store) IterateOverlays(cb func(flock.Address) (bool, error)) error {
 	return s.store.Iterate(keyPrefix, func(key, _ []byte) (stop bool, err error) {
 		k := string(key)
 		if !strings.HasPrefix(k, keyPrefix) {
@@ -92,7 +92,7 @@ func (s *store) IterateOverlays(cb func(swarm.Address) (bool, error)) error {
 		if len(split) != 2 {
 			return true, fmt.Errorf("invalid overlay key: %s", k)
 		}
-		addr, err := swarm.ParseHexAddress(split[1])
+		addr, err := flock.ParseHexAddress(split[1])
 		if err != nil {
 			return true, err
 		}
@@ -107,8 +107,8 @@ func (s *store) IterateOverlays(cb func(swarm.Address) (bool, error)) error {
 	})
 }
 
-func (s *store) Overlays() (overlays []swarm.Address, err error) {
-	err = s.IterateOverlays(func(addr swarm.Address) (stop bool, err error) {
+func (s *store) Overlays() (overlays []flock.Address, err error) {
+	err = s.IterateOverlays(func(addr flock.Address) (stop bool, err error) {
 		overlays = append(overlays, addr)
 		return false, nil
 	})

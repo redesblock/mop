@@ -3,15 +3,15 @@ package localstore
 import (
 	"errors"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-// pinCounter returns the pin counter for a given swarm address, provided that the
+// pinCounter returns the pin counter for a given flock address, provided that the
 // address has been pinned.
-func (db *DB) pinCounter(address swarm.Address) (uint64, error) {
+func (db *DB) pinCounter(address flock.Address) (uint64, error) {
 	out, err := db.pinIndex.Get(shed.Item{
 		Address: address.Bytes(),
 	})

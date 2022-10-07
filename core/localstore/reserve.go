@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -33,7 +33,7 @@ func (db *DB) UnreserveBatch(id []byte, radius uint8) (evicted uint64, err error
 		reserveSizeChange uint64
 	)
 	unpin := func(item shed.Item) (stop bool, err error) {
-		addr := swarm.NewAddress(item.Address)
+		addr := flock.NewAddress(item.Address)
 		c, err := db.setUnpin(batch, addr)
 		if err != nil {
 			if !errors.Is(err, leveldb.ErrNotFound) {
@@ -70,7 +70,7 @@ func (db *DB) UnreserveBatch(id []byte, radius uint8) (evicted uint64, err error
 		if err := db.postageRadiusIndex.PutInBatch(batch, item); err != nil {
 			return 0, err
 		}
-		if bin == swarm.MaxPO {
+		if bin == flock.MaxPO {
 			if err := db.postageRadiusIndex.DeleteInBatch(batch, item); err != nil {
 				return 0, err
 			}
@@ -82,7 +82,7 @@ func (db *DB) UnreserveBatch(id []byte, radius uint8) (evicted uint64, err error
 		gcSizeChange = 0
 	}
 
-	if radius != swarm.MaxPO+1 {
+	if radius != flock.MaxPO+1 {
 		item.Radius = radius
 		if err := db.postageRadiusIndex.PutInBatch(batch, item); err != nil {
 			return 0, err
@@ -116,6 +116,6 @@ func (db *DB) UnreserveBatch(id []byte, radius uint8) (evicted uint64, err error
 }
 
 func withinRadius(db *DB, item shed.Item) bool {
-	po := db.po(swarm.NewAddress(item.Address))
+	po := db.po(flock.NewAddress(item.Address))
 	return po >= item.Radius
 }

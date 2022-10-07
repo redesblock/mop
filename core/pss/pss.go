@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/pushsync"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 var (
@@ -34,7 +34,7 @@ type Interface interface {
 	// Register a Handler for a given Topic.
 	Register(Topic, Handler) func()
 	// TryUnwrap tries to unwrap a wrapped trojan message.
-	TryUnwrap(swarm.Chunk)
+	TryUnwrap(flock.Chunk)
 
 	SetPushSyncer(pushSyncer pushsync.PushSyncer)
 	io.Closer
@@ -141,8 +141,8 @@ func (p *pss) topics() []Topic {
 }
 
 // TryUnwrap allows unwrapping a chunk as a trojan message and calling its handlers based on the topic.
-func (p *pss) TryUnwrap(c swarm.Chunk) {
-	if len(c.Data()) < swarm.ChunkWithSpanSize {
+func (p *pss) TryUnwrap(c flock.Chunk) {
+	if len(c.Data()) < flock.ChunkWithSpanSize {
 		return // chunk not full
 	}
 	ctx := context.Background()

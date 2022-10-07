@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 type MockPricer struct {
@@ -16,10 +16,10 @@ func NewMockService(price, peerPrice uint64) *MockPricer {
 	}
 }
 
-func (pricer *MockPricer) PeerPrice(peer, chunk swarm.Address) uint64 {
+func (pricer *MockPricer) PeerPrice(peer, chunk flock.Address) uint64 {
 	return pricer.peerPrice
 }
 
-func (pricer *MockPricer) Price(chunk swarm.Address) uint64 {
+func (pricer *MockPricer) Price(chunk flock.Address) uint64 {
 	return pricer.price
 }

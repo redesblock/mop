@@ -8,16 +8,16 @@ import (
 	"io"
 	"sync"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 const (
 	// filename in tar archive that holds the information
 	// about exported data format version
-	exportVersionFilename = ".swarm-export-version"
+	exportVersionFilename = ".flock-export-version"
 	// current export format version
 	currentExportVersion = "3"
 )
@@ -144,12 +144,12 @@ func (db *DB) Import(ctx context.Context, r io.Reader) (count int64, err error) 
 				}
 			}
 			data := rawdata[postage.VouchSize:]
-			key := swarm.NewAddress(keybytes)
+			key := flock.NewAddress(keybytes)
 
-			var ch swarm.Chunk
+			var ch flock.Chunk
 			switch version {
 			case currentExportVersion:
-				ch = swarm.NewChunk(key, data).WithVouch(vouch)
+				ch = flock.NewChunk(key, data).WithVouch(vouch)
 			default:
 				select {
 				case errC <- fmt.Errorf("unsupported export data version %q", version):

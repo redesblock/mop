@@ -12,6 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/protobuf"
@@ -21,7 +22,6 @@ import (
 	priceoraclemock "github.com/redesblock/mop/core/settlement/swap/priceoracle/mock"
 	"github.com/redesblock/mop/core/settlement/swap/swapprotocol"
 	"github.com/redesblock/mop/core/settlement/swap/swapprotocol/pb"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestEmitCheques(t *testing.T) {
@@ -30,7 +30,7 @@ func TestEmitCheques(t *testing.T) {
 
 	logger := logging.New(io.Discard, 0)
 	commonAddr := common.HexToAddress("0xab")
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	swapReceiver := swapmock.NewSwap()
 	swapInitiator := swapmock.NewSwap()
 
@@ -145,7 +145,7 @@ func TestEmitCheques(t *testing.T) {
 func TestCantEmitChequeRateMismatch(t *testing.T) {
 	logger := logging.New(io.Discard, 0)
 	commonAddr := common.HexToAddress("0xab")
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	swapReceiver := swapmock.NewSwap()
 	swapInitiator := swapmock.NewSwap()
 
@@ -209,7 +209,7 @@ func TestCantEmitChequeDeductionMismatch(t *testing.T) {
 
 	logger := logging.New(io.Discard, 0)
 	commonAddr := common.HexToAddress("0xab")
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	swapReceiver := swapmock.NewSwap()
 	swapInitiator := swapmock.NewSwap()
 
@@ -272,7 +272,7 @@ func TestCantEmitChequeDeductionMismatch(t *testing.T) {
 func TestCantEmitChequeIneligibleDeduction(t *testing.T) {
 	logger := logging.New(io.Discard, 0)
 	commonAddr := common.HexToAddress("0xab")
-	peerID := swarm.MustParseHexAddress("9ee7add7")
+	peerID := flock.MustParseHexAddress("9ee7add7")
 	swapReceiver := swapmock.NewSwap()
 	swapInitiator := swapmock.NewSwap()
 

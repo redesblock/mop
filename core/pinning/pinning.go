@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/traversal"
 )
 
@@ -21,20 +21,20 @@ type Interface interface {
 	// The boolean arguments specifies whether all nodes
 	// in the tree should also be traversed and pinned.
 	// Repeating calls of this method are idempotent.
-	CreatePin(context.Context, swarm.Address, bool) error
+	CreatePin(context.Context, flock.Address, bool) error
 	// DeletePin deletes given reference. All the existing
 	// nodes in the tree will also be traversed and un-pinned.
 	// Repeating calls of this method are idempotent.
-	DeletePin(context.Context, swarm.Address) error
+	DeletePin(context.Context, flock.Address) error
 	// HasPin returns true if the given reference has root pin.
-	HasPin(swarm.Address) (bool, error)
+	HasPin(flock.Address) (bool, error)
 	// Pins return all pinned references.
-	Pins() ([]swarm.Address, error)
+	Pins() ([]flock.Address, error)
 }
 
 const storePrefix = "root-pin"
 
-func rootPinKey(ref swarm.Address) string {
+func rootPinKey(ref flock.Address) string {
 	return fmt.Sprintf("%s-%s", storePrefix, ref)
 }
 
@@ -59,9 +59,9 @@ type Service struct {
 }
 
 // CreatePin implements Interface.CreatePin method.
-func (s *Service) CreatePin(ctx context.Context, ref swarm.Address, traverse bool) error {
+func (s *Service) CreatePin(ctx context.Context, ref flock.Address, traverse bool) error {
 	// iterFn is a pinning iterator function over the leaves of the root.
-	iterFn := func(leaf swarm.Address) error {
+	iterFn := func(leaf flock.Address) error {
 		switch err := s.pinStorage.Set(ctx, storage.ModeSetPin, leaf); {
 		case errors.Is(err, storage.ErrNotFound):
 			ch, err := s.pinStorage.Get(ctx, storage.ModeGetRequestPin, leaf)
@@ -85,7 +85,7 @@ func (s *Service) CreatePin(ctx context.Context, ref swarm.Address, traverse boo
 	}
 
 	key := rootPinKey(ref)
-	switch err := s.rhStorage.Get(key, new(swarm.Address)); {
+	switch err := s.rhStorage.Get(key, new(flock.Address)); {
 	case errors.Is(err, storage.ErrNotFound):
 		return s.rhStorage.Put(key, ref)
 	case err != nil:
@@ -95,10 +95,10 @@ func (s *Service) CreatePin(ctx context.Context, ref swarm.Address, traverse boo
 }
 
 // DeletePin implements Interface.DeletePin method.
-func (s *Service) DeletePin(ctx context.Context, ref swarm.Address) error {
+func (s *Service) DeletePin(ctx context.Context, ref flock.Address) error {
 	var iterErr error
 	// iterFn is a unpinning iterator function over the leaves of the root.
-	iterFn := func(leaf swarm.Address) error {
+	iterFn := func(leaf flock.Address) error {
 		err := s.pinStorage.Set(ctx, storage.ModeSetUnpin, leaf)
 		if err != nil {
 			iterErr = multierror.Append(err, fmt.Errorf("unable to unpin the chunk for leaf %q of root %q: %w", leaf, ref, err))
@@ -122,8 +122,8 @@ func (s *Service) DeletePin(ctx context.Context, ref swarm.Address) error {
 }
 
 // HasPin implements Interface.HasPin method.
-func (s *Service) HasPin(ref swarm.Address) (bool, error) {
-	key, val := rootPinKey(ref), swarm.NewAddress(nil)
+func (s *Service) HasPin(ref flock.Address) (bool, error) {
+	key, val := rootPinKey(ref), flock.NewAddress(nil)
 	switch err := s.rhStorage.Get(key, &val); {
 	case errors.Is(err, storage.ErrNotFound):
 		return false, nil
@@ -134,10 +134,10 @@ func (s *Service) HasPin(ref swarm.Address) (bool, error) {
 }
 
 // Pins implements Interface.Pins method.
-func (s *Service) Pins() ([]swarm.Address, error) {
-	var refs []swarm.Address
+func (s *Service) Pins() ([]flock.Address, error) {
+	var refs []flock.Address
 	err := s.rhStorage.Iterate(storePrefix, func(key, val []byte) (stop bool, err error) {
-		var ref swarm.Address
+		var ref flock.Address
 		if err := json.Unmarshal(val, &ref); err != nil {
 			return true, fmt.Errorf("invalid reference value %q: %w", string(val), err)
 		}

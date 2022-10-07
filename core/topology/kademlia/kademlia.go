@@ -16,11 +16,11 @@ import (
 	"github.com/redesblock/mop/core/addressbook"
 	"github.com/redesblock/mop/core/blocker"
 	"github.com/redesblock/mop/core/discovery"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/pingpong"
 	"github.com/redesblock/mop/core/shed"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	im "github.com/redesblock/mop/core/topology/kademlia/internal/metrics"
 	"github.com/redesblock/mop/core/topology/kademlia/internal/waitnext"
@@ -63,13 +63,13 @@ var (
 
 type (
 	binSaturationFunc  func(bin uint8, peers, connected *pslice.PSlice, filter peerFilterFunc) (saturated bool, oversaturated bool)
-	sanctionedPeerFunc func(peer swarm.Address) bool
+	sanctionedPeerFunc func(peer flock.Address) bool
 	pruneFunc          func(depth uint8)
-	staticPeerFunc     func(peer swarm.Address) bool
-	peerFilterFunc     func(peer swarm.Address) bool
+	staticPeerFunc     func(peer flock.Address) bool
+	peerFilterFunc     func(peer flock.Address) bool
 )
 
-var noopSanctionedPeerFn = func(_ swarm.Address) bool { return false }
+var noopSanctionedPeerFn = func(_ flock.Address) bool { return false }
 
 // Options for injecting services to Kademlia.
 type Options struct {
@@ -78,19 +78,19 @@ type Options struct {
 	BootnodeMode     bool
 	BitSuffixLength  int
 	PruneFunc        pruneFunc
-	StaticNodes      []swarm.Address
+	StaticNodes      []flock.Address
 	ReachabilityFunc peerFilterFunc
 }
 
-// Kad is the Swarm forwarding kademlia implementation.
+// Kad is the Flock forwarding kademlia implementation.
 type Kad struct {
-	base              swarm.Address         // this node's overlay address
+	base              flock.Address         // this node's overlay address
 	discovery         discovery.Driver      // the discovery driver
 	addressBook       addressbook.Interface // address book to get underlays
 	p2p               p2p.Service           // p2p service to connect to nodes with
 	saturationFunc    binSaturationFunc     // pluggable saturation function
 	bitSuffixLength   int                   // additional depth of common prefix for bin
-	commonBinPrefixes [][]swarm.Address     // list of address prefixes for each bin
+	commonBinPrefixes [][]flock.Address     // list of address prefixes for each bin
 	connectedPeers    *pslice.PSlice        // a slice of peers sorted and indexed by po, indexes kept in `bins`
 	knownPeers        *pslice.PSlice        // both are po aware slice of addresses
 	bootnodes         []ma.Multiaddr
@@ -121,7 +121,7 @@ type Kad struct {
 
 // New returns a new Kademlia.
 func New(
-	base swarm.Address,
+	base flock.Address,
 	addressbook addressbook.Interface,
 	discovery discovery.Driver,
 	p2pSvc p2p.Service,
@@ -155,9 +155,9 @@ func New(
 		p2p:               p2pSvc,
 		saturationFunc:    o.SaturationFunc,
 		bitSuffixLength:   o.BitSuffixLength,
-		commonBinPrefixes: make([][]swarm.Address, int(swarm.MaxBins)),
-		connectedPeers:    pslice.New(int(swarm.MaxBins), base),
-		knownPeers:        pslice.New(int(swarm.MaxBins), base),
+		commonBinPrefixes: make([][]flock.Address, int(flock.MaxBins)),
+		connectedPeers:    pslice.New(int(flock.MaxBins), base),
+		knownPeers:        pslice.New(int(flock.MaxBins), base),
 		bootnodes:         o.Bootnodes,
 		manageC:           make(chan struct{}, 1),
 		waitNext:          waitnext.New(),
@@ -174,7 +174,7 @@ func New(
 		peerFilter:        o.ReachabilityFunc,
 	}
 
-	blocklistCallback := func(a swarm.Address) {
+	blocklistCallback := func(a flock.Address) {
 		k.logger.Debugf("kademlia: disconnecting peer %s for ping failure", a.String())
 		k.metrics.Blocklist.Inc()
 	}
@@ -201,12 +201,12 @@ func New(
 
 type peerConnInfo struct {
 	po   uint8
-	addr swarm.Address
+	addr flock.Address
 }
 
 // connectBalanced attempts to connect to the balanced peers first.
 func (k *Kad) connectBalanced(wg *sync.WaitGroup, peerConnChan chan<- *peerConnInfo) {
-	skipPeers := func(peer swarm.Address) bool {
+	skipPeers := func(peer flock.Address) bool {
 		if k.waitNext.Waiting(peer) {
 			k.metrics.TotalBeforeExpireWaits.Inc()
 			return true
@@ -240,7 +240,7 @@ func (k *Kad) connectBalanced(wg *sync.WaitGroup, peerConnChan chan<- *peerConnI
 				continue
 			}
 
-			closestConnectedPO := swarm.ExtendedProximity(closestConnectedPeer.Bytes(), pseudoAddr.Bytes())
+			closestConnectedPO := flock.ExtendedProximity(closestConnectedPeer.Bytes(), pseudoAddr.Bytes())
 			if int(closestConnectedPO) >= i+k.bitSuffixLength+1 {
 				continue
 			}
@@ -259,7 +259,7 @@ func (k *Kad) connectBalanced(wg *sync.WaitGroup, peerConnChan chan<- *peerConnI
 				continue
 			}
 
-			closestKnownPeerPO := swarm.ExtendedProximity(closestKnownPeer.Bytes(), pseudoAddr.Bytes())
+			closestKnownPeerPO := flock.ExtendedProximity(closestKnownPeer.Bytes(), pseudoAddr.Bytes())
 			if int(closestKnownPeerPO) < i+k.bitSuffixLength+1 {
 				continue
 			}
@@ -271,7 +271,7 @@ func (k *Kad) connectBalanced(wg *sync.WaitGroup, peerConnChan chan<- *peerConnI
 				wg.Add(1)
 				select {
 				case peerConnChan <- &peerConnInfo{
-					po:   swarm.Proximity(k.base.Bytes(), closestKnownPeer.Bytes()),
+					po:   flock.Proximity(k.base.Bytes(), closestKnownPeer.Bytes()),
 					addr: closestKnownPeer,
 				}:
 				default:
@@ -291,7 +291,7 @@ func (k *Kad) connectNeighbours(wg *sync.WaitGroup, peerConnChan chan<- *peerCon
 	sent := 0
 	var currentPo uint8 = 0
 
-	_ = k.knownPeers.EachBinRev(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	_ = k.knownPeers.EachBinRev(func(addr flock.Address, po uint8) (bool, bool, error) {
 		depth := k.NeighborhoodDepth()
 
 		// out of depth, skip bin
@@ -575,7 +575,7 @@ func (k *Kad) manage() {
 				rs := make(map[string]float64)
 				ss := k.collector.Snapshot(time.Now())
 
-				if err := k.connectedPeers.EachBin(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+				if err := k.connectedPeers.EachBin(func(addr flock.Address, _ uint8) (bool, bool, error) {
 					if ss, ok := ss[addr.ByteString()]; ok {
 						rs[ss.Reachability.String()]++
 					}
@@ -599,7 +599,7 @@ func (k *Kad) recordPeerLatencies(ctx context.Context) {
 	defer cancel()
 	var wg sync.WaitGroup
 
-	_ = k.connectedPeers.EachBin(func(addr swarm.Address, _ uint8) (bool, bool, error) {
+	_ = k.connectedPeers.EachBin(func(addr flock.Address, _ uint8) (bool, bool, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -650,7 +650,7 @@ func (k *Kad) pruneOversaturatedBins(depth uint8) {
 			}
 
 			var smallestDuration time.Duration
-			var newestPeer swarm.Address
+			var newestPeer flock.Address
 			for _, peer := range peers {
 				ss := k.collector.Inspect(peer)
 				if ss == nil {
@@ -671,12 +671,12 @@ func (k *Kad) pruneOversaturatedBins(depth uint8) {
 	}
 }
 
-func (k *Kad) balancedSlotPeers(pseudoAddr swarm.Address, peers []swarm.Address, po int) []swarm.Address {
+func (k *Kad) balancedSlotPeers(pseudoAddr flock.Address, peers []flock.Address, po int) []flock.Address {
 
-	var ret []swarm.Address
+	var ret []flock.Address
 
 	for _, peer := range peers {
-		peerPo := swarm.ExtendedProximity(peer.Bytes(), pseudoAddr.Bytes())
+		peerPo := flock.ExtendedProximity(peer.Bytes(), pseudoAddr.Bytes())
 		if int(peerPo) >= po+k.bitSuffixLength+1 {
 			ret = append(ret, peer)
 		}
@@ -701,10 +701,10 @@ func (k *Kad) Start(_ context.Context) error {
 		}
 		var (
 			start     = time.Now()
-			addresses []swarm.Address
+			addresses []flock.Address
 		)
 
-		err := k.addressBook.IterateOverlays(func(addr swarm.Address) (stop bool, err error) {
+		err := k.addressBook.IterateOverlays(func(addr flock.Address) (stop bool, err error) {
 			addresses = append(addresses, addr)
 			if len(addresses) == addPeerBatchSize {
 				k.AddPeers(addresses...)
@@ -727,17 +727,17 @@ func (k *Kad) Start(_ context.Context) error {
 	return nil
 }
 
-func (k *Kad) previouslyConnected() []swarm.Address {
+func (k *Kad) previouslyConnected() []flock.Address {
 
 	now := time.Now()
 	ss := k.collector.Snapshot(now)
 	k.logger.Tracef("kademlia: getting metrics snapshot took %s", time.Since(now))
 
-	var peers []swarm.Address
+	var peers []flock.Address
 
 	for addr, p := range ss {
 		if p.ConnectionTotalDuration > 0 {
-			peers = append(peers, swarm.NewAddress([]byte(addr)))
+			peers = append(peers, flock.NewAddress([]byte(addr)))
 		}
 	}
 
@@ -800,7 +800,7 @@ func (k *Kad) connectBootNodes(ctx context.Context) {
 // initiate connections to other peers in the bin.
 func binSaturated(oversaturationAmount int, staticNode staticPeerFunc) binSaturationFunc {
 	return func(bin uint8, peers, connected *pslice.PSlice, filter peerFilterFunc) (bool, bool) {
-		potentialDepth := recalcDepth(peers, swarm.MaxPO, filter)
+		potentialDepth := recalcDepth(peers, flock.MaxPO, filter)
 
 		// short circuit for bins which are >= depth
 		if bin >= potentialDepth {
@@ -815,7 +815,7 @@ func binSaturated(oversaturationAmount int, staticNode staticPeerFunc) binSatura
 		// gaps measurement)
 
 		size := 0
-		_ = connected.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+		_ = connected.EachBin(func(addr flock.Address, po uint8) (bool, bool, error) {
 			if !filter(addr) && po == bin && !staticNode(addr) {
 				size++
 			}
@@ -827,7 +827,7 @@ func binSaturated(oversaturationAmount int, staticNode staticPeerFunc) binSatura
 }
 
 // peerUnreachable returns true if the addr is not reachable.
-func (k *Kad) peerUnreachable(addr swarm.Address) bool {
+func (k *Kad) peerUnreachable(addr flock.Address) bool {
 	ss := k.collector.Inspect(addr)
 	// if there is no entry yet, consider the peer as not reachable
 	if ss == nil {
@@ -853,7 +853,7 @@ func recalcDepth(peers *pslice.PSlice, radius uint8, filter peerFilterFunc) uint
 
 	shallowestUnsaturated := uint8(0)
 	binCount := 0
-	_ = peers.EachBinRev(func(addr swarm.Address, bin uint8) (bool, bool, error) {
+	_ = peers.EachBinRev(func(addr flock.Address, bin uint8) (bool, bool, error) {
 		if filter(addr) {
 			return false, false, nil
 		}
@@ -879,7 +879,7 @@ func recalcDepth(peers *pslice.PSlice, radius uint8, filter peerFilterFunc) uint
 		shallowestUnsaturated = shallowestEmpty
 	}
 
-	_ = peers.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	_ = peers.EachBin(func(addr flock.Address, po uint8) (bool, bool, error) {
 		if filter(addr) {
 			return false, false, nil
 		}
@@ -905,7 +905,7 @@ func recalcDepth(peers *pslice.PSlice, radius uint8, filter peerFilterFunc) uint
 
 // connect connects to a peer and gossips its address to our connected peers,
 // as well as sends the peers we are connected to to the newly connected peer
-func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr) error {
+func (k *Kad) connect(ctx context.Context, peer flock.Address, ma ma.Multiaddr) error {
 	k.logger.Infof("attempting to connect to peer %q", peer)
 
 	ctx, cancel := context.WithTimeout(ctx, peerConnectionAttemptTimeout)
@@ -964,10 +964,10 @@ func (k *Kad) connect(ctx context.Context, peer swarm.Address, ma ma.Multiaddr) 
 
 // Announce a newly connected peer to our connected peers, but also
 // notify the peer about our already connected peers
-func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) error {
-	var addrs []swarm.Address
+func (k *Kad) Announce(ctx context.Context, peer flock.Address, fullnode bool) error {
+	var addrs []flock.Address
 
-	for bin := uint8(0); bin < swarm.MaxBins; bin++ {
+	for bin := uint8(0); bin < flock.MaxBins; bin++ {
 
 		connectedPeers, err := randomSubset(k.binReachablePeers(bin), broadcastBinSize)
 		if err != nil {
@@ -993,7 +993,7 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) e
 				continue
 			default:
 			}
-			go func(connectedPeer swarm.Address) {
+			go func(connectedPeer flock.Address) {
 
 				// Create a new deadline ctx to prevent goroutine pile up
 				cCtx, cCancel := context.WithTimeout(k.bgBroadcastCtx, time.Minute)
@@ -1020,7 +1020,7 @@ func (k *Kad) Announce(ctx context.Context, peer swarm.Address, fullnode bool) e
 }
 
 // AnnounceTo announces a selected peer to another.
-func (k *Kad) AnnounceTo(ctx context.Context, addressee, peer swarm.Address, fullnode bool) error {
+func (k *Kad) AnnounceTo(ctx context.Context, addressee, peer flock.Address, fullnode bool) error {
 	if !fullnode {
 		return errAnnounceLightNode
 	}
@@ -1031,7 +1031,7 @@ func (k *Kad) AnnounceTo(ctx context.Context, addressee, peer swarm.Address, ful
 // AddPeers adds peers to the knownPeers list.
 // This does not guarantee that a connection will immediately
 // be made to the peer.
-func (k *Kad) AddPeers(addrs ...swarm.Address) {
+func (k *Kad) AddPeers(addrs ...flock.Address) {
 	k.knownPeers.Add(addrs...)
 	k.notifyManageLoop()
 }
@@ -1043,7 +1043,7 @@ func (k *Kad) Pick(peer p2p.Peer) bool {
 		// at least until we find a better solution.
 		return true
 	}
-	po := swarm.Proximity(k.base.Bytes(), peer.Address.Bytes())
+	po := flock.Proximity(k.base.Bytes(), peer.Address.Bytes())
 	_, oversaturated := k.saturationFunc(po, k.knownPeers, k.connectedPeers, k.peerFilter)
 	// pick the peer if we are not oversaturated
 	if !oversaturated {
@@ -1053,9 +1053,9 @@ func (k *Kad) Pick(peer p2p.Peer) bool {
 	return false
 }
 
-func (k *Kad) binReachablePeers(bin uint8) (peers []swarm.Address) {
+func (k *Kad) binReachablePeers(bin uint8) (peers []flock.Address) {
 
-	_ = k.EachPeerRev(func(p swarm.Address, po uint8) (bool, bool, error) {
+	_ = k.EachPeerRev(func(p flock.Address, po uint8) (bool, bool, error) {
 
 		if po == bin {
 			peers = append(peers, p)
@@ -1073,8 +1073,8 @@ func (k *Kad) binReachablePeers(bin uint8) (peers []swarm.Address) {
 	return
 }
 
-func isStaticPeer(staticNodes []swarm.Address) func(overlay swarm.Address) bool {
-	return func(overlay swarm.Address) bool {
+func isStaticPeer(staticNodes []flock.Address) func(overlay flock.Address) bool {
+	return func(overlay flock.Address) bool {
 		for _, addr := range staticNodes {
 			if addr.Equal(overlay) {
 				return true
@@ -1096,7 +1096,7 @@ func (k *Kad) Connected(ctx context.Context, peer p2p.Peer, forceConnection bool
 	}()
 
 	address := peer.Address
-	po := swarm.Proximity(k.base.Bytes(), address.Bytes())
+	po := flock.Proximity(k.base.Bytes(), address.Bytes())
 
 	if _, overSaturated := k.saturationFunc(po, k.knownPeers, k.connectedPeers, k.peerFilter); overSaturated {
 		if k.bootnode {
@@ -1115,7 +1115,7 @@ func (k *Kad) Connected(ctx context.Context, peer p2p.Peer, forceConnection bool
 	return k.onConnected(ctx, address)
 }
 
-func (k *Kad) onConnected(ctx context.Context, addr swarm.Address) error {
+func (k *Kad) onConnected(ctx context.Context, addr flock.Address) error {
 	if err := k.Announce(ctx, addr, true); err != nil {
 		return err
 	}
@@ -1168,8 +1168,8 @@ func (k *Kad) notifyPeerSig() {
 	}
 }
 
-func closestPeer(peers *pslice.PSlice, addr swarm.Address, spf sanctionedPeerFunc) (swarm.Address, error) {
-	closest := swarm.ZeroAddress
+func closestPeer(peers *pslice.PSlice, addr flock.Address, spf sanctionedPeerFunc) (flock.Address, error) {
+	closest := flock.ZeroAddress
 	err := peers.EachBinRev(closestPeerFunc(&closest, addr, spf))
 	if err != nil {
 		return closest, err
@@ -1183,8 +1183,8 @@ func closestPeer(peers *pslice.PSlice, addr swarm.Address, spf sanctionedPeerFun
 	return closest, nil
 }
 
-func closestPeerInSlice(peers []swarm.Address, addr swarm.Address, spf sanctionedPeerFunc) (swarm.Address, error) {
-	closest := swarm.ZeroAddress
+func closestPeerInSlice(peers []flock.Address, addr flock.Address, spf sanctionedPeerFunc) (flock.Address, error) {
+	closest := flock.ZeroAddress
 	closestFunc := closestPeerFunc(&closest, addr, spf)
 
 	for _, peer := range peers {
@@ -1202,8 +1202,8 @@ func closestPeerInSlice(peers []swarm.Address, addr swarm.Address, spf sanctione
 	return closest, nil
 }
 
-func closestPeerFunc(closest *swarm.Address, addr swarm.Address, spf sanctionedPeerFunc) func(peer swarm.Address, po uint8) (bool, bool, error) {
-	return func(peer swarm.Address, po uint8) (bool, bool, error) {
+func closestPeerFunc(closest *flock.Address, addr flock.Address, spf sanctionedPeerFunc) func(peer flock.Address, po uint8) (bool, bool, error) {
+	return func(peer flock.Address, po uint8) (bool, bool, error) {
 		// check whether peer is sanctioned
 		if spf(peer) {
 			return false, false, nil
@@ -1225,18 +1225,18 @@ func closestPeerFunc(closest *swarm.Address, addr swarm.Address, spf sanctionedP
 }
 
 // ClosestPeer returns the closest peer to a given address.
-func (k *Kad) ClosestPeer(addr swarm.Address, includeSelf bool, filter topology.Filter, skipPeers ...swarm.Address) (swarm.Address, error) {
+func (k *Kad) ClosestPeer(addr flock.Address, includeSelf bool, filter topology.Filter, skipPeers ...flock.Address) (flock.Address, error) {
 	if k.connectedPeers.Length() == 0 {
-		return swarm.Address{}, topology.ErrNotFound
+		return flock.Address{}, topology.ErrNotFound
 	}
 
-	closest := swarm.ZeroAddress
+	closest := flock.ZeroAddress
 
 	if includeSelf && k.reachability == p2p.ReachabilityStatusPublic {
 		closest = k.base
 	}
 
-	err := k.EachPeerRev(func(peer swarm.Address, po uint8) (bool, bool, error) {
+	err := k.EachPeerRev(func(peer flock.Address, po uint8) (bool, bool, error) {
 
 		for _, a := range skipPeers {
 			if a.Equal(peer) {
@@ -1256,30 +1256,30 @@ func (k *Kad) ClosestPeer(addr swarm.Address, includeSelf bool, filter topology.
 	}, filter)
 
 	if err != nil {
-		return swarm.Address{}, err
+		return flock.Address{}, err
 	}
 
 	if closest.IsZero() { // no peers
-		return swarm.Address{}, topology.ErrNotFound // only for light nodes
+		return flock.Address{}, topology.ErrNotFound // only for light nodes
 	}
 
 	// check if self
 	if closest.Equal(k.base) {
-		return swarm.Address{}, topology.ErrWantSelf
+		return flock.Address{}, topology.ErrWantSelf
 	}
 
 	return closest, nil
 }
 
 // IsWithinDepth returns if an address is within the neighborhood depth of a node.
-func (k *Kad) IsWithinDepth(addr swarm.Address) bool {
-	return swarm.Proximity(k.base.Bytes(), addr.Bytes()) >= k.NeighborhoodDepth()
+func (k *Kad) IsWithinDepth(addr flock.Address) bool {
+	return flock.Proximity(k.base.Bytes(), addr.Bytes()) >= k.NeighborhoodDepth()
 }
 
 // EachNeighbor iterates from closest bin to farthest of the neighborhood peers.
 func (k *Kad) EachNeighbor(f topology.EachPeerFunc) error {
 	depth := k.NeighborhoodDepth()
-	fn := func(a swarm.Address, po uint8) (bool, bool, error) {
+	fn := func(a flock.Address, po uint8) (bool, bool, error) {
 		if po < depth {
 			return true, false, nil
 		}
@@ -1291,7 +1291,7 @@ func (k *Kad) EachNeighbor(f topology.EachPeerFunc) error {
 // EachNeighborRev iterates from farthest bin to closest of the neighborhood peers.
 func (k *Kad) EachNeighborRev(f topology.EachPeerFunc) error {
 	depth := k.NeighborhoodDepth()
-	fn := func(a swarm.Address, po uint8) (bool, bool, error) {
+	fn := func(a flock.Address, po uint8) (bool, bool, error) {
 		if po < depth {
 			return false, true, nil
 		}
@@ -1302,7 +1302,7 @@ func (k *Kad) EachNeighborRev(f topology.EachPeerFunc) error {
 
 // EachPeer iterates from closest bin to farthest.
 func (k *Kad) EachPeer(f topology.EachPeerFunc, filter topology.Filter) error {
-	return k.connectedPeers.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	return k.connectedPeers.EachBin(func(addr flock.Address, po uint8) (bool, bool, error) {
 		if filter.Reachable && k.peerFilter(addr) {
 			return false, false, nil
 		}
@@ -1312,7 +1312,7 @@ func (k *Kad) EachPeer(f topology.EachPeerFunc, filter topology.Filter) error {
 
 // EachPeerRev iterates from farthest bin to closest.
 func (k *Kad) EachPeerRev(f topology.EachPeerFunc, filter topology.Filter) error {
-	return k.connectedPeers.EachBinRev(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	return k.connectedPeers.EachBinRev(func(addr flock.Address, po uint8) (bool, bool, error) {
 		if filter.Reachable && k.peerFilter(addr) {
 			return false, false, nil
 		}
@@ -1321,7 +1321,7 @@ func (k *Kad) EachPeerRev(f topology.EachPeerFunc, filter topology.Filter) error
 }
 
 // SetPeerReachability sets the peer reachability status.
-func (k *Kad) Reachable(addr swarm.Address, status p2p.ReachabilityStatus) {
+func (k *Kad) Reachable(addr flock.Address, status p2p.ReachabilityStatus) {
 	k.collector.Record(addr, im.PeerReachability(status))
 	k.logger.Tracef("kademlia: reachability of peer %s is %s", addr.String(), status.String())
 	if status == p2p.ReachabilityStatusPublic {
@@ -1392,7 +1392,7 @@ func (k *Kad) IsBalanced(bin uint8) bool {
 			return false
 		}
 
-		closestConnectedPO := swarm.ExtendedProximity(closestConnectedPeer.Bytes(), pseudoAddr.Bytes())
+		closestConnectedPO := flock.ExtendedProximity(closestConnectedPeer.Bytes(), pseudoAddr.Bytes())
 		if int(closestConnectedPO) < int(bin)+k.bitSuffixLength+1 {
 			return false
 		}
@@ -1417,13 +1417,13 @@ func (k *Kad) SetRadius(r uint8) {
 
 func (k *Kad) Snapshot() *topology.KadParams {
 	var infos []topology.BinInfo
-	for i := int(swarm.MaxPO); i >= 0; i-- {
+	for i := int(flock.MaxPO); i >= 0; i-- {
 		infos = append(infos, topology.BinInfo{})
 	}
 
 	ss := k.collector.Snapshot(time.Now())
 
-	_ = k.connectedPeers.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	_ = k.connectedPeers.EachBin(func(addr flock.Address, po uint8) (bool, bool, error) {
 		infos[po].BinConnected++
 		infos[po].ConnectedPeers = append(
 			infos[po].ConnectedPeers,
@@ -1436,7 +1436,7 @@ func (k *Kad) Snapshot() *topology.KadParams {
 	})
 
 	// output (k.knownPeers ¬ k.connectedPeers) here to not repeat the peers we already have in the connected peers list
-	_ = k.knownPeers.EachBin(func(addr swarm.Address, po uint8) (bool, bool, error) {
+	_ = k.knownPeers.EachBin(func(addr flock.Address, po uint8) (bool, bool, error) {
 		infos[po].BinPopulation++
 
 		for _, v := range infos[po].ConnectedPeers {
@@ -1569,7 +1569,7 @@ func (k *Kad) Close() error {
 	return err
 }
 
-func randomSubset(addrs []swarm.Address, count int) ([]swarm.Address, error) {
+func randomSubset(addrs []flock.Address, count int) ([]flock.Address, error) {
 	if count >= len(addrs) {
 		return addrs, nil
 	}
@@ -1586,7 +1586,7 @@ func randomSubset(addrs []swarm.Address, count int) ([]swarm.Address, error) {
 	return addrs[:count], nil
 }
 
-func (k *Kad) randomPeer(bin uint8) (swarm.Address, error) {
+func (k *Kad) randomPeer(bin uint8) (flock.Address, error) {
 	peers := k.connectedPeers.BinPeers(bin)
 
 	for idx := 0; idx < len(peers); {
@@ -1599,12 +1599,12 @@ func (k *Kad) randomPeer(bin uint8) (swarm.Address, error) {
 	}
 
 	if len(peers) == 0 {
-		return swarm.ZeroAddress, errEmptyBin
+		return flock.ZeroAddress, errEmptyBin
 	}
 
 	rndIndx, err := random.Int(random.Reader, big.NewInt(int64(len(peers))))
 	if err != nil {
-		return swarm.ZeroAddress, err
+		return flock.ZeroAddress, err
 	}
 
 	return peers[rndIndx.Int64()], nil

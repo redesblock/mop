@@ -8,13 +8,13 @@ import (
 
 	"github.com/redesblock/mop/core/cac"
 	"github.com/redesblock/mop/core/crypto"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 const (
 	IdSize        = 32
 	SignatureSize = 65
-	minChunkSize  = IdSize + SignatureSize + swarm.SpanSize
+	minChunkSize  = IdSize + SignatureSize + flock.SpanSize
 )
 
 var (
@@ -30,12 +30,12 @@ type SOC struct {
 	id        ID
 	owner     []byte // owner is the address in bytes of SOC owner.
 	signature []byte
-	chunk     swarm.Chunk // wrapped chunk.
+	chunk     flock.Chunk // wrapped chunk.
 }
 
 // New creates a new SOC representation from arbitrary id and
 // a content-addressed chunk.
-func New(id ID, ch swarm.Chunk) *SOC {
+func New(id ID, ch flock.Chunk) *SOC {
 	return &SOC{
 		id:    id,
 		chunk: ch,
@@ -43,7 +43,7 @@ func New(id ID, ch swarm.Chunk) *SOC {
 }
 
 // NewSigned creates a single-owner chunk based on already signed data.
-func NewSigned(id ID, ch swarm.Chunk, owner, sig []byte) (*SOC, error) {
+func NewSigned(id ID, ch flock.Chunk, owner, sig []byte) (*SOC, error) {
 	s := New(id, ch)
 	if len(owner) != crypto.AddressSize {
 		return nil, errInvalidAddress
@@ -54,25 +54,25 @@ func NewSigned(id ID, ch swarm.Chunk, owner, sig []byte) (*SOC, error) {
 }
 
 // address returns the SOC chunk address.
-func (s *SOC) address() (swarm.Address, error) {
+func (s *SOC) address() (flock.Address, error) {
 	if len(s.owner) != crypto.AddressSize {
-		return swarm.ZeroAddress, errInvalidAddress
+		return flock.ZeroAddress, errInvalidAddress
 	}
 	return CreateAddress(s.id, s.owner)
 }
 
 // WrappedChunk returns the chunk wrapped by the SOC.
-func (s *SOC) WrappedChunk() swarm.Chunk {
+func (s *SOC) WrappedChunk() flock.Chunk {
 	return s.chunk
 }
 
 // Chunk returns the SOC chunk.
-func (s *SOC) Chunk() (swarm.Chunk, error) {
+func (s *SOC) Chunk() (flock.Chunk, error) {
 	socAddress, err := s.address()
 	if err != nil {
 		return nil, err
 	}
-	return swarm.NewChunk(socAddress, s.toBytes()), nil
+	return flock.NewChunk(socAddress, s.toBytes()), nil
 }
 
 // toBytes is a helper function to convert the SOC data to bytes.
@@ -86,7 +86,7 @@ func (s *SOC) toBytes() []byte {
 
 // Sign signs a SOC using the given signer.
 // It returns a signed SOC chunk ready for submission to the network.
-func (s *SOC) Sign(signer crypto.Signer) (swarm.Chunk, error) {
+func (s *SOC) Sign(signer crypto.Signer) (flock.Chunk, error) {
 	// create owner
 	publicKey, err := signer.PublicKey()
 	if err != nil {
@@ -117,8 +117,8 @@ func (s *SOC) Sign(signer crypto.Signer) (swarm.Chunk, error) {
 	return s.Chunk()
 }
 
-// FromChunk recreates a SOC representation from swarm.Chunk data.
-func FromChunk(sch swarm.Chunk) (*SOC, error) {
+// FromChunk recreates a SOC representation from flock.Chunk data.
+func FromChunk(sch flock.Chunk) (*SOC, error) {
 	chunkData := sch.Data()
 	if len(chunkData) < minChunkSize {
 		return nil, errWrongChunkSize
@@ -160,17 +160,17 @@ func FromChunk(sch swarm.Chunk) (*SOC, error) {
 
 // CreateAddress creates a new SOC address from the id and
 // the ethereum address of the owner.
-func CreateAddress(id ID, owner []byte) (swarm.Address, error) {
+func CreateAddress(id ID, owner []byte) (flock.Address, error) {
 	sum, err := hash(id, owner)
 	if err != nil {
-		return swarm.ZeroAddress, err
+		return flock.ZeroAddress, err
 	}
-	return swarm.NewAddress(sum), nil
+	return flock.NewAddress(sum), nil
 }
 
 // hash hashes the given values in order.
 func hash(values ...[]byte) ([]byte, error) {
-	h := swarm.NewHasher()
+	h := flock.NewHasher()
 	for _, v := range values {
 		_, err := h.Write(v)
 		if err != nil {

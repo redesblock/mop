@@ -19,6 +19,7 @@ import (
 	"github.com/redesblock/mop/core/api"
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/debugapi"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/logging"
@@ -31,7 +32,6 @@ import (
 	chequebookmock "github.com/redesblock/mop/core/settlement/swap/chequebook/mock"
 	swapmock "github.com/redesblock/mop/core/settlement/swap/mock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/topology/lightnode"
 	topologymock "github.com/redesblock/mop/core/topology/mock"
@@ -52,7 +52,7 @@ func init() {
 }
 
 type testServerOptions struct {
-	Overlay            swarm.Address
+	Overlay            flock.Address
 	PublicKey          ecdsa.PublicKey
 	PSSPublicKey       ecdsa.PublicKey
 	EthereumAddress    common.Address
@@ -130,7 +130,7 @@ func TestServer_Configure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	overlay := swarm.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
+	overlay := flock.MustParseHexAddress("ca1e9f3938cc1425c6061b96ad9eb93e134dfe8734ad490164ef20af9d1cf59c")
 	addresses := []multiaddr.Multiaddr{
 		mustMultiaddr(t, "/ip4/127.0.0.1/tcp/7071/p2p/16Uiu2HAmTBuJT9LvNmBiQiNoTsxE5mtNy6YG3paw79m94CRa9sRb"),
 		mustMultiaddr(t, "/ip4/192.168.0.101/tcp/7071/p2p/16Uiu2HAmTBuJT9LvNmBiQiNoTsxE5mtNy6YG3paw79m94CRa9sRb"),

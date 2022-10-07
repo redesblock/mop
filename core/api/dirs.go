@@ -16,13 +16,13 @@ import (
 
 	"github.com/redesblock/mop/core/file"
 	"github.com/redesblock/mop/core/file/loadsave"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/manifest"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/sctx"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/redesblock/mop/core/tracing"
 )
@@ -57,7 +57,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 	}
 	defer r.Body.Close()
 
-	tag, created, err := s.getOrCreateTag(r.Header.Get(SwarmTagHeader))
+	tag, created, err := s.getOrCreateTag(r.Header.Get(FlockTagHeader))
 	if err != nil {
 		logger.Debugf("mop upload dir: get or create tag: %v", err)
 		logger.Error("mop upload dir: get or create tag")
@@ -75,8 +75,8 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 		s.logger,
 		requestPipelineFn(storer, r),
 		loadsave.New(storer, requestPipelineFactory(ctx, storer, r)),
-		r.Header.Get(SwarmIndexDocumentHeader),
-		r.Header.Get(SwarmErrorDocumentHeader),
+		r.Header.Get(FlockIndexDocumentHeader),
+		r.Header.Get(FlockErrorDocumentHeader),
 		tag,
 		created,
 	)
@@ -101,7 +101,7 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 		}
 	}
 
-	if strings.ToLower(r.Header.Get(SwarmPinHeader)) == "true" {
+	if strings.ToLower(r.Header.Get(FlockPinHeader)) == "true" {
 		if err := s.pinning.CreatePin(r.Context(), reference, false); err != nil {
 			logger.Debugf("mop upload dir: creation of pin for %q failed: %v", reference, err)
 			logger.Error("mop upload dir: creation of pin failed")
@@ -110,8 +110,8 @@ func (s *server) dirUploadHandler(w http.ResponseWriter, r *http.Request, storer
 		}
 	}
 
-	w.Header().Set("Access-Control-Expose-Headers", SwarmTagHeader)
-	w.Header().Set(SwarmTagHeader, fmt.Sprint(tag.Uid))
+	w.Header().Set("Access-Control-Expose-Headers", FlockTagHeader)
+	w.Header().Set(FlockTagHeader, fmt.Sprint(tag.Uid))
 	jsonhttp.Created(w, mopUploadResponse{
 		Reference: reference,
 	})
@@ -130,16 +130,16 @@ func storeDir(
 	errorFilename string,
 	tag *tags.Tag,
 	tagCreated bool,
-) (swarm.Address, error) {
+) (flock.Address, error) {
 	logger := tracing.NewLoggerWithTraceID(ctx, log)
 
 	dirManifest, err := manifest.NewDefaultManifest(ls, encrypt)
 	if err != nil {
-		return swarm.ZeroAddress, err
+		return flock.ZeroAddress, err
 	}
 
 	if indexFilename != "" && strings.ContainsRune(indexFilename, '/') {
-		return swarm.ZeroAddress, fmt.Errorf("index document suffix must not include slash character")
+		return flock.ZeroAddress, fmt.Errorf("index document suffix must not include slash character")
 	}
 
 	filesAdded := 0
@@ -150,7 +150,7 @@ func storeDir(
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return swarm.ZeroAddress, fmt.Errorf("read tar stream: %w", err)
+			return flock.ZeroAddress, fmt.Errorf("read tar stream: %w", err)
 		}
 
 		if !tagCreated {
@@ -159,14 +159,14 @@ func storeDir(
 			if estimatedTotalChunks := calculateNumberOfChunks(fileInfo.Size, encrypt); estimatedTotalChunks > 0 {
 				err = tag.IncN(tags.TotalChunks, estimatedTotalChunks)
 				if err != nil {
-					return swarm.ZeroAddress, fmt.Errorf("increment tag: %w", err)
+					return flock.ZeroAddress, fmt.Errorf("increment tag: %w", err)
 				}
 			}
 		}
 
 		fileReference, err := p(ctx, fileInfo.Reader)
 		if err != nil {
-			return swarm.ZeroAddress, fmt.Errorf("store dir file: %w", err)
+			return flock.ZeroAddress, fmt.Errorf("store dir file: %w", err)
 		}
 		logger.Tracef("uploaded dir file %v with reference %v", fileInfo.Path, fileReference)
 
@@ -177,7 +177,7 @@ func storeDir(
 		// add file entry to dir manifest
 		err = dirManifest.Add(ctx, fileInfo.Path, manifest.NewEntry(fileReference, fileMtdt))
 		if err != nil {
-			return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
+			return flock.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
 		}
 
 		filesAdded++
@@ -185,7 +185,7 @@ func storeDir(
 
 	// check if files were uploaded through the manifest
 	if filesAdded == 0 {
-		return swarm.ZeroAddress, fmt.Errorf("no files in tar")
+		return flock.ZeroAddress, fmt.Errorf("no files in tar")
 	}
 
 	// store website information
@@ -197,10 +197,10 @@ func storeDir(
 		if errorFilename != "" {
 			metadata[manifest.WebsiteErrorDocumentPathKey] = errorFilename
 		}
-		rootManifestEntry := manifest.NewEntry(swarm.ZeroAddress, metadata)
+		rootManifestEntry := manifest.NewEntry(flock.ZeroAddress, metadata)
 		err = dirManifest.Add(ctx, manifest.RootPath, rootManifestEntry)
 		if err != nil {
-			return swarm.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
+			return flock.ZeroAddress, fmt.Errorf("add to manifest: %w", err)
 		}
 	}
 
@@ -222,7 +222,7 @@ func storeDir(
 	// save manifest
 	manifestReference, err := dirManifest.Store(ctx, storeSizeFn...)
 	if err != nil {
-		return swarm.ZeroAddress, fmt.Errorf("store manifest: %w", err)
+		return flock.ZeroAddress, fmt.Errorf("store manifest: %w", err)
 	}
 	logger.Tracef("finished uploaded dir with reference %v", manifestReference)
 

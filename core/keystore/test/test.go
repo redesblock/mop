@@ -11,7 +11,7 @@ import (
 // Service is a utility testing function that can be used to test
 // implementations of the keystore.Service interface.
 func Service(t *testing.T, s keystore.Service) {
-	exists, err := s.Exists("swarm")
+	exists, err := s.Exists("flock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,8 +19,8 @@ func Service(t *testing.T, s keystore.Service) {
 	if exists {
 		t.Fatal("should not exist")
 	}
-	// create a new swarm key
-	k1, created, err := s.Key("swarm", "pass123456")
+	// create a new flock key
+	k1, created, err := s.Key("flock", "pass123456")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func Service(t *testing.T, s keystore.Service) {
 		t.Fatal("key is not created")
 	}
 
-	exists, err = s.Exists("swarm")
+	exists, err = s.Exists("flock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,8 +37,8 @@ func Service(t *testing.T, s keystore.Service) {
 		t.Fatal("should exist")
 	}
 
-	// get swarm key
-	k2, created, err := s.Key("swarm", "pass123456")
+	// get flock key
+	k2, created, err := s.Key("flock", "pass123456")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func Service(t *testing.T, s keystore.Service) {
 	}
 
 	// invalid password
-	_, _, err = s.Key("swarm", "invalid password")
+	_, _, err = s.Key("flock", "invalid password")
 	if !errors.Is(err, keystore.ErrInvalidPassword) {
 		t.Fatal(err)
 	}

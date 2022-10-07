@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -56,7 +56,7 @@ func NewVouchIssuer(label, keyID string, batchID []byte, batchAmount *big.Int, b
 
 // inc increments the count in the correct collision bucket for a newly vouched
 // chunk with address addr.
-func (si *VouchIssuer) inc(addr swarm.Address) ([]byte, error) {
+func (si *VouchIssuer) inc(addr flock.Address) ([]byte, error) {
 	si.bucketMu.Lock()
 	defer si.bucketMu.Unlock()
 	b := toBucket(si.BucketDepth(), addr)
@@ -71,9 +71,9 @@ func (si *VouchIssuer) inc(addr swarm.Address) ([]byte, error) {
 	return indexToBytes(b, bucketCount), nil
 }
 
-// toBucket calculates the index of the collision bucket for a swarm address
+// toBucket calculates the index of the collision bucket for a flock address
 // bucket index := collision bucket depth number of bits as bigendian uint32
-func toBucket(depth uint8, addr swarm.Address) uint32 {
+func toBucket(depth uint8, addr flock.Address) uint32 {
 	i := binary.BigEndian.Uint32(addr.Bytes()[:4])
 	return i >> (32 - depth)
 }

@@ -4,13 +4,13 @@ import (
 	"context"
 	"sync"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/p2p"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 )
 
 type AddrTuple struct {
-	Addr swarm.Address // the peer address
+	Addr flock.Address // the peer address
 	PO   uint8         // the po
 }
 
@@ -37,7 +37,7 @@ func WithDepthCalls(d ...uint8) Option {
 
 type Mock struct {
 	mtx          sync.Mutex
-	peers        []swarm.Address
+	peers        []flock.Address
 	eachPeerRev  []AddrTuple
 	depth        uint8
 	depthReplies []uint8
@@ -57,15 +57,15 @@ func NewMockKademlia(o ...Option) *Mock {
 
 // AddPeers is called when a peers are added to the topology backlog
 // for further processing by connectivity strategy.
-func (m *Mock) AddPeers(addr ...swarm.Address) {
+func (m *Mock) AddPeers(addr ...flock.Address) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (m *Mock) ClosestPeer(addr swarm.Address, _ bool, _ topology.Filter, skipPeers ...swarm.Address) (peerAddr swarm.Address, err error) {
+func (m *Mock) ClosestPeer(addr flock.Address, _ bool, _ topology.Filter, skipPeers ...flock.Address) (peerAddr flock.Address, err error) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (m *Mock) IsWithinDepth(adr swarm.Address) bool {
+func (m *Mock) IsWithinDepth(adr flock.Address) bool {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -144,11 +144,11 @@ func (m *Mock) Disconnected(peer p2p.Peer) {
 	m.Trigger()
 }
 
-func (m *Mock) Announce(_ context.Context, _ swarm.Address, _ bool) error {
+func (m *Mock) Announce(_ context.Context, _ flock.Address, _ bool) error {
 	return nil
 }
 
-func (m *Mock) AnnounceTo(_ context.Context, _, _ swarm.Address, _ bool) error {
+func (m *Mock) AnnounceTo(_ context.Context, _, _ flock.Address, _ bool) error {
 	return nil
 }
 

@@ -13,9 +13,9 @@ import (
 
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type Timeout struct {
@@ -25,7 +25,7 @@ type Timeout struct {
 var searchTimeout = 30 * time.Millisecond
 
 // Get overrides the mock storer and introduces latency
-func (t *Timeout) Get(ctx context.Context, mode storage.ModeGet, addr swarm.Address) (swarm.Chunk, error) {
+func (t *Timeout) Get(ctx context.Context, mode storage.ModeGet, addr flock.Address) (flock.Chunk, error) {
 	ch, err := t.Storer.Get(ctx, mode, addr)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

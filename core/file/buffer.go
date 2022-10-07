@@ -3,11 +3,11 @@ package file
 import (
 	"io"
 
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 const (
-	maxBufferSize = swarm.ChunkSize * 2
+	maxBufferSize = flock.ChunkSize * 2
 )
 
 // ChunkPipe ensures that only the last read is smaller than the chunk size,
@@ -47,20 +47,20 @@ func (c *ChunkPipe) Write(b []byte) (int, error) {
 		c.cursor += copied
 		nw += copied
 
-		if c.cursor >= swarm.ChunkSize {
+		if c.cursor >= flock.ChunkSize {
 			// NOTE: the Write method contract requires all sent data to be
 			// written before returning (without error)
-			written, err := c.writer.Write(c.data[:swarm.ChunkSize])
+			written, err := c.writer.Write(c.data[:flock.ChunkSize])
 			if err != nil {
 				return nw, err
 			}
-			if swarm.ChunkSize != written {
+			if flock.ChunkSize != written {
 				return nw, io.ErrShortWrite
 			}
 
-			c.cursor -= swarm.ChunkSize
+			c.cursor -= flock.ChunkSize
 
-			copy(c.data, c.data[swarm.ChunkSize:])
+			copy(c.data, c.data[flock.ChunkSize:])
 		}
 	}
 

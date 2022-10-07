@@ -1,5 +1,5 @@
 // Package manifest contains the abstractions needed for
-// collection representation in Swarm.
+// collection representation in flock.
 package manifest
 
 import (
@@ -7,7 +7,7 @@ import (
 	"errors"
 
 	"github.com/redesblock/mop/core/file"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 const DefaultManifestType = ManifestMantarayContentType
@@ -50,16 +50,16 @@ type Interface interface {
 	// HasPrefix tests whether the specified prefix path exists.
 	HasPrefix(context.Context, string) (bool, error)
 	// Store stores the manifest, returning the resulting address.
-	Store(context.Context, ...StoreSizeFunc) (swarm.Address, error)
+	Store(context.Context, ...StoreSizeFunc) (flock.Address, error)
 	// IterateAddresses is used to iterate over chunks addresses for
 	// the manifest.
-	IterateAddresses(context.Context, swarm.AddressIterFunc) error
+	IterateAddresses(context.Context, flock.AddressIterFunc) error
 }
 
 // Entry represents a single manifest entry.
 type Entry interface {
 	// Reference returns the address of the file.
-	Reference() swarm.Address
+	Reference() flock.Address
 	// Metadata returns the metadata of the file.
 	Metadata() map[string]string
 }
@@ -74,7 +74,7 @@ func NewDefaultManifest(
 
 // NewDefaultManifestReference creates a new manifest with default type.
 func NewDefaultManifestReference(
-	reference swarm.Address,
+	reference flock.Address,
 	ls file.LoadSaver,
 ) (Interface, error) {
 	return NewManifestReference(DefaultManifestType, reference, ls)
@@ -99,7 +99,7 @@ func NewManifest(
 // NewManifestReference loads existing manifest.
 func NewManifestReference(
 	manifestType string,
-	reference swarm.Address,
+	reference flock.Address,
 	ls file.LoadSaver,
 ) (Interface, error) {
 	switch manifestType {
@@ -113,19 +113,19 @@ func NewManifestReference(
 }
 
 type manifestEntry struct {
-	reference swarm.Address
+	reference flock.Address
 	metadata  map[string]string
 }
 
 // NewEntry creates a new manifest entry.
-func NewEntry(reference swarm.Address, metadata map[string]string) Entry {
+func NewEntry(reference flock.Address, metadata map[string]string) Entry {
 	return &manifestEntry{
 		reference: reference,
 		metadata:  metadata,
 	}
 }
 
-func (e *manifestEntry) Reference() swarm.Address {
+func (e *manifestEntry) Reference() flock.Address {
 	return e.reference
 }
 

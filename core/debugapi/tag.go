@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
@@ -20,7 +20,7 @@ type tagResponse struct {
 	Sent      int64         `json:"sent"`
 	Synced    int64         `json:"synced"`
 	Uid       uint32        `json:"uid"`
-	Address   swarm.Address `json:"address"`
+	Address   flock.Address `json:"address"`
 	StartedAt time.Time     `json:"startedAt"`
 }
 

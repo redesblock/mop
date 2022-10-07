@@ -1,5 +1,5 @@
 // Package stewardess provides convenience methods
-// for reseeding content on Swarm.
+// for reseeding content on flock.
 package steward
 
 import (
@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/pushsync"
 	"github.com/redesblock/mop/core/retrieval"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/topology"
 	"github.com/redesblock/mop/core/traversal"
 	"golang.org/x/sync/errgroup"
@@ -22,11 +22,11 @@ const parallelPush = 5
 type Interface interface {
 	// Reupload root hash and all of its underlying
 	// associated chunks to the network.
-	Reupload(context.Context, swarm.Address) error
+	Reupload(context.Context, flock.Address) error
 
 	// IsRetrievable checks whether the content
 	// on the given address is retrievable.
-	IsRetrievable(context.Context, swarm.Address) (bool, error)
+	IsRetrievable(context.Context, flock.Address) (bool, error)
 }
 
 type steward struct {
@@ -50,10 +50,10 @@ func New(getter storage.Getter, t traversal.Traverser, r retrieval.Interface, p 
 // addresses and push every chunk individually to the network.
 // It assumes all chunks are available locally. It is therefore
 // advisable to pin the content locally before trying to reupload it.
-func (s *steward) Reupload(ctx context.Context, root swarm.Address) error {
+func (s *steward) Reupload(ctx context.Context, root flock.Address) error {
 	sem := make(chan struct{}, parallelPush)
 	eg, _ := errgroup.WithContext(ctx)
-	fn := func(addr swarm.Address) error {
+	fn := func(addr flock.Address) error {
 		c, err := s.getter.Get(ctx, storage.ModeGetSync, addr)
 		if err != nil {
 			return err
@@ -85,8 +85,8 @@ func (s *steward) Reupload(ctx context.Context, root swarm.Address) error {
 }
 
 // IsRetrievable implements Interface.IsRetrievable method.
-func (s *steward) IsRetrievable(ctx context.Context, root swarm.Address) (bool, error) {
-	noop := func(leaf swarm.Address) error { return nil }
+func (s *steward) IsRetrievable(ctx context.Context, root flock.Address) (bool, error) {
+	noop := func(leaf flock.Address) error { return nil }
 	switch err := s.netTraverser.Traverse(ctx, root, noop); {
 	case errors.Is(err, storage.ErrNotFound):
 		return false, nil
@@ -104,11 +104,11 @@ type netGetter struct {
 }
 
 // Get implements the storage Getter.Get interface.
-func (ng *netGetter) Get(ctx context.Context, _ storage.ModeGet, addr swarm.Address) (swarm.Chunk, error) {
+func (ng *netGetter) Get(ctx context.Context, _ storage.ModeGet, addr flock.Address) (flock.Chunk, error) {
 	return ng.retrieval.RetrieveChunk(ctx, addr, true)
 }
 
 // Put implements the storage Putter.Put interface.
-func (ng *netGetter) Put(_ context.Context, _ storage.ModePut, _ ...swarm.Chunk) ([]bool, error) {
+func (ng *netGetter) Put(_ context.Context, _ storage.ModePut, _ ...flock.Chunk) ([]bool, error) {
 	return nil, errors.New("operation is not supported")
 }

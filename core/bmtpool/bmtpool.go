@@ -4,7 +4,7 @@ package bmtpool
 
 import (
 	"github.com/redesblock/mop/core/bmt"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 const Capacity = 32
@@ -12,7 +12,7 @@ const Capacity = 32
 var instance *bmt.Pool
 
 func init() {
-	instance = bmt.NewPool(bmt.NewConf(swarm.NewHasher, swarm.BmtBranches, Capacity))
+	instance = bmt.NewPool(bmt.NewConf(flock.NewHasher, flock.BmtBranches, Capacity))
 }
 
 // Get a bmt Hasher instance.

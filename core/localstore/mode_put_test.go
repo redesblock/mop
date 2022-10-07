@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	postagetesting "github.com/redesblock/mop/core/postage/testing"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -134,9 +134,9 @@ func TestModePutRequestCache(t *testing.T) {
 	for _, tc := range multiChunkTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			db := newTestDB(t, nil)
-			var chunks []swarm.Chunk
+			var chunks []flock.Chunk
 			for i := 0; i < tc.count; i++ {
-				chunk := generateTestRandomChunkAt(swarm.NewAddress(db.baseKey), 2)
+				chunk := generateTestRandomChunkAt(flock.NewAddress(db.baseKey), 2)
 				chunks = append(chunks, chunk)
 			}
 			// call unreserve on the batch with radius 0 so that
@@ -314,7 +314,7 @@ func TestModePutUpload_parallel(t *testing.T) {
 			uploadsCount := 100
 			workerCount := 100
 
-			chunksChan := make(chan []swarm.Chunk)
+			chunksChan := make(chan []flock.Chunk)
 			errChan := make(chan error)
 			doneChan := make(chan struct{})
 			defer close(doneChan)
@@ -340,7 +340,7 @@ func TestModePutUpload_parallel(t *testing.T) {
 				}(i)
 			}
 
-			chunks := make([]swarm.Chunk, 0)
+			chunks := make([]flock.Chunk, 0)
 			var chunksMu sync.Mutex
 
 			// send chunks to workers
@@ -490,8 +490,8 @@ func TestModePut_SameVouch(t *testing.T) {
 	for _, modeTc1 := range putModes {
 		for _, modeTc2 := range putModes {
 			for _, tc := range []struct {
-				persistChunk swarm.Chunk
-				discardChunk swarm.Chunk
+				persistChunk flock.Chunk
+				discardChunk flock.Chunk
 			}{
 				{
 					persistChunk: generateChunkWithTimestamp(vouch, ts),
@@ -552,8 +552,8 @@ func TestModePut_ImmutableVouch(t *testing.T) {
 		for _, modeTc2 := range putModes {
 			for _, tc := range []struct {
 				name         string
-				persistChunk swarm.Chunk
-				discardChunk swarm.Chunk
+				persistChunk flock.Chunk
+				discardChunk flock.Chunk
 			}{
 				{
 					name:         "same timestamps",
@@ -608,14 +608,14 @@ func TestModePut_ImmutableVouch(t *testing.T) {
 	}
 }
 
-func generateChunkWithTimestamp(vouch *postage.Vouch, timestamp int64) swarm.Chunk {
+func generateChunkWithTimestamp(vouch *postage.Vouch, timestamp int64) flock.Chunk {
 	tsBuf := make([]byte, 8)
 	binary.BigEndian.PutUint64(tsBuf, uint64(timestamp))
 	chunk := generateTestRandomChunk()
 	return chunk.WithVouch(postage.NewVouch(vouch.BatchID(), vouch.Index(), tsBuf, vouch.Sig()))
 }
 
-func generateImmutableChunkWithTimestamp(vouch *postage.Vouch, timestamp int64) swarm.Chunk {
+func generateImmutableChunkWithTimestamp(vouch *postage.Vouch, timestamp int64) flock.Chunk {
 	return generateChunkWithTimestamp(vouch, timestamp).WithBatch(4, 12, 8, true)
 }
 
@@ -662,11 +662,11 @@ func TestPutDuplicateChunks(t *testing.T) {
 //
 // Measurements on MacBook Pro (Retina, 15-inch, Mid 2014)
 //
-// # go test -benchmem -run=none github.com/ethersphere/swarm/storage/localstore -bench BenchmarkPutUpload -v
+// # go test -benchmem -run=none github.com/ethersphere/flock/storage/localstore -bench BenchmarkPutUpload -v
 //
 // goos: darwin
 // goarch: amd64
-// pkg: github.com/ethersphere/swarm/storage/localstore
+// pkg: github.com/ethersphere/flock/storage/localstore
 // BenchmarkPutUpload/count_100_parallel_1-8         	     300	   5107704 ns/op	 2081461 B/op	    2374 allocs/op
 // BenchmarkPutUpload/count_100_parallel_2-8         	     300	   5411742 ns/op	 2081608 B/op	    2364 allocs/op
 // BenchmarkPutUpload/count_100_parallel_4-8         	     500	   3704964 ns/op	 2081696 B/op	    2324 allocs/op
@@ -723,7 +723,7 @@ func benchmarkPutUpload(b *testing.B, o *Options, count, maxParallelUploads int)
 	b.StopTimer()
 	db := newTestDB(b, o)
 
-	chunks := make([]swarm.Chunk, count)
+	chunks := make([]flock.Chunk, count)
 	for i := 0; i < count; i++ {
 		chunks[i] = generateTestRandomChunk()
 	}

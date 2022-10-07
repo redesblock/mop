@@ -8,15 +8,15 @@ import (
 
 	"github.com/redesblock/mop/core/file"
 	"github.com/redesblock/mop/core/file/splitter/internal"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 type putWrapper struct {
-	putter func(context.Context, swarm.Chunk) ([]bool, error)
+	putter func(context.Context, flock.Chunk) ([]bool, error)
 }
 
-func (p putWrapper) Put(ctx context.Context, ch swarm.Chunk) ([]bool, error) {
+func (p putWrapper) Put(ctx context.Context, ch flock.Chunk) ([]bool, error) {
 	return p.putter(ctx, ch)
 }
 
@@ -29,7 +29,7 @@ type simpleSplitter struct {
 func NewSimpleSplitter(storePutter storage.Putter, mode storage.ModePut) file.Splitter {
 	return &simpleSplitter{
 		putter: putWrapper{
-			putter: func(ctx context.Context, ch swarm.Chunk) ([]bool, error) {
+			putter: func(ctx context.Context, ch flock.Chunk) ([]bool, error) {
 				return storePutter.Put(ctx, mode, ch)
 			},
 		},
@@ -41,11 +41,11 @@ func NewSimpleSplitter(storePutter storage.Putter, mode storage.ModePut) file.Sp
 // It uses a non-optimized internal component that blocks when performing
 // multiple levels of hashing when building the file hash tree.
 //
-// It returns the Swarmhash of the data.
-func (s *simpleSplitter) Split(ctx context.Context, r io.ReadCloser, dataLength int64, toEncrypt bool) (addr swarm.Address, err error) {
+// It returns the Flockhash of the data.
+func (s *simpleSplitter) Split(ctx context.Context, r io.ReadCloser, dataLength int64, toEncrypt bool) (addr flock.Address, err error) {
 	j := internal.NewSimpleSplitterJob(ctx, s.putter, dataLength, toEncrypt)
 	var total int64
-	data := make([]byte, swarm.ChunkSize)
+	data := make([]byte, flock.ChunkSize)
 	var eof bool
 	for !eof {
 		c, err := r.Read(data)
@@ -53,24 +53,24 @@ func (s *simpleSplitter) Split(ctx context.Context, r io.ReadCloser, dataLength 
 		if err != nil {
 			if err == io.EOF {
 				if total < dataLength {
-					return swarm.ZeroAddress, fmt.Errorf("splitter only received %d bytes of data, expected %d bytes", total+int64(c), dataLength)
+					return flock.ZeroAddress, fmt.Errorf("splitter only received %d bytes of data, expected %d bytes", total+int64(c), dataLength)
 				}
 				eof = true
 				continue
 			} else {
-				return swarm.ZeroAddress, err
+				return flock.ZeroAddress, err
 			}
 		}
 		cc, err := j.Write(data[:c])
 		if err != nil {
-			return swarm.ZeroAddress, err
+			return flock.ZeroAddress, err
 		}
 		if cc < c {
-			return swarm.ZeroAddress, fmt.Errorf("write count to file hasher component %d does not match read count %d", cc, c)
+			return flock.ZeroAddress, fmt.Errorf("write count to file hasher component %d does not match read count %d", cc, c)
 		}
 	}
 
 	sum := j.Sum(nil)
-	newAddress := swarm.NewAddress(sum)
+	newAddress := flock.NewAddress(sum)
 	return newAddress, nil
 }

@@ -12,8 +12,8 @@ import (
 	"github.com/redesblock/mop/core/file/pipeline/feeder"
 	"github.com/redesblock/mop/core/file/pipeline/hashtrie"
 	"github.com/redesblock/mop/core/file/pipeline/store"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // NewPipelineBuilder returns the appropriate pipeline according to the specified parameters
@@ -28,10 +28,10 @@ func NewPipelineBuilder(ctx context.Context, s storage.Putter, mode storage.Mode
 // a merkle-tree of hashes that represent the given arbitrary size byte stream. Partial
 // writes are supported. The pipeline flow is: Data -> Feeder -> BMT -> Storage -> HashTrie.
 func newPipeline(ctx context.Context, s storage.Putter, mode storage.ModePut) pipeline.Interface {
-	tw := hashtrie.NewHashTrieWriter(swarm.ChunkSize, swarm.Branches, swarm.HashSize, newShortPipelineFunc(ctx, s, mode))
+	tw := hashtrie.NewHashTrieWriter(flock.ChunkSize, flock.Branches, flock.HashSize, newShortPipelineFunc(ctx, s, mode))
 	lsw := store.NewStoreWriter(ctx, s, mode, tw)
 	b := bmt.NewBmtWriter(lsw)
-	return feeder.NewChunkFeederWriter(swarm.ChunkSize, b)
+	return feeder.NewChunkFeederWriter(flock.ChunkSize, b)
 }
 
 // newShortPipelineFunc returns a constructor function for an ephemeral hashing pipeline
@@ -49,11 +49,11 @@ func newShortPipelineFunc(ctx context.Context, s storage.Putter, mode storage.Mo
 // Note that the encryption writer will mutate the data to contain the encrypted span, but the span field
 // with the unencrypted span is preserved.
 func newEncryptionPipeline(ctx context.Context, s storage.Putter, mode storage.ModePut) pipeline.Interface {
-	tw := hashtrie.NewHashTrieWriter(swarm.ChunkSize, 64, swarm.HashSize+encryption.KeyLength, newShortEncryptionPipelineFunc(ctx, s, mode))
+	tw := hashtrie.NewHashTrieWriter(flock.ChunkSize, 64, flock.HashSize+encryption.KeyLength, newShortEncryptionPipelineFunc(ctx, s, mode))
 	lsw := store.NewStoreWriter(ctx, s, mode, tw)
 	b := bmt.NewBmtWriter(lsw)
 	enc := enc.NewEncryptionWriter(encryption.NewChunkEncrypter(), b)
-	return feeder.NewChunkFeederWriter(swarm.ChunkSize, enc)
+	return feeder.NewChunkFeederWriter(flock.ChunkSize, enc)
 }
 
 // newShortEncryptionPipelineFunc returns a constructor function for an ephemeral hashing pipeline
@@ -68,8 +68,8 @@ func newShortEncryptionPipelineFunc(ctx context.Context, s storage.Putter, mode 
 
 // FeedPipeline feeds the pipeline with the given reader until EOF is reached.
 // It returns the cryptographic root hash of the content.
-func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader) (addr swarm.Address, err error) {
-	data := make([]byte, swarm.ChunkSize)
+func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader) (addr flock.Address, err error) {
+	data := make([]byte, flock.ChunkSize)
 	for {
 		c, err := r.Read(data)
 		if err != nil {
@@ -77,41 +77,41 @@ func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader)
 				if c > 0 {
 					cc, err := pipeline.Write(data[:c])
 					if err != nil {
-						return swarm.ZeroAddress, err
+						return flock.ZeroAddress, err
 					}
 					if cc < c {
-						return swarm.ZeroAddress, fmt.Errorf("pipeline short write: %d mismatches %d", cc, c)
+						return flock.ZeroAddress, fmt.Errorf("pipeline short write: %d mismatches %d", cc, c)
 					}
 				}
 				break
 			} else {
-				return swarm.ZeroAddress, err
+				return flock.ZeroAddress, err
 			}
 		}
 		cc, err := pipeline.Write(data[:c])
 		if err != nil {
-			return swarm.ZeroAddress, err
+			return flock.ZeroAddress, err
 		}
 		if cc < c {
-			return swarm.ZeroAddress, fmt.Errorf("pipeline short write: %d mismatches %d", cc, c)
+			return flock.ZeroAddress, fmt.Errorf("pipeline short write: %d mismatches %d", cc, c)
 		}
 		select {
 		case <-ctx.Done():
-			return swarm.ZeroAddress, ctx.Err()
+			return flock.ZeroAddress, ctx.Err()
 		default:
 		}
 	}
 	select {
 	case <-ctx.Done():
-		return swarm.ZeroAddress, ctx.Err()
+		return flock.ZeroAddress, ctx.Err()
 	default:
 	}
 
 	sum, err := pipeline.Sum()
 	if err != nil {
-		return swarm.ZeroAddress, err
+		return flock.ZeroAddress, err
 	}
 
-	newAddress := swarm.NewAddress(sum)
+	newAddress := flock.NewAddress(sum)
 	return newAddress, nil
 }

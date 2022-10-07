@@ -30,9 +30,9 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 // DefaultDepth is the initial depth for the reserve
@@ -263,7 +263,7 @@ func (rs *reserveState) tier(x *big.Int) tier {
 func (rs *reserveState) radius(t tier) uint8 {
 	switch t {
 	case unreserved:
-		return swarm.MaxPO
+		return flock.MaxPO
 	case inner:
 		return rs.Radius
 	default:

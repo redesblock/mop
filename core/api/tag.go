@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 )
 
 type tagRequest struct {
-	Address swarm.Address `json:"address,omitempty"`
+	Address flock.Address `json:"address,omitempty"`
 }
 
 type tagResponse struct {

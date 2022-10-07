@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/logging"
 	"github.com/redesblock/mop/core/pinning"
 	"github.com/redesblock/mop/core/postage"
 	"github.com/redesblock/mop/core/postage/batchstore"
 	"github.com/redesblock/mop/core/shed"
 	"github.com/redesblock/mop/core/storage"
-	"github.com/redesblock/mop/core/swarm"
 	"github.com/redesblock/mop/core/tags"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -128,7 +128,7 @@ type DB struct {
 
 	// dirtyAddresses are marked while gc is running
 	// in order to avoid the removal of dirty entries.
-	dirtyAddresses []swarm.Address
+	dirtyAddresses []flock.Address
 
 	// this channel is closed when close function is called
 	// to terminate other goroutines
@@ -213,7 +213,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		db.cacheCapacity = defaultCacheCapacity
 	}
 
-	capacityMB := float64((db.cacheCapacity+uint64(batchstore.Capacity))*swarm.ChunkSize) * 9.5367431640625e-7
+	capacityMB := float64((db.cacheCapacity+uint64(batchstore.Capacity))*flock.ChunkSize) * 9.5367431640625e-7
 
 	if capacityMB <= 1000 {
 		db.logger.Infof("database capacity: %d chunks (approximately %fMB)", db.cacheCapacity, capacityMB)
@@ -343,7 +343,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 	db.pullIndex, err = db.shed.NewIndex("PO|BinID->Hash", shed.IndexFuncs{
 		EncodeKey: func(fields shed.Item) (key []byte, err error) {
 			key = make([]byte, 9)
-			key[0] = db.po(swarm.NewAddress(fields.Address))
+			key[0] = db.po(flock.NewAddress(fields.Address))
 			binary.BigEndian.PutUint64(key[1:9], fields.BinID)
 			return key, nil
 		},
@@ -463,7 +463,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		EncodeKey: func(fields shed.Item) (key []byte, err error) {
 			key = make([]byte, 65)
 			copy(key[:32], fields.BatchID)
-			key[32] = db.po(swarm.NewAddress(fields.Address))
+			key[32] = db.po(flock.NewAddress(fields.Address))
 			copy(key[33:], fields.Address)
 			return key, nil
 		},
@@ -570,8 +570,8 @@ func (db *DB) Close() (err error) {
 
 // po computes the proximity order between the address
 // and database base key.
-func (db *DB) po(addr swarm.Address) (bin uint8) {
-	return swarm.Proximity(db.baseKey, addr.Bytes())
+func (db *DB) po(addr flock.Address) (bin uint8) {
+	return flock.Proximity(db.baseKey, addr.Bytes())
 }
 
 // DebugIndices returns the index sizes for all indexes in localstore
@@ -614,7 +614,7 @@ func (db *DB) stateStoreHasPins() (bool, error) {
 }
 
 // chunkToItem creates new Item with data provided by the Chunk.
-func chunkToItem(ch swarm.Chunk) shed.Item {
+func chunkToItem(ch flock.Chunk) shed.Item {
 	return shed.Item{
 		Address:     ch.Address().Bytes(),
 		Data:        ch.Data(),
@@ -631,7 +631,7 @@ func chunkToItem(ch swarm.Chunk) shed.Item {
 }
 
 // addressToItem creates new Item with a provided address.
-func addressToItem(addr swarm.Address) shed.Item {
+func addressToItem(addr flock.Address) shed.Item {
 	return shed.Item{
 		Address: addr.Bytes(),
 	}
@@ -639,7 +639,7 @@ func addressToItem(addr swarm.Address) shed.Item {
 
 // addressesToItems constructs a slice of Items with only
 // addresses set on them.
-func addressesToItems(addrs ...swarm.Address) []shed.Item {
+func addressesToItems(addrs ...flock.Address) []shed.Item {
 	items := make([]shed.Item, len(addrs))
 	for i, addr := range addrs {
 		items[i] = shed.Item{

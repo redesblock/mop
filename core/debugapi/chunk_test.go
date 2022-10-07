@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/redesblock/mop/core/flock"
 	"github.com/redesblock/mop/core/jsonhttp"
 	"github.com/redesblock/mop/core/jsonhttp/jsonhttptest"
 	"github.com/redesblock/mop/core/storage"
 	"github.com/redesblock/mop/core/storage/mock"
-	"github.com/redesblock/mop/core/swarm"
 )
 
 func TestHasChunkHandler(t *testing.T) {
@@ -18,10 +18,10 @@ func TestHasChunkHandler(t *testing.T) {
 		Storer: mockStorer,
 	})
 
-	key := swarm.MustParseHexAddress("aabbcc")
+	key := flock.MustParseHexAddress("aabbcc")
 	value := []byte("data data data")
 
-	_, err := mockStorer.Put(context.Background(), storage.ModePutUpload, swarm.NewChunk(key, value))
+	_, err := mockStorer.Put(context.Background(), storage.ModePutUpload, flock.NewChunk(key, value))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestHasChunkHandler(t *testing.T) {
 				Code:    http.StatusOK,
 			}),
 		)
-		yes, err := mockStorer.Has(context.Background(), swarm.NewAddress([]byte(notPresentChunkAddress)))
+		yes, err := mockStorer.Has(context.Background(), flock.NewAddress([]byte(notPresentChunkAddress)))
 		if err != nil {
 			t.Fatal(err)
 		}

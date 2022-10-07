@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/redesblock/mop/core/file/pipeline"
-	"github.com/redesblock/mop/core/swarm"
+	"github.com/redesblock/mop/core/flock"
 )
 
 var (
@@ -29,11 +29,11 @@ type hashTrieWriter struct {
 func NewHashTrieWriter(chunkSize, branching, refLen int, pipelineFn pipeline.PipelineFunc) pipeline.ChainWriter {
 	return &hashTrieWriter{
 		cursors:    make([]int, 9),
-		buffer:     make([]byte, swarm.ChunkWithSpanSize*9*2), // double size as temp workaround for weak calculation of needed buffer space
+		buffer:     make([]byte, flock.ChunkWithSpanSize*9*2), // double size as temp workaround for weak calculation of needed buffer space
 		branching:  branching,
 		chunkSize:  chunkSize,
 		refSize:    refLen,
-		fullChunk:  (refLen + swarm.SpanSize) * branching,
+		fullChunk:  (refLen + flock.SpanSize) * branching,
 		pipelineFn: pipelineFn,
 	}
 }
@@ -41,7 +41,7 @@ func NewHashTrieWriter(chunkSize, branching, refLen int, pipelineFn pipeline.Pip
 // accepts writes of hashes from the previous writer in the chain, by definition these writes
 // are on level 1
 func (h *hashTrieWriter) ChainWrite(p *pipeline.PipeWriteArgs) error {
-	oneRef := h.refSize + swarm.SpanSize
+	oneRef := h.refSize + flock.SpanSize
 	l := len(p.Span) + len(p.Ref) + len(p.Key)
 	if l%oneRef != 0 {
 		return errInconsistentRefs
@@ -59,7 +59,7 @@ func (h *hashTrieWriter) writeToLevel(level int, span, ref, key []byte) error {
 	h.cursors[level] += len(ref)
 	copy(h.buffer[h.cursors[level]:h.cursors[level]+len(key)], key)
 	h.cursors[level] += len(key)
-	howLong := (h.refSize + swarm.SpanSize) * h.branching
+	howLong := (h.refSize + flock.SpanSize) * h.branching
 
 	if h.levelSize(level) == howLong {
 		return h.wrapFullLevel(level)
@@ -122,7 +122,7 @@ func (h *hashTrieWriter) levelSize(level int) int {
 	return h.cursors[level] - h.cursors[level+1]
 }
 
-// Sum returns the Swarm merkle-root content-addressed hash
+// Sum returns the Flock merkle-root content-addressed hash
 // of an arbitrary-length binary data.
 // The algorithm it uses is as follows:
 //   - From level 1 till maxLevel 8, iterate:
@@ -138,7 +138,7 @@ func (h *hashTrieWriter) levelSize(level int) int {
 //   - more than one hash, in which case we _do_ perform a hashing operation, appending the hash to
 //     the next level
 func (h *hashTrieWriter) Sum() ([]byte, error) {
-	oneRef := h.refSize + swarm.SpanSize
+	oneRef := h.refSize + flock.SpanSize
 	for i := 1; i < maxLevel; i++ {
 		l := h.levelSize(i)
 		if l%oneRef != 0 {
