@@ -1,0 +1,828 @@
+// Package api provides the functionality of the Mop
+// client-facing HTTP API.
+package api
+
+import (
+	"context"
+	"crypto/ecdsa"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"math"
+	"math/big"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redesblock/mop/core/api/auth"
+	"github.com/redesblock/mop/core/api/jsonhttp"
+	"github.com/redesblock/mop/core/chain/transaction"
+	"github.com/redesblock/mop/core/cluster"
+	"github.com/redesblock/mop/core/crypto"
+	"github.com/redesblock/mop/core/feeds"
+	"github.com/redesblock/mop/core/file/pipeline"
+	"github.com/redesblock/mop/core/file/pipeline/builder"
+	"github.com/redesblock/mop/core/incentives/bookkeeper"
+	"github.com/redesblock/mop/core/incentives/settlement"
+	"github.com/redesblock/mop/core/incentives/settlement/swap"
+	"github.com/redesblock/mop/core/incentives/settlement/swap/chequebook"
+	"github.com/redesblock/mop/core/incentives/settlement/swap/erc20"
+	"github.com/redesblock/mop/core/incentives/voucher"
+	"github.com/redesblock/mop/core/incentives/voucher/vouchercontract"
+	"github.com/redesblock/mop/core/log"
+	"github.com/redesblock/mop/core/p2p"
+	"github.com/redesblock/mop/core/p2p/topology"
+	"github.com/redesblock/mop/core/p2p/topology/lightnode"
+	"github.com/redesblock/mop/core/pins"
+	"github.com/redesblock/mop/core/protocol/pingpong"
+	"github.com/redesblock/mop/core/psser"
+	"github.com/redesblock/mop/core/pusher"
+	"github.com/redesblock/mop/core/resolver"
+	"github.com/redesblock/mop/core/storer/storage"
+	"github.com/redesblock/mop/core/tags"
+	"github.com/redesblock/mop/core/tracer"
+	"github.com/redesblock/mop/core/traverser"
+	"github.com/redesblock/mop/core/warden"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
+)
+
+// loggerName is the tree path name of the logger for this package.
+const loggerName = "api"
+
+const (
+	ClusterPinHeader            = "Cluster-Pin"
+	ClusterTagHeader            = "Cluster-Tag"
+	ClusterEncryptHeader        = "Cluster-Encrypt"
+	ClusterIndexDocumentHeader  = "Cluster-Index-Document"
+	ClusterErrorDocumentHeader  = "Cluster-Error-Document"
+	ClusterFeedIndexHeader      = "Cluster-Feed-Index"
+	ClusterFeedIndexNextHeader  = "Cluster-Feed-Index-Next"
+	ClusterCollectionHeader     = "Cluster-Collection"
+	ClusterVoucherBatchIdHeader = "Cluster-Voucher-Batch-Id"
+	ClusterDeferredUploadHeader = "Cluster-Deferred-Upload"
+)
+
+// The size of buffer used for prefetching content with Langos.
+// Warning: This value influences the number of chunk requests and chunker join goroutines
+// per file request.
+// Recommended value is 8 or 16 times the io.Copy default buffer value which is 32kB, depending
+// on the file size. Use lookaheadBufferSize() to get the correct buffer size for the request.
+const (
+	smallFileBufferSize = 8 * 32 * 1024
+	largeFileBufferSize = 16 * 32 * 1024
+
+	largeBufferFilesizeThreshold = 10 * 1000000 // ten megs
+
+	uploadSem = 50
+)
+
+const (
+	contentTypeHeader = "Content-Type"
+	multiPartFormData = "multipart/form-data"
+	contentTypeTar    = "application/x-tar"
+)
+
+var (
+	errInvalidNameOrAddress = errors.New("invalid name or mop address")
+	errNoResolver           = errors.New("no resolver connected")
+	errInvalidRequest       = errors.New("could not validate request")
+	errInvalidContentType   = errors.New("invalid content-type")
+	errDirectoryStore       = errors.New("could not store directory")
+	errFileStore            = errors.New("could not store file")
+	errInvalidVoucherBatch  = errors.New("invalid voucher batch id")
+	errBatchUnusable        = errors.New("batch not usable")
+)
+
+type authenticator interface {
+	Authorize(string) bool
+	GenerateKey(string, int) (string, error)
+	RefreshKey(string, int) (string, error)
+	Enforce(string, string, string) (bool, error)
+}
+
+type Service struct {
+	auth            authenticator
+	tags            *tags.Tags
+	storer          storage.Storer
+	resolver        resolver.Interface
+	pss             psser.Interface
+	traversal       traverser.Traverser
+	pinning         pins.Interface
+	warden          warden.Interface
+	logger          log.Logger
+	loggerV1        log.Logger
+	tracer          *tracer.Tracer
+	feedFactory     feeds.Factory
+	signer          crypto.Signer
+	post            voucher.Service
+	voucherContract vouchercontract.Interface
+	chunkPushC      chan *pusher.Op
+	metricsRegistry *prometheus.Registry
+	Options
+
+	http.Handler
+	router *mux.Router
+
+	metrics metrics
+
+	wsWg sync.WaitGroup // wait for all websockets to close on exit
+	quit chan struct{}
+
+	// from debug API
+	overlay           *cluster.Address
+	publicKey         ecdsa.PublicKey
+	pssPublicKey      ecdsa.PublicKey
+	bscAddress        common.Address
+	chequebookEnabled bool
+	swapEnabled       bool
+
+	topologyDriver topology.Driver
+	p2p            p2p.DebugService
+	accounting     bookkeeper.Interface
+	chequebook     chequebook.Service
+	pseudosettle   settlement.Interface
+	pingpong       pingpong.Interface
+
+	batchStore voucher.Storer
+	syncStatus func() (bool, error)
+
+	swap        swap.Interface
+	transaction transaction.Service
+	lightNodes  *lightnode.Container
+	blockTime   *big.Int
+
+	voucherSem       *semaphore.Weighted
+	cashOutChequeSem *semaphore.Weighted
+	mopMode          MopNodeMode
+	gatewayMode      bool
+
+	chainBackend transaction.Backend
+	erc20Service erc20.Service
+	chainID      int64
+}
+
+func (s *Service) SetP2P(p2p p2p.DebugService) {
+	if s != nil {
+		s.p2p = p2p
+	}
+}
+
+func (s *Service) SetClusterAddress(addr *cluster.Address) {
+	if s != nil {
+		s.overlay = addr
+	}
+}
+
+type Options struct {
+	CORSAllowedOrigins []string
+	GatewayMode        bool
+	WsPingPeriod       time.Duration
+	Restricted         bool
+}
+
+type ExtraOptions struct {
+	Pingpong         pingpong.Interface
+	TopologyDriver   topology.Driver
+	LightNodes       *lightnode.Container
+	Accounting       bookkeeper.Interface
+	Pseudosettle     settlement.Interface
+	Swap             swap.Interface
+	Chequebook       chequebook.Service
+	BlockTime        *big.Int
+	Tags             *tags.Tags
+	Storer           storage.Storer
+	Resolver         resolver.Interface
+	Pss              psser.Interface
+	TraversalService traverser.Traverser
+	Pinning          pins.Interface
+	FeedFactory      feeds.Factory
+	Post             voucher.Service
+	VoucherContract  vouchercontract.Interface
+	Warden           warden.Interface
+	SyncStatus       func() (bool, error)
+}
+
+func New(publicKey, pssPublicKey ecdsa.PublicKey, bscAddress common.Address, logger log.Logger, transaction transaction.Service, batchStore voucher.Storer, gatewayMode bool, mopMode MopNodeMode, chequebookEnabled bool, swapEnabled bool, chainBackend transaction.Backend, cors []string) *Service {
+	s := new(Service)
+
+	s.CORSAllowedOrigins = cors
+	s.mopMode = mopMode
+	s.gatewayMode = gatewayMode
+	s.logger = logger.WithName(loggerName).Register()
+	s.loggerV1 = s.logger.V(1).Register()
+	s.chequebookEnabled = chequebookEnabled
+	s.swapEnabled = swapEnabled
+	s.publicKey = publicKey
+	s.pssPublicKey = pssPublicKey
+	s.bscAddress = bscAddress
+	s.transaction = transaction
+	s.batchStore = batchStore
+	s.chainBackend = chainBackend
+	s.metricsRegistry = newDebugMetrics()
+
+	return s
+}
+
+// Configure will create a and initialize a new API service.
+func (s *Service) Configure(signer crypto.Signer, auth authenticator, tracer *tracer.Tracer, o Options, e ExtraOptions, chainID int64, erc20 erc20.Service) <-chan *pusher.Op {
+	s.auth = auth
+	s.chunkPushC = make(chan *pusher.Op)
+	s.signer = signer
+	s.Options = o
+	s.tracer = tracer
+	s.metrics = newMetrics()
+
+	s.quit = make(chan struct{})
+
+	s.tags = e.Tags
+	s.storer = e.Storer
+	s.resolver = e.Resolver
+	s.pss = e.Pss
+	s.traversal = e.TraversalService
+	s.pinning = e.Pinning
+	s.feedFactory = e.FeedFactory
+	s.post = e.Post
+	s.voucherContract = e.VoucherContract
+	s.warden = e.Warden
+
+	s.pingpong = e.Pingpong
+	s.topologyDriver = e.TopologyDriver
+	s.accounting = e.Accounting
+	s.chequebook = e.Chequebook
+	s.swap = e.Swap
+	s.lightNodes = e.LightNodes
+	s.pseudosettle = e.Pseudosettle
+	s.blockTime = e.BlockTime
+
+	s.voucherSem = semaphore.NewWeighted(1)
+	s.cashOutChequeSem = semaphore.NewWeighted(1)
+
+	s.chainID = chainID
+	s.erc20Service = erc20
+	s.syncStatus = e.SyncStatus
+
+	return s.chunkPushC
+}
+
+// Close hangs up running websockets on shutdown.
+func (s *Service) Close() error {
+	s.logger.Info("api shutting down")
+	close(s.quit)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.wsWg.Wait()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		return errors.New("api shutting down with open websockets")
+	}
+
+	return nil
+}
+
+// getOrCreateTag attempts to get the tag if an id is supplied, and returns an error if it does not exist.
+// If no id is supplied, it will attempt to create a new tag with a generated name and return it.
+func (s *Service) getOrCreateTag(tagUid string) (*tags.Tag, bool, error) {
+	// if tag ID is not supplied, create a new tag
+	if tagUid == "" {
+		tag, err := s.tags.Create(0)
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot create tag: %w", err)
+		}
+		return tag, true, nil
+	}
+	t, err := s.getTag(tagUid)
+	return t, false, err
+}
+
+func (s *Service) getTag(tagUid string) (*tags.Tag, error) {
+	uid, err := strconv.Atoi(tagUid)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse taguid: %w", err)
+	}
+	return s.tags.Get(uint32(uid))
+}
+
+func (s *Service) resolveNameOrAddress(str string) (cluster.Address, error) {
+	// Try and parse the name as a mop address.
+	addr, err := cluster.ParseHexAddress(str)
+	if err == nil {
+		s.loggerV1.Debug("resolve name: parsing mop address successful", "string", str, "address", addr)
+		return addr, nil
+	}
+
+	// If no resolver is not available, return an error.
+	if s.resolver == nil {
+		return cluster.ZeroAddress, errNoResolver
+	}
+
+	// Try and resolve the name using the provided resolver.
+	s.logger.Debug("resolve name: attempting to resolve string to address", "string", str)
+	addr, err = s.resolver.Resolve(str)
+	if err == nil {
+		s.loggerV1.Debug("resolve name: address resolved successfully", "string", str, "address", addr)
+		return addr, nil
+	}
+
+	return cluster.ZeroAddress, fmt.Errorf("%v: %w", errInvalidNameOrAddress, err)
+}
+
+// requestModePut returns the desired storage.ModePut for this request based on the request headers.
+func requestModePut(r *http.Request) storage.ModePut {
+	if h := strings.ToLower(r.Header.Get(ClusterPinHeader)); h == "true" {
+		return storage.ModePutUploadPin
+	}
+	return storage.ModePutUpload
+}
+
+func requestEncrypt(r *http.Request) bool {
+	return strings.ToLower(r.Header.Get(ClusterEncryptHeader)) == "true"
+}
+
+func requestDeferred(r *http.Request) (bool, error) {
+	if h := strings.ToLower(r.Header.Get(ClusterDeferredUploadHeader)); h != "" {
+		return strconv.ParseBool(h)
+	}
+	return true, nil
+}
+
+func requestVoucherBatchId(r *http.Request) ([]byte, error) {
+	if h := strings.ToLower(r.Header.Get(ClusterVoucherBatchIdHeader)); h != "" {
+		if len(h) != 64 {
+			return nil, errInvalidVoucherBatch
+		}
+		b, err := hex.DecodeString(h)
+		if err != nil {
+			return nil, errInvalidVoucherBatch
+		}
+		return b, nil
+	}
+
+	return nil, errInvalidVoucherBatch
+}
+
+type securityTokenRsp struct {
+	Key string `json:"key"`
+}
+
+type securityTokenReq struct {
+	Role   string `json:"role"`
+	Expiry int    `json:"expiry"`
+}
+
+func (s *Service) authHandler(w http.ResponseWriter, r *http.Request) {
+	_, pass, ok := r.BasicAuth()
+
+	if !ok {
+		s.logger.Error(nil, "auth handler: missing basic auth")
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		jsonhttp.Unauthorized(w, "Unauthorized")
+		return
+	}
+
+	if !s.auth.Authorize(pass) {
+		s.logger.Error(nil, "auth handler: unauthorized")
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		jsonhttp.Unauthorized(w, "Unauthorized")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.logger.Debug("auth handler: read request body failed", "error", err)
+		s.logger.Error(nil, "auth handler: read request body failed")
+		jsonhttp.BadRequest(w, "Read request body")
+		return
+	}
+
+	var payload securityTokenReq
+	if err = json.Unmarshal(body, &payload); err != nil {
+		s.logger.Debug("auth handler: unmarshal request body failed", "error", err)
+		s.logger.Error(nil, "auth handler: unmarshal request body failed")
+		jsonhttp.BadRequest(w, "Unmarshal json body")
+		return
+	}
+
+	key, err := s.auth.GenerateKey(payload.Role, payload.Expiry)
+	if errors.Is(err, auth.ErrExpiry) {
+		s.logger.Debug("auth handler: generate key failed", "error", err)
+		s.logger.Error(nil, "auth handler: generate key failed")
+		jsonhttp.BadRequest(w, "Expiry duration must be a positive number")
+		return
+	}
+	if err != nil {
+		s.logger.Debug("auth handler: add auth token failed", "error", err)
+		s.logger.Error(nil, "auth handler: add auth token failed")
+		jsonhttp.InternalServerError(w, "Error generating authorization token")
+		return
+	}
+
+	jsonhttp.Created(w, securityTokenRsp{
+		Key: key,
+	})
+}
+
+func (s *Service) refreshHandler(w http.ResponseWriter, r *http.Request) {
+	reqToken := r.Header.Get("Authorization")
+	if !strings.HasPrefix(reqToken, "Bearer ") {
+		jsonhttp.Forbidden(w, "Missing bearer token")
+		return
+	}
+
+	keys := strings.Split(reqToken, "Bearer ")
+
+	if len(keys) != 2 || strings.Trim(keys[1], " ") == "" {
+		jsonhttp.Forbidden(w, "Missing security token")
+		return
+	}
+
+	authToken := keys[1]
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.logger.Debug("auth handler: read request body failed", "error", err)
+		s.logger.Error(nil, "auth handler: read request body failed")
+		jsonhttp.BadRequest(w, "Read request body")
+		return
+	}
+
+	var payload securityTokenReq
+	if err = json.Unmarshal(body, &payload); err != nil {
+		s.logger.Debug("auth handler: unmarshal request body failed", "error", err)
+		s.logger.Error(nil, "auth handler: unmarshal request body failed")
+		jsonhttp.BadRequest(w, "Unmarshal json body")
+		return
+	}
+
+	key, err := s.auth.RefreshKey(authToken, payload.Expiry)
+	if errors.Is(err, auth.ErrTokenExpired) {
+		s.logger.Debug("auth handler: refresh key failed", "error", err)
+		s.logger.Error(nil, "auth handler: refresh key failed")
+		jsonhttp.BadRequest(w, "Token expired")
+		return
+	}
+
+	if err != nil {
+		s.logger.Debug("auth handler: refresh token failed", "error", err)
+		s.logger.Error(nil, "auth handler: refresh token failed")
+		jsonhttp.InternalServerError(w, "Error refreshing authorization token")
+		return
+	}
+
+	jsonhttp.Created(w, securityTokenRsp{
+		Key: key,
+	})
+}
+
+func (s *Service) newTracingHandler(spanName string) func(h http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, err := s.tracer.WithContextFromHTTPHeaders(r.Context(), r.Header)
+			if err != nil && !errors.Is(err, tracer.ErrContextNotFound) {
+				s.logger.Debug("extract tracer context failed", "span_name", spanName, "error", err)
+				// ignore
+			}
+
+			span, _, ctx := s.tracer.StartSpanFromContext(ctx, spanName, s.logger)
+			defer span.Finish()
+
+			err = s.tracer.AddContextHTTPHeader(ctx, r.Header)
+			if err != nil {
+				s.logger.Debug("inject tracer context failed", "span_name", spanName, "error", err)
+				// ignore
+			}
+
+			h.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func (s *Service) contentLengthMetricMiddleware() func(h http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			now := time.Now()
+			h.ServeHTTP(w, r)
+			switch r.Method {
+			case http.MethodGet:
+				hdr := w.Header().Get("Decompressed-Content-Length")
+				if hdr == "" {
+					s.logger.Debug("decompressed content length header not found")
+					hdr = w.Header().Get("Content-Length")
+					if hdr == "" {
+						s.logger.Debug("content length header not found")
+						return
+					}
+				}
+				contentLength, err := strconv.Atoi(hdr)
+				if err != nil {
+					s.logger.Debug("int conversion failed", "content_length", hdr, "error", err)
+					return
+				}
+				if contentLength > 0 {
+					s.metrics.ContentApiDuration.WithLabelValues(strconv.FormatInt(toFileSizeBucket(int64(contentLength)), 10), r.Method).Observe(time.Since(now).Seconds())
+				}
+			case http.MethodPost:
+				if r.ContentLength > 0 {
+					s.metrics.ContentApiDuration.WithLabelValues(strconv.FormatInt(toFileSizeBucket(r.ContentLength), 10), r.Method).Observe(time.Since(now).Seconds())
+				}
+			}
+		})
+	}
+}
+
+func lookaheadBufferSize(size int64) int {
+	if size <= largeBufferFilesizeThreshold {
+		return smallFileBufferSize
+	}
+	return largeFileBufferSize
+}
+
+// corsHandler sets CORS headers to HTTP response if allowed origins are configured.
+func (s *Service) corsHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if o := r.Header.Get("Origin"); o != "" && s.checkOrigin(r) {
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Origin", o)
+			w.Header().Set("Access-Control-Allow-Headers", "User-Agent, Origin, Accept, Authorization, Content-Type, X-Requested-With, Decompressed-Content-Length, Access-Control-Request-Headers, Access-Control-Request-Method, Cluster-Tag, Cluster-Pin, Cluster-Encrypt, Cluster-Index-Document, Cluster-Error-Document, Cluster-Collection, Cluster-Voucher-Batch-Id, Gas-Price, Range, Accept-Ranges, Content-Encoding")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST, PUT, DELETE")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+// checkOrigin returns true if the origin is not set or is equal to the request host.
+func (s *Service) checkOrigin(r *http.Request) bool {
+	origin := r.Header["Origin"]
+	if len(origin) == 0 {
+		return true
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	hosts := append(s.CORSAllowedOrigins, scheme+"://"+r.Host)
+	for _, v := range hosts {
+		if equalASCIIFold(origin[0], v) || v == "*" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// equalASCIIFold returns true if s is equal to t with ASCII case folding as
+// defined in RFC 4790.
+func equalASCIIFold(s, t string) bool {
+	for s != "" && t != "" {
+		sr, size := utf8.DecodeRuneInString(s)
+		s = s[size:]
+		tr, size := utf8.DecodeRuneInString(t)
+		t = t[size:]
+		if sr == tr {
+			continue
+		}
+		if 'A' <= sr && sr <= 'Z' {
+			sr = sr + 'a' - 'A'
+		}
+		if 'A' <= tr && tr <= 'Z' {
+			tr = tr + 'a' - 'A'
+		}
+		if sr != tr {
+			return false
+		}
+	}
+	return s == t
+}
+
+// newStamperPutter returns either a storingStamperPutter or a pushStamperPutter
+// according to whether the upload is a deferred upload or not. in the case of
+// direct push to the network (default) a pushStamperPutter is returned.
+// returns a function to wait on the errorgroup in case of a pushing stamper putter.
+func (s *Service) newStamperPutter(r *http.Request) (storage.Storer, func() error, error) {
+	batch, err := requestVoucherBatchId(r)
+	if err != nil {
+		return nil, noopWaitFn, fmt.Errorf("voucher batch id: %w", err)
+	}
+
+	deferred, err := requestDeferred(r)
+	if err != nil {
+		return nil, noopWaitFn, fmt.Errorf("request deferred: %w", err)
+	}
+
+	exists, err := s.batchStore.Exists(batch)
+	if err != nil {
+		return nil, noopWaitFn, fmt.Errorf("batch exists: %w", err)
+	}
+
+	issuer, err := s.post.GetStampIssuer(batch)
+	if err != nil {
+		return nil, noopWaitFn, fmt.Errorf("stamp issuer: %w", err)
+	}
+
+	if usable := exists && s.post.IssuerUsable(issuer); !usable {
+		return nil, noopWaitFn, errBatchUnusable
+	}
+
+	if deferred {
+		p, err := newStoringStamperPutter(s.storer, s.post, s.signer, batch)
+		return p, noopWaitFn, err
+	}
+	p, err := newPushStamperPutter(s.storer, s.post, s.signer, batch, s.chunkPushC)
+	return p, p.eg.Wait, err
+}
+
+type pushStamperPutter struct {
+	storage.Storer
+	stamper voucher.Stamper
+	eg      errgroup.Group
+	c       chan *pusher.Op
+	sem     chan struct{}
+}
+
+func newPushStamperPutter(s storage.Storer, post voucher.Service, signer crypto.Signer, batch []byte, cc chan *pusher.Op) (*pushStamperPutter, error) {
+	i, err := post.GetStampIssuer(batch)
+	if err != nil {
+		return nil, fmt.Errorf("stamp issuer: %w", err)
+	}
+
+	stamper := voucher.NewStamper(i, signer)
+	return &pushStamperPutter{Storer: s, stamper: stamper, c: cc, sem: make(chan struct{}, uploadSem)}, nil
+}
+
+func (p *pushStamperPutter) Put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chunk) (exists []bool, err error) {
+	exists = make([]bool, len(chs))
+
+	for i, c := range chs {
+		// skips chunk we already know about
+		has, err := p.Storer.Has(ctx, c.Address())
+		if err != nil {
+			return nil, err
+		}
+		if has || containsChunk(c.Address(), chs[:i]...) {
+			exists[i] = true
+			continue
+		}
+		stamp, err := p.stamper.Stamp(c.Address())
+		if err != nil {
+			return nil, err
+		}
+
+		func(ch cluster.Chunk) {
+			p.sem <- struct{}{}
+			p.eg.Go(func() error {
+				defer func() {
+					<-p.sem
+				}()
+				errc := make(chan error, 1)
+				// note: shutdown might be tricky, we need to pass the quit channel
+				// from the api here so that the putter knows not to keep on sending stuff
+				// and just returns an error... or?
+			PUSH:
+				p.c <- &pusher.Op{Chunk: ch, Err: errc, Direct: true}
+				select {
+				case err := <-errc:
+					// if we're the closest one we will store the chunk and return no error
+					if errors.Is(err, topology.ErrWantSelf) {
+						if _, err := p.Storer.Put(ctx, storage.ModePutSync, ch); err != nil {
+							return err
+						}
+						return nil
+					}
+					if err == nil {
+						return nil
+					}
+					goto PUSH
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			})
+		}(c.WithStamp(stamp))
+	}
+	return exists, nil
+}
+
+type stamperPutter struct {
+	storage.Storer
+	stamper voucher.Stamper
+}
+
+func newStoringStamperPutter(s storage.Storer, post voucher.Service, signer crypto.Signer, batch []byte) (*stamperPutter, error) {
+	i, err := post.GetStampIssuer(batch)
+	if err != nil {
+		return nil, fmt.Errorf("stamp issuer: %w", err)
+	}
+
+	stamper := voucher.NewStamper(i, signer)
+	return &stamperPutter{Storer: s, stamper: stamper}, nil
+}
+
+func (p *stamperPutter) Put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chunk) (exists []bool, err error) {
+	var (
+		ctp []cluster.Chunk
+		idx []int
+	)
+	exists = make([]bool, len(chs))
+
+	for i, c := range chs {
+		has, err := p.Storer.Has(ctx, c.Address())
+		if err != nil {
+			return nil, err
+		}
+		if has || containsChunk(c.Address(), chs[:i]...) {
+			exists[i] = true
+			continue
+		}
+		stamp, err := p.stamper.Stamp(c.Address())
+		if err != nil {
+			return nil, err
+		}
+		chs[i] = c.WithStamp(stamp)
+		ctp = append(ctp, chs[i])
+		idx = append(idx, i)
+	}
+
+	exists2, err := p.Storer.Put(ctx, mode, ctp...)
+	if err != nil {
+		return nil, err
+	}
+	for i, v := range idx {
+		exists[v] = exists2[i]
+	}
+	return exists, nil
+}
+
+type pipelineFunc func(context.Context, io.Reader) (cluster.Address, error)
+
+func requestPipelineFn(s storage.Putter, r *http.Request) pipelineFunc {
+	mode, encrypt := requestModePut(r), requestEncrypt(r)
+	return func(ctx context.Context, r io.Reader) (cluster.Address, error) {
+		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
+		return builder.FeedPipeline(ctx, pipe, r)
+	}
+}
+
+func requestPipelineFactory(ctx context.Context, s storage.Putter, r *http.Request) func() pipeline.Interface {
+	mode, encrypt := requestModePut(r), requestEncrypt(r)
+	return func() pipeline.Interface {
+		return builder.NewPipelineBuilder(ctx, s, mode, encrypt)
+	}
+}
+
+// calculateNumberOfChunks calculates the number of chunks in an arbitrary
+// content length.
+func calculateNumberOfChunks(contentLength int64, isEncrypted bool) int64 {
+	if contentLength <= cluster.ChunkSize {
+		return 1
+	}
+	branchingFactor := cluster.Branches
+	if isEncrypted {
+		branchingFactor = cluster.EncryptedBranches
+	}
+
+	dataChunks := math.Ceil(float64(contentLength) / float64(cluster.ChunkSize))
+	totalChunks := dataChunks
+	intermediate := dataChunks / float64(branchingFactor)
+
+	for intermediate > 1 {
+		totalChunks += math.Ceil(intermediate)
+		intermediate = intermediate / float64(branchingFactor)
+	}
+
+	return int64(totalChunks) + 1
+}
+
+func requestCalculateNumberOfChunks(r *http.Request) int64 {
+	if !strings.Contains(r.Header.Get(contentTypeHeader), "multipart") && r.ContentLength > 0 {
+		return calculateNumberOfChunks(r.ContentLength, requestEncrypt(r))
+	}
+	return 0
+}
+
+// containsChunk returns true if the chunk with a specific address
+// is present in the provided chunk slice.
+func containsChunk(addr cluster.Address, chs ...cluster.Chunk) bool {
+	for _, c := range chs {
+		if addr.Equal(c.Address()) {
+			return true
+		}
+	}
+	return false
+}
+
+func noopWaitFn() error {
+	return nil
+}

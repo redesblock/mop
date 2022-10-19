@@ -1,0 +1,48 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/redesblock/mop/core/api/jsonhttp"
+	"github.com/redesblock/mop/core/cluster"
+	"github.com/redesblock/mop/core/p2p"
+)
+
+type pingpongResponse struct {
+	RTT string `json:"rtt"`
+}
+
+func (s *Service) pingpongHandler(w http.ResponseWriter, r *http.Request) {
+	peerID := mux.Vars(r)["peer-id"]
+	ctx := r.Context()
+
+	span, logger, ctx := s.tracer.StartSpanFromContext(ctx, "pingpong-api", s.logger)
+	defer span.Finish()
+
+	address, err := cluster.ParseHexAddress(peerID)
+	if err != nil {
+		logger.Debug("pingpong: parse peer address string failed", "string", peerID, "error", err)
+		jsonhttp.BadRequest(w, "invalid peer address")
+		return
+	}
+
+	rtt, err := s.pingpong.Ping(ctx, address, "ping")
+	if err != nil {
+		logger.Debug("pingpong: ping failed", "peer_address", address, "error", err)
+		if errors.Is(err, p2p.ErrPeerNotFound) {
+			jsonhttp.NotFound(w, "peer not found")
+			return
+		}
+
+		logger.Error(nil, "pingpong: ping failed", "peer_address", address)
+		jsonhttp.InternalServerError(w, "pingpong: ping failed")
+		return
+	}
+
+	logger.Info("pingpong: ping succeeded", "peer_address", address)
+	jsonhttp.OK(w, pingpongResponse{
+		RTT: rtt.String(),
+	})
+}
