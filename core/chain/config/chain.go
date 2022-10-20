@@ -18,8 +18,14 @@ var (
 	testnetFactoryAddress  = common.HexToAddress("0x46934d6027cd3b849Dc94b1947a37a4cA6950b3F")
 	mainnetFactoryAddress  = common.HexToAddress("")
 	// voucher stamp
-	testnetVoucherStampContractAddress = common.HexToAddress("0x179f367Cf345cE5fAB50D66E6b6F39C02dA47C85")
+	testnetVoucherStampContractAddress = common.HexToAddress("0xB314052ACd38A66fBDa2a1D43f3AA593c7dd5e24")
 	mainnetVoucherStampContractAddress = common.HexToAddress("")
+	// pledge
+	testnetPledgeContractAddress = common.HexToAddress("0xb5586586Ca0FD535389C7c034e0D8ce53a58C78B")
+	mainnetPledgeContractAddress = common.HexToAddress("")
+	// reward
+	testnetRewardContractAddress = common.HexToAddress("0x179f367Cf345cE5fAB50D66E6b6F39C02dA47C85")
+	mainnetRewardContractAddress = common.HexToAddress("")
 )
 
 type ChainConfig struct {
@@ -28,6 +34,8 @@ type ChainConfig struct {
 	VoucherStamp       common.Address
 	CurrentFactory     common.Address
 	PriceOracleAddress common.Address
+	PledgeAddress      common.Address
+	RewardAddress      common.Address
 }
 
 func GetChainConfig(chainID int64) (*ChainConfig, bool) {
@@ -39,6 +47,8 @@ func GetChainConfig(chainID int64) (*ChainConfig, bool) {
 		cfg.CurrentFactory = testnetFactoryAddress
 		cfg.LegacyFactories = []common.Address{}
 		cfg.PriceOracleAddress = testnetContractAddress
+		cfg.PledgeAddress = testnetPledgeContractAddress
+		cfg.RewardAddress = testnetRewardContractAddress
 		return &cfg, true
 	case mainnetChainID:
 		cfg.VoucherStamp = mainnetVoucherStampContractAddress
@@ -46,6 +56,8 @@ func GetChainConfig(chainID int64) (*ChainConfig, bool) {
 		cfg.CurrentFactory = mainnetFactoryAddress
 		cfg.LegacyFactories = []common.Address{}
 		cfg.PriceOracleAddress = mainnetContractAddress
+		cfg.PledgeAddress = mainnetPledgeContractAddress
+		cfg.RewardAddress = mainnetRewardContractAddress
 		return &cfg, true
 	default:
 		return &cfg, false

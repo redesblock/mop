@@ -1,7 +1,7 @@
 openapi: 3.0.3
 
 info:
-  version: 3.0.2
+  version: 0.9.0
   title: Mop API
   description: "A list of the currently provided Interfaces to interact with the cluster, implementing file operations and sending messages"
 
@@ -19,7 +19,7 @@ servers:
         default: "localhost"
         description: Base address of the local mop node main API
       port:
-        default: "1633"
+        default: "1683"
         description: Service port provided in mop node config
   - url: "http://{apiRoot}:{port}"
     variables:
@@ -27,7 +27,7 @@ servers:
         default: "localhost"
         description: Base address of the local mop node main API
       port:
-        default: "1633"
+        default: "1683"
         description: Service port provided in mop node config
 
 paths:

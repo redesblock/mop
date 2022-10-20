@@ -60,28 +60,28 @@ func checkBalance(
 			}
 		}
 
-		minimumEth := gasPrice.Mul(gasPrice, big.NewInt(250000))
+		minimumBNB := gasPrice.Mul(gasPrice, big.NewInt(250000))
 
 		insufficientERC20 := erc20Balance.Cmp(swapInitialDeposit) < 0
-		insufficientETH := ethBalance.Cmp(minimumEth) < 0
+		insufficientBNB := ethBalance.Cmp(minimumBNB) < 0
 
 		erc20SmallUnit, ethSmallUnit := new(big.Int), new(big.Float)
 		erc20SmallUnit.SetString(erc20SmallUnitStr, 10)
 		ethSmallUnit.SetString(ethSmallUnitStr)
 
-		if insufficientERC20 || insufficientETH {
+		if insufficientERC20 || insufficientBNB {
 			neededERC20, mod := new(big.Int).DivMod(swapInitialDeposit, erc20SmallUnit, new(big.Int))
 			if mod.Cmp(big.NewInt(0)) > 0 {
 				// always round up the division as the mopaar cannot handle decimals
 				neededERC20.Add(neededERC20, big.NewInt(1))
 			}
 
-			neededETH := new(big.Float).Quo(new(big.Float).SetInt(minimumEth), ethSmallUnit)
+			neededBNB := new(big.Float).Quo(new(big.Float).SetInt(minimumBNB), ethSmallUnit)
 
-			if insufficientETH && insufficientERC20 {
-				logger.Warning("cannot continue until there is at least min BNB (for Gas) and at least min MOP bridged on the BNB Smart Chain network available on address", "min_bnb_amount", neededETH, "min_mop_amount", neededERC20, "address", fmt.Sprintf("%x", overlayEthAddress))
-			} else if insufficientETH {
-				logger.Warning("cannot continue until there is at least min BNB (for Gas) available on address", "min_bnb_amount", neededETH, "address", fmt.Sprintf("%x", overlayEthAddress))
+			if insufficientBNB && insufficientERC20 {
+				logger.Warning("cannot continue until there is at least min BNB (for Gas) and at least min MOP bridged on the BNB Smart Chain network available on address", "min_bnb_amount", neededBNB, "min_mop_amount", neededERC20, "address", fmt.Sprintf("%x", overlayEthAddress))
+			} else if insufficientBNB {
+				logger.Warning("cannot continue until there is at least min BNB (for Gas) available on address", "min_bnb_amount", neededBNB, "address", fmt.Sprintf("%x", overlayEthAddress))
 			} else {
 				logger.Warning("cannot continue until there is at least min MOP available on address", "min_mop_amount", neededERC20, "address", fmt.Sprintf("%x", overlayEthAddress))
 			}
@@ -94,7 +94,7 @@ func checkBalance(
 				if insufficientERC20 {
 					return errors.New("insufficient MOP for initial deposit")
 				} else {
-					return errors.New("insufficient ETH for initial deposit")
+					return errors.New("insufficient BNB for initial deposit")
 				}
 			}
 			continue

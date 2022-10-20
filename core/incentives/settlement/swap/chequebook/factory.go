@@ -78,7 +78,7 @@ func (c *factory) Deploy(ctx context.Context, issuer common.Address, defaultHard
 		To:          &c.address,
 		Data:        callData,
 		GasPrice:    mctx.GetGasPrice(ctx),
-		GasLimit:    175000,
+		GasLimit:    2500000,
 		Value:       big.NewInt(0),
 		Description: "chequebook deployment",
 	}

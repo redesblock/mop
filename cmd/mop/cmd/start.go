@@ -201,6 +201,8 @@ func (c *command) initStartCmd() (err error) {
 				BlockHash:                  c.config.GetString(optionNameBlockHash),
 				VoucherContractAddress:     c.config.GetString(optionNameVoucherContractAddress),
 				PriceOracleAddress:         c.config.GetString(optionNamePriceOracleAddress),
+				PledgeAddress:              c.config.GetString(optionNamePledgeAddress),
+				RewardAddress:              c.config.GetString(optionNameRewardAddress),
 				BlockTime:                  networkConfig.blockTime,
 				DeployGasPrice:             c.config.GetString(optionNameSwapDeploymentGasPrice),
 				WarmupTime:                 c.config.GetDuration(optionWarmUpTime),
@@ -215,6 +217,7 @@ func (c *command) initStartCmd() (err error) {
 				TokenEncryptionKey:         c.config.GetString(optionNameTokenEncryptionKey),
 				AdminPasswordHash:          c.config.GetString(optionNameAdminPasswordHash),
 				UseVoucherSnapshot:         c.config.GetBool(optionNameUseVoucherSnapshot),
+				ReceiptEndPoint:            c.config.GetString(optionNameReceiptEndpoint),
 			})
 			if err != nil {
 				return err

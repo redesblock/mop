@@ -62,6 +62,8 @@ const (
 	optionNameFullNode                   = "full-node"
 	optionNameVoucherContractAddress     = "voucher-stamp-address"
 	optionNamePriceOracleAddress         = "price-oracle-address"
+	optionNamePledgeAddress              = "pledge-address"
+	optionNameRewardAddress              = "reward-address"
 	optionNameBlockTime                  = "block-time"
 	optionWarmUpTime                     = "warmup-time"
 	optionNameMainNet                    = "mainnet"
@@ -77,6 +79,7 @@ const (
 	optionNameTokenEncryptionKey         = "token-encryption-key"
 	optionNameAdminPasswordHash          = "admin-password"
 	optionNameUseVoucherSnapshot         = "use-voucher-snapshot"
+	optionNameReceiptEndpoint            = "push-receipt-endpoint"
 )
 
 func init() {
@@ -137,6 +140,30 @@ func newCommand(opts ...option) (c *command, err error) {
 	}
 
 	if err := c.initDeployCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initBuyStampCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initListStampCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initShowStampCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initUploadCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initDownloadCmd(); err != nil {
+		return nil, err
+	}
+
+	if err := c.initExportPrivateCmd(); err != nil {
 		return nil, err
 	}
 
@@ -221,17 +248,17 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameDBDisableSeeksCompaction, false, "disables db compactions triggered by seeks")
 	cmd.Flags().String(optionNamePassword, "", "password for decrypting keys")
 	cmd.Flags().String(optionNamePasswordFile, "", "path to a file that contains password for decrypting keys")
-	cmd.Flags().String(optionNameAPIAddr, ":1633", "HTTP API listen address")
-	cmd.Flags().String(optionNameP2PAddr, ":1634", "P2P listen address")
+	cmd.Flags().String(optionNameAPIAddr, ":1683", "HTTP API listen address")
+	cmd.Flags().String(optionNameP2PAddr, ":1684", "P2P listen address")
 	cmd.Flags().String(optionNameNATAddr, "", "NAT exposed address")
 	cmd.Flags().Bool(optionNameP2PWSEnable, false, "enable P2P WebSocket transport")
 	cmd.Flags().StringSlice(optionNameBootnodes, []string{""}, "initial nodes to connect to")
 	cmd.Flags().Bool(optionNameDebugAPIEnable, false, "enable debug HTTP API")
-	cmd.Flags().String(optionNameDebugAPIAddr, ":1635", "debug HTTP API listen address")
+	cmd.Flags().String(optionNameDebugAPIAddr, ":1685", "debug HTTP API listen address")
 	cmd.Flags().Uint64(optionNameNetworkID, 1, "ID of the Cluster network")
 	cmd.Flags().StringSlice(optionCORSAllowedOrigins, []string{}, "origins with CORS headers enabled")
 	cmd.Flags().Bool(optionNameTracingEnabled, false, "enable tracer")
-	cmd.Flags().String(optionNameTracingEndpoint, "127.0.0.1:6831", "endpoint to send tracer data")
+	cmd.Flags().String(optionNameTracingEndpoint, "127.0.0.1:1680", "endpoint to send tracer data")
 	cmd.Flags().String(optionNameTracingHost, "", "host to send tracer data")
 	cmd.Flags().String(optionNameTracingPort, "", "port to send tracer data")
 	cmd.Flags().String(optionNameTracingServiceName, "mop", "service name identifier for tracer")
@@ -255,9 +282,11 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameFullNode, false, "cause the node to start in full mode")
 	cmd.Flags().String(optionNameVoucherContractAddress, "", "voucher stamp contract address")
 	cmd.Flags().String(optionNamePriceOracleAddress, "", "price oracle contract address")
+	cmd.Flags().String(optionNamePledgeAddress, "", "pledge contract address")
+	cmd.Flags().String(optionNameRewardAddress, "", "reward contract address")
 	cmd.Flags().String(optionNameTransactionHash, "", "proof-of-identity transaction hash")
 	cmd.Flags().String(optionNameBlockHash, "", "block hash of the block whose parent is the block that contains the transaction hash")
-	cmd.Flags().Uint64(optionNameBlockTime, 15, "chain block time")
+	cmd.Flags().Uint64(optionNameBlockTime, 3, "chain block time")
 	cmd.Flags().String(optionNameSwapDeploymentGasPrice, "", "gas price in wei to use for deployment and funding")
 	cmd.Flags().Duration(optionWarmUpTime, time.Minute*5, "time to warmup the node before some major protocols can be kicked off.")
 	cmd.Flags().Bool(optionNameMainNet, true, "triggers connect to main net bootnodes.")
@@ -271,6 +300,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameTokenEncryptionKey, "", "admin username to get the security token")
 	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
 	cmd.Flags().Bool(optionNameUseVoucherSnapshot, false, "bootstrap node using voucher snapshot from the network")
+	cmd.Flags().String(optionNameReceiptEndpoint, "", "receive receipt server")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {

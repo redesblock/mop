@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/redesblock/mop/core/incentives/pledge"
+	"github.com/redesblock/mop/core/incentives/reward"
 	"io"
 	"math"
 	"math/big"
@@ -125,6 +127,8 @@ type Service struct {
 	signer          crypto.Signer
 	post            voucher.Service
 	voucherContract vouchercontract.Interface
+	pledgeContract  pledge.Service
+	rewardContract  reward.Service
 	chunkPushC      chan *pusher.Op
 	metricsRegistry *prometheus.Registry
 	Options
@@ -207,6 +211,8 @@ type ExtraOptions struct {
 	FeedFactory      feeds.Factory
 	Post             voucher.Service
 	VoucherContract  vouchercontract.Interface
+	PledgeContract   pledge.Service
+	RewardContract   reward.Service
 	Warden           warden.Interface
 	SyncStatus       func() (bool, error)
 }
@@ -252,6 +258,8 @@ func (s *Service) Configure(signer crypto.Signer, auth authenticator, tracer *tr
 	s.feedFactory = e.FeedFactory
 	s.post = e.Post
 	s.voucherContract = e.VoucherContract
+	s.pledgeContract = e.PledgeContract
+	s.rewardContract = e.RewardContract
 	s.warden = e.Warden
 
 	s.pingpong = e.Pingpong

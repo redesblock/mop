@@ -408,6 +408,38 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 		"GET": http.HandlerFunc(s.settlementsHandlerPseudosettle),
 	})
 
+	handle("/node/balance", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeBalanceHandler),
+	})
+
+	handle("/reward/balance", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeRewardBalanceHandler),
+	})
+
+	handle("/reward/transactions", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodeRewardTransactionHandler),
+	})
+
+	handle("/reward/cash/{amount}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.nodeRewardCashHandler),
+	})
+
+	handle("/pledge/stake/{amount}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.nodePledgeStakeHandler),
+	})
+
+	handle("/pledge/unstake/{amount}", jsonhttp.MethodHandler{
+		"POST": http.HandlerFunc(s.nodePledgeUnStakeHandler),
+	})
+
+	handle("/pledge/balance", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodePledgeHandler),
+	})
+
+	handle("/pledge/transactions", jsonhttp.MethodHandler{
+		"GET": http.HandlerFunc(s.nodePledgeTransactionHandler),
+	})
+
 	if s.swapEnabled {
 		handle("/settlements", jsonhttp.MethodHandler{
 			"GET": http.HandlerFunc(s.settlementsHandler),

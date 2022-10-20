@@ -347,7 +347,7 @@ func LookupERC20Address(ctx context.Context, transactionService transaction.Serv
 		return common.Address{}, nil
 	}
 
-	callData, err := voucherStampABI.Pack("mopToken")
+	callData, err := voucherStampABI.Pack("token")
 	if err != nil {
 		return common.Address{}, err
 	}

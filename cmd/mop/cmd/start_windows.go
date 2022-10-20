@@ -38,16 +38,16 @@ type windowsEventLogger struct {
 func (l windowsEventLogger) Debug(_ string, _ ...interface{}) {}
 
 func (l windowsEventLogger) Info(msg string, keysAndValues ...interface{}) {
-	_ = l.winlog.Info(1633, fmt.Sprintf("%s %s", msg, fmt.Sprintln(keysAndValues...)))
+	_ = l.winlog.Info(1683, fmt.Sprintf("%s %s", msg, fmt.Sprintln(keysAndValues...)))
 }
 
 func (l windowsEventLogger) Warning(msg string, keysAndValues ...interface{}) {
-	_ = l.winlog.Warning(1633, fmt.Sprintf("%s %s", msg, fmt.Sprintln(keysAndValues...)))
+	_ = l.winlog.Warning(1683, fmt.Sprintf("%s %s", msg, fmt.Sprintln(keysAndValues...)))
 }
 
 func (l windowsEventLogger) Error(err error, msg string, keysAndValues ...interface{}) {
 	if err != nil {
 		keysAndValues = append(keysAndValues, "error", err)
 	}
-	_ = l.winlog.Error(1633, fmt.Sprintf("%s %s", msg, fmt.Sprintln(keysAndValues...)))
+	_ = l.winlog.Error(1683, fmt.Sprintf("%s %s", msg, fmt.Sprintln(keysAndValues...)))
 }

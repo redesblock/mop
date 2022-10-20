@@ -4,8 +4,11 @@ package pushsync
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -69,23 +72,24 @@ type Receipt struct {
 }
 
 type PushSync struct {
-	address        cluster.Address
-	nonce          []byte
-	streamer       p2p.StreamerDisconnecter
-	storer         storage.Putter
-	topologyDriver topology.Driver
-	tagger         *tags.Tags
-	unwrap         func(cluster.Chunk)
-	logger         log.Logger
-	accounting     bookkeeper.Interface
-	pricer         pricer.Interface
-	metrics        metrics
-	tracer         *tracer.Tracer
-	validStamp     voucher.ValidStampFn
-	signer         crypto.Signer
-	isFullNode     bool
-	warmupPeriod   time.Time
-	skipList       *peerSkipList
+	address         cluster.Address
+	nonce           []byte
+	streamer        p2p.StreamerDisconnecter
+	storer          storage.Putter
+	topologyDriver  topology.Driver
+	tagger          *tags.Tags
+	unwrap          func(cluster.Chunk)
+	logger          log.Logger
+	accounting      bookkeeper.Interface
+	pricer          pricer.Interface
+	metrics         metrics
+	tracer          *tracer.Tracer
+	validStamp      voucher.ValidStampFn
+	signer          crypto.Signer
+	isFullNode      bool
+	warmupPeriod    time.Time
+	skipList        *peerSkipList
+	receiptEndPoint string
 }
 
 type receiptResult struct {
@@ -96,24 +100,25 @@ type receiptResult struct {
 	err      error
 }
 
-func New(address cluster.Address, nonce []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(cluster.Chunk), validStamp voucher.ValidStampFn, logger log.Logger, accounting bookkeeper.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracer.Tracer, warmupTime time.Duration) *PushSync {
+func New(address cluster.Address, nonce []byte, streamer p2p.StreamerDisconnecter, storer storage.Putter, topology topology.Driver, tagger *tags.Tags, isFullNode bool, unwrap func(cluster.Chunk), validStamp voucher.ValidStampFn, logger log.Logger, accounting bookkeeper.Interface, pricer pricer.Interface, signer crypto.Signer, tracer *tracer.Tracer, warmupTime time.Duration, receiptEndPoint string) *PushSync {
 	ps := &PushSync{
-		address:        address,
-		nonce:          nonce,
-		streamer:       streamer,
-		storer:         storer,
-		topologyDriver: topology,
-		tagger:         tagger,
-		isFullNode:     isFullNode,
-		unwrap:         unwrap,
-		logger:         logger.WithName(loggerName).Register(),
-		accounting:     accounting,
-		pricer:         pricer,
-		metrics:        newMetrics(),
-		tracer:         tracer,
-		signer:         signer,
-		skipList:       newPeerSkipList(),
-		warmupPeriod:   time.Now().Add(warmupTime),
+		address:         address,
+		nonce:           nonce,
+		streamer:        streamer,
+		storer:          storer,
+		topologyDriver:  topology,
+		tagger:          tagger,
+		isFullNode:      isFullNode,
+		unwrap:          unwrap,
+		logger:          logger.WithName(loggerName).Register(),
+		accounting:      accounting,
+		pricer:          pricer,
+		metrics:         newMetrics(),
+		tracer:          tracer,
+		signer:          signer,
+		skipList:        newPeerSkipList(),
+		warmupPeriod:    time.Now().Add(warmupTime),
+		receiptEndPoint: receiptEndPoint,
 	}
 
 	ps.validStamp = ps.validStampWrapper(validStamp)
@@ -453,6 +458,17 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch cluster.Chunk, origin 
 			}
 
 			if result.err == nil {
+				if len(ps.receiptEndPoint) > 0 {
+					t := time.Now()
+					bts, _ := json.Marshal(result.receipt)
+					resp, err := http.Post(ps.receiptEndPoint+"/api/receipt", "application/json", strings.NewReader(string(bts)))
+					if err != nil {
+						logger.Error(err, fmt.Sprintf("pushsync: push receipt %s error: %s", cluster.NewAddress(result.receipt.Address)))
+					} else {
+						resp.Body.Close()
+					}
+					logger.Debug(fmt.Sprintf("pushsync: push receipt %s to peer %s, duration %v", cluster.NewAddress(result.receipt.Address), result.peer, time.Now().Sub(t)))
+				}
 				return result.receipt, nil
 			}
 

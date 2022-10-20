@@ -23,6 +23,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/redesblock/mop/core/incentives/pledge"
+	"github.com/redesblock/mop/core/incentives/reward"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-multierror"
 	ma "github.com/multiformats/go-multiaddr"
@@ -157,6 +160,8 @@ type Options struct {
 	BlockHash                  string
 	VoucherContractAddress     string
 	PriceOracleAddress         string
+	PledgeAddress              string
+	RewardAddress              string
 	BlockTime                  uint64
 	DeployGasPrice             string
 	WarmupTime                 time.Duration
@@ -170,18 +175,20 @@ type Options struct {
 	TokenEncryptionKey         string
 	AdminPasswordHash          string
 	UseVoucherSnapshot         bool
+	ReceiptEndPoint            string
 }
 
 const (
-	refreshRate                   = int64(4500000)            // bookkeeper units refreshed per second
-	lightFactor                   = 10                        // downscale payment thresholds and their change rate, and refresh rates by this for light nodes
-	lightRefreshRate              = refreshRate / lightFactor // refresh rate used by / for light nodes
-	basePrice                     = 10000                     // minimal price for retrieval and pushsync requests of maximum proximity
-	voucherSyncingStallingTimeout = 10 * time.Minute          //
-	voucherSyncingBackoffTimeout  = 5 * time.Second           //
-	minPaymentThreshold           = 2 * refreshRate           // minimal accepted payment threshold of full nodes
-	maxPaymentThreshold           = 24 * refreshRate          // maximal accepted payment threshold of full nodes
-	mainnetNetworkID              = uint64(1)                 //
+	refreshRate      = int64(4500000)            // bookkeeper units refreshed per second
+	lightFactor      = 10                        // downscale payment thresholds and their change rate, and refresh rates by this for light nodes
+	lightRefreshRate = refreshRate / lightFactor // refresh rate used by / for light nodes
+	// basePrice                     = 10000                     // minimal price for retrieval and pushsync requests of maximum proximity
+	basePrice                     = 0                // TODO REMOVED
+	voucherSyncingStallingTimeout = 10 * time.Minute //
+	voucherSyncingBackoffTimeout  = 5 * time.Second  //
+	minPaymentThreshold           = 2 * refreshRate  // minimal accepted payment threshold of full nodes
+	maxPaymentThreshold           = 24 * refreshRate // maximal accepted payment threshold of full nodes
+	mainnetNetworkID              = uint64(1)        //
 )
 
 func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, publicKey *ecdsa.PublicKey, signer crypto.Signer, networkID uint64, logger log.Logger, libp2pPrivateKey, pssPrivateKey *ecdsa.PrivateKey, o *Options) (b *Mop, err error) {
@@ -674,12 +681,12 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 	batchSvc, err = batchservice.New(stateStore, batchStore, logger, eventListener, overlayEthAddress.Bytes(), post, sha3.New256, o.Resync)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("batch service load: %w", err)
 	}
 
 	erc20Address, err := vouchercontract.LookupERC20Address(p2pCtx, transactionService, voucherContractAddress, chainEnabled)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("vouchercontract lookup erc20: %w", err)
 	}
 
 	voucherContractService = vouchercontract.New(
@@ -690,6 +697,37 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		post,
 		batchStore,
 		chainEnabled,
+	)
+
+	pledgeAddress := chainCfg.PledgeAddress
+	if o.PledgeAddress != "" {
+		if !common.IsHexAddress(o.PledgeAddress) {
+			return nil, errors.New("malformed pledge address")
+		}
+		pledgeAddress = common.HexToAddress(o.PledgeAddress)
+	} else if !found {
+		return nil, errors.New("no known pledge addresses for this network")
+	}
+
+	pledgeContractService := pledge.New(
+		stateStore,
+		transactionService,
+		pledgeAddress,
+	)
+
+	rewardAddress := chainCfg.RewardAddress
+	if o.RewardAddress != "" {
+		if !common.IsHexAddress(o.RewardAddress) {
+			return nil, errors.New("malformed reward address")
+		}
+		rewardAddress = common.HexToAddress(o.RewardAddress)
+	} else if !found {
+		return nil, errors.New("no known reward addresses for this network")
+	}
+	rewardContractService := reward.New(
+		stateStore,
+		transactionService,
+		rewardAddress,
 	)
 
 	if natManager := p2ps.NATManager(); natManager != nil {
@@ -894,7 +932,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 	pinningService := pins.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(clusterAddress, nonce, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime)
+	pushSyncProtocol := pushsync.New(clusterAddress, nonce, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -986,6 +1024,8 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		FeedFactory:      feedFactory,
 		Post:             post,
 		VoucherContract:  voucherContractService,
+		PledgeContract:   pledgeContractService,
+		RewardContract:   rewardContractService,
 		Warden:           warden,
 		SyncStatus:       syncStatusFn,
 	}

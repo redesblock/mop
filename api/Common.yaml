@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  version: 2.0.3
+  version: 0.9.0
   title: Common Data Types
   description: |
     \*****mopz*****
@@ -296,7 +296,7 @@ components:
 
     P2PUnderlay:
       type: string
-      example: "/ip4/127.0.0.1/tcp/1634/p2p/16Uiu2HAmTm17toLDaPYzRyjKn27iCB76yjKnJ5DjQXneFmifFvaX"
+      example: "/ip4/127.0.0.1/tcp/1684/p2p/16Uiu2HAmTm17toLDaPYzRyjKn27iCB76yjKnJ5DjQXneFmifFvaX"
 
     PeerMetricsView:
       type: object

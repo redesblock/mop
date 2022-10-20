@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  version: 2.0.1
+  version: 0.9.0
   title: Mop Debug API
   description: "A list of the currently provided debug interfaces to interact with the mop node"
 
@@ -18,7 +18,7 @@ servers:
         default: "localhost"
         description: Base address of the local mop node debug API
       port:
-        default: "1635"
+        default: "1685"
         description: Service port provided in mop node config
 
 paths:
