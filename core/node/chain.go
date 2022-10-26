@@ -45,7 +45,7 @@ func InitChain(
 	ctx context.Context,
 	logger log.Logger,
 	stateStore storage.StateStorer,
-	endpoint string,
+	endpoints []string,
 	oChainID int64,
 	signer crypto.Signer,
 	pollingInterval time.Duration,
@@ -56,22 +56,24 @@ func InitChain(
 	}
 
 	if chainEnabled {
-		// connect to the real one
-		rpcClient, err := rpc.DialContext(ctx, endpoint)
-		if err != nil {
-			return nil, common.Address{}, 0, nil, nil, fmt.Errorf("dial eth client: %w", err)
+		var backends []transaction.Backend
+		for _, endpoint := range endpoints {
+			// connect to the real one
+			rpcClient, err := rpc.DialContext(ctx, endpoint)
+			if err != nil {
+				return nil, common.Address{}, 0, nil, nil, fmt.Errorf("dial eth client: %w", err)
+			}
+
+			var versionString string
+			err = rpcClient.CallContext(ctx, &versionString, "web3_clientVersion")
+			if err != nil {
+				logger.Info("could not connect to backend; in a swap-enabled network a working blockchain node is required; check your node or specify another node using --bsc-rpc-endpoint.", "backend_endpoint", endpoint)
+				return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
+			}
+			logger.Info("connected to BNB Smart Chain backend", "version", versionString, "backend_endpoint", endpoint)
+			backends = append(backends, ethclient.NewClient(rpcClient))
 		}
-
-		var versionString string
-		err = rpcClient.CallContext(ctx, &versionString, "web3_clientVersion")
-		if err != nil {
-			logger.Info("could not connect to backend; in a swap-enabled network a working blockchain node (for bnb network in production, goerli in testnet) is required; check your node or specify another node using --swap-endpoint.", "backend_endpoint", endpoint)
-			return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
-		}
-
-		logger.Info("connected to BNB Smart Chain backend", "version", versionString)
-
-		backend = wrapped.NewBackend(ethclient.NewClient(rpcClient))
+		backend = wrapped.NewBackend(backends...)
 	}
 
 	chainID, err := backend.ChainID(ctx)

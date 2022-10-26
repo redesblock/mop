@@ -31,7 +31,7 @@ func (c *command) initDeployCmd() error {
 			dataDir := c.config.GetString(optionNameDataDir)
 			factoryAddress := c.config.GetString(optionNameSwapFactoryAddress)
 			swapInitialDeposit := c.config.GetString(optionNameSwapInitialDeposit)
-			swapEndpoint := c.config.GetString(optionNameSwapEndpoint)
+			bscEndpoints := c.config.GetStringSlice(optionNameBSCEndpoint)
 			deployGasPrice := c.config.GetString(optionNameSwapDeploymentGasPrice)
 			networkID := c.config.GetUint64(optionNameNetworkID)
 
@@ -54,7 +54,7 @@ func (c *command) initDeployCmd() error {
 				ctx,
 				logger,
 				stateStore,
-				swapEndpoint,
+				bscEndpoints,
 				0,
 				signer,
 				blocktime,

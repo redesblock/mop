@@ -149,7 +149,7 @@ type Options struct {
 	RetrievalCaching           bool
 	GatewayMode                bool
 	BootnodeMode               bool
-	SwapEndpoint               string
+	BSCEndpoints               []string
 	SwapFactoryAddress         string
 	SwapLegacyFactoryAddresses []string
 	SwapInitialDeposit         string
@@ -267,7 +267,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		erc20Service       erc20.Service
 	)
 
-	chainEnabled := isChainEnabled(o, o.SwapEndpoint, logger)
+	chainEnabled := isChainEnabled(o, o.BSCEndpoints, logger)
 
 	var batchStore voucher.Storer = new(voucher.NoOpBatchStore)
 	var unreserveFn func([]byte, uint8) (uint64, error)
@@ -287,7 +287,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		p2pCtx,
 		logger,
 		stateStore,
-		o.SwapEndpoint,
+		o.BSCEndpoints,
 		o.ChainID,
 		signer,
 		pollingInterval,
@@ -1287,8 +1287,8 @@ func (b *Mop) Shutdown() error {
 
 var ErrShutdownInProgress error = errors.New("shutdown in progress")
 
-func isChainEnabled(o *Options, swapEndpoint string, logger log.Logger) bool {
-	chainDisabled := swapEndpoint == ""
+func isChainEnabled(o *Options, bscEndpoints []string, logger log.Logger) bool {
+	chainDisabled := len(bscEndpoints) == 0
 	lightMode := !o.FullNodeMode
 
 	if lightMode && chainDisabled { // ultra light mode is LightNode mode with chain disabled

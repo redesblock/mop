@@ -190,7 +190,7 @@ func (c *command) initStartCmd() (err error) {
 				ResolverConnectionCfgs:     resolverCfgs,
 				GatewayMode:                c.config.GetBool(optionNameGatewayMode),
 				BootnodeMode:               bootNode,
-				SwapEndpoint:               c.config.GetString(optionNameSwapEndpoint),
+				BSCEndpoints:               c.config.GetStringSlice(optionNameBSCEndpoint),
 				SwapFactoryAddress:         c.config.GetString(optionNameSwapFactoryAddress),
 				SwapLegacyFactoryAddresses: c.config.GetStringSlice(optionNameSwapLegacyFactoryAddresses),
 				SwapInitialDeposit:         c.config.GetString(optionNameSwapInitialDeposit),
