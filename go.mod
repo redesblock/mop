@@ -66,6 +66,7 @@ require (
 
 require (
 	github.com/ipfs/go-cid v0.0.7
+	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/libp2p/go-libp2p-yamux v0.6.0
 	github.com/multiformats/go-multihash v0.0.15
 )
@@ -99,6 +100,7 @@ require (
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/klauspost/compress v1.11.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
+	github.com/lestrrat-go/strftime v1.0.6 // indirect
 	github.com/libp2p/go-addr-util v0.1.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect

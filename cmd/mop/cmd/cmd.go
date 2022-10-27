@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/log"
 	"github.com/redesblock/mop/core/node"
@@ -308,6 +309,54 @@ func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {
 		sink   = cmd.OutOrStdout()
 		vLevel = log.VerbosityNone
 	)
+
+	switch verbosity {
+	case "0", "silent":
+		sink = io.Discard
+	case "1", "error":
+		vLevel = log.VerbosityError
+	case "2", "warn":
+		vLevel = log.VerbosityWarning
+	case "3", "info":
+		vLevel = log.VerbosityInfo
+	case "4", "debug":
+		vLevel = log.VerbosityDebug
+	case "5", "trace":
+		vLevel = log.VerbosityDebug + 1 // For backwards compatibility, just enable v1 debugging as trace.
+	default:
+		return nil, fmt.Errorf("unknown verbosity level %q", verbosity)
+	}
+
+	log.ModifyDefaults(
+		log.WithTimestamp(),
+		log.WithLogMetrics(),
+	)
+
+	return log.NewLogger(
+		node.LoggerName,
+		log.WithSink(sink),
+		log.WithVerbosity(vLevel),
+	).Register(), nil
+}
+
+func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Logger, error) {
+	var (
+		sink   = cmd.OutOrStdout()
+		vLevel = log.VerbosityNone
+	)
+
+	if dataDir != "" {
+		if v, err := rotatelogs.New(
+			filepath.Join(dataDir, "logs", "mop.log.%Y%m%d"),
+			rotatelogs.WithLinkName(filepath.Join(dataDir, "logs", "mop.log")),
+			rotatelogs.WithMaxAge(15*24*time.Hour),
+			rotatelogs.WithRotationTime(24*time.Hour),
+		); err != nil {
+			return nil, fmt.Errorf("unknown log file %s", err)
+		} else {
+			sink = v
+		}
+	}
 
 	switch verbosity {
 	case "0", "silent":

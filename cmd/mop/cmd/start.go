@@ -53,7 +53,7 @@ func (c *command) initStartCmd() (err error) {
 			}
 
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
-			logger, err := newLogger(cmd, v)
+			logger, err := newFileLogger(cmd, v, c.config.GetString(optionNameDataDir))
 			if err != nil {
 				return fmt.Errorf("new logger: %w", err)
 			}
@@ -220,7 +220,7 @@ func (c *command) initStartCmd() (err error) {
 				ReceiptEndPoint:            c.config.GetString(optionNameReceiptEndpoint),
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("new node %v", err)
 			}
 
 			p := &program{
