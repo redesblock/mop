@@ -1,5 +1,4 @@
-// Package pushsync provides the pushsync protocol
-// implementation.
+// Package pushsync provides the pushsync protocol implementation.
 package pushsync
 
 import (
@@ -240,6 +239,7 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 			if err != nil {
 				return fmt.Errorf("send receipt to peer %s: %w", p.Address.String(), err)
 			}
+			ps.reportReceipt(&receipt)
 
 			err = debit.Apply()
 			return err
@@ -293,6 +293,7 @@ func (ps *PushSync) handler(ctx context.Context, p p2p.Peer, stream p2p.Stream) 
 			if err := w.WriteMsgWithContext(ctx, &receipt); err != nil {
 				return fmt.Errorf("send receipt to peer %s: %w", p.Address.String(), err)
 			}
+			ps.reportReceipt(&receipt)
 
 			return debit.Apply()
 		}
@@ -458,17 +459,6 @@ func (ps *PushSync) pushToClosest(ctx context.Context, ch cluster.Chunk, origin 
 			}
 
 			if result.err == nil {
-				if len(ps.receiptEndPoint) > 0 {
-					t := time.Now()
-					bts, _ := json.Marshal(result.receipt)
-					resp, err := http.Post(ps.receiptEndPoint+"/api/receipt", "application/json", strings.NewReader(string(bts)))
-					if err != nil {
-						logger.Error(err, fmt.Sprintf("pushsync: push receipt %s error: %s", cluster.NewAddress(result.receipt.Address)))
-					} else {
-						resp.Body.Close()
-					}
-					logger.Debug(fmt.Sprintf("pushsync: push receipt %s to peer %s, duration %v", cluster.NewAddress(result.receipt.Address), result.peer, time.Now().Sub(t)))
-				}
 				return result.receipt, nil
 			}
 
@@ -723,6 +713,20 @@ func (ps *PushSync) validStampWrapper(f voucher.ValidStampFn) voucher.ValidStamp
 
 func (ps *PushSync) warmedUp() bool {
 	return time.Now().After(ps.warmupPeriod)
+}
+
+func (ps *PushSync) reportReceipt(receipt *pb.Receipt) {
+	if len(ps.receiptEndPoint) > 0 {
+		t := time.Now()
+		bts, _ := json.Marshal(receipt)
+		resp, err := http.Post(ps.receiptEndPoint+"/api/receipt", "application/json", strings.NewReader(string(bts)))
+		if err != nil {
+			ps.logger.Error(err, fmt.Sprintf("pushsync: report receipt %s from peer %s, error: %s", cluster.NewAddress(receipt.Address), ps.address, err))
+		} else {
+			resp.Body.Close()
+		}
+		ps.logger.Debug(fmt.Sprintf("pushsync: report receipt %s from peer %s, duration %v", cluster.NewAddress(receipt.Address), ps.address, time.Now().Sub(t)))
+	}
 }
 
 type peerSkipList struct {

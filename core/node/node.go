@@ -463,7 +463,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		return nil, err
 	}
 
-	// if theres a previous transaction hash, and not a new chequebook deployment on a node starting from scratch
+	// if there's a previous transaction hash, and not a new chequebook deployment on a node starting from scratch
 	// get old overlay
 	// mine nonce that gives similar new overlay
 	nonce, nonceExists, err := overlayNonceExists(stateStore)
@@ -925,10 +925,10 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	pssService := psser.New(pssPrivateKey, logger)
 	b.pssCloser = pssService
 
-	var ns storage.Storer = netstore.New(storer, validStamp, retrieve, logger)
-	b.nsCloser = ns
+	var netStorer = netstore.New(storer, validStamp, retrieve, logger)
+	b.nsCloser = netStorer
 
-	traversalService := traverser.New(ns)
+	traversalService := traverser.New(netStorer)
 
 	pinningService := pins.NewService(storer, stateStore, traversalService)
 
@@ -1003,7 +1003,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		b.chainSyncerCloser = chainSyncer
 	}
 
-	feedFactory := factory.New(ns)
+	feedFactory := factory.New(netStorer)
 	warden := warden.New(storer, traversalService, retrieve, pushSyncProtocol)
 
 	extraOpts := api.ExtraOptions{
@@ -1016,7 +1016,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		Chequebook:       chequebookService,
 		BlockTime:        big.NewInt(int64(o.BlockTime)),
 		Tags:             tagService,
-		Storer:           ns,
+		Storer:           netStorer,
 		Resolver:         multiResolver,
 		Pss:              pssService,
 		TraversalService: traversalService,
@@ -1115,7 +1115,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		if l, ok := logger.(metrics.Collector); ok {
 			debugService.MustRegisterMetrics(l.Metrics()...)
 		}
-		if nsMetrics, ok := ns.(metrics.Collector); ok {
+		if nsMetrics, ok := netStorer.(metrics.Collector); ok {
 			debugService.MustRegisterMetrics(nsMetrics.Metrics()...)
 		}
 		debugService.MustRegisterMetrics(pseudosettleService.Metrics()...)
