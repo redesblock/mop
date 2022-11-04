@@ -1,0 +1,307 @@
+package mock
+
+import (
+	"context"
+	"sync"
+
+	"github.com/redesblock/mop/core/cluster"
+	"github.com/redesblock/mop/core/storer/storage"
+)
+
+var _ storage.Storer = (*MockStorer)(nil)
+
+type MockStorer struct {
+	store           map[string]cluster.Chunk
+	modePut         map[string]storage.ModePut
+	modeSet         map[string]storage.ModeSet
+	pinnedAddress   []cluster.Address // Stores the pinned address
+	pinnedCounter   []uint64          // and its respective counter. These are stored as slices to preserve the order.
+	subpull         []storage.Descriptor
+	partialInterval bool
+	morePull        chan struct{}
+	mtx             sync.Mutex
+	quit            chan struct{}
+	baseAddress     []byte
+	bins            []uint64
+	subPullCalls    int
+}
+
+func WithSubscribePullChunks(chs ...storage.Descriptor) Option {
+	return optionFunc(func(m *MockStorer) {
+		m.subpull = make([]storage.Descriptor, len(chs))
+		copy(m.subpull, chs)
+	})
+}
+
+func WithBaseAddress(a cluster.Address) Option {
+	return optionFunc(func(m *MockStorer) {
+		m.baseAddress = a.Bytes()
+	})
+}
+
+func WithPartialInterval(v bool) Option {
+	return optionFunc(func(m *MockStorer) {
+		m.partialInterval = v
+	})
+}
+
+func NewStorer(opts ...Option) *MockStorer {
+	s := &MockStorer{
+		store:    make(map[string]cluster.Chunk),
+		modePut:  make(map[string]storage.ModePut),
+		modeSet:  make(map[string]storage.ModeSet),
+		morePull: make(chan struct{}),
+		quit:     make(chan struct{}),
+		bins:     make([]uint64, cluster.MaxBins),
+	}
+
+	for _, v := range opts {
+		v.apply(s)
+	}
+
+	return s
+}
+
+func (m *MockStorer) Get(_ context.Context, _ storage.ModeGet, addr cluster.Address) (ch cluster.Chunk, err error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	v, has := m.store[addr.String()]
+	if !has {
+		return nil, storage.ErrNotFound
+	}
+	return v, nil
+}
+
+func (m *MockStorer) Put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chunk) (exist []bool, err error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	exist = make([]bool, len(chs))
+	for i, ch := range chs {
+		exist[i], err = m.has(ctx, ch.Address())
+		if err != nil {
+			return exist, err
+		}
+		if !exist[i] {
+			po := cluster.Proximity(ch.Address().Bytes(), m.baseAddress)
+			m.bins[po]++
+		}
+		// this is needed since the chunk feeder shares memory across calls
+		// to the pipeline. this is in order to avoid multiple allocations.
+		// this change mimics the behavior of shed and localstore
+		// and copies the data from the call into the in-memory store
+		b := make([]byte, len(ch.Data()))
+		copy(b, ch.Data())
+		addr := cluster.NewAddress(ch.Address().Bytes())
+		stamp := ch.Stamp()
+		m.store[ch.Address().String()] = cluster.NewChunk(addr, b).WithStamp(stamp)
+		m.modePut[ch.Address().String()] = mode
+
+		// pins chunks if needed
+		switch mode {
+		case storage.ModePutUploadPin:
+			// if mode is set pins, increment the pins counter
+			var found bool
+			addr := ch.Address()
+			for i, ad := range m.pinnedAddress {
+				if addr.String() == ad.String() {
+					m.pinnedCounter[i] = m.pinnedCounter[i] + 1
+					found = true
+				}
+			}
+			if !found {
+				m.pinnedAddress = append(m.pinnedAddress, addr)
+				m.pinnedCounter = append(m.pinnedCounter, uint64(1))
+			}
+		default:
+		}
+	}
+	return exist, nil
+}
+
+func (m *MockStorer) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...cluster.Address) (ch []cluster.Chunk, err error) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockStorer) has(ctx context.Context, addr cluster.Address) (yes bool, err error) {
+	_, has := m.store[addr.String()]
+	return has, nil
+}
+
+func (m *MockStorer) Has(ctx context.Context, addr cluster.Address) (yes bool, err error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.has(ctx, addr)
+}
+
+func (m *MockStorer) HasMulti(ctx context.Context, addrs ...cluster.Address) (yes []bool, err error) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockStorer) Set(ctx context.Context, mode storage.ModeSet, addrs ...cluster.Address) (err error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	for _, addr := range addrs {
+		m.modeSet[addr.String()] = mode
+		switch mode {
+		case storage.ModeSetPin:
+			// check if chunk exists
+			has, err := m.has(ctx, addr)
+			if err != nil {
+				return err
+			}
+
+			if !has {
+				return storage.ErrNotFound
+			}
+
+			// if mode is set pins, increment the pins counter
+			var found bool
+			for i, ad := range m.pinnedAddress {
+				if addr.String() == ad.String() {
+					m.pinnedCounter[i] = m.pinnedCounter[i] + 1
+					found = true
+				}
+			}
+			if !found {
+				m.pinnedAddress = append(m.pinnedAddress, addr)
+				m.pinnedCounter = append(m.pinnedCounter, uint64(1))
+			}
+		case storage.ModeSetUnpin:
+			// if mode is set unpin, decrement the pins counter and remove the address
+			// once it reaches zero
+			for i, ad := range m.pinnedAddress {
+				if addr.String() == ad.String() {
+					m.pinnedCounter[i] = m.pinnedCounter[i] - 1
+					if m.pinnedCounter[i] == 0 {
+						copy(m.pinnedAddress[i:], m.pinnedAddress[i+1:])
+						m.pinnedAddress[len(m.pinnedAddress)-1] = cluster.NewAddress([]byte{0})
+						m.pinnedAddress = m.pinnedAddress[:len(m.pinnedAddress)-1]
+
+						copy(m.pinnedCounter[i:], m.pinnedCounter[i+1:])
+						m.pinnedCounter[len(m.pinnedCounter)-1] = uint64(0)
+						m.pinnedCounter = m.pinnedCounter[:len(m.pinnedCounter)-1]
+					}
+				}
+			}
+		case storage.ModeSetRemove:
+			delete(m.store, addr.String())
+		default:
+		}
+	}
+	return nil
+}
+func (m *MockStorer) GetModePut(addr cluster.Address) (mode storage.ModePut) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	if mode, ok := m.modePut[addr.String()]; ok {
+		return mode
+	}
+	return mode
+}
+
+func (m *MockStorer) GetModeSet(addr cluster.Address) (mode storage.ModeSet) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	if mode, ok := m.modeSet[addr.String()]; ok {
+		return mode
+	}
+	return mode
+}
+
+func (m *MockStorer) LastPullSubscriptionBinID(bin uint8) (id uint64, err error) {
+	return m.bins[bin], nil
+}
+
+func (m *MockStorer) SubscribePull(ctx context.Context, bin uint8, since, until uint64) (<-chan storage.Descriptor, <-chan struct{}, func()) {
+	m.mtx.Lock()
+	m.subPullCalls++
+	m.mtx.Unlock()
+
+	c := make(chan storage.Descriptor)
+	done := make(chan struct{})
+	stop := func() {
+		close(done)
+	}
+	go func() {
+		defer close(c)
+		m.mtx.Lock()
+		for _, ch := range m.subpull {
+			select {
+			case c <- ch:
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			case <-m.quit:
+				return
+			}
+		}
+		m.mtx.Unlock()
+
+		if m.partialInterval {
+			// block since we're at the top of the bin and waiting for new chunks
+			select {
+			case <-done:
+				return
+			case <-m.quit:
+				return
+			case <-ctx.Done():
+				return
+			case <-m.morePull:
+
+			}
+		}
+
+		m.mtx.Lock()
+		defer m.mtx.Unlock()
+
+		// iterate on what we have in the iterator
+		for _, ch := range m.subpull {
+			select {
+			case c <- ch:
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			case <-m.quit:
+				return
+			}
+		}
+
+	}()
+	return c, m.quit, stop
+}
+
+func (m *MockStorer) MorePull(d ...storage.Descriptor) {
+	// clear out what we already have in subpull
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	m.subpull = make([]storage.Descriptor, len(d))
+	copy(m.subpull, d)
+	close(m.morePull)
+}
+
+func (m *MockStorer) SubscribePullCalls() int {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.subPullCalls
+}
+
+func (m *MockStorer) SubscribePush(ctx context.Context, skipf func([]byte) bool) (c <-chan cluster.Chunk, repeat, stop func()) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockStorer) Close() error {
+	close(m.quit)
+	return nil
+}
+
+type Option interface {
+	apply(*MockStorer)
+}
+type optionFunc func(*MockStorer)
+
+func (f optionFunc) apply(r *MockStorer) { f(r) }

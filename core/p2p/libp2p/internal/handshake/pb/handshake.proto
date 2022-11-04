@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package handshake;
+
+option go_package = "pb";
+
+message Syn {
+    bytes ObservedUnderlay = 1;
+}
+
+message Ack {
+    MopAddress Address = 1;
+    uint64 NetworkID = 2;
+    bool FullNode = 3;
+    bytes Nonce = 4;
+    string WelcomeMessage  = 99;
+}
+
+message SynAck {
+    Syn Syn = 1;
+    Ack Ack = 2;
+}
+
+message MopAddress {
+    bytes Underlay = 1;
+    bytes Signature = 2;
+    bytes Overlay = 3;
+}

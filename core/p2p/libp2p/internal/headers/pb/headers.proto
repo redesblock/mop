@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package headers;
+
+option go_package = "pb";
+
+message Headers {
+    repeated Header headers = 1;
+}
+
+message Header {
+  string key = 1;
+  bytes value = 2;
+}

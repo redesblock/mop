@@ -1,0 +1,167 @@
+package pullstorage
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/redesblock/mop/core/cluster"
+	"github.com/redesblock/mop/core/storer/storage"
+	"resenje.org/singleflight"
+)
+
+var (
+	_ Storer = (*PullStorer)(nil)
+	// ErrDbClosed is used to signal the underlying database was closed
+	ErrDbClosed = errors.New("db closed")
+
+	// after how long to return a non-empty batch
+	batchTimeout = 500 * time.Millisecond
+)
+
+// Storer is a thin wrapper around storage.Storer.
+// It is used in order to collect and provide information about chunks
+// currently present in the local store.
+type Storer interface {
+	// IntervalChunks collects chunk for a requested interval.
+	IntervalChunks(ctx context.Context, bin uint8, from, to uint64, limit int) (chunks []cluster.Address, topmost uint64, err error)
+	// Cursors gets the last BinID for every bin in the local storage
+	Cursors(ctx context.Context) ([]uint64, error)
+	// Get chunks.
+	Get(ctx context.Context, mode storage.ModeGet, addrs ...cluster.Address) ([]cluster.Chunk, error)
+	// Put chunks.
+	Put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chunk) error
+	// Set chunks.
+	Set(ctx context.Context, mode storage.ModeSet, addrs ...cluster.Address) error
+	// Has chunks.
+	Has(ctx context.Context, addr cluster.Address) (bool, error)
+}
+
+// PullStorer wraps storage.Storer.
+type PullStorer struct {
+	storage.Storer
+	intervalsSF singleflight.Group
+	metrics     metrics
+}
+
+// New returns a new pullstorage Storer instance.
+func New(storer storage.Storer) *PullStorer {
+	return &PullStorer{
+		Storer:  storer,
+		metrics: newMetrics(),
+	}
+}
+
+// IntervalChunks collects chunk for a requested interval.
+func (s *PullStorer) IntervalChunks(ctx context.Context, bin uint8, from, to uint64, limit int) ([]cluster.Address, uint64, error) {
+
+	type result struct {
+		chs     []cluster.Address
+		topmost uint64
+	}
+	s.metrics.TotalSubscribePullRequests.Inc()
+	defer s.metrics.TotalSubscribePullRequestsComplete.Inc()
+
+	v, _, err := s.intervalsSF.Do(ctx, fmt.Sprintf("%v-%v-%v-%v", bin, from, to, limit), func(ctx context.Context) (interface{}, error) {
+		var (
+			chs     []cluster.Address
+			topmost uint64
+		)
+		// call iterator, iterate either until upper bound or limit reached
+		// return addresses, topmost is the topmost bin ID
+		var (
+			timer  *time.Timer
+			timerC <-chan time.Time
+		)
+		s.metrics.SubscribePullsStarted.Inc()
+		ch, dbClosed, stop := s.SubscribePull(ctx, bin, from, to)
+		defer func(start time.Time) {
+			stop()
+			if timer != nil {
+				timer.Stop()
+			}
+			s.metrics.SubscribePullsComplete.Inc()
+		}(time.Now())
+
+		var nomore bool
+
+	LOOP:
+		for limit > 0 {
+			select {
+			case v, ok := <-ch:
+				if !ok {
+					nomore = true
+					break LOOP
+				}
+				chs = append(chs, v.Address)
+				if v.BinID > topmost {
+					topmost = v.BinID
+				}
+				limit--
+				if timer == nil {
+					timer = time.NewTimer(batchTimeout)
+				} else {
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(batchTimeout)
+				}
+				timerC = timer.C
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-timerC:
+				// return batch if new chunks are not received after some time
+				break LOOP
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-dbClosed:
+			return nil, ErrDbClosed
+		default:
+		}
+
+		if nomore {
+			// end of interval reached. no more chunks so interval is complete
+			// return requested `to`. it could be that len(chs) == 0 if the interval
+			// is empty
+			topmost = to
+		}
+
+		return &result{chs: chs, topmost: topmost}, nil
+	})
+
+	if err != nil {
+		s.metrics.SubscribePullsFailures.Inc()
+		return nil, 0, err
+	}
+	r := v.(*result)
+	return r.chs, r.topmost, nil
+}
+
+// Cursors gets the last BinID for every bin in the local storage
+func (s *PullStorer) Cursors(ctx context.Context) (curs []uint64, err error) {
+	curs = make([]uint64, cluster.MaxBins)
+	for i := uint8(0); i < cluster.MaxBins; i++ {
+		binID, err := s.Storer.LastPullSubscriptionBinID(i)
+		if err != nil {
+			return nil, err
+		}
+		curs[i] = binID
+	}
+	return curs, nil
+}
+
+// Get chunks.
+func (s *PullStorer) Get(ctx context.Context, mode storage.ModeGet, addrs ...cluster.Address) ([]cluster.Chunk, error) {
+	return s.Storer.GetMulti(ctx, mode, addrs...)
+}
+
+// Put chunks.
+func (s *PullStorer) Put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chunk) error {
+	_, err := s.Storer.Put(ctx, mode, chs...)
+	return err
+}
