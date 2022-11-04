@@ -18,7 +18,7 @@ import (
 
 var (
 	erc20ABI             = transaction.ParseABIUnchecked(mabi.ERC20ABIv0_1_0)
-	pledgeABI            = transaction.ParseABIUnchecked(mabi.PledgepABIv0_1_0)
+	pledgeABI            = transaction.ParseABIUnchecked(mabi.PledgeABIv0_1_0)
 	errDecodeABI         = errors.New("could not decode abi data")
 	ErrInsufficientFunds = errors.New("insufficient token balance")
 	keyPrefix            = "pledge-txs-"

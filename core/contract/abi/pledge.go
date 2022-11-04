@@ -1,6 +1,6 @@
 package abi
 
-const PledgepABIv0_1_0 = `[
+const PledgeABIv0_1_0 = `[
 	{
 		"inputs": [
 			{

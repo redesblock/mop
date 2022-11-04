@@ -22,9 +22,9 @@ binary:
 .PHONY: release
 release: CGO_ENABLED=0
 release:
-	GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/mop-windows-amd64.exe ./cmd/mop
-	GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/mop-linux-amd64 ./cmd/mop
-	GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/mop-darwin-amd64 ./cmd/mop
+	GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o release/mop-windows-amd64.exe ./cmd/mop
+	GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o release/mop-linux-amd64 ./cmd/mop
+	GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o release/mop-darwin-amd64 ./cmd/mop
 
 .PHONY: protobuftools
 protobuftools:
