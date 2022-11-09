@@ -21,6 +21,7 @@ import (
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/crypto/clef"
+	"github.com/redesblock/mop/core/dispatcher"
 	"github.com/redesblock/mop/core/keystore"
 	filekeystore "github.com/redesblock/mop/core/keystore/file"
 	memkeystore "github.com/redesblock/mop/core/keystore/mem"
@@ -53,11 +54,16 @@ func (c *command) initStartCmd() (err error) {
 			}
 
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
-			logger, err := newFileLogger(cmd, v, c.config.GetString(optionNameDataDir))
+			dataDir := c.config.GetString(optionNameDataDir)
+			logger, err := newFileLogger(cmd, v, dataDir, len(c.config.GetString(optionNameRemoteEndpoint)) > 0)
 			if err != nil {
 				return fmt.Errorf("new logger: %w", err)
 			}
 
+			if workers := c.config.GetInt(optionNameMaxWorker); workers > 0 {
+				dispatcher := dispatcher.NewDispatcher(workers)
+				dispatcher.Run()
+			}
 			go startTimeBomb(logger)
 
 			isWindowsService, err := isWindowsService()
@@ -84,9 +90,9 @@ func (c *command) initStartCmd() (err error) {
 				}
 			}
 
-			fmt.Print(mopWelcomeMessage)
+			logger.Info(mopWelcomeMessage)
 
-			fmt.Printf("\n\nversion: %v - planned to be supported until %v, please follow https://bnbcluster.org/\n\n", ver.Version, endSupportDate())
+			logger.Info(fmt.Sprintf("\n\nversion: %v - planned to be supported until %v, please follow https://bnbcluster.org/\n\n", ver.Version, endSupportDate()))
 
 			debugAPIAddr := c.config.GetString(optionNameDebugAPIAddr)
 			if !c.config.GetBool(optionNameDebugAPIEnable) {
@@ -97,6 +103,8 @@ func (c *command) initStartCmd() (err error) {
 			if err != nil {
 				return err
 			}
+
+			fmt.Printf("Please see the application log %s for more detail\n", filepath.Join(dataDir, "logs", "mop.log"))
 
 			logger.Info("mop version", "version", ver.Version)
 
@@ -168,6 +176,7 @@ func (c *command) initStartCmd() (err error) {
 			b, err := node.NewMop(interruptChannel, sysInterruptChannel, c.config.GetString(optionNameP2PAddr), signerConfig.publicKey, signerConfig.signer, networkID, logger, signerConfig.libp2pPrivateKey, signerConfig.pssPrivateKey, &node.Options{
 				DataDir:                    c.config.GetString(optionNameDataDir),
 				CacheCapacity:              c.config.GetUint64(optionNameCacheCapacity),
+				MemCacheCapacity:           c.config.GetUint64(optionNameMemCacheCapacity),
 				DBOpenFilesLimit:           c.config.GetUint64(optionNameDBOpenFilesLimit),
 				DBBlockCacheCapacity:       c.config.GetUint64(optionNameDBBlockCacheCapacity),
 				DBWriteBufferSize:          c.config.GetUint64(optionNameDBWriteBufferSize),
@@ -188,7 +197,6 @@ func (c *command) initStartCmd() (err error) {
 				PaymentTolerance:           c.config.GetInt64(optionNamePaymentTolerance),
 				PaymentEarly:               c.config.GetInt64(optionNamePaymentEarly),
 				ResolverConnectionCfgs:     resolverCfgs,
-				GatewayMode:                c.config.GetBool(optionNameGatewayMode),
 				BootnodeMode:               bootNode,
 				BSCEndpoints:               c.config.GetStringSlice(optionNameBSCEndpoint),
 				SwapFactoryAddress:         c.config.GetString(optionNameSwapFactoryAddress),
@@ -217,7 +225,8 @@ func (c *command) initStartCmd() (err error) {
 				TokenEncryptionKey:         c.config.GetString(optionNameTokenEncryptionKey),
 				AdminPasswordHash:          c.config.GetString(optionNameAdminPasswordHash),
 				UseVoucherSnapshot:         c.config.GetBool(optionNameUseVoucherSnapshot),
-				ReceiptEndPoint:            c.config.GetString(optionNameReceiptEndpoint),
+				RemoteEndPoint:             c.config.GetString(optionNameRemoteEndpoint),
+				TrustNode:                  c.config.GetBool(optionTrustNode),
 			})
 			if err != nil {
 				return fmt.Errorf("new node %v", err)

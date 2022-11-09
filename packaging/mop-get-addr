@@ -1,0 +1,38 @@
+#!/bin/sh
+
+if [ ! "$(id -u)" -eq 0 ] ; then
+    echo "
+This script requires root priviledges, use sudo.
+"
+    exit 1
+fi
+
+RESP=$(/usr/bin/mop init --config /etc/mop/mop.yaml 2>&1)
+case "$RESP" in
+    Error*|*'No such file'*)
+        echo "
+The mop node has returned an error, probably because the mop-clef external signer is enabled, but the node couldn't connect to it.
+
+Check https://redesblock.github.io/mop/#/ for more info.
+
+Fix the configuration and try again.
+
+The node's output was:
+        "
+        echo "$RESP"
+        ;;
+    *)
+        BNB_ADDRESS=$(echo "$RESP" | grep ethereum | cut -d' ' -f6 | tr -d '"')
+        echo "
+Please make sure there is BNB and, if required, MOP available on the following Ethereum address on BNB Smart Chain: 0x$BNB_ADDRESS.
+
+Learn how to fund your node by visiting our docs at https://redesblock.github.io/mop/#/installation/fund-your-node
+
+Once your node's wallet has received the funds it will begin joining the MOP network.
+
+See the docs for more information at https://redesblock.github.io/mop/#/.
+        "
+        ;;
+esac
+
+chown -R mop:mop /var/lib/mop

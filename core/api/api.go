@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redesblock/mop/core/incentives/pledge"
-	"github.com/redesblock/mop/core/incentives/reward"
 	"io"
 	"math"
 	"math/big"
@@ -20,6 +18,10 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/redesblock/mop/core/incentives/pledge"
+	"github.com/redesblock/mop/core/incentives/reward"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
@@ -130,6 +132,7 @@ type Service struct {
 	pledgeContract  pledge.Service
 	rewardContract  reward.Service
 	chunkPushC      chan *pusher.Op
+	probe           *Probe
 	metricsRegistry *prometheus.Registry
 	Options
 
@@ -167,11 +170,12 @@ type Service struct {
 	voucherSem       *semaphore.Weighted
 	cashOutChequeSem *semaphore.Weighted
 	mopMode          MopNodeMode
-	gatewayMode      bool
 
 	chainBackend transaction.Backend
 	erc20Service erc20.Service
 	chainID      int64
+
+	lru *lru.Cache
 }
 
 func (s *Service) SetP2P(p2p p2p.DebugService) {
@@ -188,9 +192,9 @@ func (s *Service) SetClusterAddress(addr *cluster.Address) {
 
 type Options struct {
 	CORSAllowedOrigins []string
-	GatewayMode        bool
 	WsPingPeriod       time.Duration
 	Restricted         bool
+	RemoteEndPoint     string
 }
 
 type ExtraOptions struct {
@@ -217,12 +221,11 @@ type ExtraOptions struct {
 	SyncStatus       func() (bool, error)
 }
 
-func New(publicKey, pssPublicKey ecdsa.PublicKey, bscAddress common.Address, logger log.Logger, transaction transaction.Service, batchStore voucher.Storer, gatewayMode bool, mopMode MopNodeMode, chequebookEnabled bool, swapEnabled bool, chainBackend transaction.Backend, cors []string) *Service {
+func New(publicKey, pssPublicKey ecdsa.PublicKey, bscAddress common.Address, logger log.Logger, transaction transaction.Service, batchStore voucher.Storer, mopMode MopNodeMode, chequebookEnabled bool, swapEnabled bool, chainBackend transaction.Backend, cors []string) *Service {
 	s := new(Service)
 
 	s.CORSAllowedOrigins = cors
 	s.mopMode = mopMode
-	s.gatewayMode = gatewayMode
 	s.logger = logger.WithName(loggerName).Register()
 	s.loggerV1 = s.logger.V(1).Register()
 	s.chequebookEnabled = chequebookEnabled
@@ -279,6 +282,10 @@ func (s *Service) Configure(signer crypto.Signer, auth authenticator, tracer *tr
 	s.syncStatus = e.SyncStatus
 
 	return s.chunkPushC
+}
+
+func (s *Service) SetProbe(probe *Probe) {
+	s.probe = probe
 }
 
 // Close hangs up running websockets on shutdown.

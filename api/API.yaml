@@ -120,8 +120,6 @@ paths:
           $ref: "Common.yaml#/components/responses/400"
         "402":
           $ref: "Common.yaml#/components/responses/402"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -185,8 +183,6 @@ paths:
           $ref: "Common.yaml#/components/responses/400"
         "402":
           $ref: "Common.yaml#/components/responses/402"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -268,8 +264,6 @@ paths:
           $ref: "Common.yaml#/components/responses/400"
         "402":
           $ref: "Common.yaml#/components/responses/402"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -372,8 +366,6 @@ paths:
             application/json:
               schema:
                 $ref: "Common.yaml#/components/schemas/TagsList"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -395,8 +387,6 @@ paths:
             application/json:
               schema:
                 $ref: "Common.yaml#/components/schemas/NewTagResponse"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -423,8 +413,6 @@ paths:
                 $ref: "Common.yaml#/components/schemas/NewTagResponse"
         "400":
           $ref: "Common.yaml#/components/responses/400"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "404":
           $ref: "Common.yaml#/components/responses/404"
         "500":
@@ -447,8 +435,6 @@ paths:
           $ref: "Common.yaml#/components/responses/204"
         "400":
           $ref: "Common.yaml#/components/responses/400"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "404":
           $ref: "Common.yaml#/components/responses/404"
         "500":
@@ -480,8 +466,6 @@ paths:
             application/json:
               schema:
                 $ref: "Common.yaml#/components/schemas/Status"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "404":
           $ref: "Common.yaml#/components/responses/404"
         "500":
@@ -516,8 +500,6 @@ paths:
                 $ref: "Common.yaml#/components/schemas/Response"
         "400":
           $ref: "Common.yaml#/components/responses/400"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "404":
           $ref: "Common.yaml#/components/responses/404"
         "500":
@@ -537,8 +519,6 @@ paths:
                 $ref: "Common.yaml#/components/schemas/Response"
         "400":
           $ref: "Common.yaml#/components/responses/400"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -556,8 +536,6 @@ paths:
                 $ref: "Common.yaml#/components/schemas/ClusterOnlyReference"
         "400":
           $ref: "Common.yaml#/components/responses/400"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "404":
           $ref: "Common.yaml#/components/responses/404"
         "500":
@@ -577,8 +555,6 @@ paths:
             application/json:
               schema:
                 $ref: "Common.yaml#/components/schemas/ClusterOnlyReferencesList"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -616,8 +592,6 @@ paths:
           $ref: "Common.yaml#/components/responses/400"
         "402":
           $ref: "Common.yaml#/components/responses/402"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -638,8 +612,6 @@ paths:
       responses:
         "200":
           description: Returns a WebSocket with a subscription for incoming message data on the requested topic.
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -683,8 +655,6 @@ paths:
           $ref: "Common.yaml#/components/responses/401"
         "402":
           $ref: "Common.yaml#/components/responses/402"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -729,8 +699,6 @@ paths:
           $ref: "Common.yaml#/components/responses/401"
         "402":
           $ref: "Common.yaml#/components/responses/402"
-        "403":
-          $ref: "Common.yaml#/components/responses/GatewayForbidden"
         "500":
           $ref: "Common.yaml#/components/responses/500"
         default:
@@ -866,7 +834,22 @@ paths:
                 $ref: "Common.yaml#/components/schemas/Status"
         default:
           description: Default response
-
+  
+  "/readiness":
+    get:
+      summary: Readiness endpoint indicates if node is ready to start accepting traffic
+      tags:
+        - Status
+      responses:
+        "200":
+          description: Indicates that node is ready
+          $ref: "Common.yaml#/components/responses/200"
+        "400":
+          description: Indicates that node is not ready
+          $ref: "Common.yaml#/components/responses/400"
+        default:
+          description: Default response
+  
   "/balances":
     get:
       summary: Get the balances with all known peers including prepaid services

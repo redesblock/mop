@@ -21,8 +21,9 @@ var defaults = struct {
 		sink:      os.Stderr,
 		verbosity: VerbosityDebug,
 		fmtOptions: fmtOptions{
-			timestampLayout: "2006-01-02 15:04:05.000000",
+			timestampLayout: "2006-01-02 15:04:05.000000 -0700",
 			maxLogDepth:     16,
+			jsonOutput:      true,
 		},
 	},
 }

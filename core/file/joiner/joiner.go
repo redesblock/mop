@@ -169,9 +169,9 @@ func subtrieSection(data []byte, startIdx, refLen int, subtrieSize int64) int64 
 	// where y is the size of the subtrie, refs are the number of references
 	// x is constant (the brute forced value) and l is the size of the last subtrie
 	var (
-		refs       = int64(len(data) / refLen) // how many references in the intermediate chunk
-		branching  = int64(4096 / refLen)      // branching factor is chunkSize divided by reference length
-		branchSize = int64(4096)
+		refs       = int64(len(data) / refLen)         // how many references in the intermediate chunk
+		branching  = int64(cluster.ChunkSize / refLen) // branching factor is chunkSize divided by reference length
+		branchSize = int64(cluster.ChunkSize)
 	)
 	for {
 		whatsLeft := subtrieSize - (branchSize * (refs - 1))

@@ -143,6 +143,14 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 		return
 	}
 
+	// filename cannot contain a "/" in prefix because the specification is that we cannot start with slash but can have a slash at a later position
+	if strings.HasPrefix(fileName, "/") {
+		logger.Debug("bzz upload file: / in prefix not allowed", "file_name", fileName, "error", err)
+		logger.Error(nil, "bzz upload file: / in prefix not allowed", "file_name", fileName)
+		jsonhttp.BadRequest(w, "/ in prefix not allowed")
+		return
+	}
+
 	rootMetadata := map[string]string{
 		manifest.WebsiteIndexDocumentSuffixKey: fileName,
 	}
@@ -251,13 +259,11 @@ func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.NotFound(w, nil)
 		return
 	}
-
 	s.serveReference(address, pathVar, w, r)
 }
 
 func (s *Service) serveReference(address cluster.Address, pathVar string, w http.ResponseWriter, r *http.Request) {
 	logger := tracer.NewLoggerWithTraceID(r.Context(), s.logger)
-	loggerV1 := logger.V(1).Build()
 	ls := loadsave.NewReadonly(s.storer)
 	feedDereferenced := false
 
@@ -323,8 +329,14 @@ FETCH:
 		}
 	}
 
+	tarVar := mux.Vars(r)["tar"]
+	if strings.ToLower(tarVar) == "true" {
+		s.serveManifestEntryTar(w, r, address, m, !feedDereferenced)
+		return
+	}
+
 	if pathVar == "" {
-		loggerV1.Debug("mop download: handle empty path", "address", address)
+		logger.Debug("mop download: handle empty path", "address", address)
 
 		if indexDocumentSuffixKey, ok := manifestMetadataLoad(ctx, m, manifest.RootPath, manifest.WebsiteIndexDocumentSuffixKey); ok {
 			pathWithIndex := path.Join(pathVar, indexDocumentSuffixKey)
@@ -338,11 +350,9 @@ FETCH:
 			}
 		}
 	}
-
 	me, err := m.Lookup(ctx, pathVar)
 	if err != nil {
-		loggerV1.Debug("mop download: invalid path", "address", address, "path", pathVar, "error", err)
-		logger.Error(nil, "mop download: invalid path")
+		logger.Debug("mop download: invalid path", "address", address, "path", pathVar, "error", err)
 
 		if errors.Is(err, manifest.ErrNotFound) {
 
@@ -399,9 +409,64 @@ FETCH:
 		}
 		return
 	}
-
 	// serve requested path
 	s.serveManifestEntry(w, r, address, me, !feedDereferenced)
+}
+
+func (s *Service) serveManifestEntryTar(
+	w http.ResponseWriter,
+	r *http.Request,
+	address cluster.Address,
+	mf manifest.Interface,
+	etag bool,
+) {
+	//var buf bytes.Buffer
+	//tw := tar.NewWriter(&buf)
+	var files []string
+	if err := mf.IterateAddresses(r.Context(), func(address cluster.Address, mtdt map[string]string) error {
+		fname, ok := mtdt[manifest.EntryMetadataFilenameKey]
+		if !ok {
+			return fmt.Errorf("file name not found")
+		}
+		files = append(files, fname)
+		//reader, l, err := joiner.New(r.Context(), s.storer, address)
+		//if err != nil {
+		//	return fmt.Errorf("joiner failed %v", err)
+		//}
+		//_ = l
+		//hdr := &tar.Header{
+		//	Name: fname,
+		//	Mode: 0600,
+		//	Size: reader.Size(),
+		//}
+		//
+		//if err := tw.WriteHeader(hdr); err != nil {
+		//	return fmt.Errorf("write header failed %v", err)
+		//}
+		//bts, err := ioutil.ReadAll(reader)
+		//if err != nil {
+		//	return fmt.Errorf("write header failed %v", err)
+		//}
+		//if _, err := tw.Write(bts); err != nil {
+		//	return fmt.Errorf("write failed %v", err)
+		//}
+		return nil
+	}); err != nil {
+		jsonhttp.InternalServerError(w, err)
+		return
+	}
+
+	//l := int64(buf.Len())
+	//w.Header().Set(contentTypeHeader, contentTypeTar)
+	//w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s.tar\"", address))
+	//w.Header().Set("Content-Length", strconv.FormatInt(l, 10))
+	//w.Header().Set("Decompressed-Content-Length", strconv.FormatInt(l, 10))
+	//w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
+	if etag {
+		w.Header().Set("ETag", fmt.Sprintf("%q", address))
+	}
+	jsonhttp.OK(w, files)
+	//http.ServeContent(w, r, "", time.Now(), buf)
 }
 
 func (s *Service) serveManifestEntry(

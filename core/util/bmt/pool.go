@@ -28,9 +28,8 @@ type Pool struct {
 	*Conf            // configuration
 }
 
-func NewConf(hasher BaseHasherFunc, segmentCount, capacity int) *Conf {
+func NewConf(hasher BaseHasherFunc, segmentCount, segmentSize, capacity int) *Conf {
 	count, depth := sizeToParams(segmentCount)
-	segmentSize := hasher().Size()
 	zerohashes := make([][]byte, depth+1)
 	zeros := make([]byte, segmentSize)
 	zerohashes[0] = zeros

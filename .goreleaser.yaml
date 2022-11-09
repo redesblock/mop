@@ -1,0 +1,207 @@
+project_name: mop
+release:
+  prerelease: auto
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
+builds:
+  - id: linux
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - 386
+      - arm64
+      - arm
+    goarm:
+      - 7
+  - id: linux-slim
+    main: ./cmd/mop
+    binary: mop-slim
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    # hooks:
+    #   post:
+    #    - upx --best "{{ .Path }}"
+  - id: windows
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - 386
+  - id: darwin-amd64
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+  - id: darwin-arm64
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+archives:
+  -
+    name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format: binary
+    builds:
+    - linux
+    - windows
+    - darwin-amd64
+    - darwin-arm64
+  -
+    id: homebrew-amd64
+    builds:
+    - darwin-amd64
+    name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+    - src: 'packaging/homebrew-amd64/*'
+      dst: '.'
+      strip_parent: true
+    - LICENSE
+    - README.md
+  -
+    id: homebrew-arm64
+    builds:
+    - darwin-arm64
+    name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+    - src: 'packaging/homebrew-arm64/*'
+      dst: '.'
+      strip_parent: true
+    - LICENSE
+    - README.md
+
+nfpms:
+  - file_name_template: "{{ tolower .ProjectName }}_{{ tolower .Version }}_{{ tolower .Arch }}"
+
+    vendor: MOP Foundation
+
+    homepage: 
+
+    maintainer: MOP Devops <dev@redeslab.io>
+
+    description: BNB Cluster node
+
+    license: GPL-3
+
+    dependencies:
+      - ca-certificates
+      - adduser
+
+    formats:
+      - deb
+      - rpm
+
+    contents:
+      - src: packaging/mop.service
+        dst: /lib/systemd/system/mop.service
+      - src: packaging/mop-get-addr
+        dst: /usr/bin/mop-get-addr
+      - src: packaging/mop.yaml
+        dst: /etc/mop/mop.yaml
+        type: config
+      - src: packaging/default
+        dst: /etc/default/mop
+        type: config
+
+    overrides:
+      deb:
+        dependencies:
+          - passwd
+          - ca-certificates
+        replacements:
+          arm: armhf
+        scripts:
+          preinstall: ./packaging/deb/preinst
+          postinstall: ./packaging/deb/postinst
+          preremove: ./packaging/deb/prerm
+          postremove: ./packaging/deb/postrm
+      rpm:
+        dependencies:
+          - ca-certificates
+          - shadow-utils
+        file_name_template: "{{ tolower .ProjectName }}-{{ tolower .Version }}.{{ tolower .Arch }}"
+        replacements:
+          amd64: x86_64
+          arm64: aarch64
+        scripts:
+          preinstall: ./packaging/rpm/pre
+          postinstall: ./packaging/rpm/post
+          preremove: ./packaging/rpm/preun
+          postremove: ./packaging/rpm/postun
+
+    bindir: /usr/bin

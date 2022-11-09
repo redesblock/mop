@@ -326,6 +326,21 @@ paths:
         default:
           description: Default response
 
+  "/readiness":
+    get:
+      summary: Readiness endpoint indicates if node is ready to start accepting traffic
+      tags:
+        - Status
+      responses:
+        "200":
+          description: Indicates that node is ready
+          $ref: "Common.yaml#/components/responses/200"
+        "400":
+          description: Indicates that node is not ready
+          $ref: "Common.yaml#/components/responses/400"
+        default:
+          description: Default response
+
   "/peers":
     get:
       summary: Get a list of peers
@@ -395,20 +410,6 @@ paths:
         default:
           description: Default response
 
-  "/readiness":
-    get:
-      summary: Get readiness state of node
-      tags:
-        - Status
-      responses:
-        "200":
-          description: Health State of node
-          content:
-            application/json:
-              schema:
-                $ref: "Common.yaml#/components/schemas/Status"
-        default:
-          description: Default response
 
   "/settlements/{address}":
     get:

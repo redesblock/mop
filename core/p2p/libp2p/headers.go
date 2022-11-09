@@ -3,7 +3,6 @@ package libp2p
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/p2p"
@@ -11,13 +10,8 @@ import (
 	"github.com/redesblock/mop/core/p2p/protobuf"
 )
 
-var sendHeadersTimeout = 10 * time.Second
-
 func sendHeaders(ctx context.Context, headers p2p.Headers, stream *stream) error {
 	w, r := protobuf.NewWriterAndReader(stream)
-
-	ctx, cancel := context.WithTimeout(ctx, sendHeadersTimeout)
-	defer cancel()
 
 	if err := w.WriteMsgWithContext(ctx, headersP2PToPB(headers)); err != nil {
 		return fmt.Errorf("write message: %w", err)
@@ -33,11 +27,8 @@ func sendHeaders(ctx context.Context, headers p2p.Headers, stream *stream) error
 	return nil
 }
 
-func handleHeaders(headler p2p.HeadlerFunc, stream *stream, peerAddress cluster.Address) error {
+func handleHeaders(ctx context.Context, headler p2p.HeadlerFunc, stream *stream, peerAddress cluster.Address) error {
 	w, r := protobuf.NewWriterAndReader(stream)
-
-	ctx, cancel := context.WithTimeout(context.Background(), sendHeadersTimeout)
-	defer cancel()
 
 	headers := new(pb.Headers)
 	if err := r.ReadMsgWithContext(ctx, headers); err != nil {

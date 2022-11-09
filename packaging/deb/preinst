@@ -1,0 +1,20 @@
+#!/bin/sh -e
+
+if [ "$1" = "install" ]; then
+    if ! getent passwd mop > /dev/null; then
+        useradd -r -d /var/lib/mop -s /sbin/nologin -U mop
+    fi
+    if getent passwd mop-clef > /dev/null; then
+        usermod -a -G mop-clef mop > /dev/null
+    fi
+    if ! test -d /var/lib/mop; then
+        mkdir -p /var/lib/mop
+        chmod 0750 /var/lib/mop
+        chown -R mop:mop /var/lib/mop
+    fi
+    if ! test -f /var/lib/mop/password; then
+        < /dev/urandom tr -dc _A-Z-a-z-0-9 2> /dev/null | head -c32 > /var/lib/mop/password
+        chmod 0600 /var/lib/mop/password
+        chown mop:mop /var/lib/mop/password
+    fi
+fi

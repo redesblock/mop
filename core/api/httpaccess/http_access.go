@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/redesblock/mop/core/log"
@@ -25,7 +26,7 @@ func NewHTTPAccessSuppressLogHandler() func(h http.Handler) http.Handler {
 
 // NewHTTPAccessLogHandler creates a handler that
 // will log a message after a request has been served.
-func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string) func(h http.Handler) http.Handler {
+func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string, trafficHandler func(time time.Time, key string, upload bool, size int)) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rr, ok := w.(*responseRecorder)
@@ -75,6 +76,17 @@ func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string
 			}
 			if v := r.Header.Get("X-Real-Ip"); v != "" {
 				fields = append(fields, "x-real-ip", v)
+			}
+			key := "Unknown"
+			if reqToken := r.Header.Get("Authorization"); strings.HasPrefix(reqToken, "Bearer ") {
+				keys := strings.Split(reqToken, "Bearer ")
+				fields = append(fields, "key", keys[1])
+				key = keys[1]
+			}
+			if trafficHandler != nil {
+				if strings.Contains(r.RequestURI, "/bytes") || strings.Contains(r.RequestURI, "/chunks") || strings.Contains(r.RequestURI, "/mop") {
+					trafficHandler(now, key, r.Method != http.MethodGet, rr.size)
+				}
 			}
 
 			logger.WithValues(fields...).Build().Info(message)

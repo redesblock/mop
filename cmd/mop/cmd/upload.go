@@ -4,13 +4,15 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
-	"github.com/spf13/cobra"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/redesblock/mop/core/api"
+	"github.com/spf13/cobra"
 )
 
 func (c *command) initUploadCmd() error {
@@ -42,9 +44,9 @@ func (c *command) initUploadCmd() error {
 			}
 			req.Header.Set("Content-Type", "application/x-tar")
 			//req.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
-			req.Header.Set("swarm-collection", "true")
-			req.Header.Set("swarm-index-document", sfileInfo.Name())
-			req.Header.Set("swarm-postage-batch-id", args[0])
+			req.Header.Set(api.ClusterCollectionHeader, "true")
+			req.Header.Set(api.ClusterIndexDocumentHeader, sfileInfo.Name())
+			req.Header.Set(api.ClusterVoucherBatchIdHeader, args[0])
 			response, err := client.Do(req)
 			if err != nil {
 				return err

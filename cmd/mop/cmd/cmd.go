@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 const (
 	optionNameDataDir                    = "data-dir"
 	optionNameCacheCapacity              = "cache-capacity"
+	optionNameMemCacheCapacity           = "mem-cache-capacity"
 	optionNameDBOpenFilesLimit           = "db-open-files-limit"
 	optionNameDBBlockCacheCapacity       = "db-block-cache-capacity"
 	optionNameDBWriteBufferSize          = "db-write-buffer-size"
@@ -47,7 +49,6 @@ const (
 	optionNamePaymentEarly               = "payment-early-percent"
 	optionNameResolverEndpoints          = "resolver-options"
 	optionNameBootnodeMode               = "bootnode-mode"
-	optionNameGatewayMode                = "gateway-mode"
 	optionNameClefSignerEnable           = "clef-signer-enable"
 	optionNameClefSignerEndpoint         = "clef-signer-endpoint"
 	optionNameClefSignerBSCAddress       = "clef-signer-bsc-address"
@@ -80,7 +81,9 @@ const (
 	optionNameTokenEncryptionKey         = "token-encryption-key"
 	optionNameAdminPasswordHash          = "admin-password"
 	optionNameUseVoucherSnapshot         = "use-voucher-snapshot"
-	optionNameReceiptEndpoint            = "push-receipt-endpoint"
+	optionNameRemoteEndpoint             = "remote-endpoint"
+	optionNameMaxWorker                  = "max-worker"
+	optionTrustNode                      = "trust-node"
 )
 
 func init() {
@@ -243,6 +246,7 @@ func (c *command) setHomeDir() (err error) {
 func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".mop"), "data directory")
 	cmd.Flags().Uint64(optionNameCacheCapacity, 1000000, fmt.Sprintf("cache capacity in chunks, multiply by %d to get approximate capacity in bytes", cluster.ChunkSize))
+	cmd.Flags().Uint64(optionNameMemCacheCapacity, 1000, fmt.Sprintf("memory cache capacity in chunks, multiply by %d to get approximate capacity in bytes", cluster.ChunkSize))
 	cmd.Flags().Uint64(optionNameDBOpenFilesLimit, 200, "number of open files allowed by database")
 	cmd.Flags().Uint64(optionNameDBBlockCacheCapacity, 32*1024*1024, "size of block cache of the database in bytes")
 	cmd.Flags().Uint64(optionNameDBWriteBufferSize, 32*1024*1024, "size of the database write buffer in bytes")
@@ -253,10 +257,10 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameP2PAddr, ":1684", "P2P listen address")
 	cmd.Flags().String(optionNameNATAddr, "", "NAT exposed address")
 	cmd.Flags().Bool(optionNameP2PWSEnable, false, "enable P2P WebSocket transport")
-	cmd.Flags().StringSlice(optionNameBootnodes, []string{""}, "initial nodes to connect to")
+	cmd.Flags().StringSlice(optionNameBootnodes, []string{"/ip4/202.83.246.155/tcp/1684/p2p/16Uiu2HAmPqr2vmnwZi6HhTmWoCEVx2pD37m3p9G5dfNYCMrormLf"}, "initial nodes to connect to")
 	cmd.Flags().Bool(optionNameDebugAPIEnable, false, "enable debug HTTP API")
 	cmd.Flags().String(optionNameDebugAPIAddr, ":1685", "debug HTTP API listen address")
-	cmd.Flags().Uint64(optionNameNetworkID, 1, "ID of the Cluster network")
+	cmd.Flags().Uint64(optionNameNetworkID, 97, "ID of the Cluster network")
 	cmd.Flags().StringSlice(optionCORSAllowedOrigins, []string{}, "origins with CORS headers enabled")
 	cmd.Flags().Bool(optionNameTracingEnabled, false, "enable tracer")
 	cmd.Flags().String(optionNameTracingEndpoint, "127.0.0.1:1680", "endpoint to send tracer data")
@@ -269,12 +273,11 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Int64(optionNamePaymentTolerance, 25, "excess debt above payment threshold in percentages where you disconnect from your peer")
 	cmd.Flags().Int64(optionNamePaymentEarly, 50, "percentage below the peers payment threshold when we initiate settlement")
 	cmd.Flags().StringSlice(optionNameResolverEndpoints, []string{}, "ENS compatible API endpoint for a TLD and with contract address, can be repeated, format [tld:][contract-addr@]url")
-	cmd.Flags().Bool(optionNameGatewayMode, false, "disable a set of sensitive features in the api")
 	cmd.Flags().Bool(optionNameBootnodeMode, false, "cause the node to always accept incoming connections")
 	cmd.Flags().Bool(optionNameClefSignerEnable, false, "enable clef signer")
 	cmd.Flags().String(optionNameClefSignerEndpoint, "", "clef signer endpoint")
 	cmd.Flags().String(optionNameClefSignerBSCAddress, "", "BNB Smart Chain to use from clef signer")
-	cmd.Flags().StringSlice(optionNameBSCEndpoint, []string{"https://data-seed-prebsc-1-s1.binance.org:8545"}, "swap BNB Smart Chain endpoint")
+	cmd.Flags().StringSlice(optionNameBSCEndpoint, []string{"http://202.83.246.155:8575", "https://data-seed-prebsc-1-s1.binance.org:8545"}, "swap BNB Smart Chain endpoint")
 	cmd.Flags().String(optionNameSwapFactoryAddress, "", "swap factory addresses")
 	cmd.Flags().StringSlice(optionNameSwapLegacyFactoryAddresses, nil, "legacy swap factory addresses")
 	cmd.Flags().String(optionNameSwapInitialDeposit, "10000000000000000", "initial deposit if deploying a new chequebook")
@@ -290,7 +293,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(optionNameBlockTime, 3, "chain block time")
 	cmd.Flags().String(optionNameSwapDeploymentGasPrice, "", "gas price in wei to use for deployment and funding")
 	cmd.Flags().Duration(optionWarmUpTime, time.Minute*5, "time to warmup the node before some major protocols can be kicked off.")
-	cmd.Flags().Bool(optionNameMainNet, true, "triggers connect to main net bootnodes.")
+	cmd.Flags().Bool(optionNameMainNet, false, "triggers connect to main net bootnodes.")
 	cmd.Flags().Bool(optionNameRetrievalCaching, true, "enable forwarded content caching")
 	cmd.Flags().Bool(optionNameResync, false, "forces the node to resync voucher contract data")
 	cmd.Flags().Bool(optionNamePProfBlock, false, "enable pprof block profile")
@@ -301,7 +304,9 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameTokenEncryptionKey, "", "admin username to get the security token")
 	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
 	cmd.Flags().Bool(optionNameUseVoucherSnapshot, false, "bootstrap node using voucher snapshot from the network")
-	cmd.Flags().String(optionNameReceiptEndpoint, "", "receive receipt server")
+	cmd.Flags().String(optionNameRemoteEndpoint, "", "push remote server")
+	cmd.Flags().Int(optionNameMaxWorker, 0, "number of workers")
+	cmd.Flags().Bool(optionTrustNode, false, "ensure the locally chunk is valid")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {
@@ -339,7 +344,7 @@ func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {
 	).Register(), nil
 }
 
-func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Logger, error) {
+func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string, remote bool) (log.Logger, error) {
 	var (
 		sink   = cmd.OutOrStdout()
 		vLevel = log.VerbosityNone
@@ -351,6 +356,17 @@ func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Lo
 			rotatelogs.WithLinkName(filepath.Join(dataDir, "logs", "mop.log")),
 			rotatelogs.WithMaxAge(15*24*time.Hour),
 			rotatelogs.WithRotationTime(24*time.Hour),
+			rotatelogs.WithHandler(rotatelogs.HandlerFunc(func(e rotatelogs.Event) {
+				if e.Type() != rotatelogs.FileRotatedEventType {
+					return
+				}
+
+				if remote {
+					if err := storeTrafficAnalysis(e.(*rotatelogs.FileRotatedEvent).PreviousFile()); err != nil {
+						fmt.Println("storeTrafficAnalysis", "error", err)
+					}
+				}
+			})),
 		); err != nil {
 			return nil, fmt.Errorf("unknown log file %s", err)
 		} else {
@@ -385,4 +401,46 @@ func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Lo
 		log.WithSink(sink),
 		log.WithVerbosity(vLevel),
 	).Register(), nil
+}
+
+func storeTrafficAnalysis(file string) error {
+	w, err := os.Create(file + ".traffic")
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	readLine := func(fileName string, handler func(string) error) error {
+		f, err := os.Open(fileName)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		br := bufio.NewReader(f)
+		for {
+			line, _, err := br.ReadLine()
+			if err != nil {
+				// file read complete
+				if err == io.EOF {
+					return nil
+				}
+				return err
+			}
+			if err := handler(string(line)); err != nil {
+				return err
+			}
+		}
+	}
+
+	handler := func(line string) error {
+		if strings.Contains(line, "/bytes") || strings.Contains(line, "/chunks") || strings.Contains(line, "/mop") {
+			if _, err := w.WriteString(line + "\n"); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return readLine(file, handler)
 }

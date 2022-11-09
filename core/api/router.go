@@ -1,14 +1,19 @@
 package api
 
 import (
+	"crypto/tls"
+	"encoding/json"
 	"expvar"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redesblock/mop/core/api/auth"
 	"github.com/redesblock/mop/core/api/httpaccess"
@@ -30,7 +35,7 @@ func (s *Service) MountTechnicalDebug() {
 	s.mountTechnicalDebug()
 
 	s.Handler = web.ChainHandlers(
-		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access", nil),
 		handlers.CompressHandler,
 		s.corsHandler,
 		web.NoCacheHeadersHandler,
@@ -42,7 +47,7 @@ func (s *Service) MountDebug(restricted bool) {
 	s.mountBusinessDebug(restricted)
 
 	s.Handler = web.ChainHandlers(
-		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access", nil),
 		handlers.CompressHandler,
 		s.corsHandler,
 		web.NoCacheHeadersHandler,
@@ -71,22 +76,16 @@ func (s *Service) MountAPI() {
 	}
 
 	s.Handler = web.ChainHandlers(
-		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "api access", s.trafficHandler),
 		skipHeadHandler(handlers.CompressHandler),
 		s.responseCodeMetricsHandler,
 		s.pageviewMetricsHandler,
 		s.corsHandler,
-		s.gatewayModeForbidHeadersHandler,
 		web.FinalHandler(s.router),
 	)
 }
 
 func (s *Service) mountTechnicalDebug() {
-	s.router.Handle("/readiness", web.ChainHandlers(
-		httpaccess.NewHTTPAccessSuppressLogHandler(),
-		web.FinalHandlerFunc(statusHandler),
-	))
-
 	s.router.Handle("/node", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.nodeGetHandler),
 	})
@@ -120,11 +119,6 @@ func (s *Service) mountTechnicalDebug() {
 
 	s.router.Handle("/debug/vars", expvar.Handler())
 
-	s.router.Handle("/health", web.ChainHandlers(
-		httpaccess.NewHTTPAccessSuppressLogHandler(),
-		web.FinalHandlerFunc(statusHandler),
-	))
-
 	s.router.Handle("/loggers", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
 			httpaccess.NewHTTPAccessSuppressLogHandler(),
@@ -143,6 +137,16 @@ func (s *Service) mountTechnicalDebug() {
 			web.FinalHandlerFunc(s.loggerSetVerbosityHandler),
 		),
 	})
+
+	s.router.Handle("/readiness", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.readinessHandler),
+	))
+
+	s.router.Handle("/health", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.healthHandler),
+	))
 }
 
 func (s *Service) mountAPI() {
@@ -150,7 +154,6 @@ func (s *Service) mountAPI() {
 
 	subdomainRouter.Handle("/{path:.*}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
-			s.gatewayModeForbidEndpointHandler,
 			web.FinalHandlerFunc(s.subdomainHandler),
 		),
 	})
@@ -245,7 +248,6 @@ func (s *Service) mountAPI() {
 	})
 
 	handle("/psser/send/{topic}/{targets}", web.ChainHandlers(
-		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"POST": web.ChainHandlers(
 				jsonhttp.NewMaxBodyBytesHandler(cluster.ChunkSize),
@@ -255,12 +257,10 @@ func (s *Service) mountAPI() {
 	)
 
 	handle("/psser/subscribe/{topic}", web.ChainHandlers(
-		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandlerFunc(s.pssWsHandler),
 	))
 
 	handle("/tags", web.ChainHandlers(
-		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"GET": http.HandlerFunc(s.listTagsHandler),
 			"POST": web.ChainHandlers(
@@ -271,7 +271,6 @@ func (s *Service) mountAPI() {
 	)
 
 	handle("/tags/{id}", web.ChainHandlers(
-		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"GET":    http.HandlerFunc(s.getTagHandler),
 			"DELETE": http.HandlerFunc(s.deleteTagHandler),
@@ -283,14 +282,12 @@ func (s *Service) mountAPI() {
 	)
 
 	handle("/pins", web.ChainHandlers(
-		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"GET": http.HandlerFunc(s.listPinnedRootHashes),
 		})),
 	)
 
 	handle("/pins/{reference}", web.ChainHandlers(
-		s.gatewayModeForbidEndpointHandler,
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"GET":    http.HandlerFunc(s.getPinnedRootHash),
 			"POST":   http.HandlerFunc(s.pinRootHash),
@@ -300,14 +297,22 @@ func (s *Service) mountAPI() {
 
 	handle("/wardenship/{address}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
-			s.gatewayModeForbidEndpointHandler,
 			web.FinalHandlerFunc(s.wardenshipGetHandler),
 		),
 		"PUT": web.ChainHandlers(
-			s.gatewayModeForbidEndpointHandler,
 			web.FinalHandlerFunc(s.wardenshipPutHandler),
 		),
 	})
+
+	handle("/readiness", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.readinessHandler),
+	))
+
+	handle("/health", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.healthHandler),
+	))
 
 	if s.Restricted {
 		handle("/auth", jsonhttp.MethodHandler{
@@ -545,33 +550,95 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 	handle("/bookkeeper", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.accountingInfoHandler),
 	})
+
+	handle("/readiness", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.readinessHandler),
+	))
+
+	handle("/health", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.healthHandler),
+	))
+
 }
 
-func (s *Service) gatewayModeForbidEndpointHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.GatewayMode {
-			s.loggerV1.Debug("gateway mode: forbidden", "url", r.URL)
-			jsonhttp.Forbidden(w, nil)
-			return
-		}
-		h.ServeHTTP(w, r)
-	})
+type trafficObject struct {
+	Timestamp     int64            `json:"timestamp"`
+	Address       string           `json:"address"`
+	UploadedCnt   int64            `json:"uploaded_cnt"`
+	Uploaded      map[string]int64 `json:"uploaded"`
+	DownloadedCnt int64            `json:"downloaded_cnt"`
+	Downloaded    map[string]int64 `json:"downloaded"`
+	Signed        string           `json:"signed"`
+	mux           sync.Mutex       `json:"-"`
 }
 
-func (s *Service) gatewayModeForbidHeadersHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.GatewayMode {
-			if strings.ToLower(r.Header.Get(ClusterPinHeader)) == "true" {
-				s.loggerV1.Debug("gateway mode: forbidden pins", "url", r.URL)
-				jsonhttp.Forbidden(w, "pins is disabled")
-				return
+var TrafficHost = ""
+
+func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
+	if len(TrafficHost) == 0 {
+		return
+	}
+	duration := 60 * time.Minute
+	if s.lru == nil {
+		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
+			go func() {
+				ticker := time.NewTicker(duration)
+				for {
+					<-ticker.C
+					d := int64(duration / time.Second)
+					timestamp := (time.Now().Unix() / d) * d
+					if _, ok := s.lru.Get(timestamp); !ok {
+						s.lru.Add(timestamp, &trafficObject{
+							Timestamp:  timestamp,
+							Uploaded:   make(map[string]int64),
+							Downloaded: make(map[string]int64),
+						})
+					}
+				}
+			}()
+
+			traffic := value.(*trafficObject)
+			if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
+				traffic.Address = s.bscAddress.String()
+				bts, _ := json.Marshal(traffic)
+				client := &http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+					},
+				}
+				resp, err := client.Post(TrafficHost+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
+				if err != nil {
+					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
+				} else {
+					s.logger.Debug("traffic handler", "key", key, "val", string(bts))
+					resp.Body.Close()
+				}
 			}
-			if strings.ToLower(r.Header.Get(ClusterEncryptHeader)) == "true" {
-				s.loggerV1.Debug("gateway mode: forbidden encryption", "url", r.URL)
-				jsonhttp.Forbidden(w, "encryption is disabled")
-				return
-			}
-		}
-		h.ServeHTTP(w, r)
-	})
+		})
+	}
+
+	d := int64(duration / time.Second)
+	timestamp := (t.Unix() / d) * d
+
+	traffic := &trafficObject{
+		Timestamp:  timestamp,
+		Uploaded:   make(map[string]int64),
+		Downloaded: make(map[string]int64),
+	}
+
+	if val, ok := s.lru.Get(timestamp); ok {
+		traffic = val.(*trafficObject)
+	}
+	traffic.mux.Lock()
+	if upload {
+		traffic.Uploaded[key] += int64(size)
+		traffic.UploadedCnt++
+	} else {
+		traffic.Downloaded[key] += int64(size)
+		traffic.DownloadedCnt++
+	}
+	traffic.mux.Unlock()
+	s.lru.Add(timestamp, traffic)
 }

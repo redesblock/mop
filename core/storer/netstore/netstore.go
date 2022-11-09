@@ -37,6 +37,7 @@ type store struct {
 	sCancel    context.CancelFunc
 	wg         sync.WaitGroup
 	metrics    metrics
+	trust      bool
 }
 
 var (
@@ -44,7 +45,7 @@ var (
 )
 
 // New returns a new NetStore that wraps a given Storer.
-func New(s storage.Storer, validStamp voucher.ValidStampFn, r retrieval.Interface, logger log.Logger) storage.Storer {
+func New(s storage.Storer, validStamp voucher.ValidStampFn, r retrieval.Interface, logger log.Logger, trust bool) storage.Storer {
 	ns := &store{
 		Storer:     s,
 		validStamp: validStamp,
@@ -52,6 +53,7 @@ func New(s storage.Storer, validStamp voucher.ValidStampFn, r retrieval.Interfac
 		logger:     logger.WithName(loggerName).Register(),
 		bgWorkers:  make(chan struct{}, maxBgPutters),
 		metrics:    newMetrics(),
+		trust:      trust,
 	}
 	ns.sCtx, ns.sCancel = context.WithCancel(context.Background())
 	return ns
@@ -65,15 +67,17 @@ func (s *store) Get(ctx context.Context, mode storage.ModeGet, addr cluster.Addr
 	ch, err = s.Storer.Get(ctx, mode, addr)
 	if err == nil {
 		s.metrics.LocalChunksCounter.Inc()
-		// ensure the chunk we get locally is valid. If not, retrieve the chunk
-		// from network. If there is any corruption of data in the local storage,
-		// this would ensure it is retrieved again from network and added back with
-		// the correct data
-		if !cac.Valid(ch) && !soc.Valid(ch) {
-			err = errInvalidLocalChunk
-			ch = nil
-			s.logger.Warning("netstore: got invalid chunk from localstore, falling back to retrieval")
-			s.metrics.InvalidLocalChunksCounter.Inc()
+		if !s.trust {
+			// ensure the chunk we get locally is valid. If not, retrieve the chunk
+			// from network. If there is any corruption of data in the local storage,
+			// this would ensure it is retrieved again from network and added back with
+			// the correct data
+			if !cac.Valid(ch) && !soc.Valid(ch) {
+				err = errInvalidLocalChunk
+				ch = nil
+				s.logger.Warning("netstore: got invalid chunk from localstore, falling back to retrieval")
+				s.metrics.InvalidLocalChunksCounter.Inc()
+			}
 		}
 	}
 	if err != nil {

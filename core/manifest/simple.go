@@ -108,13 +108,13 @@ func (m *simpleManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFunc
 	return m.reference, nil
 }
 
-func (m *simpleManifest) IterateAddresses(ctx context.Context, fn cluster.AddressIterFunc) error {
+func (m *simpleManifest) IterateAddresses(ctx context.Context, fn AddressIterFunc) error {
 	if cluster.ZeroAddress.Equal(m.reference) {
 		return ErrMissingReference
 	}
 
 	// NOTE: making it behave same for all manifest implementation
-	err := fn(m.reference)
+	err := fn(m.reference, nil)
 	if err != nil {
 		return fmt.Errorf("manifest iterate addresses: %w", err)
 	}
@@ -129,7 +129,7 @@ func (m *simpleManifest) IterateAddresses(ctx context.Context, fn cluster.Addres
 			return err
 		}
 
-		return fn(ref)
+		return fn(ref, entry.Metadata())
 	}
 
 	err = m.manifest.WalkEntry("", walker)

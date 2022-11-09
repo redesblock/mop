@@ -36,7 +36,6 @@ const (
 
 type nodeResponse struct {
 	MopMode           string `json:"mopMode"`
-	GatewayMode       bool   `json:"gatewayMode"`
 	ChequebookEnabled bool   `json:"chequebookEnabled"`
 	SwapEnabled       bool   `json:"swapEnabled"`
 }
@@ -59,7 +58,6 @@ func (b MopNodeMode) String() string {
 func (s *Service) nodeGetHandler(w http.ResponseWriter, r *http.Request) {
 	jsonhttp.OK(w, nodeResponse{
 		MopMode:           s.mopMode.String(),
-		GatewayMode:       s.gatewayMode,
 		ChequebookEnabled: s.chequebookEnabled,
 		SwapEnabled:       s.swapEnabled,
 	})

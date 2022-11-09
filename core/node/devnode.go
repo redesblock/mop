@@ -171,6 +171,16 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 		}),
 	)
 
+	probe := api.NewProbe()
+	probe.SetHealthy(api.ProbeStatusOK)
+	defer func(probe *api.Probe) {
+		if err != nil {
+			probe.SetHealthy(api.ProbeStatusNOK)
+		} else {
+			probe.SetReady(api.ProbeStatusOK)
+		}
+	}(probe)
+
 	var debugApiService *api.Service
 
 	if o.DebugAPIAddr != "" {
@@ -179,7 +189,7 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 			return nil, fmt.Errorf("debug api listener: %w", err)
 		}
 
-		debugApiService = api.New(mockKey.PublicKey, mockKey.PublicKey, overlayBSCAddress, logger, mockTransaction, batchStore, false, api.DevMode, true, true, chainBackend, o.CORSAllowedOrigins)
+		debugApiService = api.New(mockKey.PublicKey, mockKey.PublicKey, overlayBSCAddress, logger, mockTransaction, batchStore, api.DevMode, true, true, chainBackend, o.CORSAllowedOrigins)
 		debugAPIServer := &http.Server{
 			IdleTimeout:       30 * time.Second,
 			ReadHeaderTimeout: 3 * time.Second,
@@ -188,6 +198,7 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 		}
 
 		debugApiService.MountTechnicalDebug()
+		debugApiService.SetProbe(probe)
 
 		go func() {
 			logger.Info("starting debug api server", "address", debugAPIListener.Addr())
@@ -411,7 +422,7 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 		}),
 	)
 
-	apiService := api.New(mockKey.PublicKey, mockKey.PublicKey, overlayBSCAddress, logger, mockTransaction, batchStore, false, api.DevMode, true, true, chainBackend, o.CORSAllowedOrigins)
+	apiService := api.New(mockKey.PublicKey, mockKey.PublicKey, overlayBSCAddress, logger, mockTransaction, batchStore, api.DevMode, true, true, chainBackend, o.CORSAllowedOrigins)
 
 	apiService.Configure(signer, authenticator, tracer, api.Options{
 		CORSAllowedOrigins: o.CORSAllowedOrigins,
@@ -420,6 +431,7 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 	}, debugOpts, 1, erc20)
 
 	apiService.MountAPI()
+	apiService.SetProbe(probe)
 
 	if o.Restricted {
 		apiService.SetP2P(p2ps)

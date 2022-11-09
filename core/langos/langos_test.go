@@ -161,7 +161,6 @@ func testReadCount(t *testing.T, cr *counterReader, want int) {
 //
 // goos: darwin
 // goarch: amd64
-// pkg: github.com/ethersphere/swarm/api/http/langos
 // BenchmarkDelayedReaders/static_direct-8                      	      30	  36824643 ns/op	33552520 B/op	      18 allocs/op
 // BenchmarkDelayedReaders/static_buffered-8                    	      45	  27717528 ns/op	33683733 B/op	      21 allocs/op
 // BenchmarkDelayedReaders/static_langos-8                      	      81	  14409938 ns/op	44108067 B/op	     264 allocs/op
