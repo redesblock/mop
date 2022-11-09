@@ -323,6 +323,12 @@ FETCH:
 		}
 	}
 
+	tarVar := mux.Vars(r)["tar"]
+	if strings.ToLower(tarVar) == "true" {
+		s.serveManifestEntryTar(w, r, address, m, !feedDereferenced)
+		return
+	}
+
 	if pathVar == "" {
 		loggerV1.Debug("mop download: handle empty path", "address", address)
 
@@ -402,6 +408,62 @@ FETCH:
 
 	// serve requested path
 	s.serveManifestEntry(w, r, address, me, !feedDereferenced)
+}
+
+func (s *Service) serveManifestEntryTar(
+	w http.ResponseWriter,
+	r *http.Request,
+	address cluster.Address,
+	mf manifest.Interface,
+	etag bool,
+) {
+	//var buf bytes.Buffer
+	//tw := tar.NewWriter(&buf)
+	var files []string
+	if err := mf.IterateAddresses(r.Context(), func(address cluster.Address, mtdt map[string]string) error {
+		fname, ok := mtdt[manifest.EntryMetadataFilenameKey]
+		if !ok {
+			return fmt.Errorf("file name not found")
+		}
+		files = append(files, fname)
+		//reader, l, err := joiner.New(r.Context(), s.storer, address)
+		//if err != nil {
+		//	return fmt.Errorf("joiner failed %v", err)
+		//}
+		//_ = l
+		//hdr := &tar.Header{
+		//	Name: fname,
+		//	Mode: 0600,
+		//	Size: reader.Size(),
+		//}
+		//
+		//if err := tw.WriteHeader(hdr); err != nil {
+		//	return fmt.Errorf("write header failed %v", err)
+		//}
+		//bts, err := ioutil.ReadAll(reader)
+		//if err != nil {
+		//	return fmt.Errorf("write header failed %v", err)
+		//}
+		//if _, err := tw.Write(bts); err != nil {
+		//	return fmt.Errorf("write failed %v", err)
+		//}
+		return nil
+	}); err != nil {
+		jsonhttp.InternalServerError(w, err)
+		return
+	}
+
+	//l := int64(buf.Len())
+	//w.Header().Set(contentTypeHeader, contentTypeTar)
+	//w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s.tar\"", address))
+	//w.Header().Set("Content-Length", strconv.FormatInt(l, 10))
+	//w.Header().Set("Decompressed-Content-Length", strconv.FormatInt(l, 10))
+	//w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
+	if etag {
+		w.Header().Set("ETag", fmt.Sprintf("%q", address))
+	}
+	jsonhttp.OK(w, files)
+	//http.ServeContent(w, r, "", time.Now(), buf)
 }
 
 func (s *Service) serveManifestEntry(

@@ -37,6 +37,8 @@ var (
 // the Store function.
 type StoreSizeFunc func(int64) error
 
+type AddressIterFunc func(address cluster.Address, metadata map[string]string) error
+
 // Interface for operations with manifest.
 type Interface interface {
 	// Type returns manifest implementation type information
@@ -53,7 +55,7 @@ type Interface interface {
 	Store(context.Context, ...StoreSizeFunc) (cluster.Address, error)
 	// IterateAddresses is used to iterate over chunks addresses for
 	// the manifest.
-	IterateAddresses(context.Context, cluster.AddressIterFunc) error
+	IterateAddresses(context.Context, AddressIterFunc) error
 }
 
 // Entry represents a single manifest entry.
