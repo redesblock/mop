@@ -14,9 +14,10 @@ type statusResponse struct {
 	DebugAPIVersion string `json:"debugApiVersion"`
 }
 
-func statusHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Service) healthHandler(w http.ResponseWriter, r *http.Request) {
+	status := s.probe.Healthy()
 	jsonhttp.OK(w, statusResponse{
-		Status:          "ok",
+		Status:          status.String(),
 		Version:         ver.Version,
 		APIVersion:      Version,
 		DebugAPIVersion: Version,

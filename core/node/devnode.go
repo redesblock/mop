@@ -171,6 +171,16 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 		}),
 	)
 
+	probe := api.NewProbe()
+	probe.SetHealthy(api.ProbeStatusOK)
+	defer func(probe *api.Probe) {
+		if err != nil {
+			probe.SetHealthy(api.ProbeStatusNOK)
+		} else {
+			probe.SetReady(api.ProbeStatusOK)
+		}
+	}(probe)
+
 	var debugApiService *api.Service
 
 	if o.DebugAPIAddr != "" {
@@ -188,6 +198,7 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 		}
 
 		debugApiService.MountTechnicalDebug()
+		debugApiService.SetProbe(probe)
 
 		go func() {
 			logger.Info("starting debug api server", "address", debugAPIListener.Addr())
@@ -420,6 +431,7 @@ func NewDevMop(logger log.Logger, o *DevOptions) (b *DevMop, err error) {
 	}, debugOpts, 1, erc20)
 
 	apiService.MountAPI()
+	apiService.SetProbe(probe)
 
 	if o.Restricted {
 		apiService.SetP2P(p2ps)

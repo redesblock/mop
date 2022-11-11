@@ -82,11 +82,6 @@ func (s *Service) MountAPI() {
 }
 
 func (s *Service) mountTechnicalDebug() {
-	s.router.Handle("/readiness", web.ChainHandlers(
-		httpaccess.NewHTTPAccessSuppressLogHandler(),
-		web.FinalHandlerFunc(statusHandler),
-	))
-
 	s.router.Handle("/node", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.nodeGetHandler),
 	})
@@ -120,11 +115,6 @@ func (s *Service) mountTechnicalDebug() {
 
 	s.router.Handle("/debug/vars", expvar.Handler())
 
-	s.router.Handle("/health", web.ChainHandlers(
-		httpaccess.NewHTTPAccessSuppressLogHandler(),
-		web.FinalHandlerFunc(statusHandler),
-	))
-
 	s.router.Handle("/loggers", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
 			httpaccess.NewHTTPAccessSuppressLogHandler(),
@@ -143,6 +133,16 @@ func (s *Service) mountTechnicalDebug() {
 			web.FinalHandlerFunc(s.loggerSetVerbosityHandler),
 		),
 	})
+
+	s.router.Handle("/readiness", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.readinessHandler),
+	))
+
+	s.router.Handle("/health", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.healthHandler),
+	))
 }
 
 func (s *Service) mountAPI() {
@@ -308,6 +308,16 @@ func (s *Service) mountAPI() {
 			web.FinalHandlerFunc(s.wardenshipPutHandler),
 		),
 	})
+
+	handle("/readiness", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.readinessHandler),
+	))
+
+	handle("/health", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.healthHandler),
+	))
 
 	if s.Restricted {
 		handle("/auth", jsonhttp.MethodHandler{
@@ -545,6 +555,17 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 	handle("/bookkeeper", jsonhttp.MethodHandler{
 		"GET": http.HandlerFunc(s.accountingInfoHandler),
 	})
+
+	handle("/readiness", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.readinessHandler),
+	))
+
+	handle("/health", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.healthHandler),
+	))
+
 }
 
 func (s *Service) gatewayModeForbidEndpointHandler(h http.Handler) http.Handler {

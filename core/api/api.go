@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redesblock/mop/core/incentives/pledge"
-	"github.com/redesblock/mop/core/incentives/reward"
 	"io"
 	"math"
 	"math/big"
@@ -20,6 +18,9 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/redesblock/mop/core/incentives/pledge"
+	"github.com/redesblock/mop/core/incentives/reward"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
@@ -130,6 +131,7 @@ type Service struct {
 	pledgeContract  pledge.Service
 	rewardContract  reward.Service
 	chunkPushC      chan *pusher.Op
+	probe           *Probe
 	metricsRegistry *prometheus.Registry
 	Options
 
@@ -279,6 +281,10 @@ func (s *Service) Configure(signer crypto.Signer, auth authenticator, tracer *tr
 	s.syncStatus = e.SyncStatus
 
 	return s.chunkPushC
+}
+
+func (s *Service) SetProbe(probe *Probe) {
+	s.probe = probe
 }
 
 // Close hangs up running websockets on shutdown.
