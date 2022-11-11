@@ -15,9 +15,9 @@ import (
 const (
 	SpanSize                = 8
 	SectionSize             = 32
-	Branches                = 128
+	Branches                = 128 * 32
 	EncryptedBranches       = Branches / 2
-	BmtBranches             = 128
+	BmtBranches             = 128 * 32
 	ChunkSize               = SectionSize * Branches
 	HashSize                = 32
 	MaxPO             uint8 = 31
