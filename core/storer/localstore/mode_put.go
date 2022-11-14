@@ -124,7 +124,7 @@ func (db *DB) put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chun
 	defer func() {
 		if retErr != nil {
 			for _, l := range committedLocations {
-				err := db.sharky.Release(ctx, l)
+				err := db.sharky.Release(context.Background(), l)
 				if err != nil {
 					db.logger.Warning("failed releasing sharky location on error", "error", err)
 				}
