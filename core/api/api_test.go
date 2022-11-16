@@ -108,6 +108,7 @@ type testServerOptions struct {
 	SwapOpts        []swapmock.Option
 	TransactionOpts []transactionmock.Option
 	Traverser       traverser.Traverser
+	Probe           *api.Probe
 
 	BatchStore voucher.Storer
 	SyncStatus func() (bool, error)
