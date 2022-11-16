@@ -53,7 +53,8 @@ func (c *command) initStartCmd() (err error) {
 			}
 
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
-			logger, err := newFileLogger(cmd, v, c.config.GetString(optionNameDataDir))
+			dataDir := c.config.GetString(optionNameDataDir)
+			logger, err := newFileLogger(cmd, v, dataDir)
 			if err != nil {
 				return fmt.Errorf("new logger: %w", err)
 			}
@@ -84,9 +85,9 @@ func (c *command) initStartCmd() (err error) {
 				}
 			}
 
-			fmt.Print(mopWelcomeMessage)
+			logger.Info(mopWelcomeMessage)
 
-			fmt.Printf("\n\nversion: %v - planned to be supported until %v, please follow https://bnbcluster.org/\n\n", ver.Version, endSupportDate())
+			logger.Info(fmt.Sprintf("\n\nversion: %v - planned to be supported until %v, please follow https://bnbcluster.org/\n\n", ver.Version, endSupportDate()))
 
 			debugAPIAddr := c.config.GetString(optionNameDebugAPIAddr)
 			if !c.config.GetBool(optionNameDebugAPIEnable) {
@@ -97,6 +98,8 @@ func (c *command) initStartCmd() (err error) {
 			if err != nil {
 				return err
 			}
+
+			fmt.Printf("Please see the application log %s for more detail\n", filepath.Join(dataDir, "logs", "mop.log"))
 
 			logger.Info("mop version", "version", ver.Version)
 
