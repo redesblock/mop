@@ -257,7 +257,6 @@ func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) serveReference(address cluster.Address, pathVar string, w http.ResponseWriter, r *http.Request) {
 	logger := tracer.NewLoggerWithTraceID(r.Context(), s.logger)
-	loggerV1 := logger.V(1).Build()
 	ls := loadsave.NewReadonly(s.storer)
 	feedDereferenced := false
 
@@ -330,7 +329,7 @@ FETCH:
 	}
 
 	if pathVar == "" {
-		loggerV1.Debug("mop download: handle empty path", "address", address)
+		logger.Debug("mop download: handle empty path", "address", address)
 
 		if indexDocumentSuffixKey, ok := manifestMetadataLoad(ctx, m, manifest.RootPath, manifest.WebsiteIndexDocumentSuffixKey); ok {
 			pathWithIndex := path.Join(pathVar, indexDocumentSuffixKey)
@@ -347,8 +346,7 @@ FETCH:
 
 	me, err := m.Lookup(ctx, pathVar)
 	if err != nil {
-		loggerV1.Debug("mop download: invalid path", "address", address, "path", pathVar, "error", err)
-		logger.Error(nil, "mop download: invalid path")
+		logger.Debug("mop download: invalid path", "address", address, "path", pathVar, "error", err)
 
 		if errors.Is(err, manifest.ErrNotFound) {
 

@@ -169,7 +169,6 @@ type Service struct {
 	voucherSem       *semaphore.Weighted
 	cashOutChequeSem *semaphore.Weighted
 	mopMode          MopNodeMode
-	gatewayMode      bool
 
 	chainBackend transaction.Backend
 	erc20Service erc20.Service
@@ -190,7 +189,6 @@ func (s *Service) SetClusterAddress(addr *cluster.Address) {
 
 type Options struct {
 	CORSAllowedOrigins []string
-	GatewayMode        bool
 	WsPingPeriod       time.Duration
 	Restricted         bool
 }
@@ -219,12 +217,11 @@ type ExtraOptions struct {
 	SyncStatus       func() (bool, error)
 }
 
-func New(publicKey, pssPublicKey ecdsa.PublicKey, bscAddress common.Address, logger log.Logger, transaction transaction.Service, batchStore voucher.Storer, gatewayMode bool, mopMode MopNodeMode, chequebookEnabled bool, swapEnabled bool, chainBackend transaction.Backend, cors []string) *Service {
+func New(publicKey, pssPublicKey ecdsa.PublicKey, bscAddress common.Address, logger log.Logger, transaction transaction.Service, batchStore voucher.Storer, mopMode MopNodeMode, chequebookEnabled bool, swapEnabled bool, chainBackend transaction.Backend, cors []string) *Service {
 	s := new(Service)
 
 	s.CORSAllowedOrigins = cors
 	s.mopMode = mopMode
-	s.gatewayMode = gatewayMode
 	s.logger = logger.WithName(loggerName).Register()
 	s.loggerV1 = s.logger.V(1).Register()
 	s.chequebookEnabled = chequebookEnabled

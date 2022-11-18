@@ -191,7 +191,6 @@ func (c *command) initStartCmd() (err error) {
 				PaymentTolerance:           c.config.GetInt64(optionNamePaymentTolerance),
 				PaymentEarly:               c.config.GetInt64(optionNamePaymentEarly),
 				ResolverConnectionCfgs:     resolverCfgs,
-				GatewayMode:                c.config.GetBool(optionNameGatewayMode),
 				BootnodeMode:               bootNode,
 				BSCEndpoints:               c.config.GetStringSlice(optionNameBSCEndpoint),
 				SwapFactoryAddress:         c.config.GetString(optionNameSwapFactoryAddress),
