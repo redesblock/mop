@@ -857,16 +857,14 @@ func TestTopologyOverSaturated(t *testing.T) {
 
 func TestWithDisconnectStreams(t *testing.T) {
 
-	defer func(t time.Duration) {
-		*libp2p.SendHeadersTimeout = t
-	}(*libp2p.SendHeadersTimeout)
-	*libp2p.SendHeadersTimeout = 60 * time.Second
+	const headersRWTimeout = 60 * time.Second
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	s1, overlay1 := newService(t, 1, libp2pServiceOpts{libp2pOpts: libp2p.Options{
-		FullNode: true,
+		FullNode:         true,
+		HeadersRWTimeout: headersRWTimeout,
 	}})
 	s2, overlay2 := newService(t, 1, libp2pServiceOpts{})
 

@@ -123,7 +123,7 @@ func (m *mantarayManifest) Store(ctx context.Context, storeSizeFn ...StoreSizeFu
 	return address, nil
 }
 
-func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn cluster.AddressIterFunc) error {
+func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn AddressIterFunc) error {
 	reference := cluster.NewAddress(m.trie.Reference())
 
 	if cluster.ZeroAddress.Equal(reference) {
@@ -140,7 +140,7 @@ func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn cluster.Addr
 			if node.Reference() != nil {
 				ref := cluster.NewAddress(node.Reference())
 
-				err = fn(ref)
+				err = fn(ref, node.Metadata())
 				if err != nil {
 					return err
 				}
@@ -158,7 +158,7 @@ func (m *mantarayManifest) IterateAddresses(ctx context.Context, fn cluster.Addr
 				if entry.Equal(emptyAddr) {
 					return nil
 				}
-				if err := fn(entry); err != nil {
+				if err := fn(entry, node.Metadata()); err != nil {
 					return err
 				}
 			}

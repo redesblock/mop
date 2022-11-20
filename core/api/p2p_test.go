@@ -68,7 +68,6 @@ func TestAddresses(t *testing.T) {
 	jsonhttptest.Request(t, testServer, http.MethodGet, "/node", http.StatusOK,
 		jsonhttptest.WithExpectedJSONResponse(api.NodeResponse{
 			MopMode:           api.FullMode.String(),
-			GatewayMode:       false,
 			ChequebookEnabled: true,
 			SwapEnabled:       true,
 		}),

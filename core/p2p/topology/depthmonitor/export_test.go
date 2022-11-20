@@ -1,7 +1,6 @@
 package depthmonitor
 
 var (
-	ManageWait    = &manageWait
 	MinimumRadius = &minimumRadius
 )
 

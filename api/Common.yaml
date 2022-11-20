@@ -403,8 +403,6 @@ components:
             * `light` - light node; does not participate in forwarding or storing chunks
             * `full` - full node
             * `dev` - development mode; Mop client for development purposes, blockchain operations are mocked
-        gatewayMode:
-          type: boolean
         chequebookEnabled:
           type: boolean
         swapEnabled:
@@ -415,6 +413,11 @@ components:
       properties:
         status:
           type: string
+          enum: [ok, nok]
+          description: >
+            Indicates health state of node
+            * `ok` - node is healthy
+            * `nok` - node is not healthy
         version:
           type: string
         apiVersion:
@@ -811,9 +814,6 @@ components:
       required: false
       description: >
         Represents if the uploaded data should be also locally pinned on the node.
-
-        Warning! Not available for nodes that run in Gateway mode!
-
     ClusterEncryptParameter:
       in: header
       name: cluster-encrypt
@@ -822,9 +822,6 @@ components:
       required: false
       description: >
         Represents the encrypting state of the file
-
-        Warning! Not available for nodes that run in Gateway mode!
-
     ContentTypePreserved:
       in: header
       name: Content-Type
@@ -916,9 +913,3 @@ components:
           schema:
             $ref: "#/components/schemas/ProblemDetails"
 
-    "GatewayForbidden":
-      description: "Endpoint or header (pins or encryption headers) forbidden in Gateway mode"
-      content:
-        application/problem+json:
-          schema:
-            $ref: "#/components/schemas/ProblemDetails"

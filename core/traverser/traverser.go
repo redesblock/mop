@@ -41,7 +41,7 @@ type service struct {
 
 // Traverse implements Traverser.Traverse method.
 func (s *service) Traverse(ctx context.Context, addr cluster.Address, iterFn cluster.AddressIterFunc) error {
-	processBytes := func(ref cluster.Address) error {
+	processBytes := func(ref cluster.Address, _ map[string]string) error {
 		j, _, err := joiner.New(ctx, s.store, ref)
 		if err != nil {
 			return fmt.Errorf("traverser: joiner error on %q: %w", ref, err)
@@ -82,7 +82,7 @@ func (s *service) Traverse(ctx context.Context, addr cluster.Address, iterFn clu
 	}
 
 	// Non-manifest processing.
-	if err := processBytes(addr); err != nil {
+	if err := processBytes(addr, nil); err != nil {
 		return fmt.Errorf("traverser: unable to process bytes for %q: %w", addr, err)
 	}
 	return nil

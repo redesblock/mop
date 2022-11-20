@@ -147,7 +147,6 @@ type Options struct {
 	PaymentEarly               int64
 	ResolverConnectionCfgs     []multiresolver.ConnectionConfig
 	RetrievalCaching           bool
-	GatewayMode                bool
 	BootnodeMode               bool
 	BSCEndpoints               []string
 	SwapFactoryAddress         string
@@ -321,6 +320,16 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		mopNodeMode = api.UltraLightMode
 	}
 
+	probe := api.NewProbe()
+	probe.SetHealthy(api.ProbeStatusOK)
+	defer func(probe *api.Probe) {
+		if err != nil {
+			probe.SetHealthy(api.ProbeStatusNOK)
+		} else {
+			probe.SetReady(api.ProbeStatusOK)
+		}
+	}(probe)
+
 	var debugService *api.Service
 
 	if o.DebugAPIAddr != "" {
@@ -337,8 +346,9 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 			return nil, fmt.Errorf("debug api listener: %w", err)
 		}
 
-		debugService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, o.GatewayMode, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
+		debugService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
 		debugService.MountTechnicalDebug()
+		debugService.SetProbe(probe)
 
 		debugAPIServer := &http.Server{
 			IdleTimeout:       30 * time.Second,
@@ -362,7 +372,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	var apiService *api.Service
 
 	if o.Restricted {
-		apiService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, o.GatewayMode, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
+		apiService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
 		apiService.MountTechnicalDebug()
 
 		apiServer := &http.Server{
@@ -975,7 +985,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	}
 
 	if o.FullNodeMode {
-		depthMonitor := depthmonitor.New(kad, pullSyncProtocol, storer, batchStore, logger, warmupTime)
+		depthMonitor := depthmonitor.New(kad, pullSyncProtocol, storer, batchStore, logger, warmupTime, depthmonitor.DefaultWakeupInterval)
 		b.depthMonitorCloser = depthMonitor
 	}
 
@@ -1032,12 +1042,11 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 	if o.APIAddr != "" {
 		if apiService == nil {
-			apiService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, o.GatewayMode, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
+			apiService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
 		}
 
 		chunkC := apiService.Configure(signer, authenticator, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
-			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,
 			Restricted:         o.Restricted,
 		}, extraOpts, chainID, erc20Service)
@@ -1045,6 +1054,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		pusherService.AddFeed(chunkC)
 
 		apiService.MountAPI()
+		apiService.SetProbe(probe)
 
 		if !o.Restricted {
 			apiServer := &http.Server{
@@ -1128,7 +1138,6 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 		debugService.Configure(signer, authenticator, tracer, api.Options{
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
-			GatewayMode:        o.GatewayMode,
 			WsPingPeriod:       60 * time.Second,
 			Restricted:         o.Restricted,
 		}, extraOpts, chainID, erc20Service)

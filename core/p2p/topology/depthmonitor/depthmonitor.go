@@ -11,8 +11,11 @@ import (
 
 const loggerName = "depthmonitor"
 
+// DefaultWakeupInterval is the default value
+// for the depth monitor wake-up interval.
+const DefaultWakeupInterval = 10 * time.Second
+
 var (
-	manageWait          = 5 * time.Minute
 	minimumRadius uint8 = 4
 )
 
@@ -21,7 +24,7 @@ var (
 // pledged by the node to the network.
 type ReserveReporter interface {
 	// Current size of the reserve.
-	ReserveSize() (uint64, error)
+	ComputeReserveSize(uint8) (uint64, error)
 	// Capacity of the reserve that is configured.
 	ReserveCapacity() uint64
 }
@@ -59,6 +62,7 @@ func New(
 	bs voucher.Storer,
 	logger log.Logger,
 	warmupTime time.Duration,
+	wakeupInterval time.Duration,
 ) *Service {
 
 	s := &Service{
@@ -71,12 +75,12 @@ func New(
 		stopped:  make(chan struct{}),
 	}
 
-	go s.manage(warmupTime)
+	go s.manage(warmupTime, wakeupInterval)
 
 	return s
 }
 
-func (s *Service) manage(warmupTime time.Duration) {
+func (s *Service) manage(warmupTime, wakeupInterval time.Duration) {
 	defer close(s.stopped)
 
 	// wire up batchstore to start reporting storage radius to kademlia
@@ -108,17 +112,18 @@ func (s *Service) manage(warmupTime time.Duration) {
 		select {
 		case <-s.quit:
 			return
-		case <-time.After(manageWait):
+		case <-time.After(wakeupInterval):
 		}
 
-		currentSize, err := s.reserve.ReserveSize()
+		reserveState := s.bs.GetReserveState()
+		currentSize, err := s.reserve.ComputeReserveSize(reserveState.StorageRadius)
 		if err != nil {
 			s.logger.Error(err, "depthmonitor: failed reading reserve size")
 			continue
 		}
 
 		rate := s.syncer.Rate()
-		s.logger.Debug("depthmonitor size and rate", "current size", currentSize, "chunks/sec rate", rate)
+		s.logger.Debug("depthmonitor size and rate", "current size", currentSize, "radius", reserveState.StorageRadius, "chunks/sec rate", rate)
 
 		// we have crossed 50% utilization
 		if currentSize > halfCapacity {
