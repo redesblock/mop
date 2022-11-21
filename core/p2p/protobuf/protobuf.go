@@ -10,7 +10,7 @@ import (
 	"github.com/redesblock/mop/core/p2p"
 )
 
-const delimitedReaderMaxSize = 128 * 1024 // max message size
+const delimitedReaderMaxSize = 32 * 128 * 1024 // max message size
 
 var ErrTimeout = errors.New("timeout")
 
