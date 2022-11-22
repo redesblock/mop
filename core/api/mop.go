@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redesblock/mop/core/dispatcher"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 
@@ -231,6 +233,17 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 	jsonhttp.Created(w, mopUploadResponse{
 		Reference: manifestReference,
 	})
+}
+
+func (s *Service) mopDownloadHandlerJob(w http.ResponseWriter, r *http.Request) {
+	done := make(chan bool)
+	dispatcher.JobQueue <- &handlerJob{
+		w:          w,
+		r:          r,
+		done:       done,
+		handleFunc: s.mopDownloadHandler,
+	}
+	<-done
 }
 
 func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {

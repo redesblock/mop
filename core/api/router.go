@@ -241,6 +241,14 @@ func (s *Service) mountAPI() {
 		),
 	})
 
+	handle("/mop2/{address}/{path:.*}", jsonhttp.MethodHandler{
+		"GET": web.ChainHandlers(
+			s.contentLengthMetricMiddleware(),
+			s.newTracingHandler("mop-download"),
+			web.FinalHandlerFunc(s.mopDownloadHandlerJob),
+		),
+	})
+
 	handle("/psser/send/{topic}/{targets}", web.ChainHandlers(
 		web.FinalHandler(jsonhttp.MethodHandler{
 			"POST": web.ChainHandlers(

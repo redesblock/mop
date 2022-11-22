@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redesblock/mop/core/dispatcher"
+
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -59,6 +61,8 @@ func (c *command) initStartCmd() (err error) {
 				return fmt.Errorf("new logger: %w", err)
 			}
 
+			dispatcher := dispatcher.NewDispatcher(c.config.GetInt(optionNameMaxWorker))
+			dispatcher.Run()
 			go startTimeBomb(logger)
 
 			isWindowsService, err := isWindowsService()
