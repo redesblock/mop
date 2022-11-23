@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redesblock/mop/core/dispatcher"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 
@@ -235,17 +233,6 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 	})
 }
 
-func (s *Service) mopDownloadHandlerJob(w http.ResponseWriter, r *http.Request) {
-	done := make(chan bool)
-	dispatcher.JobQueue <- &handlerJob{
-		w:          w,
-		r:          r,
-		done:       done,
-		handleFunc: s.mopDownloadHandler,
-	}
-	<-done
-}
-
 func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := tracer.NewLoggerWithTraceID(r.Context(), s.logger)
 
@@ -264,7 +251,6 @@ func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.NotFound(w, nil)
 		return
 	}
-
 	s.serveReference(address, pathVar, w, r)
 }
 
@@ -356,7 +342,6 @@ FETCH:
 			}
 		}
 	}
-
 	me, err := m.Lookup(ctx, pathVar)
 	if err != nil {
 		logger.Debug("mop download: invalid path", "address", address, "path", pathVar, "error", err)
@@ -416,7 +401,6 @@ FETCH:
 		}
 		return
 	}
-
 	// serve requested path
 	s.serveManifestEntry(w, r, address, me, !feedDereferenced)
 }

@@ -83,6 +83,35 @@ func (db *DB) updateGCItems(items ...shed.Item) {
 		db.updateGCSem <- struct{}{}
 	}
 	db.updateGCWG.Add(1)
+	// dispatcher.JobQueue <- &dispatcher.CommonJob{
+	// 	Args: []interface{}{items},
+	// 	DoFunc: func(args ...interface{}) error {
+	// 		defer db.updateGCWG.Done()
+	// 		items := args[0].([]shed.Item)
+	// 		if db.updateGCSem != nil {
+	// 			// free a spot in updateGCSem buffer
+	// 			// for a new goroutine
+	// 			defer func() { <-db.updateGCSem }()
+	// 		}
+
+	// 		db.metrics.GCUpdate.Inc()
+	// 		defer totalTimeMetric(db.metrics.TotalTimeUpdateGC, time.Now())
+
+	// 		for _, item := range items {
+	// 			err := db.updateGC(item)
+	// 			if err != nil {
+	// 				db.metrics.GCUpdateError.Inc()
+	// 				db.logger.Error(err, "localstore update gc failed")
+	// 			}
+	// 		}
+	// 		// if gc update hook is defined, call it
+	// 		if testHookUpdateGC != nil {
+	// 			testHookUpdateGC()
+	// 		}
+	// 		return nil
+	// 	},
+	// }
+
 	go func() {
 		defer db.updateGCWG.Done()
 		if db.updateGCSem != nil {

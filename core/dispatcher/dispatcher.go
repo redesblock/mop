@@ -1,13 +1,27 @@
 package dispatcher
 
 var (
-	MaxQueue = 1024
+	MaxQueue = 10240
 	// A buffered channel that we can send work requests on.
 	JobQueue chan Job = make(chan Job, MaxQueue)
 )
 
 type Job interface {
 	Do() error
+}
+
+type CommonJob struct {
+	Args   []interface{}
+	DoFunc func(args ...interface{}) error
+	Done   chan error
+}
+
+func (job *CommonJob) Do() error {
+	err := job.DoFunc(job.Args...)
+	if job.Done != nil {
+		job.Done <- err
+	}
+	return err
 }
 
 // Worker represents the worker that executes the job
@@ -75,18 +89,17 @@ func (d *Dispatcher) Run() {
 
 func (d *Dispatcher) dispatch() {
 	for {
-
 		select {
 		case job := <-JobQueue:
 			// a job request has been received
-			go func(job Job) {
-				// try to obtain a worker job channel that is available.
-				// this will block until a worker is idle
-				jobChannel := <-d.WorkerPool
+			//go func(job Job) {
+			// try to obtain a worker job channel that is available.
+			// this will block until a worker is idle
+			jobChannel := <-d.WorkerPool
 
-				// dispatch the job to the worker job channel
-				jobChannel <- job
-			}(job)
+			// dispatch the job to the worker job channel
+			jobChannel <- job
+			//}(job)
 		}
 	}
 }

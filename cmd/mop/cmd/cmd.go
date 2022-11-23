@@ -301,7 +301,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
 	cmd.Flags().Bool(optionNameUseVoucherSnapshot, false, "bootstrap node using voucher snapshot from the network")
 	cmd.Flags().String(optionNameReceiptEndpoint, "", "receive receipt server")
-	cmd.Flags().Int(optionNameMaxWorker, 10, "number of workers")
+	cmd.Flags().Int(optionNameMaxWorker, 100, "number of workers")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {
