@@ -81,6 +81,7 @@ const (
 	optionNameUseVoucherSnapshot         = "use-voucher-snapshot"
 	optionNameReceiptEndpoint            = "push-receipt-endpoint"
 	optionNameMaxWorker                  = "max-worker"
+	optionTrustNode                      = "trust-node"
 )
 
 func init() {
@@ -302,6 +303,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameUseVoucherSnapshot, false, "bootstrap node using voucher snapshot from the network")
 	cmd.Flags().String(optionNameReceiptEndpoint, "", "receive receipt server")
 	cmd.Flags().Int(optionNameMaxWorker, 100, "number of workers")
+	cmd.Flags().Bool(optionTrustNode, false, "ensure the locally chunk is valid")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {

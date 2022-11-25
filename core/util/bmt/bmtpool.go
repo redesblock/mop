@@ -6,7 +6,7 @@ import (
 	"github.com/redesblock/mop/core/cluster"
 )
 
-const Capacity = 32
+const Capacity = 32 * 32
 
 var instance *Pool
 

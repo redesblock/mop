@@ -112,7 +112,7 @@ func (h *Hasher) Write(b []byte) (int, error) {
 	}
 	h.pos = to
 	for i := from; i < to; i++ {
-		h.processSection(i, false)
+		go h.processSection(i, false)
 	}
 	return l, nil
 }

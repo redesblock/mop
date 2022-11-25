@@ -175,6 +175,7 @@ type Options struct {
 	AdminPasswordHash          string
 	UseVoucherSnapshot         bool
 	ReceiptEndPoint            string
+	TrustNode                  bool
 }
 
 const (
@@ -935,7 +936,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	pssService := psser.New(pssPrivateKey, logger)
 	b.pssCloser = pssService
 
-	var netStorer = netstore.New(storer, validStamp, retrieve, logger)
+	var netStorer = netstore.New(storer, validStamp, retrieve, logger, o.TrustNode)
 	b.nsCloser = netStorer
 
 	traversalService := traverser.New(netStorer)

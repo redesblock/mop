@@ -3,7 +3,7 @@ package dispatcher
 var (
 	MaxQueue = 10240
 	// A buffered channel that we can send work requests on.
-	JobQueue chan Job = make(chan Job, MaxQueue)
+	JobQueue chan Job
 )
 
 type Job interface {
@@ -88,6 +88,7 @@ func (d *Dispatcher) Run() {
 }
 
 func (d *Dispatcher) dispatch() {
+	JobQueue = make(chan Job, MaxQueue)
 	for {
 		select {
 		case job := <-JobQueue:

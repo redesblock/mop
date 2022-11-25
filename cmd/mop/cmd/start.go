@@ -21,6 +21,7 @@ import (
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/crypto/clef"
+	"github.com/redesblock/mop/core/dispatcher"
 	"github.com/redesblock/mop/core/keystore"
 	filekeystore "github.com/redesblock/mop/core/keystore/file"
 	memkeystore "github.com/redesblock/mop/core/keystore/mem"
@@ -59,8 +60,10 @@ func (c *command) initStartCmd() (err error) {
 				return fmt.Errorf("new logger: %w", err)
 			}
 
-			// dispatcher := dispatcher.NewDispatcher(c.config.GetInt(optionNameMaxWorker))
-			// dispatcher.Run()
+			if workers := c.config.GetInt(optionNameMaxWorker); workers > 0 {
+				dispatcher := dispatcher.NewDispatcher(workers)
+				dispatcher.Run()
+			}
 			go startTimeBomb(logger)
 
 			isWindowsService, err := isWindowsService()
@@ -222,6 +225,7 @@ func (c *command) initStartCmd() (err error) {
 				AdminPasswordHash:          c.config.GetString(optionNameAdminPasswordHash),
 				UseVoucherSnapshot:         c.config.GetBool(optionNameUseVoucherSnapshot),
 				ReceiptEndPoint:            c.config.GetString(optionNameReceiptEndpoint),
+				TrustNode:                  c.config.GetBool(optionTrustNode),
 			})
 			if err != nil {
 				return fmt.Errorf("new node %v", err)
