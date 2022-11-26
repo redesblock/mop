@@ -11,7 +11,7 @@ var _ Hash = (*Hasher)(nil)
 
 var (
 	zerospan    = make([]byte, 8)
-	zerosection = make([]byte, 64)
+	zerosection = make([]byte, 2*cluster.SectionSize)
 )
 
 // Hasher is a reusable hasher for fixed maximum size chunks representing a BMT

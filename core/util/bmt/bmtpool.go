@@ -11,7 +11,7 @@ const Capacity = 32 * 32
 var instance *Pool
 
 func init() {
-	instance = NewPool(NewConf(cluster.NewHasher, cluster.BmtBranches, Capacity))
+	instance = NewPool(NewConf(cluster.NewHasher, cluster.BmtBranches, cluster.SectionSize, Capacity))
 }
 
 // Get a bmt Hasher instance.
