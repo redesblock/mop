@@ -52,7 +52,7 @@ var (
 )
 
 const (
-	sharkyNoOfShards    = 32
+	sharkyNoOfShards    = 256
 	sharkyDirtyFileName = ".DIRTY"
 )
 
