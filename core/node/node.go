@@ -126,6 +126,7 @@ type Mop struct {
 type Options struct {
 	DataDir                    string
 	CacheCapacity              uint64
+	MemCacheCapacity           uint64
 	DBOpenFilesLimit           uint64
 	DBWriteBufferSize          uint64
 	DBBlockCacheCapacity       uint64
@@ -642,6 +643,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	}
 	lo := &localstore.Options{
 		Capacity:               o.CacheCapacity,
+		MemCapacity:            o.MemCacheCapacity,
 		ReserveCapacity:        uint64(batchstore.Capacity),
 		UnreserveFunc:          batchStore.Unreserve,
 		OpenFilesLimit:         o.DBOpenFilesLimit,

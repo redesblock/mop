@@ -176,6 +176,7 @@ func (c *command) initStartCmd() (err error) {
 			b, err := node.NewMop(interruptChannel, sysInterruptChannel, c.config.GetString(optionNameP2PAddr), signerConfig.publicKey, signerConfig.signer, networkID, logger, signerConfig.libp2pPrivateKey, signerConfig.pssPrivateKey, &node.Options{
 				DataDir:                    c.config.GetString(optionNameDataDir),
 				CacheCapacity:              c.config.GetUint64(optionNameCacheCapacity),
+				MemCacheCapacity:           c.config.GetUint64(optionNameMemCacheCapacity),
 				DBOpenFilesLimit:           c.config.GetUint64(optionNameDBOpenFilesLimit),
 				DBBlockCacheCapacity:       c.config.GetUint64(optionNameDBBlockCacheCapacity),
 				DBWriteBufferSize:          c.config.GetUint64(optionNameDBWriteBufferSize),

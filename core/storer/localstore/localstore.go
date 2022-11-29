@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/incentives/voucher"
@@ -169,8 +170,9 @@ type DB struct {
 	// iterators
 	subscriptionsWG sync.WaitGroup
 
-	items   map[string]shed.Item
-	itemsMu sync.RWMutex
+	lru                *lru.Cache
+	updateGCItemKeys   map[string]bool
+	updateGCItemKeysMu sync.Mutex
 
 	metrics metrics
 
@@ -182,6 +184,8 @@ type Options struct {
 	// Capacity is a limit that triggers garbage collection when
 	// number of items in gcIndex equals or exceeds it.
 	Capacity uint64
+	// MemCapacity is a limit
+	MemCapacity uint64
 	// ReserveCapacity is the capacity of the reserve.
 	ReserveCapacity uint64
 	// UnreserveFunc is an iterator needed to facilitate reserve
@@ -274,6 +278,11 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		}
 	}
 
+	lruCache, err := lru.New(int(o.MemCapacity))
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	db = &DB{
@@ -295,7 +304,8 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		collectGarbageWorkerDone:  make(chan struct{}),
 		reserveEvictionWorkerDone: make(chan struct{}),
 		metrics:                   newMetrics(),
-		items:                     make(map[string]shed.Item),
+		lru:                       lruCache,
+		updateGCItemKeys:          map[string]bool{},
 		logger:                    logger.WithName(loggerName).Register(),
 	}
 	if db.cacheCapacity == 0 {
