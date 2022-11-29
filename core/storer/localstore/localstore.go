@@ -169,6 +169,9 @@ type DB struct {
 	// iterators
 	subscriptionsWG sync.WaitGroup
 
+	items   map[string]shed.Item
+	itemsMu sync.RWMutex
+
 	metrics metrics
 
 	logger log.Logger
@@ -292,6 +295,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		collectGarbageWorkerDone:  make(chan struct{}),
 		reserveEvictionWorkerDone: make(chan struct{}),
 		metrics:                   newMetrics(),
+		items:                     make(map[string]shed.Item),
 		logger:                    logger.WithName(loggerName).Register(),
 	}
 	if db.cacheCapacity == 0 {

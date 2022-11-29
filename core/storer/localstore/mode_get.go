@@ -5,8 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/redesblock/mop/core/dispatcher"
-
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/incentives/voucher"
 	"github.com/redesblock/mop/core/storer/sharky"
@@ -44,6 +42,11 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 // get returns Item from the retrieval index
 // and updates other indexes.
 func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Address) (out shed.Item, err error) {
+	db.itemsMu.Lock()
+	defer db.itemsMu.Unlock()
+	if out, ok := db.items[addr.String()]; ok {
+		return out, nil
+	}
 	item := addressToItem(addr)
 
 	out, err = db.retrievalDataIndex.Get(item)
@@ -65,7 +68,8 @@ func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 	switch mode {
 	// update the access timestamp and gc index
 	case storage.ModeGetRequest:
-		db.updateGCItems(out)
+		db.items[addr.String()] = out
+		db.updateGCItems()
 
 	// no updates to indexes
 	case storage.ModeGetSync, storage.ModeGetLookup:
@@ -78,40 +82,28 @@ func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 // updateGCItems is called when ModeGetRequest is used
 // for Get or GetMulti to update access time and gc indexes
 // for all returned chunks.
-func (db *DB) updateGCItems(items ...shed.Item) {
-	if dispatcher.JobQueue != nil {
-		db.updateGCWG.Add(1)
-		dispatcher.JobQueue <- &dispatcher.CommonJob{
-			Args: []interface{}{items},
-			DoFunc: func(args ...interface{}) error {
-				defer db.updateGCWG.Done()
-				items := args[0].([]shed.Item)
-
-				db.metrics.GCUpdate.Inc()
-				defer totalTimeMetric(db.metrics.TotalTimeUpdateGC, time.Now())
-
-				for _, item := range items {
-					err := db.updateGC(item)
-					if err != nil {
-						db.metrics.GCUpdateError.Inc()
-						db.logger.Error(err, "localstore update gc failed")
-					}
-				}
-				// if gc update hook is defined, call it
-				if testHookUpdateGC != nil {
-					testHookUpdateGC()
-				}
-				return nil
-			},
-		}
+func (db *DB) updateGCItems() {
+	cnt := len(db.items)
+	if cnt == 0 || cnt < maxParallelUpdateGC {
 		return
 	}
-
 	if db.updateGCSem != nil {
 		// wait before creating new goroutines
 		// if updateGCSem buffer id full
-		db.updateGCSem <- struct{}{}
+		select {
+		case db.updateGCSem <- struct{}{}:
+		default:
+			return
+		}
 	}
+	i := 0
+	items := make([]shed.Item, cnt)
+	for _, item := range db.items {
+		items[i] = item
+		i++
+	}
+	db.items = make(map[string]shed.Item)
+
 	db.updateGCWG.Add(1)
 	go func() {
 		defer db.updateGCWG.Done()
@@ -124,13 +116,21 @@ func (db *DB) updateGCItems(items ...shed.Item) {
 		db.metrics.GCUpdate.Inc()
 		defer totalTimeMetric(db.metrics.TotalTimeUpdateGC, time.Now())
 
+		db.batchMu.Lock()
+		batch := new(leveldb.Batch)
 		for _, item := range items {
-			err := db.updateGC(item)
+			err := db.updateGC(batch, item)
 			if err != nil {
 				db.metrics.GCUpdateError.Inc()
 				db.logger.Error(err, "localstore update gc failed")
 			}
 		}
+		if err := db.shed.WriteBatch(batch); err != nil {
+			db.metrics.GCUpdateError.Inc()
+			db.logger.Error(err, "localstore update gc failed")
+		}
+		db.batchMu.Unlock()
+
 		// if gc update hook is defined, call it
 		if testHookUpdateGC != nil {
 			testHookUpdateGC()
@@ -142,14 +142,11 @@ func (db *DB) updateGCItems(items ...shed.Item) {
 // a single item. Provided item is expected to have
 // only Address and Data fields with non zero values,
 // which is ensured by the get function.
-func (db *DB) updateGC(item shed.Item) (err error) {
-	db.batchMu.Lock()
-	defer db.batchMu.Unlock()
+func (db *DB) updateGC(batch *leveldb.Batch, item shed.Item) (err error) {
+
 	if db.gcRunning {
 		db.dirtyAddresses = append(db.dirtyAddresses, cluster.NewAddress(item.Address))
 	}
-
-	batch := new(leveldb.Batch)
 
 	// update accessTimeStamp in retrieve, gc
 
@@ -195,7 +192,7 @@ func (db *DB) updateGC(item shed.Item) (err error) {
 		return err
 	}
 
-	return db.shed.WriteBatch(batch)
+	return nil
 }
 
 // testHookUpdateGC is a hook that can provide
