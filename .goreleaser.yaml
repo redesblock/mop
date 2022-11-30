@@ -18,6 +18,8 @@ builds:
       - 386
     main: ./cmd/mop
 archives:
+  - name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format: binary
 #  - replacements:
 #      darwin: Darwin
 #      linux: Linux
