@@ -44,7 +44,7 @@ var (
 	defaultCacheCapacity uint64 = 1000000
 	// Limit the number of goroutines created by Getters
 	// that call updateGC function. Value 0 sets no limit.
-	maxParallelUpdateGC = 1000
+	maxParallelUpdateGC = 10
 
 	// values needed to adjust subscription trigger
 	// buffer time.
