@@ -42,28 +42,37 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 // get returns Item from the retrieval index
 // and updates other indexes.
 func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Address) (out shed.Item, err error) {
-	item := addressToItem(addr)
+	addrStr := addr.String()
+	if val, ok := db.lru.Get(addrStr); ok && db.enableCache {
+		out = val.(shed.Item)
+	} else {
+		item := addressToItem(addr)
 
-	out, err = db.retrievalDataIndex.Get(item)
-	if err != nil {
-		return out, err
-	}
+		out, err = db.retrievalDataIndex.Get(item)
+		if err != nil {
+			return out, err
+		}
 
-	l, err := sharky.LocationFromBinary(out.Location)
-	if err != nil {
-		return out, err
-	}
+		l, err := sharky.LocationFromBinary(out.Location)
+		if err != nil {
+			return out, err
+		}
 
-	out.Data = make([]byte, l.Length)
-	err = db.sharky.Read(ctx, l, out.Data)
-	if err != nil {
-		return out, err
+		out.Data = make([]byte, l.Length)
+		err = db.sharky.Read(ctx, l, out.Data)
+		if err != nil {
+			return out, err
+		}
+		db.lru.Add(addr.String(), out)
 	}
 
 	switch mode {
 	// update the access timestamp and gc index
 	case storage.ModeGetRequest:
-		db.updateGCItems(out)
+		db.updateGCItemKeysMu.Lock()
+		db.updateGCItemKeys[addrStr] = true
+		db.updateGCItems()
+		db.updateGCItemKeysMu.Unlock()
 
 	// no updates to indexes
 	case storage.ModeGetSync, storage.ModeGetLookup:
@@ -76,12 +85,28 @@ func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 // updateGCItems is called when ModeGetRequest is used
 // for Get or GetMulti to update access time and gc indexes
 // for all returned chunks.
-func (db *DB) updateGCItems(items ...shed.Item) {
+func (db *DB) updateGCItems() {
 	if db.updateGCSem != nil {
 		// wait before creating new goroutines
 		// if updateGCSem buffer id full
-		db.updateGCSem <- struct{}{}
+		select {
+		case db.updateGCSem <- struct{}{}:
+		default:
+			return
+		}
 	}
+	var items []shed.Item
+	for addr := range db.updateGCItemKeys {
+		if out, ok := db.lru.Get(addr); ok {
+			items = append(items, out.(shed.Item))
+		}
+	}
+	db.updateGCItemKeys = make(map[string]bool)
+	cnt := len(items)
+	if cnt == 0 {
+		return
+	}
+
 	db.updateGCWG.Add(1)
 	go func() {
 		defer db.updateGCWG.Done()
@@ -93,14 +118,23 @@ func (db *DB) updateGCItems(items ...shed.Item) {
 
 		db.metrics.GCUpdate.Inc()
 		defer totalTimeMetric(db.metrics.TotalTimeUpdateGC, time.Now())
-
+		t := time.Now()
+		db.batchMu.Lock()
+		batch := new(leveldb.Batch)
 		for _, item := range items {
-			err := db.updateGC(item)
+			err := db.updateGC(batch, item)
 			if err != nil {
 				db.metrics.GCUpdateError.Inc()
 				db.logger.Error(err, "localstore update gc failed")
 			}
 		}
+		if err := db.shed.WriteBatch(batch); err != nil {
+			db.metrics.GCUpdateError.Inc()
+			db.logger.Error(err, "localstore update gc failed")
+		}
+		db.batchMu.Unlock()
+		db.logger.Debug("localstore update gc", "size", cnt, "duration", time.Since(t))
+
 		// if gc update hook is defined, call it
 		if testHookUpdateGC != nil {
 			testHookUpdateGC()
@@ -112,14 +146,11 @@ func (db *DB) updateGCItems(items ...shed.Item) {
 // a single item. Provided item is expected to have
 // only Address and Data fields with non zero values,
 // which is ensured by the get function.
-func (db *DB) updateGC(item shed.Item) (err error) {
-	db.batchMu.Lock()
-	defer db.batchMu.Unlock()
+func (db *DB) updateGC(batch *leveldb.Batch, item shed.Item) (err error) {
+
 	if db.gcRunning {
 		db.dirtyAddresses = append(db.dirtyAddresses, cluster.NewAddress(item.Address))
 	}
-
-	batch := new(leveldb.Batch)
 
 	// update accessTimeStamp in retrieve, gc
 
@@ -165,7 +196,7 @@ func (db *DB) updateGC(item shed.Item) (err error) {
 		return err
 	}
 
-	return db.shed.WriteBatch(batch)
+	return nil
 }
 
 // testHookUpdateGC is a hook that can provide

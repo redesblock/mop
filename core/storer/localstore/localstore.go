@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/incentives/voucher"
@@ -43,7 +44,7 @@ var (
 	defaultCacheCapacity uint64 = 1000000
 	// Limit the number of goroutines created by Getters
 	// that call updateGC function. Value 0 sets no limit.
-	maxParallelUpdateGC = 1000
+	maxParallelUpdateGC = 10
 
 	// values needed to adjust subscription trigger
 	// buffer time.
@@ -52,7 +53,7 @@ var (
 )
 
 const (
-	sharkyNoOfShards    = 32
+	sharkyNoOfShards    = 256
 	sharkyDirtyFileName = ".DIRTY"
 )
 
@@ -169,6 +170,11 @@ type DB struct {
 	// iterators
 	subscriptionsWG sync.WaitGroup
 
+	lru                *lru.Cache
+	enableCache        bool
+	updateGCItemKeys   map[string]bool
+	updateGCItemKeysMu sync.Mutex
+
 	metrics metrics
 
 	logger log.Logger
@@ -179,6 +185,8 @@ type Options struct {
 	// Capacity is a limit that triggers garbage collection when
 	// number of items in gcIndex equals or exceeds it.
 	Capacity uint64
+	// MemCapacity is a limit
+	MemCapacity uint64
 	// ReserveCapacity is the capacity of the reserve.
 	ReserveCapacity uint64
 	// UnreserveFunc is an iterator needed to facilitate reserve
@@ -271,6 +279,15 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		}
 	}
 
+	cacheSize := 1000
+	if o.MemCapacity > 0 {
+		cacheSize = int(o.MemCapacity)
+	}
+	lruCache, err := lru.New(cacheSize)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	db = &DB{
@@ -292,6 +309,9 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		collectGarbageWorkerDone:  make(chan struct{}),
 		reserveEvictionWorkerDone: make(chan struct{}),
 		metrics:                   newMetrics(),
+		lru:                       lruCache,
+		updateGCItemKeys:          map[string]bool{},
+		enableCache:               o.MemCapacity > 0,
 		logger:                    logger.WithName(loggerName).Register(),
 	}
 	if db.cacheCapacity == 0 {

@@ -186,7 +186,7 @@ func bootstrapNode(
 		return nil, fmt.Errorf("retrieval service: %w", err)
 	}
 
-	ns := netstore.New(storer, noopValidStamp, retrieve, logger)
+	ns := netstore.New(storer, noopValidStamp, retrieve, logger, o.TrustNode)
 
 	if err := kad.Start(p2pCtx); err != nil {
 		return nil, err

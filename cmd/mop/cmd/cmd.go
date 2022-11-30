@@ -20,6 +20,7 @@ import (
 const (
 	optionNameDataDir                    = "data-dir"
 	optionNameCacheCapacity              = "cache-capacity"
+	optionNameMemCacheCapacity           = "mem-cache-capacity"
 	optionNameDBOpenFilesLimit           = "db-open-files-limit"
 	optionNameDBBlockCacheCapacity       = "db-block-cache-capacity"
 	optionNameDBWriteBufferSize          = "db-write-buffer-size"
@@ -80,6 +81,8 @@ const (
 	optionNameAdminPasswordHash          = "admin-password"
 	optionNameUseVoucherSnapshot         = "use-voucher-snapshot"
 	optionNameReceiptEndpoint            = "push-receipt-endpoint"
+	optionNameMaxWorker                  = "max-worker"
+	optionTrustNode                      = "trust-node"
 )
 
 func init() {
@@ -242,6 +245,7 @@ func (c *command) setHomeDir() (err error) {
 func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameDataDir, filepath.Join(c.homeDir, ".mop"), "data directory")
 	cmd.Flags().Uint64(optionNameCacheCapacity, 1000000, fmt.Sprintf("cache capacity in chunks, multiply by %d to get approximate capacity in bytes", cluster.ChunkSize))
+	cmd.Flags().Uint64(optionNameMemCacheCapacity, 1000, fmt.Sprintf("memory cache capacity in chunks, multiply by %d to get approximate capacity in bytes", cluster.ChunkSize))
 	cmd.Flags().Uint64(optionNameDBOpenFilesLimit, 200, "number of open files allowed by database")
 	cmd.Flags().Uint64(optionNameDBBlockCacheCapacity, 32*1024*1024, "size of block cache of the database in bytes")
 	cmd.Flags().Uint64(optionNameDBWriteBufferSize, 32*1024*1024, "size of the database write buffer in bytes")
@@ -300,6 +304,8 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
 	cmd.Flags().Bool(optionNameUseVoucherSnapshot, false, "bootstrap node using voucher snapshot from the network")
 	cmd.Flags().String(optionNameReceiptEndpoint, "", "receive receipt server")
+	cmd.Flags().Int(optionNameMaxWorker, 0, "number of workers")
+	cmd.Flags().Bool(optionTrustNode, false, "ensure the locally chunk is valid")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {

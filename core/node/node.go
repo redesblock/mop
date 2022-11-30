@@ -126,6 +126,7 @@ type Mop struct {
 type Options struct {
 	DataDir                    string
 	CacheCapacity              uint64
+	MemCacheCapacity           uint64
 	DBOpenFilesLimit           uint64
 	DBWriteBufferSize          uint64
 	DBBlockCacheCapacity       uint64
@@ -175,6 +176,7 @@ type Options struct {
 	AdminPasswordHash          string
 	UseVoucherSnapshot         bool
 	ReceiptEndPoint            string
+	TrustNode                  bool
 }
 
 const (
@@ -641,6 +643,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	}
 	lo := &localstore.Options{
 		Capacity:               o.CacheCapacity,
+		MemCapacity:            o.MemCacheCapacity,
 		ReserveCapacity:        uint64(batchstore.Capacity),
 		UnreserveFunc:          batchStore.Unreserve,
 		OpenFilesLimit:         o.DBOpenFilesLimit,
@@ -935,7 +938,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	pssService := psser.New(pssPrivateKey, logger)
 	b.pssCloser = pssService
 
-	var netStorer = netstore.New(storer, validStamp, retrieve, logger)
+	var netStorer = netstore.New(storer, validStamp, retrieve, logger, o.TrustNode)
 	b.nsCloser = netStorer
 
 	traversalService := traverser.New(netStorer)

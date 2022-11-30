@@ -251,7 +251,6 @@ func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		jsonhttp.NotFound(w, nil)
 		return
 	}
-
 	s.serveReference(address, pathVar, w, r)
 }
 
@@ -343,7 +342,6 @@ FETCH:
 			}
 		}
 	}
-
 	me, err := m.Lookup(ctx, pathVar)
 	if err != nil {
 		logger.Debug("mop download: invalid path", "address", address, "path", pathVar, "error", err)
@@ -403,7 +401,6 @@ FETCH:
 		}
 		return
 	}
-
 	// serve requested path
 	s.serveManifestEntry(w, r, address, me, !feedDereferenced)
 }
