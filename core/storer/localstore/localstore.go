@@ -171,6 +171,7 @@ type DB struct {
 	subscriptionsWG sync.WaitGroup
 
 	lru                *lru.Cache
+	enableCache        bool
 	updateGCItemKeys   map[string]bool
 	updateGCItemKeysMu sync.Mutex
 
@@ -278,7 +279,11 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		}
 	}
 
-	lruCache, err := lru.New(int(o.MemCapacity))
+	cacheSize := 1000
+	if o.MemCapacity > 0 {
+		cacheSize = int(o.MemCapacity)
+	}
+	lruCache, err := lru.New(cacheSize)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +311,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		metrics:                   newMetrics(),
 		lru:                       lruCache,
 		updateGCItemKeys:          map[string]bool{},
+		enableCache:               o.MemCapacity > 0,
 		logger:                    logger.WithName(loggerName).Register(),
 	}
 	if db.cacheCapacity == 0 {

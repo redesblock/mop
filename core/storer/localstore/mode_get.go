@@ -43,7 +43,7 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 // and updates other indexes.
 func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Address) (out shed.Item, err error) {
 	addrStr := addr.String()
-	if val, ok := db.lru.Get(addrStr); ok {
+	if val, ok := db.lru.Get(addrStr); ok && db.enableCache {
 		out = val.(shed.Item)
 	} else {
 		item := addressToItem(addr)
@@ -96,7 +96,7 @@ func (db *DB) updateGCItems() {
 		}
 	}
 	var items []shed.Item
-	for _, addr := range db.updateGCItemKeys {
+	for addr := range db.updateGCItemKeys {
 		if out, ok := db.lru.Get(addr); ok {
 			items = append(items, out.(shed.Item))
 		}
@@ -118,7 +118,6 @@ func (db *DB) updateGCItems() {
 
 		db.metrics.GCUpdate.Inc()
 		defer totalTimeMetric(db.metrics.TotalTimeUpdateGC, time.Now())
-
 		t := time.Now()
 		db.batchMu.Lock()
 		batch := new(leveldb.Batch)
