@@ -7,6 +7,9 @@ MOP是使用[Go](https://golang.org/)语言编写的。
 > - git - 从[git-scm.com](https://git-scm.com/)下载。
 > - make - 通常包含在大多数操作系统中。
 
+## 直接下载
+[releases](https://github.com/redesblock/mop/releases)
+
 ## 源代码构建
 
 1. 克隆存储库
@@ -34,5 +37,3 @@ MOP是使用[Go](https://golang.org/)语言编写的。
    ```shell script
     sudo cp bin/mop /usr/local/bin/mop 
    ```
-## 二进制下载
-[下载地址](https://github.com/redesblock/mop/releases)

@@ -9,11 +9,11 @@
 1. 要使用脚本安装二进制文件，请在终端中运行以下命令之一：
     - curl
     ```shell
-    curl -s https://raw.githubusercontent.com/redesblock/mop/main/install.sh | TAG=v1.0.0 bash
+    curl -s https://raw.githubusercontent.com/redesblock/mop/main/install.sh | TAG=v0.9.2 bash
     ```
     - wget
     ```shell
-    wget -q -O - https://raw.githubusercontent.com/redesblock/mop/main/install.sh | TAG=v1.0.0 | TAG=v1.8.2 bash
+    wget -q -O - https://raw.githubusercontent.com/redesblock/mop/main/install.sh | TAG=v0.9.2 bash
     ```
 2. 脚本执行完成后，可以运行测试是否安装成功。
     ```shell script
