@@ -843,10 +843,10 @@ paths:
       responses:
         "200":
           description: Indicates that node is ready
-          $ref: "SwarmCommon.yaml#/components/responses/200"
+          $ref: "Common.yaml#/components/responses/200"
         "400":
           description: Indicates that node is not ready
-          $ref: "SwarmCommon.yaml#/components/responses/400"
+          $ref: "Common.yaml#/components/responses/400"
         default:
           description: Default response
   

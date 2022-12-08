@@ -204,7 +204,6 @@ func httpRangeRequest(t *testing.T, url, rangeHeader string) (parts [][]byte) {
 //
 // goos: darwin
 // goarch: amd64
-// pkg: github.com/ethersphere/swarm/api/http/langos
 // BenchmarkHTTPDelayedReaders/static_direct-8			         	       8	 128278515 ns/op	 8389878 B/op	      24 allocs/op
 // BenchmarkHTTPDelayedReaders/static_buffered-8			       	      43	  27465687 ns/op	 8389144 B/op	      22 allocs/op
 // BenchmarkHTTPDelayedReaders/static_langos-8			         	     441	   2578510 ns/op	10264076 B/op	      63 allocs/op
