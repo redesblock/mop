@@ -40,3 +40,124 @@ changelog:
 # modelines, feel free to remove those if you don't want/use them:
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+nfpms:
+  - file_name_template: "{{ tolower .ProjectName }}_{{ tolower .Version }}_{{ tolower .Arch }}"
+
+    vendor: MOP Foundation
+
+    homepage: 
+
+    maintainer: MOP Devops <dev@redeslab.io>
+
+    description: BNB Cluster node
+
+    license: GPL-3
+
+    dependencies:
+      - ca-certificates
+      - adduser
+
+    formats:
+      - deb
+      - rpm
+
+    contents:
+      - src: packaging/mop.service
+        dst: /lib/systemd/system/mop.service
+      - src: packaging/mop-get-addr
+        dst: /usr/bin/mop-get-addr
+      - src: packaging/mop.yaml
+        dst: /etc/mop/mop.yaml
+        type: config
+      - src: packaging/default
+        dst: /etc/default/mop
+        type: config
+
+    overrides:
+      deb:
+        dependencies:
+          - passwd
+          - ca-certificates
+        replacements:
+          arm: armhf
+        scripts:
+          preinstall: ./packaging/deb/preinst
+          postinstall: ./packaging/deb/postinst
+          preremove: ./packaging/deb/prerm
+          postremove: ./packaging/deb/postrm
+      rpm:
+        dependencies:
+          - ca-certificates
+          - shadow-utils
+        file_name_template: "{{ tolower .ProjectName }}-{{ tolower .Version }}.{{ tolower .Arch }}"
+        replacements:
+          amd64: x86_64
+          arm64: aarch64
+        scripts:
+          preinstall: ./packaging/rpm/pre
+          postinstall: ./packaging/rpm/post
+          preremove: ./packaging/rpm/preun
+          postremove: ./packaging/rpm/postun
+
+    bindir: /usr/bin
+
+# brews:
+#   - name: mop
+#     tap:
+#       owner: redesblock
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_PAT }}"
+#     ids:
+#       - homebrew-amd64
+#       - homebrew-arm64
+#     commit_author:
+#       name: mop-worker
+#       email: dev@redeslab.io
+#     homepage: 
+#     description: BNB Cluster node
+#     caveats: |
+#         Logs:   #{var}/log/mop/mop.log
+#         Config: #{etc}/mop/mop.yaml
+
+#         MOP requires a BNB Smart Chain RPC endpoint to function. By default this is expected to be found at ws://localhost:8546.
+
+#         Please see https://redesblock.github.io/mop/#/installation/install for more details on how to configure your node.
+
+#         After you finish configuration run 'sudo mop-get-addr' and fund your node with BNB, and also MOP if so desired.
+#     test: |
+#       system "#{bin}/mop version"
+#     install: |
+#       (etc/"mop").mkpath
+#       (var/"lib/mop").mkpath
+#       bin.install ["mop", "mop-get-addr"]
+#       etc.install "mop.yaml" => "mop/mop.yaml" unless File.exists? etc/"mop/mop.yaml"
+#     post_install: |
+#       unless File.exists? "#{var}/lib/mop/password"
+#       system("openssl", "rand", "-out", var/"lib/mop/password", "-base64", "32")
+#       end
+#       system(bin/"mop", "init", "--config", etc/"mop/mop.yaml", ">/dev/null", "2>&1")
+#     plist: |
+#       <?xml version="1.0" encoding="UTF-8"?>
+#       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+#       <plist version="1.0">
+#       <dict>
+#         <key>KeepAlive</key>
+#         <true/>
+#         <key>Label</key>
+#         <string>#{plist_name}</string>
+#         <key>ProgramArguments</key>
+#         <array>
+#           <string>#{bin}/mop</string>
+#           <string>start</string>
+#           <string>--config</string>
+#           <string>#{etc}/mop/mop.yaml</string>
+#         </array>
+#         <key>RunAtLoad</key>
+#         <true/>
+#         <key>StandardOutPath</key>
+#         <string>#{var}/log/mop/mop.log</string>
+#         <key>StandardErrorPath</key>
+#         <string>#{var}/log/mop/mop.log</string>
+#       </dict>
+#       </plist>

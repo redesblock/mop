@@ -48,3 +48,9 @@ format:
 	gci -w -local $(go list -m) `find $(FOLDER) -type f \! -name "*.pb.go" -name "*.go" \! -path \*/\.git/\* -exec echo {} \;`
 
 FORCE:
+
+goreleaser-test:
+	goreleaser --snapshot --skip-publish --rm-dist
+
+goreleaser:
+	goreleaser --rm-dist

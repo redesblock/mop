@@ -1,0 +1,4 @@
+# Configuration for mop daemon
+
+#MOP_SWAP_ENDPOINT=ws://localhost:8546
+#MOP_RESOLVER_OPTIONS=

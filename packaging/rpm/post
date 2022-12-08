@@ -1,0 +1,29 @@
+if [ $1 -eq 1 ] ; then
+    # initial installation
+    if [ ! -f /var/lib/mop/keys/libp2p.key ]; then
+        /usr/bin/mop init --config /etc/mop/mop.yaml >/dev/null 2>&1
+        chown -R mop:mop /var/lib/mop
+    fi
+    systemctl --no-reload preset mop.service &>/dev/null || :
+    systemctl --no-reload enable mop.service &>/dev/null || :
+    echo "
+Logs:   journalctl -f -u mop.service
+Config: /etc/mop/mop.yaml
+
+MOP requires a BNB Smart Chain RPC endpoint to function. By default this is expected to be found at ws://localhost:8546.
+
+Please see https://redesblock.github.io/mop/#/installation/install for more details on how to configure your node.
+
+After you finish configuration run 'sudo mop-get-addr' and fund your node with BNB, and also MOP if so desired.
+    "
+fi
+
+# allow group members (mop user) to use clef's socket
+if [ -S /var/lib/mop-clef/clef.ipc ]; then
+    chmod 660 /var/lib/mop-clef/clef.ipc
+fi
+
+if [ $1 -eq 2 ] ; then
+    # upgrade
+    systemctl --no-reload start mop.service &>/dev/null || :
+fi

@@ -1,0 +1,58 @@
+version: "3"
+
+services:
+  mop-1:
+    image: redesblock/mop:stable
+    restart: unless-stopped
+    environment:
+      - MOP_API_ADDR
+      - MOP_BLOCK_TIME
+      - MOP_BOOTNODE
+      - MOP_BOOTNODE_MODE
+      - MOP_CLEF_SIGNER_ENABLE
+      - MOP_CLEF_SIGNER_ENDPOINT
+      - MOP_CONFIG
+      - MOP_CORS_ALLOWED_ORIGINS
+      - MOP_DATA_DIR
+      - MOP_CACHE_CAPACITY
+      - MOP_DB_OPEN_FILES_LIMIT
+      - MOP_DB_BLOCK_CACHE_CAPACITY
+      - MOP_DB_WRITE_BUFFER_SIZE
+      - MOP_DB_DISABLE_SEEKS_COMPACTION
+      - MOP_DEBUG_API_ADDR
+      - MOP_DEBUG_API_ENABLE
+      - MOP_FULL_NODE
+      - MOP_NAT_ADDR
+      - MOP_NETWORK_ID
+      - MOP_P2P_ADDR
+      - MOP_P2P_QUIC_ENABLE
+      - MOP_P2P_WS_ENABLE
+      - MOP_PASSWORD
+      - MOP_PASSWORD_FILE
+      - MOP_PAYMENT_EARLY_PERCENT
+      - MOP_PAYMENT_THRESHOLD
+      - MOP_PAYMENT_TOLERANCE_PERCENT
+      - MOP_POSTAGE_STAMP_ADDRESS
+      - MOP_RESOLVER_OPTIONS
+      - MOP_SWAP_ENABLE
+      - MOP_SWAP_ENDPOINT
+      - MOP_SWAP_FACTORY_ADDRESS
+      - MOP_SWAP_LEGACY_FACTORY_ADDRESSES
+      - MOP_SWAP_INITIAL_DEPOSIT
+      - MOP_SWAP_DEPLOYMENT_GAS_PRICE
+      - MOP_TRACING_ENABLE
+      - MOP_TRACING_ENDPOINT
+      - MOP_TRACING_SERVICE_NAME
+      - MOP_TRANSACTION
+      - MOP_VERBOSITY
+      - MOP_WELCOME_MESSAGE
+      - MOP_MAINNET
+    ports:
+      - "${API_ADDR:-1633}${MOP_API_ADDR:-:1633}"
+      - "${P2P_ADDR:-1634}${MOP_P2P_ADDR:-:1634}"
+      - "${DEBUG_API_ADDR:-127.0.0.1:1635}${MOP_DEBUG_API_ADDR:-:1635}"
+    volumes:
+      - mop-1:/home/mop/.mop
+    command: start
+volumes:
+  mop-1:

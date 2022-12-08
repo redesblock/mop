@@ -1,0 +1,16 @@
+[Unit]
+Description=MOP - BNB Cluster node
+Documentation=https://redesblock.github.io/mop/#/
+After=network.target
+
+[Service]
+EnvironmentFile=-/etc/default/mop
+NoNewPrivileges=true
+User=mop
+Group=mop
+ExecStart=/usr/bin/mop start --config /etc/mop/mop.yaml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
