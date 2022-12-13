@@ -2,6 +2,7 @@ package bmt_test
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/redesblock/mop/core/cluster"
@@ -12,20 +13,41 @@ import (
 
 //
 func BenchmarkBMT(t *testing.B) {
-	for size := 4096; size >= 128; size /= 2 {
+	for size := testChunkSize; size >= testSegmentSectionSize; size /= 2 {
 		t.Run(fmt.Sprintf("%v_size_%v", "SHA3", size), func(t *testing.B) {
 			benchmarkSHA3(t, size)
 		})
-		t.Run(fmt.Sprintf("%v_size_%v", "Baseline", size), func(t *testing.B) {
-			benchmarkBMTBaseline(t, size)
-		})
-		t.Run(fmt.Sprintf("%v_size_%v", "REF", size), func(t *testing.B) {
-			benchmarkRefHasher(t, size)
-		})
-		t.Run(fmt.Sprintf("%v_size_%v", "BMT", size), func(t *testing.B) {
+		//t.Run(fmt.Sprintf("%v_size_%v", "Baseline", size), func(t *testing.B) {
+		//	benchmarkBMTBaseline(t, size)
+		//})
+		//t.Run(fmt.Sprintf("%v_size_%v", "REF", size), func(t *testing.B) {
+		//	benchmarkRefHasher(t, size)
+		//})
+		t.Run(fmt.Sprintf("%v_size_%v_num_%v", "BMT", size, calcNumber(int(math.Ceil(float64(size)/float64(testSegmentSectionSize))))), func(t *testing.B) {
 			benchmarkBMT(t, size)
 		})
+
+		t.Run(fmt.Sprintf("%v_size_%v", "BMTParallel", size), func(t *testing.B) {
+			benchmarkBMTParallel(t, size)
+		})
 	}
+}
+
+func benchmarkBMTParallel(b *testing.B, n int) {
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSectionSize, testPoolSize))
+	testData := randomBytes(b, seed)
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			h := pool.Get()
+			if _, err := syncHash(h, testData[:n]); err != nil {
+				b.Fatalf("seed %d: %v", seed, err)
+			}
+			pool.Put(h)
+		}
+	})
 }
 
 func BenchmarkPool(t *testing.B) {
@@ -77,7 +99,7 @@ func benchmarkBMTBaseline(t *testing.B, n int) {
 func benchmarkBMT(t *testing.B, n int) {
 	testData := randomBytes(t, seed)
 
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSectionSize, testPoolSize))
 	h := pool.Get()
 	defer pool.Put(h)
 
@@ -94,8 +116,8 @@ func benchmarkBMT(t *testing.B, n int) {
 func benchmarkPool(t *testing.B, poolsize int) {
 	testData := randomBytes(t, seed)
 
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, poolsize))
-	cycles := 100
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSectionSize, poolsize))
+	cycles := poolsize
 
 	t.ReportAllocs()
 	t.ResetTimer()
@@ -129,4 +151,14 @@ func benchmarkRefHasher(t *testing.B, n int) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func calcNumber(count int) int {
+	num := math.Ceil(float64(count) / float64(2))
+	total := num
+	for c := 2; c < testSegmentCount; c *= 2 {
+		num = math.Ceil(float64(num) / float64(2))
+		total += num
+	}
+	return int(total)
 }

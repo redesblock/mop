@@ -22,9 +22,11 @@ const (
 	// segmentCount is the maximum number of segments of the underlying chunk
 	// Should be equal to max-chunk-data-size / hash-size
 	// Currently set to 128 == 4096 (default chunk size) / 32 (sha3.keccak256 size)
-	testSegmentCount = 128
+	testSegmentCount = 128 / 4
 
-	testSegmentSize = 32
+	testSegmentSectionSize = 32 * 8 * 4
+
+	testChunkSize = testSegmentCount * testSegmentSectionSize
 )
 
 var (
@@ -61,7 +63,7 @@ func TestHasherEmptyData(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, count, testSegmentSize, 1))
+			pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, count, testSegmentSectionSize, 1))
 			h := pool.Get()
 			resHash, err := syncHash(h, nil)
 			if err != nil {
@@ -84,7 +86,7 @@ func TestSyncHasherCorrectness(t *testing.T) {
 			max := count * hashSize
 			var incr int
 			capacity := 1
-			pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, count, testSegmentSize, capacity))
+			pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, count, testSegmentSectionSize, capacity))
 			for n := 0; n <= max; n += incr {
 				h := pool.Get()
 				incr = 1 + rand.Intn(5)
@@ -110,7 +112,7 @@ func TestHasherReuse(t *testing.T) {
 
 // tests if bmt reuse is not corrupting result
 func testHasherReuse(t *testing.T, poolsize int) {
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, poolsize))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSectionSize, poolsize))
 	h := pool.Get()
 	defer pool.Put(h)
 
@@ -128,7 +130,7 @@ func testHasherReuse(t *testing.T, poolsize int) {
 // tests if pool can be cleanly reused even in concurrent use by several hashers
 func TestBMTConcurrentUse(t *testing.T) {
 	testData := randomBytes(t, seed)
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSectionSize, testPoolSize))
 	cycles := 100
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -157,7 +159,7 @@ func TestBMTConcurrentUse(t *testing.T) {
 func TestBMTWriterBuffers(t *testing.T) {
 	for i, count := range testSegmentCounts {
 		t.Run(fmt.Sprintf("%d_segments", count), func(t *testing.T) {
-			pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, count, testSegmentSize, testPoolSize))
+			pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, count, testSegmentSectionSize, testPoolSize))
 			h := pool.Get()
 			defer pool.Put(h)
 
@@ -252,7 +254,7 @@ func testHasherCorrectness(h *bmt.Hasher, data []byte, n, count int) (err error)
 
 // verifies that the bmt.Hasher can be used with the hash.Hash interface
 func TestUseSyncAsOrdinaryHasher(t *testing.T) {
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSectionSize, testPoolSize))
 	h := pool.Get()
 	defer pool.Put(h)
 	data := []byte("moodbytesmoodbytesmoodbytesmoodbytes")
@@ -273,7 +275,7 @@ func TestUseSyncAsOrdinaryHasher(t *testing.T) {
 
 func randomBytes(t testing.TB, seed int64) []byte {
 	t.Helper()
-	data := make([]byte, 4096)
+	data := make([]byte, testChunkSize)
 	s := rand.NewSource(seed)
 	r := rand.New(s)
 	_, err := io.ReadFull(r, data)
