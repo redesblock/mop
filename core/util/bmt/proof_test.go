@@ -38,7 +38,7 @@ func TestProofCorrectness(t *testing.T) {
 
 	}
 
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, 128, 128))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, 128))
 	hh := pool.Get()
 	defer pool.Put(hh)
 	hh.SetHeaderInt64(4096)
@@ -168,7 +168,7 @@ func TestProof(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, 128, 128))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, 128))
 	hh := pool.Get()
 	defer pool.Put(hh)
 	hh.SetHeaderInt64(4096)

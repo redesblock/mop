@@ -29,7 +29,7 @@ func BenchmarkBMT(t *testing.B) {
 }
 
 func BenchmarkPool(t *testing.B) {
-	for _, c := range []int{1, 8, 16, 32, 64} {
+	for _, c := range []int{1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048} {
 		t.Run(fmt.Sprintf("poolsize_%v", c), func(t *testing.B) {
 			benchmarkPool(t, c)
 		})
@@ -77,7 +77,7 @@ func benchmarkBMTBaseline(t *testing.B, n int) {
 func benchmarkBMT(t *testing.B, n int) {
 	testData := randomBytes(t, seed)
 
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testPoolSize))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, testPoolSize))
 	h := pool.Get()
 	defer pool.Put(h)
 
@@ -94,7 +94,7 @@ func benchmarkBMT(t *testing.B, n int) {
 func benchmarkPool(t *testing.B, poolsize int) {
 	testData := randomBytes(t, seed)
 
-	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, poolsize))
+	pool := bmt.NewPool(bmt.NewConf(cluster.NewHasher, testSegmentCount, testSegmentSize, poolsize))
 	cycles := 100
 
 	t.ReportAllocs()
