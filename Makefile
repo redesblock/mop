@@ -6,9 +6,7 @@ DEBUG_API_VERSION ?= "$(shell grep '^  version:' api/DebugAPI.yaml | awk '{print
 
 LDFLAGS ?= -s -w \
 -X github.com/redesblock/mop.commitHash="$(COMMIT_HASH)" \
--X github.com/redesblock/mop.commitTime="$(COMMIT_TIME)" \
--X github.com/redesblock/mop/pkg/api.Version="$(API_VERSION)" \
--X github.com/redesblock/mop/pkg/debugapi.Version="$(DEBUG_API_VERSION)"
+-X github.com/redesblock/mop.commitTime="$(COMMIT_TIME)" 
 
 .PHONY: all
 all: binary

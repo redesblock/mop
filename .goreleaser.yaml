@@ -1,5 +1,6 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
+project_name: mop
+release:
+  prerelease: auto
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -7,23 +8,100 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - env:
+  - id: linux
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
-      - darwin
     goarch:
       - amd64
       - 386
+      - arm64
+      - arm
+    goarm:
+      - 7
+  - id: linux-slim
     main: ./cmd/mop
-archives:
-  - name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    format: binary
-    builds:
+    binary: mop-slim
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
       - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    # hooks:
+    #   post:
+    #    - upx --best "{{ .Path }}"
+  - id: windows
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
       - windows
+    goarch:
+      - amd64
+      - 386
+  - id: darwin-amd64
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
       - darwin
+    goarch:
+      - amd64
+  - id: darwin-arm64
+    main: ./cmd/mop
+    binary: mop
+    flags:
+      - -v
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/redesblock/mop.commitHash={{ .ShortCommit }}
+      - -X github.com/redesblock/mop.commitTime={{ .CommitTimestamp }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -35,9 +113,37 @@ changelog:
       - '^docs:'
       - '^test:'
 
-# modelines, feel free to remove those if you don't want/use them:
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+archives:
+  -
+    name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format: binary
+    builds:
+    - linux
+    - windows
+    - darwin-amd64
+    - darwin-arm64
+  -
+    id: homebrew-amd64
+    builds:
+    - darwin-amd64
+    name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+    - src: 'packaging/homebrew-amd64/*'
+      dst: '.'
+      strip_parent: true
+    - LICENSE
+    - README.md
+  -
+    id: homebrew-arm64
+    builds:
+    - darwin-arm64
+    name_template: "{{ tolower .ProjectName }}-{{ tolower .Os }}-{{ tolower .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+    - src: 'packaging/homebrew-arm64/*'
+      dst: '.'
+      strip_parent: true
+    - LICENSE
+    - README.md
 
 nfpms:
   - file_name_template: "{{ tolower .ProjectName }}_{{ tolower .Version }}_{{ tolower .Arch }}"
@@ -99,63 +205,3 @@ nfpms:
           postremove: ./packaging/rpm/postun
 
     bindir: /usr/bin
-
-# brews:
-#   - name: mop
-#     tap:
-#       owner: redesblock
-#       name: homebrew-tap
-#       token: "{{ .Env.HOMEBREW_TAP_PAT }}"
-#     ids:
-#       - homebrew-amd64
-#       - homebrew-arm64
-#     commit_author:
-#       name: mop-worker
-#       email: dev@redeslab.io
-#     homepage: 
-#     description: BNB Cluster node
-#     caveats: |
-#         Logs:   #{var}/log/mop/mop.log
-#         Config: #{etc}/mop/mop.yaml
-
-#         MOP requires a BNB Smart Chain RPC endpoint to function. By default this is expected to be found at ws://localhost:8546.
-
-#         Please see https://redesblock.github.io/mop/#/installation/install for more details on how to configure your node.
-
-#         After you finish configuration run 'sudo mop-get-addr' and fund your node with BNB, and also MOP if so desired.
-#     test: |
-#       system "#{bin}/mop version"
-#     install: |
-#       (etc/"mop").mkpath
-#       (var/"lib/mop").mkpath
-#       bin.install ["mop", "mop-get-addr"]
-#       etc.install "mop.yaml" => "mop/mop.yaml" unless File.exists? etc/"mop/mop.yaml"
-#     post_install: |
-#       unless File.exists? "#{var}/lib/mop/password"
-#       system("openssl", "rand", "-out", var/"lib/mop/password", "-base64", "32")
-#       end
-#       system(bin/"mop", "init", "--config", etc/"mop/mop.yaml", ">/dev/null", "2>&1")
-#     plist: |
-#       <?xml version="1.0" encoding="UTF-8"?>
-#       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-#       <plist version="1.0">
-#       <dict>
-#         <key>KeepAlive</key>
-#         <true/>
-#         <key>Label</key>
-#         <string>#{plist_name}</string>
-#         <key>ProgramArguments</key>
-#         <array>
-#           <string>#{bin}/mop</string>
-#           <string>start</string>
-#           <string>--config</string>
-#           <string>#{etc}/mop/mop.yaml</string>
-#         </array>
-#         <key>RunAtLoad</key>
-#         <true/>
-#         <key>StandardOutPath</key>
-#         <string>#{var}/log/mop/mop.log</string>
-#         <key>StandardErrorPath</key>
-#         <string>#{var}/log/mop/mop.log</string>
-#       </dict>
-#       </plist>
