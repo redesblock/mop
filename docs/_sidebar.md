@@ -1,6 +1,7 @@
 <!-- docs/_sidebar.md -->
 
 * [欢迎](/README.md)
+* [基本概念](introduction/)
 * 软件安装
   * [快速开始](installation/quick-start.md)
   * [软件安装](installation/install.md)
