@@ -32,11 +32,11 @@ MOP.JS 是 MOP客户端节点的 JavaScript 库。它是一款强大的工具，
 
 方便用户通过界面，提供MOP存储数据服务。[更多详情](mopdstor/) 
 
-[PDF下载](pdf/mopdstor.pdf)
+[PDF下载](https://redesblock.github.io/mop/pdf/mopdstor.pdf)
 
 ## [UPLOADER](https://github.com/redesblock/uploader)
 
 自动化将目录下的文件上传到mop网络 [更多详情](uploader/) 
 
-[PDF下载](pdf/uploader.pdf)
+[PDF下载](https://redesblock.github.io/mop/pdf/uploader.pdf)
 
