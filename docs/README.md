@@ -26,4 +26,17 @@ MOP网络是一个激励式的分布式P2P存储网络, 旨在存储和分发世
 
 努力提供对开发人员最友好的环境，以建立去中心化的组织。基于功能性、灵活性和可访问性的原则，提供低级访问库。
 
-MOP.JS 是 MOP客户端节点的 JavaScript 库。它是一款强大的工具，只需几行代码即可构建完全去中心化的应用程序。
+MOP.JS 是 MOP客户端节点的 JavaScript 库。它是一款强大的工具，只需几行代码即可构建完全去中心化的应用程序。[更多详情](mop.js/) 
+
+## [MOPDSTOR]()
+
+方便用户通过界面，提供MOP存储数据服务。[更多详情](mopdstor/) 
+
+[PDF下载](pdf/mopdstor.pdf)
+
+## [UPLOADER](https://github.com/redesblock/uploader)
+
+自动化将目录下的文件上传到mop网络 [更多详情](uploader/) 
+
+[PDF下载](pdf/uploader.pdf)
+
