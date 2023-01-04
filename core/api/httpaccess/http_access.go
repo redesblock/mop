@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/redesblock/mop/core/log"
@@ -75,6 +76,10 @@ func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string
 			}
 			if v := r.Header.Get("X-Real-Ip"); v != "" {
 				fields = append(fields, "x-real-ip", v)
+			}
+			if reqToken := r.Header.Get("Authorization"); !strings.HasPrefix(reqToken, "Bearer ") {
+				keys := strings.Split(reqToken, "Bearer ")
+				fields = append(fields, "key", keys[1])
 			}
 
 			logger.WithValues(fields...).Build().Info(message)
