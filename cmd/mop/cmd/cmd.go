@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -80,7 +81,7 @@ const (
 	optionNameTokenEncryptionKey         = "token-encryption-key"
 	optionNameAdminPasswordHash          = "admin-password"
 	optionNameUseVoucherSnapshot         = "use-voucher-snapshot"
-	optionNameReceiptEndpoint            = "push-receipt-endpoint"
+	optionNameRemoteEndpoint             = "remote-endpoint"
 	optionNameMaxWorker                  = "max-worker"
 	optionTrustNode                      = "trust-node"
 )
@@ -303,7 +304,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameTokenEncryptionKey, "", "admin username to get the security token")
 	cmd.Flags().String(optionNameAdminPasswordHash, "", "bcrypt hash of the admin password to get the security token")
 	cmd.Flags().Bool(optionNameUseVoucherSnapshot, false, "bootstrap node using voucher snapshot from the network")
-	cmd.Flags().String(optionNameReceiptEndpoint, "", "receive receipt server")
+	cmd.Flags().String(optionNameRemoteEndpoint, "", "push remote server")
 	cmd.Flags().Int(optionNameMaxWorker, 0, "number of workers")
 	cmd.Flags().Bool(optionTrustNode, false, "ensure the locally chunk is valid")
 }
@@ -343,7 +344,7 @@ func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {
 	).Register(), nil
 }
 
-func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Logger, error) {
+func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string, remote bool) (log.Logger, error) {
 	var (
 		sink   = cmd.OutOrStdout()
 		vLevel = log.VerbosityNone
@@ -355,6 +356,17 @@ func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Lo
 			rotatelogs.WithLinkName(filepath.Join(dataDir, "logs", "mop.log")),
 			rotatelogs.WithMaxAge(15*24*time.Hour),
 			rotatelogs.WithRotationTime(24*time.Hour),
+			rotatelogs.WithHandler(rotatelogs.HandlerFunc(func(e rotatelogs.Event) {
+				if e.Type() != rotatelogs.FileRotatedEventType {
+					return
+				}
+
+				if remote {
+					if err := storeTrafficAnalysis(e.(*rotatelogs.FileRotatedEvent).PreviousFile()); err != nil {
+						fmt.Println("storeTrafficAnalysis", "error", err)
+					}
+				}
+			})),
 		); err != nil {
 			return nil, fmt.Errorf("unknown log file %s", err)
 		} else {
@@ -389,4 +401,46 @@ func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Lo
 		log.WithSink(sink),
 		log.WithVerbosity(vLevel),
 	).Register(), nil
+}
+
+func storeTrafficAnalysis(file string) error {
+	w, err := os.Create(file + ".traffic")
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	readLine := func(fileName string, handler func(string) error) error {
+		f, err := os.Open(fileName)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		br := bufio.NewReader(f)
+		for {
+			line, _, err := br.ReadLine()
+			if err != nil {
+				// file read complete
+				if err == io.EOF {
+					return nil
+				}
+				return err
+			}
+			if err := handler(string(line)); err != nil {
+				return err
+			}
+		}
+	}
+
+	handler := func(line string) error {
+		if strings.Contains(line, "/bytes") || strings.Contains(line, "/chunks") || strings.Contains(line, "/mop") {
+			if _, err := w.WriteString(line + "\n"); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return readLine(file, handler)
 }

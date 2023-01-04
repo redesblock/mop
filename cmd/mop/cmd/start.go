@@ -55,7 +55,7 @@ func (c *command) initStartCmd() (err error) {
 
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
 			dataDir := c.config.GetString(optionNameDataDir)
-			logger, err := newFileLogger(cmd, v, dataDir)
+			logger, err := newFileLogger(cmd, v, dataDir, len(c.config.GetString(optionNameRemoteEndpoint)) > 0)
 			if err != nil {
 				return fmt.Errorf("new logger: %w", err)
 			}
@@ -225,7 +225,7 @@ func (c *command) initStartCmd() (err error) {
 				TokenEncryptionKey:         c.config.GetString(optionNameTokenEncryptionKey),
 				AdminPasswordHash:          c.config.GetString(optionNameAdminPasswordHash),
 				UseVoucherSnapshot:         c.config.GetBool(optionNameUseVoucherSnapshot),
-				ReceiptEndPoint:            c.config.GetString(optionNameReceiptEndpoint),
+				RemoteEndPoint:             c.config.GetString(optionNameRemoteEndpoint),
 				TrustNode:                  c.config.GetBool(optionTrustNode),
 			})
 			if err != nil {

@@ -175,7 +175,7 @@ type Options struct {
 	TokenEncryptionKey         string
 	AdminPasswordHash          string
 	UseVoucherSnapshot         bool
-	ReceiptEndPoint            string
+	RemoteEndPoint             string
 	TrustNode                  bool
 }
 
@@ -945,7 +945,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 	pinningService := pins.NewService(storer, stateStore, traversalService)
 
-	pushSyncProtocol := pushsync.New(clusterAddress, nonce, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime, o.ReceiptEndPoint)
+	pushSyncProtocol := pushsync.New(clusterAddress, nonce, p2ps, storer, kad, tagService, o.FullNodeMode, pssService.TryUnwrap, validStamp, logger, acc, pricer, signer, tracer, warmupTime, o.RemoteEndPoint)
 
 	// set the pushSyncer in the PSS
 	pssService.SetPushSyncer(pushSyncProtocol)
@@ -1052,6 +1052,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			WsPingPeriod:       60 * time.Second,
 			Restricted:         o.Restricted,
+			RemoteEndPoint:     o.RemoteEndPoint,
 		}, extraOpts, chainID, erc20Service)
 
 		pusherService.AddFeed(chunkC)
@@ -1143,6 +1144,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			WsPingPeriod:       60 * time.Second,
 			Restricted:         o.Restricted,
+			RemoteEndPoint:     o.RemoteEndPoint,
 		}, extraOpts, chainID, erc20Service)
 
 		debugService.SetP2P(p2ps)

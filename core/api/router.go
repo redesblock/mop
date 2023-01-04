@@ -1,13 +1,17 @@
 package api
 
 import (
+	"encoding/json"
 	"expvar"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"strings"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redesblock/mop/core/api/auth"
 	"github.com/redesblock/mop/core/api/httpaccess"
@@ -29,7 +33,7 @@ func (s *Service) MountTechnicalDebug() {
 	s.mountTechnicalDebug()
 
 	s.Handler = web.ChainHandlers(
-		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access", nil),
 		handlers.CompressHandler,
 		s.corsHandler,
 		web.NoCacheHeadersHandler,
@@ -41,7 +45,7 @@ func (s *Service) MountDebug(restricted bool) {
 	s.mountBusinessDebug(restricted)
 
 	s.Handler = web.ChainHandlers(
-		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "debug api access", nil),
 		handlers.CompressHandler,
 		s.corsHandler,
 		web.NoCacheHeadersHandler,
@@ -70,7 +74,7 @@ func (s *Service) MountAPI() {
 	}
 
 	s.Handler = web.ChainHandlers(
-		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "api access"),
+		httpaccess.NewHTTPAccessLogHandler(s.logger, s.tracer, "api access", s.trafficHandler),
 		skipHeadHandler(handlers.CompressHandler),
 		s.responseCodeMetricsHandler,
 		s.pageviewMetricsHandler,
@@ -555,4 +559,46 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 		web.FinalHandlerFunc(s.healthHandler),
 	))
 
+}
+
+type trafficObject struct {
+	Timestamp  int64            `json:"timestamp"`
+	Uploaded   map[string]int64 `json:"uploaded"`
+	Downloaded map[string]int64 `json:"downloaded"`
+}
+
+func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
+	if s.lru == nil {
+		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
+			bts, _ := json.Marshal(value)
+			s.logger.Debug("traffic handler ...", "val", string(bts))
+			if len(s.Options.RemoteEndPoint) > 0 {
+				resp, err := http.Post(s.Options.RemoteEndPoint+"/api/traffic", "application/json", strings.NewReader(string(bts)))
+				if err != nil {
+					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
+				} else {
+					resp.Body.Close()
+				}
+			}
+		})
+	}
+
+	d := int64(time.Minute / time.Second)
+	timestamp := (t.Unix() / d) * d
+
+	traffic := &trafficObject{
+		Timestamp:  timestamp,
+		Uploaded:   make(map[string]int64),
+		Downloaded: make(map[string]int64),
+	}
+
+	if val, ok := s.lru.Get(timestamp); ok {
+		traffic = val.(*trafficObject)
+	}
+	if upload {
+		traffic.Uploaded[key] += int64(size)
+	} else {
+		traffic.Downloaded[key] += int64(size)
+	}
+	s.lru.Add(timestamp, traffic)
 }

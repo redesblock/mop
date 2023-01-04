@@ -19,6 +19,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/redesblock/mop/core/incentives/pledge"
 	"github.com/redesblock/mop/core/incentives/reward"
 
@@ -173,6 +174,8 @@ type Service struct {
 	chainBackend transaction.Backend
 	erc20Service erc20.Service
 	chainID      int64
+
+	lru *lru.Cache
 }
 
 func (s *Service) SetP2P(p2p p2p.DebugService) {
@@ -191,6 +194,7 @@ type Options struct {
 	CORSAllowedOrigins []string
 	WsPingPeriod       time.Duration
 	Restricted         bool
+	RemoteEndPoint     string
 }
 
 type ExtraOptions struct {
