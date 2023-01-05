@@ -566,7 +566,7 @@ type trafficObject struct {
 	Address    string           `json:"address"`
 	Uploaded   map[string]int64 `json:"uploaded"`
 	Downloaded map[string]int64 `json:"downloaded"`
-	Signed     string           `json:"-"`
+	Signed     string           `json:"signed"`
 }
 
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
@@ -576,7 +576,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 				traffic := value.(*trafficObject)
 				traffic.Address = s.bscAddress.String()
 				bts, _ := json.Marshal(traffic)
-				resp, err := http.Post(s.Options.RemoteEndPoint+"/api/traffic", "application/json", strings.NewReader(string(bts)))
+				resp, err := http.Post(s.Options.RemoteEndPoint+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
 				if err != nil {
 					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
 				} else {
@@ -587,7 +587,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 		})
 	}
 
-	d := int64(time.Minute / time.Second)
+	d := int64(10 * time.Minute / time.Second)
 	timestamp := (t.Unix() / d) * d
 
 	traffic := &trafficObject{

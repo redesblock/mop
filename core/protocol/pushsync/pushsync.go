@@ -719,7 +719,7 @@ func (ps *PushSync) reportReceipt(receipt *pb.Receipt) {
 	if len(ps.receiptEndPoint) > 0 {
 		t := time.Now()
 		bts, _ := json.Marshal(receipt)
-		resp, err := http.Post(ps.receiptEndPoint+"/api/receipt", "application/json", strings.NewReader(string(bts)))
+		resp, err := http.Post(ps.receiptEndPoint+"/api/v1/receipt", "application/json", strings.NewReader(string(bts)))
 		if err != nil {
 			ps.logger.Error(err, fmt.Sprintf("pushsync: report receipt %s from peer %s, error: %s", cluster.NewAddress(receipt.Address), ps.address, err))
 		} else {
