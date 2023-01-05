@@ -563,20 +563,24 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 
 type trafficObject struct {
 	Timestamp  int64            `json:"timestamp"`
+	Address    string           `json:"address"`
 	Uploaded   map[string]int64 `json:"uploaded"`
 	Downloaded map[string]int64 `json:"downloaded"`
+	Signed     string           `json:"-"`
 }
 
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
 	if s.lru == nil {
 		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
-			bts, _ := json.Marshal(value)
-			s.logger.Debug("traffic handler ...", "val", string(bts))
 			if len(s.Options.RemoteEndPoint) > 0 {
+				traffic := value.(*trafficObject)
+				traffic.Address = s.bscAddress.String()
+				bts, _ := json.Marshal(traffic)
 				resp, err := http.Post(s.Options.RemoteEndPoint+"/api/traffic", "application/json", strings.NewReader(string(bts)))
 				if err != nil {
 					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
 				} else {
+					s.logger.Debug("traffic handler", "key", key, "val", string(bts))
 					resp.Body.Close()
 				}
 			}
