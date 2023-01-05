@@ -85,7 +85,7 @@ func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string
 			}
 			if trafficHandler != nil {
 				if strings.Contains(r.RequestURI, "/bytes") || strings.Contains(r.RequestURI, "/chunks") || strings.Contains(r.RequestURI, "/mop") {
-					trafficHandler(now, key, !(r.Method != http.MethodGet), rr.size)
+					trafficHandler(now, key, r.Method != http.MethodGet, rr.size)
 				}
 			}
 

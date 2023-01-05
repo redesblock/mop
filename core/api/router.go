@@ -571,29 +571,47 @@ type trafficObject struct {
 }
 
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
+	duration := 10 * time.Minute
 	if s.lru == nil {
 		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
+			go func() {
+				ticker := time.NewTicker(duration)
+				for {
+					<-ticker.C
+					d := int64(duration / time.Second)
+					timestamp := (time.Now().Unix() / d) * d
+					if _, ok := s.lru.Get(timestamp); !ok {
+						s.lru.Add(timestamp, &trafficObject{
+							Timestamp:  timestamp,
+							Uploaded:   make(map[string]int64),
+							Downloaded: make(map[string]int64),
+						})
+					}
+				}
+			}()
 			if len(s.Options.RemoteEndPoint) > 0 {
 				traffic := value.(*trafficObject)
-				traffic.Address = s.bscAddress.String()
-				bts, _ := json.Marshal(traffic)
-				client := &http.Client{
-					Transport: &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-					},
-				}
-				resp, err := client.Post(s.Options.RemoteEndPoint+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
-				if err != nil {
-					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
-				} else {
-					s.logger.Debug("traffic handler", "key", key, "val", string(bts))
-					resp.Body.Close()
+				if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
+					traffic.Address = s.bscAddress.String()
+					bts, _ := json.Marshal(traffic)
+					client := &http.Client{
+						Transport: &http.Transport{
+							TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+						},
+					}
+					resp, err := client.Post(s.Options.RemoteEndPoint+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
+					if err != nil {
+						s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
+					} else {
+						s.logger.Debug("traffic handler", "key", key, "val", string(bts))
+						resp.Body.Close()
+					}
 				}
 			}
 		})
 	}
 
-	d := int64(10 * time.Minute / time.Second)
+	d := int64(duration / time.Second)
 	timestamp := (t.Unix() / d) * d
 
 	traffic := &trafficObject{
