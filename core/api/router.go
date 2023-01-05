@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"expvar"
 	"fmt"
@@ -576,7 +577,12 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 				traffic := value.(*trafficObject)
 				traffic.Address = s.bscAddress.String()
 				bts, _ := json.Marshal(traffic)
-				resp, err := http.Post(s.Options.RemoteEndPoint+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
+				client := &http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+					},
+				}
+				resp, err := client.Post(s.Options.RemoteEndPoint+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
 				if err != nil {
 					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
 				} else {
