@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -180,6 +181,7 @@ func storeDir(
 
 		fileReference, err := p(ctx, fileInfo.Reader)
 		if err != nil {
+			debug.PrintStack()
 			return cluster.ZeroAddress, fmt.Errorf("store dir file: %w", err)
 		}
 		loggerV1.Debug("mop upload dir: file dir uploaded", "file_path", fileInfo.Path, "address", fileReference)

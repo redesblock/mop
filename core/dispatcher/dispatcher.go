@@ -1,7 +1,7 @@
 package dispatcher
 
 var (
-	MaxQueue = 10240
+	MaxQueue = 100
 	// A buffered channel that we can send work requests on.
 	JobQueue chan Job
 )

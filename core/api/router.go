@@ -563,11 +563,13 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 }
 
 type trafficObject struct {
-	Timestamp  int64            `json:"timestamp"`
-	Address    string           `json:"address"`
-	Uploaded   map[string]int64 `json:"uploaded"`
-	Downloaded map[string]int64 `json:"downloaded"`
-	Signed     string           `json:"signed"`
+	Timestamp     int64            `json:"timestamp"`
+	Address       string           `json:"address"`
+	UploadedCnt   int64            `json:"uploaded_cnt"`
+	Uploaded      map[string]int64 `json:"uploaded"`
+	DownloadedCnt int64            `json:"downloaded_cnt"`
+	Downloaded    map[string]int64 `json:"downloaded"`
+	Signed        string           `json:"signed"`
 }
 
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
@@ -625,8 +627,10 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 	}
 	if upload {
 		traffic.Uploaded[key] += int64(size)
+		traffic.UploadedCnt++
 	} else {
 		traffic.Downloaded[key] += int64(size)
+		traffic.DownloadedCnt++
 	}
 	s.lru.Add(timestamp, traffic)
 }
