@@ -886,7 +886,7 @@ func (s *Service) NewStream(ctx context.Context, overlay cluster.Address, header
 		return nil, fmt.Errorf("new stream add context header fail: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(s.ctx, s.HeadersRWTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.HeadersRWTimeout)
 	defer cancel()
 	// exchange headers
 	if err := sendHeaders(ctx, headers, stream); err != nil {
