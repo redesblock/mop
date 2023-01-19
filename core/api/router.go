@@ -570,6 +570,7 @@ type trafficObject struct {
 	DownloadedCnt int64            `json:"downloaded_cnt"`
 	Downloaded    map[string]int64 `json:"downloaded"`
 	Signed        string           `json:"signed"`
+	NATAddr       string           `json:"nat_addr"`
 }
 
 var TrafficHost = "https://mopdstor.com"
@@ -596,6 +597,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 			if len(TrafficHost) > 0 {
 				traffic := value.(*trafficObject)
 				if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
+					traffic.NATAddr = s.RemoteEndPoint
 					traffic.Address = s.bscAddress.String()
 					bts, _ := json.Marshal(traffic)
 					client := &http.Client{
