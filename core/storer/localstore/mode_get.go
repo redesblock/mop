@@ -118,22 +118,23 @@ func (db *DB) updateGCItems() {
 
 		db.metrics.GCUpdate.Inc()
 		defer totalTimeMetric(db.metrics.TotalTimeUpdateGC, time.Now())
-		t := time.Now()
+		//t := time.Now()
 		db.batchMu.Lock()
 		batch := new(leveldb.Batch)
+		defer db.batchMu.Unlock()
 		for _, item := range items {
 			err := db.updateGC(batch, item)
 			if err != nil {
 				db.metrics.GCUpdateError.Inc()
 				db.logger.Error(err, "localstore update gc failed")
+				return
 			}
 		}
 		if err := db.shed.WriteBatch(batch); err != nil {
 			db.metrics.GCUpdateError.Inc()
 			db.logger.Error(err, "localstore update gc failed")
 		}
-		db.batchMu.Unlock()
-		db.logger.Debug("localstore update gc", "size", cnt, "duration", time.Since(t))
+		// db.logger.Debug("localstore update gc", "size", cnt, "duration", time.Since(t))
 
 		// if gc update hook is defined, call it
 		if testHookUpdateGC != nil {
