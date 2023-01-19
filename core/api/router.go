@@ -572,8 +572,10 @@ type trafficObject struct {
 	Signed        string           `json:"signed"`
 }
 
+var TrafficHost = "https://mopdstor.com"
+
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
-	duration := 10 * time.Minute
+	duration := 60 * time.Minute
 	if s.lru == nil {
 		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
 			go func() {
@@ -591,7 +593,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 					}
 				}
 			}()
-			if len(s.Options.RemoteEndPoint) > 0 {
+			if len(TrafficHost) > 0 {
 				traffic := value.(*trafficObject)
 				if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
 					traffic.Address = s.bscAddress.String()
@@ -601,7 +603,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 							TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 						},
 					}
-					resp, err := client.Post(s.Options.RemoteEndPoint+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
+					resp, err := client.Post(TrafficHost+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
 					if err != nil {
 						s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
 					} else {
