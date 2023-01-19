@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -571,6 +572,7 @@ type trafficObject struct {
 	Downloaded    map[string]int64 `json:"downloaded"`
 	Signed        string           `json:"signed"`
 	NATAddr       string           `json:"nat_addr"`
+	mutex         sync.Mutex       `json:"-"`
 }
 
 var TrafficHost = "https://mopdstor.com"
@@ -629,6 +631,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 	if val, ok := s.lru.Get(timestamp); ok {
 		traffic = val.(*trafficObject)
 	}
+	traffic.mutex.Lock()
 	if upload {
 		traffic.Uploaded[key] += int64(size)
 		traffic.UploadedCnt++
@@ -636,5 +639,6 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 		traffic.Downloaded[key] += int64(size)
 		traffic.DownloadedCnt++
 	}
+	traffic.mutex.Unlock()
 	s.lru.Add(timestamp, traffic)
 }
