@@ -69,8 +69,19 @@ func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 	switch mode {
 	// update the access timestamp and gc index
 	case storage.ModeGetRequest:
-		db.updateGCItems(out)
-
+		var items []shed.Item
+		db.updateGCItemKeysMu.Lock()
+		db.updateGCItemKeys[addrStr] = &out
+		if cnt := len(db.updateGCItemKeys); cnt > maxParallelUpdateGC {
+			for _, item := range db.updateGCItemKeys {
+				items = append(items, *item)
+			}
+			db.updateGCItemKeys = make(map[string]*shed.Item)
+		}
+		db.updateGCItemKeysMu.Unlock()
+		if len(items) > 0 {
+			db.updateGCItems(items...)
+		}
 	// no updates to indexes
 	case storage.ModeGetSync, storage.ModeGetLookup:
 	default:

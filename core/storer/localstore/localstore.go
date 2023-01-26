@@ -44,7 +44,7 @@ var (
 	defaultCacheCapacity uint64 = 1000000
 	// Limit the number of goroutines created by Getters
 	// that call updateGC function. Value 0 sets no limit.
-	maxParallelUpdateGC = 1000
+	maxParallelUpdateGC = 100
 
 	// values needed to adjust subscription trigger
 	// buffer time.
@@ -172,7 +172,7 @@ type DB struct {
 
 	lru                *lru.Cache
 	enableCache        bool
-	updateGCItemKeys   map[string]bool
+	updateGCItemKeys   map[string]*shed.Item
 	updateGCItemKeysMu sync.Mutex
 
 	metrics metrics
@@ -310,7 +310,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		reserveEvictionWorkerDone: make(chan struct{}),
 		metrics:                   newMetrics(),
 		lru:                       lruCache,
-		updateGCItemKeys:          map[string]bool{},
+		updateGCItemKeys:          map[string]*shed.Item{},
 		enableCache:               o.MemCapacity > 0,
 		logger:                    logger.WithName(loggerName).Register(),
 	}
