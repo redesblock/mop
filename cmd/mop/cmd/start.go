@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/kardianos/service"
 	ver "github.com/redesblock/mop"
+	"github.com/redesblock/mop/core/api"
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/crypto"
 	"github.com/redesblock/mop/core/crypto/clef"
@@ -55,7 +56,7 @@ func (c *command) initStartCmd() (err error) {
 
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
 			dataDir := c.config.GetString(optionNameDataDir)
-			logger, err := newFileLogger(cmd, v, dataDir, len(c.config.GetString(optionNameRemoteEndpoint)) > 0)
+			logger, err := newFileLogger(cmd, v, dataDir, len(api.TrafficHost) > 0)
 			if err != nil {
 				return fmt.Errorf("new logger: %w", err)
 			}

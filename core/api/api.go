@@ -194,7 +194,6 @@ type Options struct {
 	CORSAllowedOrigins []string
 	WsPingPeriod       time.Duration
 	Restricted         bool
-	RemoteEndPoint     string
 }
 
 type ExtraOptions struct {
