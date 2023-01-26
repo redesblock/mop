@@ -1052,7 +1052,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			WsPingPeriod:       60 * time.Second,
 			Restricted:         o.Restricted,
-			RemoteEndPoint:     o.NATAddr,
+			NATAddr:            o.NATAddr,
 		}, extraOpts, chainID, erc20Service)
 
 		pusherService.AddFeed(chunkC)
@@ -1144,7 +1144,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 			CORSAllowedOrigins: o.CORSAllowedOrigins,
 			WsPingPeriod:       60 * time.Second,
 			Restricted:         o.Restricted,
-			RemoteEndPoint:     o.NATAddr,
+			NATAddr:            o.NATAddr,
 		}, extraOpts, chainID, erc20Service)
 
 		debugService.SetP2P(p2ps)

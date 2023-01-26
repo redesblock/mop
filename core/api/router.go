@@ -575,9 +575,12 @@ type trafficObject struct {
 	mutex         sync.Mutex       `json:"-"`
 }
 
-var TrafficHost = "https://mopdstor.com"
+var TrafficHost = ""
 
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
+	if len(TrafficHost) == 0 {
+		return
+	}
 	duration := 60 * time.Minute
 	if s.lru == nil {
 		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
@@ -596,24 +599,23 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 					}
 				}
 			}()
-			if len(TrafficHost) > 0 {
-				traffic := value.(*trafficObject)
-				if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
-					traffic.NATAddr = s.RemoteEndPoint
-					traffic.Address = s.bscAddress.String()
-					bts, _ := json.Marshal(traffic)
-					client := &http.Client{
-						Transport: &http.Transport{
-							TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-						},
-					}
-					resp, err := client.Post(TrafficHost+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
-					if err != nil {
-						s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
-					} else {
-						s.logger.Debug("traffic handler", "key", key, "val", string(bts))
-						resp.Body.Close()
-					}
+
+			traffic := value.(*trafficObject)
+			if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
+				traffic.NATAddr = s.NATAddr
+				traffic.Address = s.bscAddress.String()
+				bts, _ := json.Marshal(traffic)
+				client := &http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+					},
+				}
+				resp, err := client.Post(TrafficHost+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
+				if err != nil {
+					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
+				} else {
+					s.logger.Debug("traffic handler", "key", key, "val", string(bts))
+					resp.Body.Close()
 				}
 			}
 		})
