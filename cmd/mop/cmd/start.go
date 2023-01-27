@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/redesblock/mop/core/api"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -56,7 +55,7 @@ func (c *command) initStartCmd() (err error) {
 
 			v := strings.ToLower(c.config.GetString(optionNameVerbosity))
 			dataDir := c.config.GetString(optionNameDataDir)
-			logger, err := newFileLogger(cmd, v, dataDir, len(api.TrafficHost) > 0)
+			logger, err := newFileLogger(cmd, v, dataDir)
 			if err != nil {
 				return fmt.Errorf("new logger: %w", err)
 			}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -575,12 +576,7 @@ type trafficObject struct {
 	mutex         sync.Mutex       `json:"-"`
 }
 
-var TrafficHost = ""
-
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
-	if len(TrafficHost) == 0 {
-		return
-	}
 	duration := 60 * time.Minute
 	if s.lru == nil {
 		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
@@ -600,6 +596,11 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 				}
 			}()
 
+			trafficHost := os.Getenv("MOP_TRAFFIC_HOST")
+			if len(trafficHost) == 0 {
+				return
+			}
+
 			traffic := value.(*trafficObject)
 			if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
 				traffic.NATAddr = s.NATAddr
@@ -610,7 +611,7 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 					},
 				}
-				resp, err := client.Post(TrafficHost+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
+				resp, err := client.Post(trafficHost+"/api/v1/traffic", "application/json", strings.NewReader(string(bts)))
 				if err != nil {
 					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
 				} else {
@@ -623,7 +624,6 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 
 	d := int64(duration / time.Second)
 	timestamp := (t.Unix() / d) * d
-
 	traffic := &trafficObject{
 		Timestamp:  timestamp,
 		Uploaded:   make(map[string]int64),

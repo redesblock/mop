@@ -344,7 +344,7 @@ func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {
 	).Register(), nil
 }
 
-func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string, remote bool) (log.Logger, error) {
+func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string) (log.Logger, error) {
 	var (
 		sink   = cmd.OutOrStdout()
 		vLevel = log.VerbosityNone
@@ -361,11 +361,10 @@ func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string, remote 
 					return
 				}
 
-				if remote {
-					if err := storeTrafficAnalysis(e.(*rotatelogs.FileRotatedEvent).PreviousFile()); err != nil {
-						fmt.Println("storeTrafficAnalysis", "error", err)
-					}
+				if err := storeTrafficAnalysis(e.(*rotatelogs.FileRotatedEvent).PreviousFile()); err != nil {
+					fmt.Println("storeTrafficAnalysis", "error", err)
 				}
+				// os.Remove(e.(*rotatelogs.FileRotatedEvent).PreviousFile()+".traffic")
 			})),
 		); err != nil {
 			return nil, fmt.Errorf("unknown log file %s", err)
@@ -404,6 +403,9 @@ func newFileLogger(cmd *cobra.Command, verbosity string, dataDir string, remote 
 }
 
 func storeTrafficAnalysis(file string) error {
+	if len(file) == 0 {
+		return nil
+	}
 	w, err := os.Create(file + ".traffic")
 	if err != nil {
 		return err
