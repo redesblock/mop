@@ -84,6 +84,8 @@ const (
 	optionNameRemoteEndpoint             = "remote-endpoint"
 	optionNameMaxWorker                  = "max-worker"
 	optionTrustNode                      = "trust-node"
+	optionTLSCertPath                    = "tls-certificate-path"
+	optionTLSKeyPath                     = "tls-key-path"
 )
 
 func init() {
@@ -307,6 +309,8 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().String(optionNameRemoteEndpoint, "", "push remote server")
 	cmd.Flags().Int(optionNameMaxWorker, 0, "number of workers")
 	cmd.Flags().Bool(optionTrustNode, false, "ensure the locally chunk is valid")
+	cmd.Flags().String(optionTLSCertPath, "", "the cert.pem file path for the server TLS configuration")
+	cmd.Flags().String(optionTLSKeyPath, "", "the key.pem file path for the server TLS configuration")
 }
 
 func newLogger(cmd *cobra.Command, verbosity string) (log.Logger, error) {

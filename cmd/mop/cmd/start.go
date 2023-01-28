@@ -227,6 +227,8 @@ func (c *command) initStartCmd() (err error) {
 				UseVoucherSnapshot:         c.config.GetBool(optionNameUseVoucherSnapshot),
 				RemoteEndPoint:             c.config.GetString(optionNameRemoteEndpoint),
 				TrustNode:                  c.config.GetBool(optionTrustNode),
+				TLSCertFile:                c.config.GetString(optionTLSCertPath),
+				TLSKeyFile:                 c.config.GetString(optionTLSKeyPath),
 			})
 			if err != nil {
 				return fmt.Errorf("new node %v", err)

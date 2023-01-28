@@ -177,6 +177,35 @@ type Options struct {
 	UseVoucherSnapshot         bool
 	RemoteEndPoint             string
 	TrustNode                  bool
+	TLSCertFile                string
+	TLSKeyFile                 string
+}
+
+func (cfg Options) KeyFile() string {
+	path := cfg.TLSKeyFile
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return rootify(path, cfg.DataDir)
+}
+
+func (cfg Options) CertFile() string {
+	path := cfg.TLSCertFile
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return rootify(path, cfg.DataDir)
+}
+
+func (cfg Options) IsTLSEnabled() bool {
+	return cfg.TLSCertFile != "" && cfg.TLSKeyFile != ""
+}
+
+func rootify(path, root string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(root, path)
 }
 
 const (
@@ -362,9 +391,16 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		go func() {
 			logger.Info("starting debug server", "address", debugAPIListener.Addr())
 
-			if err := debugAPIServer.Serve(debugAPIListener); err != nil && err != http.ErrServerClosed {
-				logger.Debug("debug api server failed to start", "error", err)
-				logger.Error(nil, "debug api server failed to start")
+			if o.IsTLSEnabled() {
+				if err := debugAPIServer.ServeTLS(debugAPIListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+					logger.Debug("debug api server failed to start", "error", err)
+					logger.Error(nil, "debug api server failed to start")
+				}
+			} else {
+				if err := debugAPIServer.Serve(debugAPIListener); err != nil && err != http.ErrServerClosed {
+					logger.Debug("debug api server failed to start", "error", err)
+					logger.Error(nil, "debug api server failed to start")
+				}
 			}
 		}()
 
@@ -392,9 +428,16 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		go func() {
 			logger.Info("starting debug & api server", "address", apiListener.Addr())
 
-			if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
-				logger.Debug("debug & api server failed to start", "error", err)
-				logger.Error(nil, "debug & api server failed to start")
+			if o.IsTLSEnabled() {
+				if err := apiServer.ServeTLS(apiListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+					logger.Debug("debug & api server failed to start", "error", err)
+					logger.Error(nil, "debug & api server failed to start")
+				}
+			} else {
+				if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
+					logger.Debug("debug & api server failed to start", "error", err)
+					logger.Error(nil, "debug & api server failed to start")
+				}
 			}
 		}()
 
@@ -1075,9 +1118,16 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 			go func() {
 				logger.Info("starting api server", "address", apiListener.Addr())
-				if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
-					logger.Debug("api server failed to start", "error", err)
-					logger.Error(nil, "api server failed to start")
+				if o.IsTLSEnabled() {
+					if err := apiServer.ServeTLS(apiListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+						logger.Debug("api server failed to start", "error", err)
+						logger.Error(nil, "api server failed to start")
+					}
+				} else {
+					if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
+						logger.Debug("api server failed to start", "error", err)
+						logger.Error(nil, "api server failed to start")
+					}
 				}
 			}()
 
