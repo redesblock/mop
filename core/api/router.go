@@ -567,35 +567,19 @@ func (s *Service) mountBusinessDebug(restricted bool) {
 type trafficObject struct {
 	Timestamp     int64            `json:"timestamp"`
 	Address       string           `json:"address"`
-	UploadedCnt   int64            `json:"uploaded_cnt"`
+	UploadedCnt   map[string]int64 `json:"uploaded_cnt"`
 	Uploaded      map[string]int64 `json:"uploaded"`
-	DownloadedCnt int64            `json:"downloaded_cnt"`
+	DownloadedCnt map[string]int64 `json:"downloaded_cnt"`
 	Downloaded    map[string]int64 `json:"downloaded"`
 	Signed        string           `json:"signed"`
 	NATAddr       string           `json:"nat_addr"`
 	mutex         sync.Mutex       `json:"-"`
 }
 
-func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int) {
+func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int64) {
 	duration := 60 * time.Minute
 	if s.lru == nil {
 		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
-			go func() {
-				ticker := time.NewTicker(duration)
-				for {
-					<-ticker.C
-					d := int64(duration / time.Second)
-					timestamp := (time.Now().Unix() / d) * d
-					if _, ok := s.lru.Get(timestamp); !ok {
-						s.lru.Add(timestamp, &trafficObject{
-							Timestamp:  timestamp,
-							Uploaded:   make(map[string]int64),
-							Downloaded: make(map[string]int64),
-						})
-					}
-				}
-			}()
-
 			traffic := value.(*trafficObject)
 			if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
 				traffic.NATAddr = s.NATAddr
@@ -620,14 +604,35 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 				}
 			}
 		})
+
+		go func() {
+			ticker := time.NewTicker(duration)
+			defer ticker.Stop()
+			for {
+				<-ticker.C
+				d := int64(duration / time.Second)
+				timestamp := (time.Now().Unix() / d) * d
+				if _, ok := s.lru.Get(timestamp); !ok {
+					s.lru.Add(timestamp, &trafficObject{
+						Timestamp:     timestamp,
+						Uploaded:      make(map[string]int64),
+						UploadedCnt:   make(map[string]int64),
+						Downloaded:    make(map[string]int64),
+						DownloadedCnt: make(map[string]int64),
+					})
+				}
+			}
+		}()
 	}
 
 	d := int64(duration / time.Second)
 	timestamp := (t.Unix() / d) * d
 	traffic := &trafficObject{
-		Timestamp:  timestamp,
-		Uploaded:   make(map[string]int64),
-		Downloaded: make(map[string]int64),
+		Timestamp:     timestamp,
+		Uploaded:      make(map[string]int64),
+		UploadedCnt:   make(map[string]int64),
+		Downloaded:    make(map[string]int64),
+		DownloadedCnt: make(map[string]int64),
 	}
 
 	if val, ok := s.lru.Get(timestamp); ok {
@@ -635,11 +640,11 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 	}
 	traffic.mutex.Lock()
 	if upload {
-		traffic.Uploaded[key] += int64(size)
-		traffic.UploadedCnt++
+		traffic.Uploaded[key] += size
+		traffic.UploadedCnt[key] += 1
 	} else {
-		traffic.Downloaded[key] += int64(size)
-		traffic.DownloadedCnt++
+		traffic.Downloaded[key] += size
+		traffic.DownloadedCnt[key] += 1
 	}
 	traffic.mutex.Unlock()
 	s.lru.Add(timestamp, traffic)

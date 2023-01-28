@@ -26,7 +26,7 @@ func NewHTTPAccessSuppressLogHandler() func(h http.Handler) http.Handler {
 
 // NewHTTPAccessLogHandler creates a handler that
 // will log a message after a request has been served.
-func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string, trafficHandler func(time time.Time, key string, upload bool, size int)) func(h http.Handler) http.Handler {
+func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string, trafficHandler func(time time.Time, key string, upload bool, size int64)) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rr, ok := w.(*responseRecorder)
@@ -83,9 +83,15 @@ func NewHTTPAccessLogHandler(logger log.Logger, t *tracer.Tracer, message string
 				fields = append(fields, "key", keys[1])
 				key = keys[1]
 			}
-			if trafficHandler != nil {
-				if strings.Contains(r.RequestURI, "/bytes") || strings.Contains(r.RequestURI, "/chunks") || strings.Contains(r.RequestURI, "/mop") {
-					trafficHandler(now, key, r.Method != http.MethodGet, rr.size)
+			if trafficHandler != nil && r.Method != http.MethodOptions {
+				//if strings.Contains(r.RequestURI, "/bytes") || strings.Contains(r.RequestURI, "/chunks") || strings.Contains(r.RequestURI, "/mop") {
+				if strings.Contains(r.RequestURI, "/mop") {
+					size := int64(rr.size)
+					if r.Method != http.MethodGet {
+						size = r.ContentLength
+					}
+					fields = append(fields, "traffic", size)
+					trafficHandler(now, key, r.Method != http.MethodGet, size)
 				}
 			}
 
