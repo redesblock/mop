@@ -596,16 +596,17 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 				}
 			}()
 
-			trafficHost := os.Getenv("MOP_TRAFFIC_HOST")
-			if len(trafficHost) == 0 {
-				return
-			}
-
 			traffic := value.(*trafficObject)
 			if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
 				traffic.NATAddr = s.NATAddr
 				traffic.Address = s.bscAddress.String()
 				bts, _ := json.Marshal(traffic)
+
+				s.logger.Debug("traffic handler", "val", string(bts))
+				trafficHost := os.Getenv("MOP_TRAFFIC_HOST")
+				if len(trafficHost) == 0 {
+					return
+				}
 				client := &http.Client{
 					Transport: &http.Transport{
 						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -615,7 +616,6 @@ func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int)
 				if err != nil {
 					s.logger.Error(err, "traffic handler", "key", key, "val", string(bts))
 				} else {
-					s.logger.Debug("traffic handler", "key", key, "val", string(bts))
 					resp.Body.Close()
 				}
 			}
