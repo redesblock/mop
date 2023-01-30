@@ -579,7 +579,7 @@ type trafficObject struct {
 func (s *Service) trafficHandler(t time.Time, key string, upload bool, size int64) {
 	duration := 60 * time.Minute
 	if s.lru == nil {
-		s.lru, _ = lru.NewWithEvict(1, func(key, value interface{}) {
+		s.lru, _ = lru.NewWithEvict(2, func(key, value interface{}) {
 			traffic := value.(*trafficObject)
 			if len(traffic.Downloaded) > 0 || len(traffic.Uploaded) > 0 {
 				traffic.NATAddr = s.NATAddr

@@ -67,11 +67,15 @@ func InitChain(
 			var versionString string
 			err = rpcClient.CallContext(ctx, &versionString, "web3_clientVersion")
 			if err != nil {
-				logger.Info("could not connect to backend; in a swap-enabled network a working blockchain node is required; check your node or specify another node using --bsc-rpc-endpoint.", "backend_endpoint", endpoint)
-				return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
+				logger.Info("could not connect to backend; in a swap-enabled network a working blockchain node is required; check your node or specify another node using --bsc-rpc-endpoint.", "backend_endpoint", endpoint, "error", fmt.Errorf("eth client get version: %w", err))
+				continue
+				//return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %w", err)
 			}
 			logger.Info("connected to BNB Smart Chain backend", "version", versionString, "backend_endpoint", endpoint)
 			backends = append(backends, ethclient.NewClient(rpcClient))
+		}
+		if len(backends) == 0 {
+			return nil, common.Address{}, 0, nil, nil, fmt.Errorf("eth client get version: %s", endpoints)
 		}
 		backend = wrapped.NewBackend(backends...)
 	}
