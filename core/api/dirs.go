@@ -97,6 +97,8 @@ func (s *Service) dirUploadHandler(w http.ResponseWriter, r *http.Request, store
 		}
 		return
 	}
+	logger.Debug("mop upload directory: store", "manifest_reference", reference)
+
 	if created {
 		_, err = tag.DoneSplit(reference)
 		if err != nil {
