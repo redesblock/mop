@@ -131,6 +131,7 @@ func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay
 		return nil, fmt.Errorf("address: %w", err)
 	}
 
+	var localAddr ma.Multiaddr
 	ip4Addr := "0.0.0.0"
 	ip6Addr := "::"
 
@@ -138,9 +139,11 @@ func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay
 		ip := net.ParseIP(host)
 		if ip4 := ip.To4(); ip4 != nil {
 			ip4Addr = ip4.String()
+			localAddr, _ = ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/0", ip4Addr))
 			ip6Addr = ""
 		} else if ip6 := ip.To16(); ip6 != nil {
 			ip6Addr = ip6.String()
+			localAddr, _ = ma.NewMultiaddr(fmt.Sprintf("/ip6/%s/tcp/0", ip4Addr))
 			ip4Addr = ""
 		}
 	}
@@ -192,7 +195,7 @@ func New(ctx context.Context, signer mopCrypto.Signer, networkID uint64, overlay
 	}
 
 	transports := []libp2p.Option{
-		libp2p.Transport(tcp.NewTCPTransport, tcp.DisableReuseport()),
+		libp2p.Transport(tcp.NewTCPTransport, tcp.DisableReuseport(), tcp.WithLocalAddr(localAddr)),
 	}
 
 	if o.EnableWS {

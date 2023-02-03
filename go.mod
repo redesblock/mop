@@ -172,3 +172,8 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+replace (
+	github.com/libp2p/go-libp2p => github.com/redesblock/go-libp2p v0.16.1
+	github.com/libp2p/go-tcp-transport => github.com/redesblock/go-tcp-transport v0.4.1
+)
