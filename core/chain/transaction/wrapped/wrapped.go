@@ -3,12 +3,14 @@ package wrapped
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/redesblock/mop/core/chain/transaction"
-	"math/big"
-	"time"
 )
 
 var (
@@ -16,11 +18,9 @@ var (
 )
 
 type wrappedBackend struct {
-	backends        []transaction.Backend
-	backendIndex    int
-	blockNumber     uint64
-	blockNumberTime int64
-	metrics         metrics
+	backends     []transaction.Backend
+	backendIndex int
+	metrics      metrics
 }
 
 func NewBackend(backends ...transaction.Backend) transaction.Backend {
@@ -36,6 +36,7 @@ func (b *wrappedBackend) backend() transaction.Backend {
 
 func (b *wrappedBackend) changeBackend() {
 	b.backendIndex = (b.backendIndex + 1) % len(b.backends)
+	fmt.Println("changeBackend", b.backendIndex)
 }
 
 func (b *wrappedBackend) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
@@ -69,17 +70,8 @@ func (b *wrappedBackend) BlockNumber(ctx context.Context) (uint64, error) {
 	b.metrics.BlockNumberCalls.Inc()
 	blockNumber, err := b.backend().BlockNumber(ctx)
 	if err != nil {
-		b.changeBackend()
 		b.metrics.TotalRPCErrors.Inc()
 		return 0, err
-	}
-	if b.blockNumber == blockNumber {
-		if (time.Now().Unix() - b.blockNumberTime) >= 60 {
-			b.changeBackend()
-		}
-	} else {
-		b.blockNumber = blockNumber
-		b.blockNumberTime = time.Now().Unix()
 	}
 	return blockNumber, nil
 }
@@ -94,6 +86,12 @@ func (b *wrappedBackend) HeaderByNumber(ctx context.Context, number *big.Int) (*
 		}
 		return nil, err
 	}
+
+	blockTime := time.Unix(int64(header.Time), 0)
+	if synced := blockTime.After(time.Now().UTC().Add(-10 * time.Minute)); !synced {
+		b.changeBackend()
+	}
+
 	return header, nil
 }
 

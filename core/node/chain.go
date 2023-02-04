@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	maxDelay                = 1 * time.Minute
+	maxDelay                = 5 * time.Minute
 	cancellationDepth       = 12
 	additionalConfirmations = 2
 )
