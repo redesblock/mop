@@ -181,7 +181,7 @@ func (c *command) initStartCmd() (err error) {
 				DBBlockCacheCapacity:       c.config.GetUint64(optionNameDBBlockCacheCapacity),
 				DBWriteBufferSize:          c.config.GetUint64(optionNameDBWriteBufferSize),
 				DBDisableSeeksCompaction:   c.config.GetBool(optionNameDBDisableSeeksCompaction),
-				APIAddr:                    c.config.GetString(optionNameAPIAddr),
+				APIAddr:                    c.config.GetStringSlice(optionNameAPIAddr),
 				DebugAPIAddr:               debugAPIAddr,
 				Addr:                       c.config.GetString(optionNameP2PAddr),
 				NATAddr:                    c.config.GetString(optionNameNATAddr),

@@ -92,8 +92,8 @@ type Mop struct {
 	p2pService               io.Closer
 	p2pHalter                p2p.Halter
 	p2pCancel                context.CancelFunc
-	apiCloser                io.Closer
-	apiServer                *http.Server
+	apiCloser                []io.Closer
+	apiServer                []*http.Server
 	debugAPIServer           *http.Server
 	resolverCloser           io.Closer
 	errorLogWriter           io.Writer
@@ -131,7 +131,7 @@ type Options struct {
 	DBWriteBufferSize          uint64
 	DBBlockCacheCapacity       uint64
 	DBDisableSeeksCompaction   bool
-	APIAddr                    string
+	APIAddr                    []string
 	DebugAPIAddr               string
 	Addr                       string
 	NATAddr                    string
@@ -420,29 +420,32 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 			ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
 		}
 
-		apiListener, err := net.Listen("tcp", o.APIAddr)
-		if err != nil {
-			return nil, fmt.Errorf("api listener: %w", err)
-		}
-
-		go func() {
-			logger.Info("starting debug & api server", "address", apiListener.Addr())
-
-			if o.IsTLSEnabled() {
-				if err := apiServer.ServeTLS(apiListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
-					logger.Debug("debug & api server failed to start", "error", err)
-					logger.Error(nil, "debug & api server failed to start")
-				}
-			} else {
-				if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
-					logger.Debug("debug & api server failed to start", "error", err)
-					logger.Error(nil, "debug & api server failed to start")
-				}
+		for _, apiAddr := range o.APIAddr {
+			apiListener, err := net.Listen("tcp", apiAddr)
+			if err != nil {
+				return nil, fmt.Errorf("api listener: %w", err)
 			}
-		}()
 
-		b.apiServer = apiServer
-		b.apiCloser = apiServer
+			go func() {
+				logger.Info("starting debug & api server", "address", apiListener.Addr())
+
+				if o.IsTLSEnabled() {
+					if err := apiServer.ServeTLS(apiListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+						logger.Debug("debug & api server failed to start", "error", err)
+						logger.Error(nil, "debug & api server failed to start")
+					}
+				} else {
+					if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
+						logger.Debug("debug & api server failed to start", "error", err)
+						logger.Error(nil, "debug & api server failed to start")
+					}
+				}
+			}()
+
+			b.apiServer = append(b.apiServer, apiServer)
+			b.apiCloser = append(b.apiCloser, apiServer)
+
+		}
 	}
 
 	// Sync the with the given BNB Smart Chain backend:
@@ -1086,7 +1089,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		SyncStatus:       syncStatusFn,
 	}
 
-	if o.APIAddr != "" {
+	if len(o.APIAddr) != 0 {
 		if apiService == nil {
 			apiService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
 		}
@@ -1111,28 +1114,30 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 				ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
 			}
 
-			apiListener, err := net.Listen("tcp", o.APIAddr)
-			if err != nil {
-				return nil, fmt.Errorf("api listener: %w", err)
-			}
-
-			go func() {
-				logger.Info("starting api server", "address", apiListener.Addr())
-				if o.IsTLSEnabled() {
-					if err := apiServer.ServeTLS(apiListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
-						logger.Debug("api server failed to start", "error", err)
-						logger.Error(nil, "api server failed to start")
-					}
-				} else {
-					if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
-						logger.Debug("api server failed to start", "error", err)
-						logger.Error(nil, "api server failed to start")
-					}
+			for _, apiAddr := range o.APIAddr {
+				apiListener, err := net.Listen("tcp", apiAddr)
+				if err != nil {
+					return nil, fmt.Errorf("api listener: %w", err)
 				}
-			}()
 
-			b.apiServer = apiServer
-			b.apiCloser = apiService
+				go func() {
+					logger.Info("starting api server", "address", apiListener.Addr())
+					if o.IsTLSEnabled() {
+						if err := apiServer.ServeTLS(apiListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+							logger.Debug("api server failed to start", "error", err)
+							logger.Error(nil, "api server failed to start")
+						}
+					} else {
+						if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
+							logger.Debug("api server failed to start", "error", err)
+							logger.Error(nil, "api server failed to start")
+						}
+					}
+				}()
+
+				b.apiServer = append(b.apiServer, apiServer)
+				b.apiCloser = append(b.apiCloser, apiServer)
+			}
 		} else {
 			// in Restricted mode we mount debug endpoints
 			apiService.MountDebug(o.Restricted)
@@ -1251,19 +1256,22 @@ func (b *Mop) Shutdown() error {
 		}
 	}
 
-	tryClose(b.apiCloser, "api")
-
+	for _, apiCloser := range b.apiCloser {
+		tryClose(apiCloser, "api")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	var eg errgroup.Group
-	if b.apiServer != nil {
-		eg.Go(func() error {
-			if err := b.apiServer.Shutdown(ctx); err != nil {
-				return fmt.Errorf("api server: %w", err)
-			}
-			return nil
-		})
+	if len(b.apiServer) != 0 {
+		for _, apiServer := range b.apiServer {
+			eg.Go(func() error {
+				if err := apiServer.Shutdown(ctx); err != nil {
+					return fmt.Errorf("api server: %w", err)
+				}
+				return nil
+			})
+		}
 	}
 	if b.debugAPIServer != nil {
 		eg.Go(func() error {

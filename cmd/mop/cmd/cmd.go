@@ -255,7 +255,7 @@ func (c *command) setAllFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(optionNameDBDisableSeeksCompaction, false, "disables db compactions triggered by seeks")
 	cmd.Flags().String(optionNamePassword, "", "password for decrypting keys")
 	cmd.Flags().String(optionNamePasswordFile, "", "path to a file that contains password for decrypting keys")
-	cmd.Flags().String(optionNameAPIAddr, ":1683", "HTTP API listen address")
+	cmd.Flags().StringSlice(optionNameAPIAddr, []string{":1683"}, "HTTP API listen address")
 	cmd.Flags().String(optionNameP2PAddr, ":1684", "P2P listen address")
 	cmd.Flags().String(optionNameNATAddr, "", "NAT exposed address")
 	cmd.Flags().Bool(optionNameP2PWSEnable, false, "enable P2P WebSocket transport")
