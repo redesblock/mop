@@ -68,6 +68,7 @@ require (
 	github.com/ipfs/go-cid v0.0.7
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/libp2p/go-libp2p-yamux v0.6.0
+	github.com/lucas-clemente/quic-go v0.24.0
 	github.com/multiformats/go-multihash v0.0.15
 )
 
@@ -127,8 +128,8 @@ require (
 	github.com/libp2p/go-sockaddr v0.1.1 // indirect
 	github.com/libp2p/go-stream-muxer-multistream v0.3.0 // indirect
 	github.com/libp2p/go-yamux/v2 v2.3.0 // indirect
-	github.com/lucas-clemente/quic-go v0.24.0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/marten-seemann/qpack v0.2.1 // indirect
 	github.com/marten-seemann/qtls-go1-16 v0.1.4 // indirect
 	github.com/marten-seemann/qtls-go1-17 v0.1.0 // indirect
 	github.com/marten-seemann/tcp v0.0.0-20210406111302-dfbc87cc63fd // indirect

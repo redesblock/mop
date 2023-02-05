@@ -23,6 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/lucas-clemente/quic-go/http3"
+
 	"github.com/redesblock/mop/core/incentives/pledge"
 	"github.com/redesblock/mop/core/incentives/reward"
 
@@ -413,14 +415,22 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		apiService = api.New(*publicKey, pssPrivateKey.PublicKey, overlayEthAddress, logger, transactionService, batchStore, mopNodeMode, o.ChequebookEnable, o.SwapEnable, chainBackend, o.CORSAllowedOrigins)
 		apiService.MountTechnicalDebug()
 
-		apiServer := &http.Server{
-			IdleTimeout:       30 * time.Second,
-			ReadHeaderTimeout: 3 * time.Second,
-			Handler:           apiService,
-			ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
-		}
-
 		for _, apiAddr := range o.APIAddr {
+			apiServer := &http.Server{
+				Addr:              apiAddr,
+				IdleTimeout:       30 * time.Second,
+				ReadHeaderTimeout: 3 * time.Second,
+				Handler:           apiService,
+				ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
+			}
+			quicServer := http3.Server{
+				Server: apiServer,
+			}
+			apiServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				quicServer.SetQuicHeaders(w.Header())
+				apiService.ServeHTTP(w, r)
+			})
+
 			apiListener, err := net.Listen("tcp", apiAddr)
 			if err != nil {
 				return nil, fmt.Errorf("api listener: %w", err)
@@ -438,6 +448,21 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 					if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
 						logger.Debug("debug & api server failed to start", "error", err)
 						logger.Error(nil, "debug & api server failed to start")
+					}
+				}
+			}()
+
+			go func() {
+				logger.Info("starting http3 api server", "address", apiListener.Addr())
+				if o.IsTLSEnabled() {
+					if err := quicServer.ListenAndServeTLS(o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+						logger.Debug("http3 api server failed to start", "error", err)
+						logger.Error(nil, "http3 api server failed to start")
+					}
+				} else {
+					if err := quicServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+						logger.Debug("http3 api server failed to start", "error", err)
+						logger.Error(nil, "http3 api server failed to start")
 					}
 				}
 			}()
@@ -1107,14 +1132,22 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		apiService.SetProbe(probe)
 
 		if !o.Restricted {
-			apiServer := &http.Server{
-				IdleTimeout:       30 * time.Second,
-				ReadHeaderTimeout: 3 * time.Second,
-				Handler:           apiService,
-				ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
-			}
-
 			for _, apiAddr := range o.APIAddr {
+				apiServer := &http.Server{
+					Addr:              apiAddr,
+					IdleTimeout:       30 * time.Second,
+					ReadHeaderTimeout: 3 * time.Second,
+					Handler:           apiService,
+					ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
+				}
+				quicServer := http3.Server{
+					Server: apiServer,
+				}
+				apiServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					quicServer.SetQuicHeaders(w.Header())
+					apiService.ServeHTTP(w, r)
+				})
+
 				apiListener, err := net.Listen("tcp", apiAddr)
 				if err != nil {
 					return nil, fmt.Errorf("api listener: %w", err)
@@ -1131,6 +1164,21 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 						if err := apiServer.Serve(apiListener); err != nil && err != http.ErrServerClosed {
 							logger.Debug("api server failed to start", "error", err)
 							logger.Error(nil, "api server failed to start")
+						}
+					}
+				}()
+
+				go func() {
+					logger.Info("starting http3 api server", "address", apiListener.Addr())
+					if o.IsTLSEnabled() {
+						if err := quicServer.ListenAndServeTLS(o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
+							logger.Debug("http3 api server failed to start", "error", err)
+							logger.Error(nil, "http3 api server failed to start")
+						}
+					} else {
+						if err := quicServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+							logger.Debug("http3 api server failed to start", "error", err)
+							logger.Error(nil, "http3 api server failed to start")
 						}
 					}
 				}()
