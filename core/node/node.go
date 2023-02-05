@@ -392,17 +392,9 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 
 		go func() {
 			logger.Info("starting debug server", "address", debugAPIListener.Addr())
-
-			if o.IsTLSEnabled() {
-				if err := debugAPIServer.ServeTLS(debugAPIListener, o.CertFile(), o.KeyFile()); err != nil && err != http.ErrServerClosed {
-					logger.Debug("debug api server failed to start", "error", err)
-					logger.Error(nil, "debug api server failed to start")
-				}
-			} else {
-				if err := debugAPIServer.Serve(debugAPIListener); err != nil && err != http.ErrServerClosed {
-					logger.Debug("debug api server failed to start", "error", err)
-					logger.Error(nil, "debug api server failed to start")
-				}
+			if err := debugAPIServer.Serve(debugAPIListener); err != nil && err != http.ErrServerClosed {
+				logger.Debug("debug api server failed to start", "error", err)
+				logger.Error(nil, "debug api server failed to start")
 			}
 		}()
 
