@@ -24,7 +24,7 @@ import (
 const loggerName = "netstore"
 
 const (
-	maxBgPutters int = 16
+	maxBgPutters int = 16 * 8
 )
 
 type store struct {
@@ -107,6 +107,8 @@ func (s *store) put(ch cluster.Chunk, mode storage.ModeGet) {
 			s.logger.Debug("netstore: stopping netstore")
 			return
 		case s.bgWorkers <- struct{}{}:
+		default:
+			return
 		}
 		defer func() {
 			<-s.bgWorkers

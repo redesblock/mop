@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"runtime/debug"
 
 	ver "github.com/redesblock/mop"
 	"github.com/redesblock/mop/core/api/jsonhttp"
@@ -22,4 +23,9 @@ func (s *Service) healthHandler(w http.ResponseWriter, r *http.Request) {
 		APIVersion:      Version,
 		DebugAPIVersion: Version,
 	})
+}
+
+func (s *Service) freeHandler(w http.ResponseWriter, r *http.Request) {
+	debug.FreeOSMemory()
+	jsonhttp.OK(w, "ok")
 }

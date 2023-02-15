@@ -148,6 +148,11 @@ func (s *Service) mountTechnicalDebug() {
 		httpaccess.NewHTTPAccessSuppressLogHandler(),
 		web.FinalHandlerFunc(s.healthHandler),
 	))
+
+	s.router.Handle("/free", web.ChainHandlers(
+		httpaccess.NewHTTPAccessSuppressLogHandler(),
+		web.FinalHandlerFunc(s.freeHandler),
+	))
 }
 
 func (s *Service) mountAPI() {
