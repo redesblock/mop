@@ -245,6 +245,14 @@ func (s *Service) mountAPI() {
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	}))
 
+	handle("/traversal/{address}", jsonhttp.MethodHandler{
+		"GET": web.ChainHandlers(
+			s.contentLengthMetricMiddleware(),
+			s.newTracingHandler("mop-traversal"),
+			web.FinalHandlerFunc(s.mopTraversalHandler),
+		),
+	})
+
 	handle("/mop/{address}/{path:.*}", jsonhttp.MethodHandler{
 		"GET": web.ChainHandlers(
 			s.contentLengthMetricMiddleware(),

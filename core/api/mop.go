@@ -241,6 +241,31 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 	})
 }
 
+func (s *Service) mopTraversalHandler(w http.ResponseWriter, r *http.Request) {
+	logger := tracer.NewLoggerWithTraceID(r.Context(), s.logger)
+
+	count := 0
+	nameOrHex := mux.Vars(r)["address"]
+	address, err := s.resolveNameOrAddress(nameOrHex)
+	if err != nil {
+		logger.Debug("mop traversal: parse address string failed", "string", nameOrHex, "error", err)
+		logger.Error(nil, "mop traversal: parse address string failed")
+		jsonhttp.OK(w, count)
+		return
+	}
+
+	if err := s.traversal.Traverse(r.Context(), address, func(addr cluster.Address) error {
+		count++
+		return nil
+	}); err != nil {
+		logger.Debug("mop traversal: traverse failed", "string", nameOrHex, "error", err)
+		logger.Error(nil, "mop traversal: traverse failed")
+		jsonhttp.OK(w, count)
+		return
+	}
+	jsonhttp.OK(w, count)
+}
+
 func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	logger := tracer.NewLoggerWithTraceID(r.Context(), s.logger)
 
