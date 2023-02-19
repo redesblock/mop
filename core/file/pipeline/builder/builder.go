@@ -68,7 +68,7 @@ func newShortEncryptionPipelineFunc(ctx context.Context, s storage.Putter, mode 
 
 // FeedPipeline feeds the pipeline with the given reader until EOF is reached.
 // It returns the cryptographic root hash of the content.
-func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader) (addr cluster.Address, err error) {
+func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader, callback func([]byte) error) (addr cluster.Address, err error) {
 	data := make([]byte, cluster.ChunkSize)
 	for {
 		c, err := r.Read(data)
@@ -82,6 +82,11 @@ func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader)
 					if cc < c {
 						return cluster.ZeroAddress, fmt.Errorf("pipeline short write: %d mismatches %d", cc, c)
 					}
+					if callback != nil {
+						if err := callback(data[:c]); err != nil {
+							return cluster.ZeroAddress, fmt.Errorf("pipeline callback: %v", err)
+						}
+					}
 				}
 				break
 			} else {
@@ -94,6 +99,11 @@ func FeedPipeline(ctx context.Context, pipeline pipeline.Interface, r io.Reader)
 		}
 		if cc < c {
 			return cluster.ZeroAddress, fmt.Errorf("pipeline short write: %d mismatches %d", cc, c)
+		}
+		if callback != nil {
+			if err := callback(data[:c]); err != nil {
+				return cluster.ZeroAddress, fmt.Errorf("pipeline callback: %w", err)
+			}
 		}
 		select {
 		case <-ctx.Done():

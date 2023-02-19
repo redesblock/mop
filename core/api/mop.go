@@ -113,7 +113,7 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 	p := requestPipelineFn(storer, r)
 
 	// first store the file and get its reference
-	fr, err := p(ctx, reader)
+	fr, err := p(ctx, reader, nil)
 	if err != nil {
 		logger.Debug("mop upload file: file store failed", "file_name", fileName, "error", err)
 		logger.Error(nil, "mop upload file: file store failed", "file_name", fileName)
@@ -205,7 +205,7 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 		}
 		return
 	}
-	logger.Debug("mop upload file: store", "manifest_reference", manifestReference)
+	logger.Info("mop upload file: store", "manifest_reference", manifestReference)
 
 	if created {
 		_, err = tag.DoneSplit(manifestReference)
@@ -239,31 +239,6 @@ func (s *Service) fileUploadHandler(w http.ResponseWriter, r *http.Request, stor
 	jsonhttp.Created(w, mopUploadResponse{
 		Reference: manifestReference,
 	})
-}
-
-func (s *Service) mopTraversalHandler(w http.ResponseWriter, r *http.Request) {
-	logger := tracer.NewLoggerWithTraceID(r.Context(), s.logger)
-
-	count := 0
-	nameOrHex := mux.Vars(r)["address"]
-	address, err := s.resolveNameOrAddress(nameOrHex)
-	if err != nil {
-		logger.Debug("mop traversal: parse address string failed", "string", nameOrHex, "error", err)
-		logger.Error(nil, "mop traversal: parse address string failed")
-		jsonhttp.OK(w, count)
-		return
-	}
-
-	if err := s.traversal.Traverse(r.Context(), address, func(addr cluster.Address) error {
-		count++
-		return nil
-	}); err != nil {
-		logger.Debug("mop traversal: traverse failed", "string", nameOrHex, "error", err)
-		logger.Error(nil, "mop traversal: traverse failed")
-		jsonhttp.OK(w, count)
-		return
-	}
-	jsonhttp.OK(w, count)
 }
 
 func (s *Service) mopDownloadHandler(w http.ResponseWriter, r *http.Request) {

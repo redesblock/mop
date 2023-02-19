@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -60,11 +59,6 @@ func (j *joiner) Read(b []byte) (n int, err error) {
 	read, err := j.ReadAt(b, j.off)
 	if err != nil && err != io.EOF {
 		return read, err
-	}
-	// TODO REMOVE
-	if read == 0 {
-		fmt.Println("read zero =====================", j.addr.String())
-		return read, fmt.Errorf("read zero")
 	}
 
 	j.off += int64(read)

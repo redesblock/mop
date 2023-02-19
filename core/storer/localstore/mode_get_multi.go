@@ -3,8 +3,9 @@ package localstore
 import (
 	"context"
 	"errors"
-	"github.com/redesblock/mop/core/storer/sharky"
 	"time"
+
+	"github.com/redesblock/mop/core/storer/sharky"
 
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/incentives/voucher"
@@ -24,6 +25,7 @@ func (db *DB) GetMulti(ctx context.Context, mode storage.ModeGet, addrs ...clust
 
 	defer func() {
 		if err != nil {
+			db.logger.Error(err, "mode_get_multi failed", "mode", mode, "chunks", len(addrs))
 			db.metrics.ModeGetMultiFailure.Inc()
 		}
 	}()

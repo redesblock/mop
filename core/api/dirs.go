@@ -9,6 +9,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -81,10 +82,11 @@ func (s *Service) dirUploadHandler(w http.ResponseWriter, r *http.Request, store
 		r.Header.Get(ClusterErrorDocumentHeader),
 		tag,
 		created,
+		s.storeDirectory(),
 	)
 	if err != nil {
 		logger.Debug("mop upload dir: store dir failed", "error", err)
-		logger.Error(nil, "mop upload dir: store dir failed")
+		logger.Error(err, "mop upload dir: store dir failed")
 		switch {
 		case errors.Is(err, voucher.ErrBucketFull):
 			jsonhttp.PaymentRequired(w, "batch is overissued")
@@ -97,7 +99,7 @@ func (s *Service) dirUploadHandler(w http.ResponseWriter, r *http.Request, store
 		}
 		return
 	}
-	logger.Debug("mop upload directory: store", "manifest_reference", reference)
+	logger.Info("mop upload directory: store", "manifest_reference", reference)
 
 	if created {
 		_, err = tag.DoneSplit(reference)
@@ -145,7 +147,9 @@ func storeDir(
 	errorFilename string,
 	tag *tags.Tag,
 	tagCreated bool,
+	saveDirectory string,
 ) (cluster.Address, error) {
+	defer os.RemoveAll(saveDirectory)
 	logger := tracer.NewLoggerWithTraceID(ctx, log)
 	loggerV1 := logger.V(1).Build()
 
@@ -159,6 +163,7 @@ func storeDir(
 	}
 
 	filesAdded := 0
+	var filesNames []string
 
 	// iterate through the files in the supplied tar
 	for {
@@ -180,7 +185,23 @@ func storeDir(
 			}
 		}
 
-		fileReference, err := p(ctx, fileInfo.Reader)
+		var callback func([]byte) error
+		if len(saveDirectory) > 0 {
+			fullDestinationFilePath := filepath.Join(saveDirectory, fileInfo.Path)
+			err = os.MkdirAll(filepath.Dir(fullDestinationFilePath), 0775)
+			if err != nil {
+				return cluster.ZeroAddress, fmt.Errorf("store dir file: %w", err)
+			}
+			fs, err := os.OpenFile(fullDestinationFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+			if err != nil {
+				return cluster.ZeroAddress, fmt.Errorf("store dir file: %w", err)
+			}
+			callback = func(data []byte) error {
+				_, err := fs.Write(data)
+				return err
+			}
+		}
+		fileReference, err := p(ctx, fileInfo.Reader, callback)
 		if err != nil {
 			return cluster.ZeroAddress, fmt.Errorf("store dir file: %w", err)
 		}
@@ -197,6 +218,7 @@ func storeDir(
 		}
 
 		filesAdded++
+		filesNames = append(filesNames, "/"+fileInfo.Path)
 	}
 
 	// check if files were uploaded through the manifest
@@ -242,6 +264,18 @@ func storeDir(
 	}
 	loggerV1.Debug("mop upload dir: uploaded dir finished", "address", manifestReference)
 
+	if len(saveDirectory) > 0 {
+		dest := filepath.Join(filepath.Dir(saveDirectory), manifestReference.String())
+		if err := os.RemoveAll(dest); err != nil {
+			return cluster.ZeroAddress, fmt.Errorf("store manifest: %w", err)
+		}
+		if err := os.Rename(saveDirectory, dest); err != nil {
+			return cluster.ZeroAddress, fmt.Errorf("store manifest: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(filepath.Dir(saveDirectory), manifestReference.String()+".manifest"), []byte(strings.Join(filesNames, "\n")), 0644); err != nil {
+			return cluster.ZeroAddress, fmt.Errorf("store manifest: %w", err)
+		}
+	}
 	return manifestReference, nil
 }
 

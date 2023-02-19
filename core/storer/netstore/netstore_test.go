@@ -203,7 +203,7 @@ func newRetrievingNetstore(t *testing.T, validStamp voucher.ValidStampFn) (ret *
 	retrieve := &retrievalMock{}
 	store := mock.NewStorer()
 	logger := log.Noop
-	ns = netstore.New(store, validStamp, retrieve, logger)
+	ns = netstore.New(store, validStamp, retrieve, logger, false)
 	t.Cleanup(func() {
 		err := ns.Close()
 		if err != nil {

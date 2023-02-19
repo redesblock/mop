@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	stdlog "log"
 	"math"
@@ -1104,6 +1105,9 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 		RewardContract:   rewardContractService,
 		Warden:           warden,
 		SyncStatus:       syncStatusFn,
+		StoreDirectory: func() string {
+			return filepath.Join(o.DataDir, "uploads", uuid.New().String())
+		},
 	}
 
 	if len(o.APIAddr) != 0 {

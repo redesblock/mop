@@ -159,8 +159,9 @@ type Service struct {
 	pseudosettle   settlement.Interface
 	pingpong       pingpong.Interface
 
-	batchStore voucher.Storer
-	syncStatus func() (bool, error)
+	batchStore     voucher.Storer
+	syncStatus     func() (bool, error)
+	storeDirectory func() string
 
 	swap        swap.Interface
 	transaction transaction.Service
@@ -219,6 +220,7 @@ type ExtraOptions struct {
 	RewardContract   reward.Service
 	Warden           warden.Interface
 	SyncStatus       func() (bool, error)
+	StoreDirectory   func() string
 }
 
 func New(publicKey, pssPublicKey ecdsa.PublicKey, bscAddress common.Address, logger log.Logger, transaction transaction.Service, batchStore voucher.Storer, mopMode MopNodeMode, chequebookEnabled bool, swapEnabled bool, chainBackend transaction.Backend, cors []string) *Service {
@@ -280,6 +282,7 @@ func (s *Service) Configure(signer crypto.Signer, auth authenticator, tracer *tr
 	s.chainID = chainID
 	s.erc20Service = erc20
 	s.syncStatus = e.SyncStatus
+	s.storeDirectory = e.StoreDirectory
 
 	return s.chunkPushC
 }
@@ -780,13 +783,13 @@ func (p *stamperPutter) Put(ctx context.Context, mode storage.ModePut, chs ...cl
 	return exists, nil
 }
 
-type pipelineFunc func(context.Context, io.Reader) (cluster.Address, error)
+type pipelineFunc func(context.Context, io.Reader, func([]byte) error) (cluster.Address, error)
 
 func requestPipelineFn(s storage.Putter, r *http.Request) pipelineFunc {
 	mode, encrypt := requestModePut(r), requestEncrypt(r)
-	return func(ctx context.Context, r io.Reader) (cluster.Address, error) {
+	return func(ctx context.Context, r io.Reader, callback func([]byte) error) (cluster.Address, error) {
 		pipe := builder.NewPipelineBuilder(ctx, s, mode, encrypt)
-		return builder.FeedPipeline(ctx, pipe, r)
+		return builder.FeedPipeline(ctx, pipe, r, callback)
 	}
 }
 

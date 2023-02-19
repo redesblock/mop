@@ -75,7 +75,7 @@ func (s *Service) bytesUploadHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("bytes upload: idle read timeout exceeded", "bytes_read", n)
 		cancel()
 	})
-	address, err := p(ctx, pr)
+	address, err := p(ctx, pr, nil)
 	if err != nil {
 		logger.Debug("bytes upload: split write all failed", "error", err)
 		logger.Error(nil, "bytes upload: split write all failed")

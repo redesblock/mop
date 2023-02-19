@@ -68,7 +68,7 @@ func (ls *loadSave) Save(ctx context.Context, data []byte) ([]byte, error) {
 	}
 
 	pipe := ls.pipelineFn()
-	address, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data))
+	address, err := builder.FeedPipeline(ctx, pipe, bytes.NewReader(data), nil)
 	if err != nil {
 		return cluster.ZeroAddress.Bytes(), err
 	}
