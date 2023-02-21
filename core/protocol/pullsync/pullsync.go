@@ -204,7 +204,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer cluster.Address, bin uin
 			return 0, ru.Ruid, fmt.Errorf("storage has: %w", err)
 		}
 		if !have {
-			wantChunks[a.String()] = struct{}{}
+			wantChunks[a.ByteString()] = struct{}{}
 			ctr++
 			s.metrics.Wanted.Inc()
 			bv.Set(i / cluster.HashSize)
@@ -239,7 +239,7 @@ func (s *Syncer) SyncInterval(ctx context.Context, peer cluster.Address, bin uin
 			return 0, ru.Ruid, ErrUnsolicitedChunk
 		}
 
-		delete(wantChunks, addr.String())
+		delete(wantChunks, addr.ByteString())
 		s.metrics.Delivered.Inc()
 
 		chunk := cluster.NewChunk(addr, delivery.Data)

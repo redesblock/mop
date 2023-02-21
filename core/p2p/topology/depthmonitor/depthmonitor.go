@@ -13,7 +13,7 @@ const loggerName = "depthmonitor"
 
 // DefaultWakeupInterval is the default value
 // for the depth monitor wake-up interval.
-const DefaultWakeupInterval = 10 * time.Second
+const DefaultWakeupInterval = 5 * time.Second
 
 var (
 	minimumRadius uint8 = 4
@@ -123,7 +123,7 @@ func (s *Service) manage(warmupTime, wakeupInterval time.Duration) {
 		}
 
 		rate := s.syncer.Rate()
-		s.logger.Debug("depthmonitor size and rate", "current size", currentSize, "radius", reserveState.StorageRadius, "chunks/sec rate", rate)
+		s.logger.Info("depthmonitor: state", "current size", currentSize, "radius", reserveState.StorageRadius, "chunks/sec rate", rate)
 
 		// we have crossed 50% utilization
 		if currentSize > halfCapacity {

@@ -105,7 +105,7 @@ func (db *DB) put(ctx context.Context, mode storage.ModePut, chs ...cluster.Chun
 			return true, 0, 0, nil
 		}
 		item := chunkToItem(ch)
-		loc, exists, err := db.putSharky(ctx, item)
+		loc, exists, err := db.putSharky(context.Background(), item)
 		if err != nil {
 			return false, 0, 0, err
 		}
@@ -278,7 +278,7 @@ func (db *DB) putRequest(
 		}
 		gcSizeChange, err = db.setRemove(batch, previous, true)
 		if err != nil {
-			return false, 0, 0, err
+			return false, 0, 0, fmt.Errorf("set remove: %w", err)
 		}
 
 		previousIdx, err := db.retrievalDataIndex.Get(previous)
@@ -307,7 +307,7 @@ func (db *DB) putRequest(
 	item.StoreTimestamp = now()
 	item.BinID, err = db.incBinID(binIDs, db.po(cluster.NewAddress(item.Address)))
 	if err != nil {
-		return false, 0, 0, err
+		return false, 0, 0, fmt.Errorf("inc bin ID: %w", err)
 	}
 	err = db.retrievalDataIndex.PutInBatch(batch, item)
 	if err != nil {
@@ -329,7 +329,7 @@ func (db *DB) putRequest(
 
 	gcSizeChangeNew, reserveSizeChangeNew, err := db.preserveOrCache(batch, item, forcePin, forceCache)
 	if err != nil {
-		return false, 0, 0, err
+		return false, 0, 0, fmt.Errorf("preserve or cache: %w", err)
 	}
 
 	if !forceCache {
@@ -527,6 +527,10 @@ func (db *DB) preserveOrCache(batch *leveldb.Batch, item shed.Item, forcePin, fo
 		return 0, 0, nil
 	}
 	err = db.gcIndex.PutInBatch(batch, item)
+	if err != nil {
+		return 0, 0, err
+	}
+	err = db.pullIndex.DeleteInBatch(batch, item)
 	if err != nil {
 		return 0, 0, err
 	}
