@@ -445,10 +445,15 @@ func (s *Service) serveManifestEntryFiles(
 	mf manifest.Interface,
 	etag bool,
 ) {
+	exists := make(map[string]bool)
 	var items []string
 	if err := mf.IterateAddresses(r.Context(), func(addr cluster.Address, mtdt map[string]string) error {
 		if fileName, ok := mtdt[manifest.EntryMetadataFilenameKey]; ok {
+			if exists[fileName] {
+				return nil
+			}
 			items = append(items, strings.Join([]string{address.String(), fileName}, "/"))
+			exists[fileName] = true
 		}
 		return nil
 	}); err != nil {
