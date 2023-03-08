@@ -9,6 +9,7 @@ type metrics struct {
 	LocalChunksCounter        prometheus.Counter
 	InvalidLocalChunksCounter prometheus.Counter
 	RetrievedChunksCounter    prometheus.Counter
+	RetrievedMemChunksCounter prometheus.Counter
 }
 
 func newMetrics() metrics {
@@ -32,6 +33,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "chunks_retrieved_from_network",
 			Help:      "Total no. of chunks retrieved from network.",
+		}),
+		RetrievedMemChunksCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "chunks_retrieved_from_memory",
+			Help:      "Total no. of chunks retrieved from memory.",
 		}),
 	}
 }

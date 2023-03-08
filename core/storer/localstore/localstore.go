@@ -171,7 +171,6 @@ type DB struct {
 	subscriptionsWG sync.WaitGroup
 
 	lru                *lru.Cache
-	enableCache        bool
 	updateGCItemKeys   map[string]*shed.Item
 	updateGCItemKeysMu sync.Mutex
 
@@ -279,15 +278,6 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		}
 	}
 
-	cacheSize := 1000
-	if o.MemCapacity > 0 {
-		cacheSize = int(o.MemCapacity)
-	}
-	lruCache, err := lru.New(cacheSize)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	db = &DB{
@@ -309,9 +299,7 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		collectGarbageWorkerDone:  make(chan struct{}),
 		reserveEvictionWorkerDone: make(chan struct{}),
 		metrics:                   newMetrics(),
-		lru:                       lruCache,
 		updateGCItemKeys:          map[string]*shed.Item{},
-		enableCache:               o.MemCapacity > 0,
 		logger:                    logger.WithName(loggerName).Register(),
 	}
 	if db.cacheCapacity == 0 {
@@ -324,6 +312,14 @@ func New(path string, baseKey []byte, ss storage.StateStorer, o *Options, logger
 		db.logger.Info("database capacity", "chunks", db.cacheCapacity, "~size(MB)", capacityMB)
 	} else {
 		db.logger.Info("database capacity", "chunks", db.cacheCapacity, "~size(GB)", capacityMB/1000)
+	}
+
+	if o.MemCapacity > 0 {
+		lruCache, err := lru.New(int(o.MemCapacity))
+		if err != nil {
+			return nil, err
+		}
+		db.lru = lruCache
 	}
 
 	if maxParallelUpdateGC > 0 {

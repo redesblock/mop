@@ -1002,7 +1002,7 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 	pssService := psser.New(pssPrivateKey, logger)
 	b.pssCloser = pssService
 
-	var netStorer = netstore.New(storer, validStamp, retrieve, logger, o.TrustNode)
+	var netStorer = netstore.New(storer, validStamp, retrieve, logger, o.MemCacheCapacity, o.TrustNode)
 	b.nsCloser = netStorer
 
 	traversalService := traverser.New(netStorer)

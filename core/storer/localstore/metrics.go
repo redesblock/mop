@@ -31,6 +31,7 @@ type metrics struct {
 	GCUpdateError            prometheus.Counter
 
 	ModeGet                       prometheus.Counter
+	ModeGetMem                    prometheus.Counter
 	ModeGetFailure                prometheus.Counter
 	ModeGetMulti                  prometheus.Counter
 	ModeGetMultiChunks            prometheus.Counter
@@ -205,6 +206,12 @@ func newMetrics() metrics {
 			Subsystem: subsystem,
 			Name:      "mode_get_count",
 			Help:      "Number of times MODE_GET is invoked.",
+		}),
+		ModeGetMem: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: m.Namespace,
+			Subsystem: subsystem,
+			Name:      "mode_get_mem_count",
+			Help:      "Number of times MODE_GET is invoked from memory.",
 		}),
 		ModeGetFailure: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: m.Namespace,

@@ -43,9 +43,16 @@ func (db *DB) Get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 // and updates other indexes.
 func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Address) (out shed.Item, err error) {
 	addrStr := addr.String()
-	if val, ok := db.lru.Get(addrStr); ok && db.enableCache {
-		out = *val.(*shed.Item)
-	} else {
+
+	found := false
+	if db.lru != nil {
+		if val, ok := db.lru.Get(addrStr); ok {
+			out = *val.(*shed.Item)
+			found = true
+			db.metrics.ModeGetMem.Inc()
+		}
+	}
+	if !found {
 		item := addressToItem(addr)
 
 		out, err = db.retrievalDataIndex.Get(item)
@@ -63,7 +70,9 @@ func (db *DB) get(ctx context.Context, mode storage.ModeGet, addr cluster.Addres
 		if err != nil {
 			return out, err
 		}
-		db.lru.Add(addr.String(), &out)
+		if db.lru != nil {
+			db.lru.Add(addr.String(), &out)
+		}
 	}
 
 	switch mode {

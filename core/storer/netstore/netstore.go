@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/redesblock/mop/core/chunk/cac"
 	"github.com/redesblock/mop/core/chunk/soc"
 	"github.com/redesblock/mop/core/cluster"
@@ -37,6 +38,7 @@ type store struct {
 	sCancel    context.CancelFunc
 	wg         sync.WaitGroup
 	metrics    metrics
+	lru        *lru.Cache
 	trust      bool
 }
 
@@ -45,7 +47,7 @@ var (
 )
 
 // New returns a new NetStore that wraps a given Storer.
-func New(s storage.Storer, validStamp voucher.ValidStampFn, r retrieval.Interface, logger log.Logger, trust bool) storage.Storer {
+func New(s storage.Storer, validStamp voucher.ValidStampFn, r retrieval.Interface, logger log.Logger, memCapacity uint64, trust bool) storage.Storer {
 	ns := &store{
 		Storer:     s,
 		validStamp: validStamp,
@@ -54,6 +56,12 @@ func New(s storage.Storer, validStamp voucher.ValidStampFn, r retrieval.Interfac
 		bgWorkers:  make(chan struct{}, maxBgPutters),
 		metrics:    newMetrics(),
 		trust:      trust,
+	}
+	if memCapacity > 0 {
+		lruCache, err := lru.New(int(memCapacity))
+		if err == nil {
+			ns.lru = lruCache
+		}
 	}
 	ns.sCtx, ns.sCancel = context.WithCancel(context.Background())
 	return ns
@@ -82,14 +90,25 @@ func (s *store) Get(ctx context.Context, mode storage.ModeGet, addr cluster.Addr
 	}
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) || errors.Is(err, errInvalidLocalChunk) {
-			// request from network
-			ch, err = s.retrieval.RetrieveChunk(ctx, addr, cluster.ZeroAddress)
-			if err != nil {
-				return nil, err
+			found := false
+			if s.lru != nil {
+				if val, ok := s.lru.Get(addr.String()); ok {
+					ch = val.(cluster.Chunk)
+					found = true
+					s.metrics.RetrievedMemChunksCounter.Inc()
+				}
 			}
+			if !found {
+				// request from network
+				ch, err = s.retrieval.RetrieveChunk(ctx, addr, cluster.ZeroAddress)
+				if err != nil {
+					return nil, err
+				}
+				s.metrics.RetrievedChunksCounter.Inc()
+			}
+
 			s.wg.Add(1)
 			s.put(ch, mode)
-			s.metrics.RetrievedChunksCounter.Inc()
 			return ch, nil
 		}
 		return nil, fmt.Errorf("netstore get: %w", err)
@@ -107,7 +126,13 @@ func (s *store) put(ch cluster.Chunk, mode storage.ModeGet) {
 			s.logger.Debug("netstore: stopping netstore")
 			return
 		case s.bgWorkers <- struct{}{}:
+			if s.lru != nil {
+				s.lru.Remove(ch.Address().String())
+			}
 		default:
+			if s.lru != nil {
+				s.lru.Add(ch.Address().String(), ch)
+			}
 			return
 		}
 		defer func() {
