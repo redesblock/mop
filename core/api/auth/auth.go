@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/casbin/casbin/v2"
@@ -23,6 +24,7 @@ const loggerName = "auth"
 
 type authRecord struct {
 	Role   string    `json:"r"`
+	Secret string    `json:"s"`
 	Expiry time.Time `json:"e"`
 }
 
@@ -89,8 +91,16 @@ func (a *Authenticator) GenerateKey(role string, expiryDuration int) (string, er
 		return "", ErrExpiry
 	}
 
+	secret := ""
+	items := strings.Split(role, ":")
+	if len(items) > 1 {
+		secret = items[1]
+	}
+	role = items[0]
+
 	ar := authRecord{
 		Role:   role,
+		Secret: secret,
 		Expiry: time.Now().Add(time.Second * time.Duration(expiryDuration)),
 	}
 
@@ -183,6 +193,28 @@ func (a *Authenticator) Enforce(apiKey, obj, act string) (bool, error) {
 	}
 
 	return allow, nil
+}
+
+func (a *Authenticator) SecretKey(apiKey string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(apiKey)
+	if err != nil {
+		a.log.Error(err, "decode token failed")
+		return "", err
+	}
+
+	decryptedBytes, err := a.ciph.decrypt(decoded)
+	if err != nil {
+		a.log.Error(err, "decrypt token failed")
+		return "", err
+	}
+
+	var ar authRecord
+	if err := json.Unmarshal(decryptedBytes, &ar); err != nil {
+		a.log.Error(err, "unmarshal token failed")
+		return "", err
+	}
+
+	return ar.Secret, nil
 }
 
 type encrypter struct {

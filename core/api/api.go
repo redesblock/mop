@@ -111,6 +111,7 @@ type authenticator interface {
 	GenerateKey(string, int) (string, error)
 	RefreshKey(string, int) (string, error)
 	Enforce(string, string, string) (bool, error)
+	SecretKey(string) (string, error)
 }
 
 type Service struct {

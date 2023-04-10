@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	urlSigner "github.com/redesblock/mop/core/util/urlsigner"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	lru "github.com/hashicorp/golang-lru"
@@ -245,13 +247,40 @@ func (s *Service) mountAPI() {
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	}))
 
-	handle("/mop/{address}/{path:.*}", jsonhttp.MethodHandler{
-		"GET": web.ChainHandlers(
-			s.contentLengthMetricMiddleware(),
-			s.newTracingHandler("mop-download"),
-			web.FinalHandlerFunc(s.mopDownloadHandler),
-		),
-	})
+	if s.Options.Restricted {
+		handle("/mop/{address}/{path:.*}", jsonhttp.MethodHandler{
+			"GET": web.ChainHandlers(
+				func(h http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						q := r.URL.Query()
+						if q.Has("secret") {
+							singer := urlSigner.New(q.Get("secret"))
+							q.Del("secret")
+							r.URL.RawQuery = q.Encode()
+
+							url := singer.SignTemporary(*r.URL, time.Now().UTC().Add(10*time.Minute))
+							jsonhttp.OK(w, url.String())
+							return
+						}
+						h.ServeHTTP(w, r)
+					})
+				},
+				auth.PermissionCheckHandler(s.auth),
+				auth.URLSignCheckHandler(s.auth),
+				s.contentLengthMetricMiddleware(),
+				s.newTracingHandler("mop-download"),
+				web.FinalHandlerFunc(s.mopDownloadHandler),
+			),
+		})
+	} else {
+		handle("/mop/{address}/{path:.*}", jsonhttp.MethodHandler{
+			"GET": web.ChainHandlers(
+				s.contentLengthMetricMiddleware(),
+				s.newTracingHandler("mop-download"),
+				web.FinalHandlerFunc(s.mopDownloadHandler),
+			),
+		})
+	}
 
 	handle("/psser/send/{topic}/{targets}", web.ChainHandlers(
 		web.FinalHandler(jsonhttp.MethodHandler{

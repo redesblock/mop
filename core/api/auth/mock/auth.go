@@ -27,3 +27,6 @@ func (ma *Auth) RefreshKey(k string, _ int) (string, error) {
 func (ma *Auth) Enforce(a1 string, a2 string, a3 string) (bool, error) {
 	return ma.EnforceFunc(a1, a2, a3)
 }
+func (ma *Auth) SecretKey(a1 string) (string, error) {
+	return "", nil
+}
