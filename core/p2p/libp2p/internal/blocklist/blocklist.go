@@ -1,6 +1,7 @@
 package blocklist
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -34,7 +35,7 @@ func (b *Blocklist) Exists(overlay cluster.Address) (bool, error) {
 	key := generateKey(overlay)
 	timestamp, duration, err := b.get(key)
 	if err != nil {
-		if err == storage.ErrNotFound {
+		if errors.Is(err, storage.ErrNotFound) {
 			return false, nil
 		}
 
@@ -53,7 +54,7 @@ func (b *Blocklist) Add(overlay cluster.Address, duration time.Duration) (err er
 	key := generateKey(overlay)
 	_, d, err := b.get(key)
 	if err != nil {
-		if err != storage.ErrNotFound {
+		if !errors.Is(err, storage.ErrNotFound) {
 			return err
 		}
 	}

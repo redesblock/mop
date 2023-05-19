@@ -1,5 +1,5 @@
 // Package p2p provides the peer-to-peer abstractions used
-// across different protocols in Mop.
+// across different protocols in Bee.
 package p2p
 
 import (
@@ -8,9 +8,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/network"
-	ma "github.com/multiformats/go-multiaddr"
 	mop "github.com/redesblock/mop/core/address"
+
+	"github.com/libp2p/go-libp2p/core/network"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/mop/core/cluster"
 )
 
@@ -110,6 +111,7 @@ type ReachableNotifier interface {
 type Reacher interface {
 	Connected(cluster.Address, ma.Multiaddr)
 	Disconnected(cluster.Address)
+	Close() error
 }
 
 type ReachabilityUpdater interface {
@@ -140,7 +142,7 @@ type StreamerDisconnecter interface {
 	Disconnecter
 }
 
-// Pinger interface is used to ping a underlay address which is not yet known to the mop node.
+// Pinger interface is used to ping a underlay address which is not yet known to the bee node.
 // It uses libp2p's default ping protocol. This is different from the PingPong protocol as this
 // is meant to be used before we know a particular underlay and we can consider it useful
 type Pinger interface {
@@ -202,11 +204,11 @@ type Headers map[string][]byte
 
 // Common header names.
 const (
-	HeaderNameTracingSpanContext = "tracer-span-context"
+	HeaderNameTracingSpanContext = "tracing-span-context"
 )
 
-// NewClusterStreamName constructs a libp2p compatible stream name out of
+// NewSwarmStreamName constructs a libp2p compatible stream name out of
 // protocol name and version and stream name.
-func NewClusterStreamName(protocol, version, stream string) string {
+func NewSwarmStreamName(protocol, version, stream string) string {
 	return "/cluster/" + protocol + "/" + version + "/" + stream
 }

@@ -16,7 +16,9 @@ type Reader interface {
 // it should issue a lookahead Read when a Read is called, hence
 // the name - langos
 // |--->====>>------------|
-//    cur   topmost
+//
+//	cur   topmost
+//
 // the first read is not a lookahead but the rest are
 // so, it could be that a lookahead read might need to wait for a previous read to finish
 // due to resource pooling

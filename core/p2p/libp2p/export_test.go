@@ -4,10 +4,10 @@ import (
 	"context"
 
 	libp2pm "github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/network"
-	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
-	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	libp2ppeer "github.com/libp2p/go-libp2p/core/peer"
+	handshake "github.com/redesblock/mop/core/p2p/libp2p/internal/handshake"
 )
 
 func (s *Service) HandshakeService() *handshake.Service {
@@ -16,6 +16,10 @@ func (s *Service) HandshakeService() *handshake.Service {
 
 func (s *Service) NewStreamForPeerID(peerID libp2ppeer.ID, protocolName, protocolVersion, streamName string) (network.Stream, error) {
 	return s.newStreamForPeerID(context.Background(), peerID, protocolName, protocolVersion, streamName)
+}
+
+func (s *Service) WrapStream(ns network.Stream) *stream {
+	return newStream(ns, s.metrics)
 }
 
 func (s *Service) Host() host.Host {

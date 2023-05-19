@@ -86,7 +86,6 @@ bin | nodes
 4			0
 depth: 0
 
-
 2. less or equal to two peers (nnLowWatermark=2) (a)
 bin | nodes
 -------------

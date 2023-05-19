@@ -26,6 +26,8 @@ func newTestProtocol(h p2p.HandlerFunc) p2p.ProtocolSpec {
 }
 
 func TestBlocklistError(t *testing.T) {
+	t.Parallel()
+
 	tp := newTestProtocol(func(context.Context, p2p.Peer, p2p.Stream) error {
 		return errors.New("test")
 	})
@@ -45,6 +47,8 @@ func TestBlocklistError(t *testing.T) {
 }
 
 func TestDisconnectError(t *testing.T) {
+	t.Parallel()
+
 	tp := newTestProtocol(func(context.Context, p2p.Peer, p2p.Stream) error {
 		return errors.New("test")
 	})

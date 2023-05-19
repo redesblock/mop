@@ -3,13 +3,15 @@ package p2p_test
 import (
 	"testing"
 
-	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/redesblock/mop/core/p2p"
 )
 
-func TestNewClusterStreamName(t *testing.T) {
-	want := "/cluster/hive/1.2.0/peers"
-	got := p2p.NewClusterStreamName("hive", "1.2.0", "peers")
+func TestNewSwarmStreamName(t *testing.T) {
+	t.Parallel()
+
+	want := "/swarm/hive/1.2.0/peers"
+	got := p2p.NewSwarmStreamName("hive", "1.2.0", "peers")
 
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
@@ -17,6 +19,8 @@ func TestNewClusterStreamName(t *testing.T) {
 }
 
 func TestReachabilityStatus_String(t *testing.T) {
+	t.Parallel()
+
 	mapping := map[string]string{
 		p2p.ReachabilityStatusUnknown.String(): network.ReachabilityUnknown.String(),
 		p2p.ReachabilityStatusPrivate.String(): network.ReachabilityPrivate.String(),

@@ -14,10 +14,11 @@ import (
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/p2p"
 	"github.com/redesblock/mop/core/p2p/streamtest"
-	"golang.org/x/sync/errgroup"
 )
 
 func TestRecorder(t *testing.T) {
+	t.Parallel()
+
 	var answers = map[string]string{
 		"What is your name?":                                    "Sir Lancelot of Camelot",
 		"What is your quest?":                                   "To seek the Holy Grail.",
@@ -32,7 +33,7 @@ func TestRecorder(t *testing.T) {
 				for {
 					q, err := rw.ReadString('\n')
 					if err != nil {
-						if err == io.EOF {
+						if errors.Is(err, io.EOF) {
 							break
 						}
 						return fmt.Errorf("read: %w", err)
@@ -91,7 +92,7 @@ func TestRecorder(t *testing.T) {
 	}
 
 	_, err = recorder.Records(cluster.ZeroAddress, testProtocolName, testProtocolVersion, "invalid stream name")
-	if err != streamtest.ErrRecordsNotFound {
+	if !errors.Is(err, streamtest.ErrRecordsNotFound) {
 		t.Errorf("got error %v, want %v", err, streamtest.ErrRecordsNotFound)
 	}
 
@@ -109,6 +110,8 @@ func TestRecorder(t *testing.T) {
 }
 
 func TestRecorder_errStreamNotSupported(t *testing.T) {
+	t.Parallel()
+
 	r := streamtest.New()
 
 	_, err := r.NewStream(context.Background(), cluster.ZeroAddress, nil, "testing", "messages", "1.0.1")
@@ -118,6 +121,8 @@ func TestRecorder_errStreamNotSupported(t *testing.T) {
 }
 
 func TestRecorder_fullcloseWithRemoteClose(t *testing.T) {
+	t.Parallel()
+
 	recorder := streamtest.New(
 		streamtest.WithProtocols(
 			newTestProtocol(func(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
@@ -163,12 +168,10 @@ func TestRecorder_fullcloseWithRemoteClose(t *testing.T) {
 }
 
 func TestRecorder_fullcloseWithoutRemoteClose(t *testing.T) {
-	streamtest.SetFullCloseTimeout(500 * time.Millisecond)
-	defer streamtest.ResetFullCloseTimeout()
 	recorder := streamtest.New(
 		streamtest.WithProtocols(
 			newTestProtocol(func(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
-				// don't close the stream here to initiate timeout
+				// don't close the stream here
 				// just try to read the message that it terminated with
 				// a new line character
 				_, err := bufio.NewReader(stream).ReadString('\n')
@@ -195,7 +198,7 @@ func TestRecorder_fullcloseWithoutRemoteClose(t *testing.T) {
 	}
 
 	err := request(context.Background(), recorder, cluster.ZeroAddress)
-	if err != streamtest.ErrStreamFullcloseTimeout {
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -212,18 +215,12 @@ func TestRecorder_fullcloseWithoutRemoteClose(t *testing.T) {
 }
 
 func TestRecorder_multipleParallelFullCloseAndClose(t *testing.T) {
+	t.Parallel()
+
 	recorder := streamtest.New(
 		streamtest.WithProtocols(
 			newTestProtocol(func(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
 				if _, err := bufio.NewReader(stream).ReadString('\n'); err != nil {
-					return err
-				}
-
-				var g errgroup.Group
-				g.Go(stream.Close)
-				g.Go(stream.FullClose)
-
-				if err := g.Wait(); err != nil {
 					return err
 				}
 
@@ -246,15 +243,7 @@ func TestRecorder_multipleParallelFullCloseAndClose(t *testing.T) {
 			return fmt.Errorf("flush: %w", err)
 		}
 
-		var g errgroup.Group
-		g.Go(stream.Close)
-		g.Go(stream.FullClose)
-
-		if err := g.Wait(); err != nil {
-			return err
-		}
-
-		return nil
+		return stream.FullClose()
 	}
 
 	err := request(context.Background(), recorder, cluster.ZeroAddress)
@@ -275,6 +264,8 @@ func TestRecorder_multipleParallelFullCloseAndClose(t *testing.T) {
 }
 
 func TestRecorder_closeAfterPartialWrite(t *testing.T) {
+	t.Parallel()
+
 	recorder := streamtest.New(
 		streamtest.WithProtocols(
 			newTestProtocol(func(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
@@ -341,6 +332,8 @@ func TestRecorder_closeAfterPartialWrite(t *testing.T) {
 }
 
 func TestRecorder_resetAfterPartialWrite(t *testing.T) {
+	t.Parallel()
+
 	recorder := streamtest.New(
 		streamtest.WithProtocols(
 			newTestProtocol(func(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
@@ -376,9 +369,9 @@ func TestRecorder_resetAfterPartialWrite(t *testing.T) {
 			return err
 		}
 
-		// stream should be closed and read should return EOF
-		if _, err := rw.ReadString('\n'); err != io.EOF {
-			return fmt.Errorf("got error %v, want %w", err, io.EOF)
+		// stream should be closed and read should return streamtest.ErrStreamClosed
+		if _, err := rw.ReadString('\n'); !errors.Is(err, streamtest.ErrStreamClosed) {
+			return fmt.Errorf("got error %w, want %w", err, streamtest.ErrStreamClosed)
 		}
 
 		return nil
@@ -403,6 +396,8 @@ func TestRecorder_resetAfterPartialWrite(t *testing.T) {
 }
 
 func TestRecorder_withMiddlewares(t *testing.T) {
+	t.Parallel()
+
 	recorder := streamtest.New(
 		streamtest.WithProtocols(
 			newTestProtocol(func(_ context.Context, peer p2p.Peer, stream p2p.Stream) error {
@@ -518,6 +513,8 @@ func TestRecorder_withMiddlewares(t *testing.T) {
 }
 
 func TestRecorder_recordErr(t *testing.T) {
+	t.Parallel()
+
 	testErr := errors.New("test error")
 
 	recorder := streamtest.New(
@@ -576,6 +573,8 @@ func TestRecorder_recordErr(t *testing.T) {
 }
 
 func TestRecorder_withPeerProtocols(t *testing.T) {
+	t.Parallel()
+
 	peer1 := cluster.MustParseHexAddress("1000000000000000000000000000000000000000000000000000000000000000")
 	peer2 := cluster.MustParseHexAddress("2000000000000000000000000000000000000000000000000000000000000000")
 	recorder := streamtest.New(
@@ -668,6 +667,8 @@ func TestRecorder_withPeerProtocols(t *testing.T) {
 }
 
 func TestRecorder_withStreamError(t *testing.T) {
+	t.Parallel()
+
 	peer1 := cluster.MustParseHexAddress("1000000000000000000000000000000000000000000000000000000000000000")
 	peer2 := cluster.MustParseHexAddress("2000000000000000000000000000000000000000000000000000000000000000")
 	testErr := errors.New("dummy stream error")
@@ -755,6 +756,8 @@ func TestRecorder_withStreamError(t *testing.T) {
 }
 
 func TestRecorder_ping(t *testing.T) {
+	t.Parallel()
+
 	testAddr, _ := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
 
 	rec := streamtest.New()
@@ -807,7 +810,7 @@ func testRecords(t *testing.T, records []*streamtest.Record, want [][2]string, w
 	for i := 0; i < lr; i++ {
 		record := records[i]
 
-		if err := record.Err(); err != wantErr {
+		if err := record.Err(); !errors.Is(err, wantErr) {
 			t.Fatalf("got error from record %v, want %v", err, wantErr)
 		}
 

@@ -18,7 +18,8 @@ type Lookup interface {
 }
 
 // Getter encapsulates a chunk Getter getter and a feed and provides
-//  non-concurrent lookup methods
+//
+//	non-concurrent lookup methods
 type Getter struct {
 	getter storage.Getter
 	*Feed

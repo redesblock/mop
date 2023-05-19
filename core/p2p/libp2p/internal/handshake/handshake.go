@@ -15,7 +15,7 @@ import (
 	"github.com/redesblock/mop/core/p2p/libp2p/internal/handshake/pb"
 	"github.com/redesblock/mop/core/p2p/protobuf"
 
-	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
+	libp2ppeer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -26,7 +26,7 @@ const (
 	// ProtocolName is the text of the name of the handshake protocol.
 	ProtocolName = "handshake"
 	// ProtocolVersion is the current handshake protocol version.
-	ProtocolVersion = "6.0.0"
+	ProtocolVersion = "9.0.0"
 	// StreamName is the name of the stream used for handshake purposes.
 	StreamName = "handshake"
 	// MaxWelcomeMessageLength is maximum number of characters allowed in the welcome message.
@@ -74,7 +74,7 @@ type Service struct {
 
 // Info contains the information received from the handshake.
 type Info struct {
-	MopAddress *mop.Address
+	BzzAddress *mop.Address
 	FullNode   bool
 }
 
@@ -176,7 +176,7 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, ErrNetworkIDIncompatible
 	}
 
-	remoteMopAddress, err := s.parseCheckAck(resp.Ack)
+	remoteBzzAddress, err := s.parseCheckAck(resp.Ack)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 	// Synced read:
 	welcomeMessage := s.GetWelcomeMessage()
 	msg := &pb.Ack{
-		Address: &pb.MopAddress{
+		Address: &pb.BzzAddress{
 			Underlay:  advertisableUnderlayBytes,
 			Overlay:   mopAddress.Overlay.Bytes(),
 			Signature: mopAddress.Signature,
@@ -199,13 +199,13 @@ func (s *Service) Handshake(ctx context.Context, stream p2p.Stream, peerMultiadd
 		return nil, fmt.Errorf("write ack message: %w", err)
 	}
 
-	loggerV1.Debug("handshake finished for peer (outbound)", "peer_address", remoteMopAddress.Overlay)
+	loggerV1.Debug("handshake finished for peer (outbound)", "peer_address", remoteBzzAddress.Overlay)
 	if len(resp.Ack.WelcomeMessage) > 0 {
-		s.logger.Debug("greeting message from peer", "peer_address", remoteMopAddress.Overlay, "message", resp.Ack.WelcomeMessage)
+		s.logger.Debug("greeting message from peer", "peer_address", remoteBzzAddress.Overlay, "message", resp.Ack.WelcomeMessage)
 	}
 
 	return &Info{
-		MopAddress: remoteMopAddress,
+		BzzAddress: remoteBzzAddress,
 		FullNode:   resp.Ack.FullNode,
 	}, nil
 }
@@ -262,7 +262,7 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 			ObservedUnderlay: fullRemoteMABytes,
 		},
 		Ack: &pb.Ack{
-			Address: &pb.MopAddress{
+			Address: &pb.BzzAddress{
 				Underlay:  advertisableUnderlayBytes,
 				Overlay:   mopAddress.Overlay.Bytes(),
 				Signature: mopAddress.Signature,
@@ -297,18 +297,18 @@ func (s *Service) Handle(ctx context.Context, stream p2p.Stream, remoteMultiaddr
 		}
 	}
 
-	remoteMopAddress, err := s.parseCheckAck(&ack)
+	remoteBzzAddress, err := s.parseCheckAck(&ack)
 	if err != nil {
 		return nil, err
 	}
 
-	loggerV1.Debug("handshake finished for peer (inbound)", "peer_address", remoteMopAddress.Overlay)
+	loggerV1.Debug("handshake finished for peer (inbound)", "peer_address", remoteBzzAddress.Overlay)
 	if len(ack.WelcomeMessage) > 0 {
-		loggerV1.Debug("greeting message from peer", "peer_address", remoteMopAddress.Overlay, "message", ack.WelcomeMessage)
+		loggerV1.Debug("greeting message from peer", "peer_address", remoteBzzAddress.Overlay, "message", ack.WelcomeMessage)
 	}
 
 	return &Info{
-		MopAddress: remoteMopAddress,
+		BzzAddress: remoteBzzAddress,
 		FullNode:   ack.FullNode,
 	}, nil
 }

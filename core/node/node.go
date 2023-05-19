@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/quic-go/quic-go"
 	"io"
 	stdlog "log"
 	"math"
@@ -24,7 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go/http3"
 
 	"github.com/redesblock/mop/core/incentives/pledge"
 	"github.com/redesblock/mop/core/incentives/reward"
@@ -417,12 +418,10 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 				ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
 			}
 			quicServer := http3.Server{
-				Server: apiServer,
+				Handler:    apiServer.Handler,
+				Addr:       apiServer.Addr,
+				QuicConfig: &quic.Config{},
 			}
-			apiServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				quicServer.SetQuicHeaders(w.Header())
-				apiService.ServeHTTP(w, r)
-			})
 
 			apiListener, err := net.Listen("tcp", apiAddr)
 			if err != nil {
@@ -1137,7 +1136,9 @@ func NewMop(interrupt chan struct{}, sysInterrupt chan os.Signal, addr string, p
 					ErrorLog:          stdlog.New(b.errorLogWriter, "", 0),
 				}
 				quicServer := http3.Server{
-					Server: apiServer,
+					Handler:    apiServer.Handler,
+					Addr:       apiServer.Addr,
+					QuicConfig: &quic.Config{},
 				}
 				apiServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					quicServer.SetQuicHeaders(w.Header())

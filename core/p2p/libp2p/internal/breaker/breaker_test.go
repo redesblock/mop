@@ -9,6 +9,8 @@ import (
 )
 
 func TestExecute(t *testing.T) {
+	t.Parallel()
+
 	testErr := errors.New("test error")
 	shouldNotBeCalledErr := errors.New("should not be called")
 	failInterval := 10 * time.Minute
@@ -67,7 +69,10 @@ func TestExecute(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
+		tc := tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			ctMock := &currentTimeMock{
 				times: tc.times,
 			}
@@ -80,12 +85,12 @@ func TestExecute(t *testing.T) {
 
 			for i := 0; i < tc.iterations; i++ {
 				if err := b.Execute(func() error {
-					if tc.ferrors[i] == shouldNotBeCalledErr {
+					if errors.Is(tc.ferrors[i], shouldNotBeCalledErr) {
 						t.Fatal(tc.ferrors[i])
 					}
 
 					return tc.ferrors[i]
-				}); err != tc.expectedErrs[i] {
+				}); !errors.Is(err, tc.expectedErrs[i]) {
 					t.Fatalf("expected err: %s, got: %s, iteration %v", tc.expectedErrs[i], err, i)
 				}
 			}
@@ -94,6 +99,8 @@ func TestExecute(t *testing.T) {
 }
 
 func TestClosedUntil(t *testing.T) {
+	t.Parallel()
+
 	timestamp := time.Now()
 	startBackoff := 1 * time.Minute
 	testError := errors.New("test error")
@@ -113,7 +120,7 @@ func TestClosedUntil(t *testing.T) {
 
 	if err := b.Execute(func() error {
 		return testError
-	}); err != testError {
+	}); !errors.Is(err, testError) {
 		t.Fatalf("expected nil got %s", err)
 	}
 

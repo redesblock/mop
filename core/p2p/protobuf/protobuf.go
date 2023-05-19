@@ -10,7 +10,7 @@ import (
 	"github.com/redesblock/mop/core/p2p"
 )
 
-const delimitedReaderMaxSize = 32 * 128 * 1024 // max message size
+const delimitedReaderMaxSize = 128 * 1024 // max message size
 
 var ErrTimeout = errors.New("timeout")
 
@@ -33,7 +33,7 @@ func ReadMessages(r io.Reader, newMessage func() Message) (m []Message, err erro
 	for {
 		msg := newMessage()
 		if err := pr.ReadMsg(msg); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err

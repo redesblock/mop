@@ -6,8 +6,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/libp2p/go-libp2p-core/network"
-	libp2ppeer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/network"
+	libp2ppeer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/redesblock/mop/core/cluster"
 	"github.com/redesblock/mop/core/p2p"

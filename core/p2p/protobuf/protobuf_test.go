@@ -2,6 +2,7 @@ package protobuf_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -13,6 +14,8 @@ import (
 )
 
 func TestReader_ReadMsg(t *testing.T) {
+	t.Parallel()
+
 	messages := []string{"first", "second", "third"}
 
 	for _, tc := range []struct {
@@ -37,13 +40,16 @@ func TestReader_ReadMsg(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			r := tc.readerFunc()
 			var msg pb.Message
 			for i := 0; i < len(messages); i++ {
 				err := r.ReadMsg(&msg)
 				if i == len(messages) {
-					if err != io.EOF {
+					if !errors.Is(err, io.EOF) {
 						t.Fatalf("got error %v, want %v", err, io.EOF)
 					}
 					break
@@ -62,6 +68,8 @@ func TestReader_ReadMsg(t *testing.T) {
 }
 
 func TestReader_timeout(t *testing.T) {
+	t.Parallel()
+
 	messages := []string{"first", "second", "third"}
 
 	for _, tc := range []struct {
@@ -86,8 +94,13 @@ func TestReader_timeout(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			t.Run("WithContext", func(t *testing.T) {
+				t.Parallel()
+
 				r := tc.readerFunc()
 				var msg pb.Message
 				for i := 0; i < len(messages); i++ {
@@ -102,10 +115,11 @@ func TestReader_timeout(t *testing.T) {
 					err := r.ReadMsgWithContext(ctx, &msg)
 					if i == 0 {
 						if err != nil {
+							t.Parallel()
 							t.Fatal(err)
 						}
 					} else {
-						if err != context.DeadlineExceeded {
+						if !errors.Is(err, context.DeadlineExceeded) {
 							t.Fatalf("got error %v, want %v", err, context.DeadlineExceeded)
 						}
 						break
@@ -122,6 +136,8 @@ func TestReader_timeout(t *testing.T) {
 }
 
 func TestWriter(t *testing.T) {
+	t.Parallel()
+
 	messages := []string{"first", "second", "third"}
 
 	for _, tc := range []struct {
@@ -144,7 +160,10 @@ func TestWriter(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			w, msgs := tc.writerFunc()
 
 			for _, m := range messages {
@@ -185,8 +204,11 @@ func TestWriter_timeout(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run("WithContext", func(t *testing.T) {
+				t.Parallel()
+
 				w, msgs := tc.writerFunc()
 
 				for i, m := range messages {
@@ -206,7 +228,7 @@ func TestWriter_timeout(t *testing.T) {
 							t.Fatal(err)
 						}
 					} else {
-						if err != context.DeadlineExceeded {
+						if !errors.Is(err, context.DeadlineExceeded) {
 							t.Fatalf("got error %v, want %v", err, context.DeadlineExceeded)
 						}
 						break
@@ -221,6 +243,8 @@ func TestWriter_timeout(t *testing.T) {
 }
 
 func TestReadMessages(t *testing.T) {
+	t.Parallel()
+
 	messages := []string{"first", "second", "third"}
 
 	r := newMessageReader(messages, 0)
@@ -230,7 +254,7 @@ func TestReadMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var gotMessages []string
+	gotMessages := make([]string, 0, len(got))
 	for _, m := range got {
 		gotMessages = append(gotMessages, m.(*pb.Message).Text)
 	}
@@ -272,7 +296,7 @@ func newMessageWriter(delay time.Duration) (w io.Writer, messages <-chan string)
 		for {
 			err := r.ReadMsg(&msg)
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return
 				}
 				panic(err)

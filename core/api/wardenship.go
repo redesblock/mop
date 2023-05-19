@@ -10,7 +10,8 @@ import (
 	"github.com/redesblock/mop/core/api/jsonhttp"
 )
 
-//  wardenshipPutHandler re-uploads root hash and all of its underlying
+//	wardenshipPutHandler re-uploads root hash and all of its underlying
+//
 // associated chunks to the network.
 func (s *Service) wardenshipPutHandler(w http.ResponseWriter, r *http.Request) {
 	nameOrHex := mux.Vars(r)["address"]

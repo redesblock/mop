@@ -1,3 +1,7 @@
+// Copyright 2020 The Swarm Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 syntax = "proto3";
 
 package handshake;
@@ -9,7 +13,7 @@ message Syn {
 }
 
 message Ack {
-    MopAddress Address = 1;
+    BzzAddress Address = 1;
     uint64 NetworkID = 2;
     bool FullNode = 3;
     bytes Nonce = 4;
@@ -21,7 +25,7 @@ message SynAck {
     Ack Ack = 2;
 }
 
-message MopAddress {
+message BzzAddress {
     bytes Underlay = 1;
     bytes Signature = 2;
     bytes Overlay = 3;

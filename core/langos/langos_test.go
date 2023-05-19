@@ -154,10 +154,10 @@ func testReadCount(t *testing.T, cr *counterReader, want int) {
 // BenchmarkDelayedReaders performs benchmarks on reader with deterministic and random
 // delays on every Read method call. Function ioutil.ReadAll is used for reading.
 //
-//  - direct: a baseline on plain reader
-//  - buffered: reading through bufio.Reader
-//  - langos: reading through regular langos
-//  - bufferd langos: reading through buffered langos
+//   - direct: a baseline on plain reader
+//   - buffered: reading through bufio.Reader
+//   - langos: reading through regular langos
+//   - bufferd langos: reading through buffered langos
 //
 // goos: darwin
 // goarch: amd64
