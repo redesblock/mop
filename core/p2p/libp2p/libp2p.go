@@ -1112,7 +1112,7 @@ func appendSpace(s string) string {
 
 // userAgent returns a User Agent string passed to the libp2p host to identify peer node.
 func userAgent() string {
-	return fmt.Sprintf("bee/%s %s %s/%s", ver.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("mop/%s %s %s/%s", ver.Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }
 
 func newConnMetricNotify(m metrics) *connectionNotifier {

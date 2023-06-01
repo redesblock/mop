@@ -1,5 +1,5 @@
 // Package p2p provides the peer-to-peer abstractions used
-// across different protocols in Bee.
+// across different protocols in node.
 package p2p
 
 import (
@@ -142,7 +142,7 @@ type StreamerDisconnecter interface {
 	Disconnecter
 }
 
-// Pinger interface is used to ping a underlay address which is not yet known to the bee node.
+// Pinger interface is used to ping a underlay address which is not yet known to the node.
 // It uses libp2p's default ping protocol. This is different from the PingPong protocol as this
 // is meant to be used before we know a particular underlay and we can consider it useful
 type Pinger interface {
