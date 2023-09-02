@@ -18,8 +18,8 @@ sudo dpkg -i mop_0.9.1_amd64.deb
 - CentOS
 
 ```shell
-wget https://github.com/redesblock/mop/releases/download/v0.9.1/bee_0.9.1_amd64.rpm
-sudo rpm -i bee_0.9.1_amd64.rpm
+wget https://github.com/redesblock/mop/releases/download/v0.9.1/mop_0.9.1_amd64.rpm
+sudo rpm -i mop_0.9.1_amd64.rpm
 ```
 
 -  MacOS
